@@ -1,0 +1,95 @@
+{
+  "num_lanes": 4,
+  "num_bands": 2,
+  "image_size": [
+    400,
+    400
+  ],
+  "lane_centers": [
+    65,
+    155,
+    245,
+    335
+  ],
+  "band_y_positions": [
+    60,
+    340
+  ],
+  "band_intensities": [
+    [
+      0.618,
+      0.555
+    ],
+    [
+      0.332,
+      0.311
+    ],
+    [
+      0.306,
+      0.687
+    ],
+    [
+      0.754,
+      0.366
+    ]
+  ],
+  "bands": [
+    {
+      "lane": 0,
+      "band": 0,
+      "center_y": 62,
+      "center_x": 67,
+      "intensity": 0.618
+    },
+    {
+      "lane": 0,
+      "band": 1,
+      "center_y": 338,
+      "center_x": 64,
+      "intensity": 0.555
+    },
+    {
+      "lane": 1,
+      "band": 0,
+      "center_y": 59,
+      "center_x": 156,
+      "intensity": 0.332
+    },
+    {
+      "lane": 1,
+      "band": 1,
+      "center_y": 342,
+      "center_x": 154,
+      "intensity": 0.311
+    },
+    {
+      "lane": 2,
+      "band": 0,
+      "center_y": 62,
+      "center_x": 244,
+      "intensity": 0.306
+    },
+    {
+      "lane": 2,
+      "band": 1,
+      "center_y": 337,
+      "center_x": 245,
+      "intensity": 0.687
+    },
+    {
+      "lane": 3,
+      "band": 0,
+      "center_y": 58,
+      "center_x": 335,
+      "intensity": 0.754
+    },
+    {
+      "lane": 3,
+      "band": 1,
+      "center_y": 338,
+      "center_x": 336,
+      "intensity": 0.366
+    }
+  ],
+  "noise_level": 0.03
+}

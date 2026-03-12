@@ -1,0 +1,182 @@
+{
+  "num_lanes": 6,
+  "num_bands": 3,
+  "image_size": [
+    400,
+    600
+  ],
+  "lane_centers": [
+    75,
+    165,
+    255,
+    345,
+    435,
+    525
+  ],
+  "band_y_positions": [
+    60,
+    200,
+    340
+  ],
+  "band_intensities": [
+    [
+      0.627,
+      0.594,
+      0.636
+    ],
+    [
+      0.618,
+      0.257,
+      0.785
+    ],
+    [
+      0.657,
+      0.672,
+      0.277
+    ],
+    [
+      0.47,
+      0.422,
+      0.756
+    ],
+    [
+      0.586,
+      0.694,
+      0.466
+    ],
+    [
+      0.336,
+      0.533,
+      0.238
+    ]
+  ],
+  "bands": [
+    {
+      "lane": 0,
+      "band": 0,
+      "center_y": 63,
+      "center_x": 77,
+      "intensity": 0.627
+    },
+    {
+      "lane": 0,
+      "band": 1,
+      "center_y": 201,
+      "center_x": 74,
+      "intensity": 0.594
+    },
+    {
+      "lane": 0,
+      "band": 2,
+      "center_y": 341,
+      "center_x": 76,
+      "intensity": 0.636
+    },
+    {
+      "lane": 1,
+      "band": 0,
+      "center_y": 60,
+      "center_x": 163,
+      "intensity": 0.618
+    },
+    {
+      "lane": 1,
+      "band": 1,
+      "center_y": 203,
+      "center_x": 166,
+      "intensity": 0.257
+    },
+    {
+      "lane": 1,
+      "band": 2,
+      "center_y": 343,
+      "center_x": 164,
+      "intensity": 0.785
+    },
+    {
+      "lane": 2,
+      "band": 0,
+      "center_y": 60,
+      "center_x": 253,
+      "intensity": 0.657
+    },
+    {
+      "lane": 2,
+      "band": 1,
+      "center_y": 200,
+      "center_x": 256,
+      "intensity": 0.672
+    },
+    {
+      "lane": 2,
+      "band": 2,
+      "center_y": 341,
+      "center_x": 256,
+      "intensity": 0.277
+    },
+    {
+      "lane": 3,
+      "band": 0,
+      "center_y": 60,
+      "center_x": 347,
+      "intensity": 0.47
+    },
+    {
+      "lane": 3,
+      "band": 1,
+      "center_y": 198,
+      "center_x": 346,
+      "intensity": 0.422
+    },
+    {
+      "lane": 3,
+      "band": 2,
+      "center_y": 342,
+      "center_x": 343,
+      "intensity": 0.756
+    },
+    {
+      "lane": 4,
+      "band": 0,
+      "center_y": 60,
+      "center_x": 436,
+      "intensity": 0.586
+    },
+    {
+      "lane": 4,
+      "band": 1,
+      "center_y": 200,
+      "center_x": 435,
+      "intensity": 0.694
+    },
+    {
+      "lane": 4,
+      "band": 2,
+      "center_y": 340,
+      "center_x": 436,
+      "intensity": 0.466
+    },
+    {
+      "lane": 5,
+      "band": 0,
+      "center_y": 57,
+      "center_x": 526,
+      "intensity": 0.336
+    },
+    {
+      "lane": 5,
+      "band": 1,
+      "center_y": 197,
+      "center_x": 525,
+      "intensity": 0.533
+    },
+    {
+      "lane": 5,
+      "band": 2,
+      "center_y": 339,
+      "center_x": 525,
+      "intensity": 0.238
+    }
+  ],
+  "noise_level": 0.03
+}

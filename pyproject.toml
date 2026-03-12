@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biopro"
+version = "0.1.0"
+description = "An open-source, intuitive bio-image analysis tool — a modern alternative to ImageJ"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "BioPro Contributors" },
+]
+keywords = ["biology", "image-analysis", "western-blot", "densitometry", "gel-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "PyQt6>=6.6",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "scikit-image>=0.22",
+    "opencv-python-headless>=4.9",
+    "matplotlib>=3.8",
+    "pandas>=2.1",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-qt>=4.3",
+    "ruff>=0.3",
+]
+
+[project.scripts]
+biopro = "biopro.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/BioPro/biopro"
+Documentation = "https://github.com/BioPro/biopro#readme"
+Repository = "https://github.com/BioPro/biopro"
+Issues = "https://github.com/BioPro/biopro/issues"
+
+[tool.setuptools.packages.find]
+include = ["biopro*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "D", "UP", "B", "SIM"]
+ignore = ["D100", "D104"]
+
+[tool.ruff.lint.pydocstring-convention]
+convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
