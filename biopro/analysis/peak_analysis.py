@@ -207,15 +207,16 @@ def orient_profile_for_bands(
     """Orient a lane profile so that bands become positive peaks.
 
     Many real images may arrive in either polarity:
-        - Bands as bright peaks above background.
-        - Bands as dark valleys below background.
+        - Bands as dark valleys below background (standard western blot:
+          dark bands on white background).
+        - Bands as bright peaks above background (fluorescent / inverted).
 
     This helper inspects the profile relative to its baseline and decides
     whether the dominant band-like structure is above or below the baseline.
     It then returns:
         - ``corrected``: Non-negative signal where bands are positive peaks.
-        - ``display_profile``: A profile aligned with this convention that can
-          be plotted directly (bands appear as peaks).
+        - ``display_profile``: baseline + corrected, suitable for plotting
+          (bands always appear as upward peaks).
         - ``valleys_as_bands``: True if the original bands were valleys.
     """
     smoothed = np.asarray(smoothed, dtype=np.float64)
@@ -224,37 +225,32 @@ def orient_profile_for_bands(
     if smoothed.shape != baseline.shape:
         raise ValueError("smoothed and baseline must have the same shape")
 
-    delta = smoothed - baseline
+    delta = smoothed - baseline  # positive above baseline, negative at valleys
 
     if force_valleys_as_bands is not None:
-        valleys_as_bands = force_valleys_as_bands
+        valleys_as_bands = bool(force_valleys_as_bands)
     else:
-        # Robustly compare positive excursions vs negative dips.
-        # Use percentiles to ignore small noise/spikes.
-        pos_signal = delta[delta > 0]
-        neg_signal = -delta[delta < 0]
+        # Compare the single strongest excursion in each direction.
+        # For a dark-on-white western blot the rolling-ball baseline tracks
+        # the bright background, so bands appear as the deepest valleys.
+        # A single real band is enough to flip the orientation correctly —
+        # no need to compare energies which can miss narrow bands.
+        max_pos = float(np.max(delta))    # highest peak above baseline
+        max_neg = float(-np.min(delta))   # deepest valley below baseline
 
-        # Use 95th percentile to get a robust estimate of "peak" height
-        pos_intensity = float(np.percentile(pos_signal, 95)) if pos_signal.size > 10 else (float(np.max(pos_signal)) if pos_signal.size else 0.0)
-        neg_intensity = float(np.percentile(neg_signal, 95)) if neg_signal.size > 10 else (float(np.max(neg_signal)) if neg_signal.size else 0.0)
-
-        # Heuristic: if valleys are deeper/more prominent than peaks,
-        # treat valleys as the true bands.
-        # We also check the total "energy" (sum of squares) of excursions.
-        pos_energy = float(np.sum(pos_signal**2))
-        neg_energy = float(np.sum(neg_signal**2))
-
-        valleys_as_bands = bool((neg_intensity > pos_intensity * 1.1 and neg_energy > pos_energy) or 
-                                (neg_intensity > pos_intensity * 1.5))
+        # If the deepest valley is at least 80% as prominent as the tallest
+        # peak, treat valleys as bands.  The 0.8 margin prevents flipping
+        # for nearly symmetric noise while catching real dark bands reliably.
+        valleys_as_bands = max_neg >= max_pos * 0.8
 
     if valleys_as_bands:
-        signal = -delta  # valleys below baseline → positive peaks
+        signal = -delta   # valleys become positive peaks
     else:
         signal = delta
 
     corrected = np.maximum(signal, 0.0)
 
-    # Build a profile suitable for plotting where bands appear as peaks.
+    # display_profile: baseline + corrected — bands always appear as peaks
     display_profile = baseline + corrected
 
     return corrected, display_profile, valleys_as_bands
@@ -485,7 +481,7 @@ def analyze_lane(
             from rotation/cropping artifacts at the image edges. Default 5.
 
     Returns:
-        Tuple of (profile, baseline, detected_bands).
+        Tuple of (display_profile, baseline, detected_bands, valleys_as_bands).
     """
     lane_height = y_end - y_start
 
@@ -608,6 +604,6 @@ def analyze_lane(
             )
         )
 
-    # Return the oriented profile so that downstream consumers (plots, etc.)
-    # see bands as peaks regardless of original polarity.
+    # Return the oriented display_profile so downstream consumers (plots, etc.)
+    # see bands as peaks regardless of original image polarity.
     return display_profile, baseline, bands, valleys_as_bands

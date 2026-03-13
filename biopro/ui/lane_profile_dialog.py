@@ -90,8 +90,12 @@ class LaneProfileDialog(QDialog):
         controls_layout.addWidget(self.btn_close)
         
         layout.addLayout(controls_layout)
-        
-        layout.addWidget(QLabel("<i>Drag on the plot to manually select a band region. Left-click to snap to peak. Right-click on a peak marker to remove.</i>"))
+
+        # Fix #4: Use a proper wrapping label for the hint
+        hint_lbl = QLabel("Drag on the plot to manually add a band region. Left-click to snap to nearest peak. Right-click on a marker to remove it.")
+        hint_lbl.setWordWrap(True)
+        hint_lbl.setStyleSheet("color: #8b949e; font-style: italic; padding: 2px 0;")
+        layout.addWidget(hint_lbl)
 
         # Matplotlib Figure
         self.figure = Figure(figsize=(8, 5))
@@ -101,23 +105,30 @@ class LaneProfileDialog(QDialog):
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
 
-        # Connect Matplotlib events
+        # Track whether the NavigationToolbar is in a zoom/pan mode so we
+        # can disable span-selection while the user is panning/zooming.
+        self._nav_mode_active = False
+        # Watch toolbar mode changes so SpanSelector is suppressed during pan/zoom
         self.canvas.mpl_connect("motion_notify_event", self._on_mouse_move)
-        # Mouse click still works for snapping and removal
-        self.canvas.mpl_connect("button_press_event", self._on_mouse_click)
         self.canvas.mpl_connect("axes_leave_event", self._on_mouse_leave)
+        # Fix #3: Use button_release instead of button_press so the SpanSelector
+        # drag completes before we decide whether it was a click vs drag.
+        self.canvas.mpl_connect("button_release_event", self._on_mouse_release)
 
-        # Implementation of SpanSelector for drag selection
-        # We'll initialize it in _update_plot because it needs the axis
+        # SpanSelector is initialised in _update_plot (needs axes reference)
         self.span_selector = None
+        self._drag_active = False   # True while user is dragging a span
 
     def _on_mouse_move(self, event) -> None:
         """Handle mouse hover to trigger profile_hovered signal."""
         if getattr(self, "combo_lane", None) is None:
             return
-            
+
+        # Mark that the user is dragging if a button is held down
+        if event.button is not None and event.button != 0:
+            self._drag_active = True
+
         if event.inaxes:
-            # event.xdata is the position in the lane
             idx = self.combo_lane.currentIndex()
             if idx >= 0:
                 self.profile_hovered.emit(idx, float(event.xdata))
@@ -131,22 +142,42 @@ class LaneProfileDialog(QDialog):
             
         idx = self.combo_lane.currentIndex()
         if idx >= 0:
-            # Emit -1 to indicate leaving
             self.profile_hovered.emit(idx, -1.0)
 
-    def _on_mouse_click(self, event) -> None:
-        """Handle mouse click and emit profile_clicked or profile_band_removed signal."""
+    def _on_mouse_release(self, event) -> None:
+        """Handle mouse release — emit click only if not a drag operation.
+        
+        Fix #3: Using release instead of press so the SpanSelector finishes
+        its drag before we decide whether to treat the action as a point-click.
+        """
         if not event.inaxes:
-            return
-            
-        idx = self.combo_lane.currentIndex()
-        if idx < 0:
+            self._drag_active = False
             return
 
-        # Left click: Add/Snap band
+        idx = self.combo_lane.currentIndex()
+        if idx < 0:
+            self._drag_active = False
+            return
+
+        # If a span drag was in progress, let SpanSelector handle it; don't
+        # also fire a point-click.
+        if self._drag_active:
+            self._drag_active = False
+            return
+
+        # Left click: snap to nearest peak
         if event.button == 1:
+            # Suppress click while toolbar pan/zoom is active
+            try:
+                mode = self.toolbar.mode
+                if hasattr(mode, 'name'):
+                    mode = mode.name
+                if str(mode) not in ("", "NONE"):
+                    return
+            except Exception:
+                pass
             self.profile_clicked.emit(idx, float(event.xdata))
-        # Right click: Remove band
+        # Right click: remove band near cursor
         elif event.button == 3:
             self.profile_band_removed.emit(idx, float(event.xdata))
 
@@ -202,69 +233,85 @@ class LaneProfileDialog(QDialog):
                     ha='center', va='center', transform=ax.transAxes)
             self.canvas.draw()
             return
-            
-        profile = self.state.profiles[idx]
-        baseline = self.state.baselines[idx] if self.state.baselines else None
+
+        # state.profiles already stores the oriented display_profile from
+        # analyze_lane — bands are always positive peaks regardless of
+        # original image polarity. Plot it directly, no re-flipping needed.
+        display_profile = np.asarray(self.state.profiles[idx], dtype=np.float64)
+        baseline = np.asarray(self.state.baselines[idx], dtype=np.float64) if self.state.baselines else None
+
+        valleys_as_bands = False
+        if hasattr(self.state, "lane_orientations") and idx < len(self.state.lane_orientations):
+            valleys_as_bands = bool(self.state.lane_orientations[idx])
+
+        x = np.arange(len(display_profile))
+        ax.plot(x, display_profile, label="Density Profile", color="#2c3e50", linewidth=1.5)
         
-        # Plot profile
-        x = np.arange(len(profile))
-        ax.plot(x, profile, label="Raw Density", color="#2c3e50", linewidth=1.5)
-        
-        # Plot baseline if available
         if baseline is not None:
             ax.plot(x, baseline, label="Estimated Baseline", color="#e74c3c", linestyle="--", linewidth=1.5)
-            # Shade area under the curve
-            ax.fill_between(x, baseline, profile, where=(profile > baseline), 
+            ax.fill_between(x, baseline, display_profile,
+                            where=(display_profile > baseline),
                             color="#3498db", alpha=0.3, label="Band Area")
                             
-        # Plot detected bands for this lane
+        # Band markers — positions are in display_profile space (bands=peaks)
         lane_bands = [b for b in self.state.bands if b.lane_index == idx]
         for b in lane_bands:
-            # Mark the peak position
-            y_val = profile[int(b.position)] if 0 <= int(b.position) < len(profile) else b.raw_height
-            ax.plot(b.position, y_val, marker="v", color="#f39c12", markersize=8)
-            
-            # Show approximate integration bounds based on width
+            pos = int(b.position)
+            y_val = display_profile[pos] if 0 <= pos < len(display_profile) else b.raw_height
+            ax.plot(pos, y_val, marker="^", color="#f39c12", markersize=9,
+                    zorder=5, markeredgecolor="#c0392b", markeredgewidth=0.8)
             if b.width > 0:
                 half_w = b.width / 2.0
                 left = max(0, b.position - half_w)
-                right = min(len(profile) - 1, b.position + half_w)
+                right = min(len(display_profile) - 1, b.position + half_w)
                 ax.axvspan(left, right, color="#f1c40f", alpha=0.2)
                 
-        ax.set_title(f"Density Profile - Lane {idx + 1}")
+        title_suffix = " [Flipped — valleys treated as bands]" if valleys_as_bands else ""
+        ax.set_title(f"Density Profile — Lane {idx + 1}{title_suffix}")
         ax.set_xlabel("Vertical Position (pixels)")
         ax.set_ylabel("Intensity")
         
-        # Invert x-axis so it matches the top-to-bottom image convention
-        # (Pixel 0 is at the top of the image)
-        ax.set_xlim(len(profile) - 1, 0)
+        # Pixel 0 is at the top of the gel image
+        ax.set_xlim(len(display_profile) - 1, 0)
         
         ax.grid(True, linestyle=":", alpha=0.6)
         if baseline is not None or lane_bands:
-            ax.legend()
+            ax.legend(fontsize=8)
             
-        # Re-initialize SpanSelector
         self.span_selector = SpanSelector(
             ax,
             self._on_span_select,
             "horizontal",
             useblit=True,
             props=dict(alpha=0.3, facecolor="#f1c40f"),
-            interactive=True,
-            drag_from_anywhere=True,
+            interactive=False,
+            drag_from_anywhere=False,
         )
+        self._drag_active = False
             
         self.figure.tight_layout()
         self.canvas.draw()
         
     def _on_span_select(self, xmin, xmax):
-        """Handle range selection via SpanSelector."""
+        """Handle range selection via SpanSelector.
+        
+        Fix #3: The x-axis is inverted (decreasing left-to-right) so xmin/xmax
+        from SpanSelector may be swapped relative to pixel coordinates.
+        Always normalize so start <= end in pixel space.
+        """
+        # Mark this event as a drag so the button_release handler won't also
+        # fire a point-click for the same mouse action.
+        self._drag_active = True
+
         idx = self.combo_lane.currentIndex()
         if idx < 0:
             return
             
-        # Only proceed if range is meaningful
-        if abs(xmax - xmin) < 2:
+        # Normalize — pixel coords must be ascending
+        lo, hi = min(xmin, xmax), max(xmin, xmax)
+
+        # Only proceed if range is meaningful (at least 3 pixels wide)
+        if hi - lo < 3:
             return
             
-        self.profile_range_selected.emit(idx, float(xmin), float(xmax))
+        self.profile_range_selected.emit(idx, float(lo), float(hi))
