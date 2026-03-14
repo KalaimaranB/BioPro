@@ -304,27 +304,34 @@ def detect_peaks(
 def rolling_ball_baseline(
     profile: NDArray[np.float64],
     radius: int = 50,
+    mode: str = "floor",
 ) -> NDArray[np.float64]:
     """Estimate the baseline using the rolling ball algorithm.
 
-    The rolling ball baseline is computed by applying a minimum filter
-    (simulating a ball rolling under the profile) followed by smoothing.
+    For images where bands are bright peaks (fluorescent), use mode='floor'
+    (ball rolls under the curve, finding background minima).
+
+    For images where bands are dark valleys (standard western blot), use
+    mode='ceiling' (ball rolls over the curve, finding background maxima).
 
     Args:
         profile: 1-D intensity profile.
-        radius: Radius of the rolling ball in pixels. Larger values
-            produce a smoother, lower baseline. Should be significantly
-            larger than the widest expected peak.
+        radius: Radius of the rolling ball in pixels.
+        mode: 'floor' (minimum filter) or 'ceiling' (maximum filter).
 
     Returns:
         Estimated baseline profile, same length as input.
     """
-    # Minimum filter simulates ball rolling under the curve
-    baseline = minimum_filter1d(profile, size=2 * radius + 1)
+    from scipy.ndimage import maximum_filter1d
+    size = 2 * radius + 1
+    if mode == "ceiling":
+        # Ball rolls on top: baseline = local maximum (background for dark bands)
+        baseline = maximum_filter1d(profile, size=size)
+    else:
+        # Ball rolls underneath: baseline = local minimum (background for bright bands)
+        baseline = minimum_filter1d(profile, size=size)
 
-    # Smooth the result to avoid sharp transitions
     baseline = uniform_filter1d(baseline, size=radius)
-
     return baseline
 
 
@@ -503,13 +510,23 @@ def analyze_lane(
     # Step 2: Smooth profile lightly to reduce pixel noise
     smoothed = uniform_filter1d(profile, size=3)
 
-    # Step 3: Estimate baseline on the smoothed profile
+    # Auto-compute baseline radius when 0 (Auto) is passed.
+    # Must be larger than the widest band so the ball rolls over bands, not into them.
+    # 40% of lane height is a robust default for typical western blots.
+    if baseline_radius <= 0:
+        baseline_radius = int(np.clip(lane_height * 0.40, 15, 300))
+
+    # For dark-on-white blots, bands are valleys so we need a CEILING baseline
+    # (maximum filter) — the ball rolls on top of the profile, tracking the
+    # bright background while passing over dark band valleys.
+    # For bright-peak blots, use the standard FLOOR baseline (minimum filter).
+    is_valleys = force_valleys_as_bands if force_valleys_as_bands is not None else True
+    baseline_mode = "ceiling" if is_valleys else "floor"
+
     if baseline_method == "rolling_ball":
-        baseline = rolling_ball_baseline(smoothed, radius=baseline_radius)
+        baseline = rolling_ball_baseline(smoothed, radius=baseline_radius, mode=baseline_mode)
     elif baseline_method == "linear":
-        # For linear baseline, we need a first-pass peak detection
-        # Use rolling ball as initial estimate, then refine
-        baseline = rolling_ball_baseline(smoothed, radius=baseline_radius)
+        baseline = rolling_ball_baseline(smoothed, radius=baseline_radius, mode=baseline_mode)
     else:
         raise ValueError(
             f"Unknown baseline method '{baseline_method}'. "
@@ -528,11 +545,13 @@ def analyze_lane(
     mad = float(np.median(np.abs(residual - np.median(residual))))
     noise = max(mad * 1.4826, 1e-6)
 
-    # Step 6: Adaptive peak height threshold
-    # Use the higher of: user-specified min_height, or noise * min_snr
+    # Step 6: Adaptive peak height threshold.
+    # For valley-type blots (dark on white) the corrected signal magnitude is
+    # the depth of the valley, which can be small relative to the absolute
+    # scale of [0,1]. Use a lower floor so faint bands aren't missed.
     adaptive_height = max(min_peak_height, noise * min_snr)
 
-    # Adaptive prominence: must stand out by at least 2x noise
+    # Adaptive prominence: must stand out from local surroundings
     adaptive_prominence = max(0.005, noise * 1.5)
 
     # Step 7: Detect peaks on the corrected signal

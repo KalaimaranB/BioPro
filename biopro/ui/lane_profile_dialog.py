@@ -78,8 +78,11 @@ class LaneProfileDialog(QDialog):
         
         controls_layout.addSpacing(20)
         
-        self.check_flip = QCheckBox("Flip Peaks/Valleys")
-        self.check_flip.setToolTip("Force bands to be treated as valleys instead of peaks (or vice versa)")
+        self.check_flip = QCheckBox("Invert (bands are bright peaks)")
+        self.check_flip.setToolTip(
+            "By default bands are detected as dark valleys (standard dark-on-white blot).\n"
+            "Check this if your bands are bright on a dark background (e.g. fluorescent)."
+        )
         self.check_flip.toggled.connect(self._on_flip_toggled)
         controls_layout.addWidget(self.check_flip)
         
@@ -182,30 +185,37 @@ class LaneProfileDialog(QDialog):
             self.profile_band_removed.emit(idx, float(event.xdata))
 
     def _on_flip_toggled(self, checked: bool) -> None:
-        """Handle profile orientation flip."""
+        """Handle profile orientation flip.
+        
+        Unchecked (default) = dark valleys are bands (dark-on-white blot).
+        Checked = bright peaks are bands (fluorescent / inverted blot).
+        """
         idx = self.combo_lane.currentIndex()
         if idx < 0:
             return
-            
-        self._force_valleys = checked
-        self.orientation_changed.emit(idx, checked)
+        # checked=True means user says bands are peaks → force_valleys_as_bands=False
+        force_valleys = not checked
+        self._force_valleys = force_valleys
+        self.orientation_changed.emit(idx, force_valleys)
 
     def _on_lane_changed(self, idx: int) -> None:
         """Update UI state when a different lane is selected."""
         if idx < 0:
             return
             
-        # Update flip checkbox state from analyzer state
+        # Update flip checkbox: unchecked = valleys (default dark-on-white),
+        # checked = peaks (fluorescent/inverted).
         if hasattr(self.state, "lane_orientations") and idx < len(self.state.lane_orientations):
+            valleys_as_bands = bool(self.state.lane_orientations[idx])
             self.check_flip.blockSignals(True)
-            self.check_flip.setChecked(self.state.lane_orientations[idx])
+            self.check_flip.setChecked(not valleys_as_bands)  # checked means peaks mode
             self.check_flip.blockSignals(False)
-            self._force_valleys = self.state.lane_orientations[idx]
+            self._force_valleys = valleys_as_bands
         else:
             self.check_flip.blockSignals(True)
-            self.check_flip.setChecked(False)
+            self.check_flip.setChecked(False)  # unchecked = valleys (default)
             self.check_flip.blockSignals(False)
-            self._force_valleys = False
+            self._force_valleys = True
             
         self._update_plot()
 

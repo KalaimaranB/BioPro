@@ -341,3 +341,201 @@ def crop_to_content(
     c_max = min(image.shape[1], col_indices[-1] + padding + 1)
 
     return image[r_min:r_max, c_min:c_max]
+
+
+def auto_contrast_stretch(
+    image: NDArray[np.float64],
+    low_pct: float = 1.0,
+    high_pct: float = 99.0,
+) -> tuple[float, float]:
+    """Compute optimal contrast alpha/beta by percentile stretching.
+
+    Finds the alpha (contrast) and beta (brightness offset) values that
+    stretch the meaningful pixel range to fill [0, 1], ignoring the
+    darkest ``low_pct``% and brightest ``high_pct``% as outliers.
+
+    Args:
+        image: Grayscale float64 image in [0.0, 1.0].
+        low_pct: Lower percentile to clip (outlier dark pixels).
+        high_pct: Upper percentile to clip (outlier bright pixels).
+
+    Returns:
+        Tuple of (alpha, beta) ready to pass to ``adjust_contrast``.
+    """
+    valid = image[image > 0.0] if np.any(image > 0.0) else image.ravel()
+    p_lo = float(np.percentile(valid, low_pct))
+    p_hi = float(np.percentile(valid, high_pct))
+
+    if p_hi <= p_lo:
+        return 1.0, 0.0
+
+    alpha = round(1.0 / (p_hi - p_lo), 3)
+    beta = round(-p_lo * alpha, 3)
+    alpha = float(np.clip(alpha, 0.1, 5.0))
+    beta = float(np.clip(beta, -1.0, 1.0))
+    return alpha, beta
+
+
+def auto_detect_rotation(
+    image: NDArray[np.float64],
+    angle_range: float = 15.0,
+    angle_step: float = 0.25,
+) -> float:
+    """Detect the tilt angle of horizontal bands in a western blot image.
+
+    Strategy:
+        1. Contrast-stretch so bands are visible.
+        2. Compute horizontal Sobel edges — band edges are strong
+           horizontal features.
+        3. Sweep candidate angles; pick the one that maximises the
+           variance of the vertical projection of the edge image.
+           When bands are perfectly horizontal each band collapses to
+           a sharp spike in the projection → variance is maximised.
+
+    Args:
+        image: Grayscale float64 image in [0.0, 1.0].
+        angle_range: Search ±angle_range degrees from zero.
+        angle_step: Angular resolution in degrees.
+
+    Returns:
+        Estimated correction angle in degrees (positive = counter-clockwise).
+        Returns 0.0 if no clear tilt is found.
+    """
+    from scipy.ndimage import sobel
+    from skimage.transform import rotate as sk_rotate
+
+    # Downsample for speed
+    h, w = image.shape[:2]
+    scale = min(1.0, 400.0 / max(h, w))
+    if scale < 1.0:
+        from skimage.transform import resize as sk_resize
+        small = sk_resize(image, (int(h * scale), int(w * scale)),
+                          anti_aliasing=True, preserve_range=True)
+    else:
+        small = image.copy()
+
+    # Contrast-stretch so faint bands become visible
+    alpha, beta = auto_contrast_stretch(small)
+    small = np.clip(small * alpha + beta, 0.0, 1.0)
+
+    # Invert: bands become bright peaks, easier for edge detection
+    small = 1.0 - small
+
+    # Horizontal Sobel edges — strong at top/bottom of horizontal bands
+    edges = np.abs(sobel(small, axis=0))
+
+    # Sweep angles, maximise projection variance
+    angles = np.arange(-angle_range, angle_range + angle_step, angle_step)
+    best_angle = 0.0
+    best_var = -1.0
+
+    for angle in angles:
+        if abs(angle) < 1e-3:
+            rotated = edges
+        else:
+            rotated = sk_rotate(edges, angle, resize=False,
+                                mode="constant", cval=0.0, preserve_range=True)
+        proj = rotated.sum(axis=1)
+        var = float(np.var(proj))
+        if var > best_var:
+            best_var = var
+            best_angle = float(angle)
+
+    if abs(best_angle) < angle_step:
+        return 0.0
+    return round(best_angle, 2)
+
+
+def auto_crop_to_bands(
+    image: NDArray[np.float64],
+    dark_threshold: float = 0.85,
+    min_band_width_frac: float = 0.3,
+    padding_frac: float = 0.08,
+) -> NDArray[np.float64]:
+    """Crop the image vertically to the region containing bands.
+
+    Finds rows where a significant fraction of pixels are darker than
+    ``dark_threshold`` (i.e. contain band content) and crops to that
+    vertical span plus a padding margin.
+
+    Works on dark-on-white images (bands are dark = low pixel value).
+
+    Args:
+        image: Grayscale float64 image in [0.0, 1.0].
+        dark_threshold: Pixels below this value are considered band content.
+        min_band_width_frac: A row is considered a "band row" only if
+            at least this fraction of its pixels are dark. Prevents
+            isolated dust/specs from expanding the crop region.
+        padding_frac: Fraction of the detected band height to add as
+            padding above and below the crop.
+
+    Returns:
+        Vertically cropped image. If no band content is found, the
+        original image is returned unchanged.
+    """
+    h, w = image.shape[:2]
+
+    # For each row, compute the fraction of pixels below threshold
+    dark_frac = np.mean(image < dark_threshold, axis=1)  # shape (h,)
+
+    band_rows = np.where(dark_frac >= min_band_width_frac)[0]
+
+    if len(band_rows) == 0:
+        return image  # nothing found — return original
+
+    r_min = int(band_rows[0])
+    r_max = int(band_rows[-1])
+
+    # Add padding
+    band_span = max(r_max - r_min, 1)
+    pad = int(band_span * padding_frac)
+    r_min = max(0, r_min - pad)
+    r_max = min(h, r_max + pad + 1)
+
+    return image[r_min:r_max, :]
+
+
+def calculate_autocrop_region(
+    image: NDArray[np.float64],
+    threshold: float = 0.95,
+    padding: int = 10,
+) -> Optional[tuple[int, int, int, int]]:
+    """Calculate the autocrop region without applying it.
+    
+    Returns the crop rectangle (x, y, width, height) that would be used
+    by crop_to_content, allowing for preview visualization.
+    
+    Args:
+        image: Grayscale float64 image in [0.0, 1.0].
+        threshold: Pixel values above this are considered background.
+        padding: Number of pixels to keep around the detected content.
+    
+    Returns:
+        Tuple of (x, y, width, height) defining the crop region,
+        or None if no content is detected.
+    """
+    # Find rows and columns with content (below threshold)
+    content_mask = image < threshold
+    
+    # Find bounding box of content
+    rows_with_content = np.any(content_mask, axis=1)
+    cols_with_content = np.any(content_mask, axis=0)
+    
+    if not np.any(rows_with_content) or not np.any(cols_with_content):
+        return None  # No content detected
+    
+    row_indices = np.where(rows_with_content)[0]
+    col_indices = np.where(cols_with_content)[0]
+    
+    r_min = max(0, row_indices[0] - padding)
+    r_max = min(image.shape[0], row_indices[-1] + padding + 1)
+    c_min = max(0, col_indices[0] - padding)
+    c_max = min(image.shape[1], col_indices[-1] + padding + 1)
+    
+    # Return (x, y, width, height)
+    return (
+        int(c_min),                    # x
+        int(r_min),                    # y
+        int(c_max - c_min),           # width
+        int(r_max - r_min),           # height
+    )

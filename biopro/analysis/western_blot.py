@@ -59,6 +59,7 @@ from biopro.analysis.lane_detection import LaneROI, detect_lanes_projection
 from biopro.analysis.peak_analysis import (
     DetectedBand,
     analyze_lane,
+    estimate_noise_level,
     extract_lane_profile,
     rolling_ball_baseline,
     orient_profile_for_bands,
@@ -91,6 +92,7 @@ class AnalysisState:
     image_path: Optional[Path] = None
     original_image: Optional[NDArray[np.float64]] = None
     processed_image: Optional[NDArray[np.float64]] = None
+    detection_image: Optional[NDArray[np.float64]] = None  # Enhanced image used for band detection
     is_inverted: bool = False
     rotation_angle: float = 0.0
     contrast_alpha: float = 1.0
@@ -330,7 +332,7 @@ class WesternBlotAnalyzer:
         edge_margin_percent: float = 5.0,
         baseline_method: str = "rolling_ball",
         baseline_radius: int = 50,
-        enhance_image: bool = True,
+        enhance_image: bool = False,
         clahe_clip_limit: float = 2.0,
         clahe_tile_grid_size: int = 8,
         denoise_median_ksize: int = 0,
@@ -384,14 +386,21 @@ class WesternBlotAnalyzer:
         """
         self._require_lanes("detect_bands")
 
+        # Default to valleys-as-bands for dark-on-white western blots.
+        # The user can override via force_valleys_as_bands=False if needed.
+        if force_valleys_as_bands is None:
+            force_valleys_as_bands = True
+
         image = self.state.processed_image
+
+        # NOTE: enhance_image (CLAHE) is intentionally NOT applied by default.
+        # CLAHE normalizes local contrast, which flattens the very intensity
+        # differences (band vs background) that valley detection relies on.
+        # Only apply if the caller explicitly requests it.
         if enhance_image:
-            # Heuristic default: if background correction isn't specified, pick a
-            # gentle value based on image size to flatten gradients.
             if background_kernel_size == 0:
                 h, w = image.shape[:2]
                 k = int(max(0, round(min(h, w) * 0.05)))
-                # Keep within sane bounds and ensure odd
                 k = max(0, min(k, 151))
                 if k % 2 == 0:
                     k += 1
@@ -405,6 +414,10 @@ class WesternBlotAnalyzer:
                 denoise_median_ksize=denoise_median_ksize,
                 background_kernel_size=background_kernel_size,
             )
+
+        # Store the image actually used for profiling so that detect_bands_for_lane
+        # (called by the flip button) uses the exact same pixel data.
+        self.state.detection_image = image
         all_bands = []
         profiles = []
         baselines = []
@@ -499,17 +512,15 @@ class WesternBlotAnalyzer:
         if lane_index < 0 or lane_index >= len(self.state.lanes):
             return None
 
-        profile = np.asarray(self.state.profiles[lane_index], dtype=np.float64)
+        # state.profiles stores the oriented display_profile (bands=peaks after orient).
+        # corrected = display_profile - baseline ≥ 0, peaks = bands.
+        display_profile = np.asarray(self.state.profiles[lane_index], dtype=np.float64)
         baseline = np.asarray(self.state.baselines[lane_index], dtype=np.float64)
-        smoothed = uniform_filter1d(profile, size=3)
+        smoothed = uniform_filter1d(display_profile, size=3)
+        corrected = np.maximum(smoothed - baseline, 0.0)
 
-        # Ensure that manual peak picking respects the same polarity
-        # heuristic as automated band detection.
-        valleys_as_bands = self.state.lane_orientations[lane_index] if lane_index < len(self.state.lane_orientations) else False
-        corrected, _, _ = orient_profile_for_bands(smoothed, baseline, force_valleys_as_bands=valleys_as_bands)
-
-        # High-frequency noise estimate
-        noise = estimate_noise_level(profile, baseline)
+        # Noise estimate on the corrected signal
+        noise = estimate_noise_level(display_profile, baseline)
 
         y0 = int(np.clip(int(y_position), 0, len(corrected) - 1))
         left = max(0, y0 - int(search_window))
@@ -518,7 +529,8 @@ class WesternBlotAnalyzer:
             return None
 
         peak = left + int(np.argmax(corrected[left:right]))
-        if corrected[peak] < float(min_peak_snr) * noise:
+        # Relaxed SNR: only require 1.0x noise so faint bands aren't silently dropped
+        if corrected[peak] < max(1.0 * noise, 1e-4):
             return None
 
         # Find valleys to define the base line segment (ImageJ straight line)
@@ -532,15 +544,13 @@ class WesternBlotAnalyzer:
         if right_valley <= left_valley:
             return None
 
-        # Straight baseline connecting the (smoothed) profile at the valleys
+        # Straight baseline connecting the smoothed display_profile at the valleys
         base_line = np.linspace(
             float(smoothed[left_valley]), float(smoothed[right_valley]), right_valley - left_valley + 1
         )
         local = smoothed[left_valley : right_valley + 1]
-        if valleys_as_bands:
-            local_corrected = np.maximum(base_line - local, 0.0)
-        else:
-            local_corrected = np.maximum(local - base_line, 0.0)
+        # display_profile has bands as positive peaks, so area is always local - base_line
+        local_corrected = np.maximum(local - base_line, 0.0)
         area = float(np.sum(local_corrected))
 
         # Rough width estimate: number of points above half max within the closed region
@@ -590,17 +600,14 @@ class WesternBlotAnalyzer:
         start_px = int(min(y_start, y_end))
         end_px = int(max(y_start, y_end))
         
-        profile = np.asarray(self.state.profiles[lane_index], dtype=np.float64)
+        # state.profiles stores the oriented display_profile (bands=peaks after orient).
+        display_profile = np.asarray(self.state.profiles[lane_index], dtype=np.float64)
         baseline = np.asarray(self.state.baselines[lane_index], dtype=np.float64)
-        smoothed = uniform_filter1d(profile, size=3)
+        smoothed = uniform_filter1d(display_profile, size=3)
+        corrected = np.maximum(smoothed - baseline, 0.0)
 
-        # Snapping and calculation logic
-        # We use the oriented profile (corrected) for peak finding
-        valleys_as_bands = self.state.lane_orientations[lane_index] if lane_index < len(self.state.lane_orientations) else False
-        corrected, _, _ = orient_profile_for_bands(smoothed, baseline, force_valleys_as_bands=valleys_as_bands)
-        
-        # High-frequency noise estimate for SNR
-        noise = estimate_noise_level(profile, baseline)
+        # Noise estimate
+        noise = estimate_noise_level(display_profile, baseline)
 
         # Clip range to profile
         start_px = max(0, start_px)
@@ -615,14 +622,12 @@ class WesternBlotAnalyzer:
         peak_idx = start_px + int(np.argmax(corrected[start_px : end_px + 1]))
         
         # Integration (ImageJ style straight baseline across the selection)
+        # display_profile has bands as positive peaks always.
         base_line = np.linspace(
             float(smoothed[start_px]), float(smoothed[end_px]), end_px - start_px + 1
         )
         local = smoothed[start_px : end_px + 1]
-        if valleys_as_bands:
-            local_corrected = np.maximum(base_line - local, 0.0)
-        else:
-            local_corrected = np.maximum(local - base_line, 0.0)
+        local_corrected = np.maximum(local - base_line, 0.0)
         area = float(np.sum(local_corrected))
         
         # In range-based selection, the width IS the selection width
@@ -716,9 +721,16 @@ class WesternBlotAnalyzer:
         self._require_lanes("detect_bands_for_lane")
         if lane_index < 0 or lane_index >= len(self.state.lanes):
             raise ValueError(f"Invalid lane index {lane_index}")
-            
+
         lane = self.state.lanes[lane_index]
-        image = self.state.processed_image
+
+        # Use the same enhanced image that detect_bands used, not the raw processed image.
+        # This ensures the flip button produces a consistent profile.
+        image = getattr(self.state, "detection_image", None) or self.state.processed_image
+
+        # Default to valleys-as-bands (dark-on-white blot) unless overridden.
+        if force_valleys_as_bands is None:
+            force_valleys_as_bands = True
         
         # Merge defaults with provided params
         params = {
@@ -729,7 +741,7 @@ class WesternBlotAnalyzer:
             "min_band_width": 3,
             "edge_margin_percent": 5.0,
             "baseline_method": "rolling_ball",
-            "baseline_radius": 50,
+            "baseline_radius": 0,  # 0 = auto (20% of lane height)
         }
         params.update(detection_params)
         
