@@ -822,7 +822,7 @@ class WesternBlotPanel(QWidget):
             self.status_message.emit("Load and preprocess an image first.")
             return
         try:
-            from biopro.analysis.image_utils import auto_crop_to_bands
+            from biopro.analysis.image_utils import calculate_band_crop_region
             from PyQt6.QtCore import QRectF
 
             self.btn_auto_crop_bands.setEnabled(False)
@@ -831,41 +831,52 @@ class WesternBlotPanel(QWidget):
             image = self.analyzer.state.processed_image
             h, w = image.shape[:2]
 
-            # Compute the crop row bounds without actually cropping
-            import numpy as np
-            dark_frac = np.mean(image < 0.65, axis=1)
-            band_rows = np.where(dark_frac >= 0.05)[0]
+            region = calculate_band_crop_region(
+                image,
+                dark_threshold=0.85,
+                min_band_width_frac=0.01,
+                min_band_height_frac=0.01,
+                vertical_padding_frac=0.15,  
+                horizontal_padding_frac=0.10,
+                smoothing_window=9,
+            )
 
-            if len(band_rows) == 0:
+            if region is None:
                 self.lbl_auto_detect_result.setText(
-                    "⚠️  No band region detected. Try lowering the contrast threshold."
+                    "⚠️  No band region detected. Try adjusting contrast/rotation and try again."
                 )
+                self.status_message.emit("Auto-crop failed: no band region found.")
                 return
 
-            r_min = int(band_rows[0])
-            r_max = int(band_rows[-1])
-            band_span = max(r_max - r_min, 1)
-            pad = int(band_span * 0.08)
-            r_min = max(0, r_min - pad)
-            r_max = min(h, r_max + pad + 1)
+            # Check for invalid bounds in BOTH dimensions
+            r_min, r_max, c_min, c_max = region
+            if r_min >= r_max or c_min >= c_max:
+                self.lbl_auto_detect_result.setText(
+                    "⚠️  No valid band region found. Try adjusting contrast/rotation and try again."
+                )
+                self.status_message.emit("Auto-crop failed: invalid region.")
+                return
 
-            # Store for confirmation
-            self._pending_crop_rect = (r_min, r_max)
+            # Store ALL coordinates for the confirmation step
+            self._pending_crop_rect = (r_min, r_max, c_min, c_max)
 
-            # Show preview rectangle on canvas
+            # Show the true 2D preview rectangle on canvas (x, y, width, height)
             if self._canvas is not None:
-                preview_rect = QRectF(0, r_min, w, r_max - r_min)
+                preview_rect = QRectF(c_min, r_min, c_max - c_min, r_max - r_min)
                 self._canvas.show_crop_preview(preview_rect)
 
             # Show confirm/cancel buttons
             self.btn_confirm_crop.setVisible(True)
             self.btn_cancel_crop.setVisible(True)
+            
+            # Update labels to reflect 2D crop
+            crop_w = c_max - c_min
+            crop_h = r_max - r_min
             self.lbl_auto_detect_result.setText(
-                f"📐  Preview: rows {r_min}–{r_max} of {h}  "
-                f"({r_max - r_min}px tall). Confirm to apply."
+                f"📐  Preview: {crop_w}x{crop_h}px region. Confirm to apply."
             )
             self.status_message.emit(
-                f"Crop preview shown — rows {r_min} to {r_max}. Confirm or cancel."
+                f"Crop preview shown — {crop_w}x{crop_h}px. Confirm or cancel."
             )
 
         except Exception as e:
@@ -879,16 +890,44 @@ class WesternBlotPanel(QWidget):
         """Apply the pending crop region to the processed image."""
         if self._pending_crop_rect is None:
             return
+            
         try:
-            r_min, r_max = self._pending_crop_rect
+            # 1. Ask the canvas for the interactive, user-adjusted bounds!
+            bounds = None
+            if self._canvas is not None and hasattr(self._canvas, 'get_current_crop_preview_bounds'):
+                bounds = self._canvas.get_current_crop_preview_bounds()
+                
+            # Fallback to the original algorithm guess if the canvas can't provide it
+            if bounds is not None:
+                r_min, r_max, c_min, c_max = bounds
+            else:
+                r_min, r_max, c_min, c_max = self._pending_crop_rect
+
             image = self.analyzer.state.processed_image
-            cropped = image[r_min:r_max, :]
-            self.analyzer.state.processed_image = cropped
-            self.image_changed.emit(cropped)
+            h, w = image.shape[:2]
+            
+            # 2. Safety bounds check (prevents crashes if dragged off-screen)
+            r_min = max(0, min(r_min, h - 1))
+            r_max = max(r_min + 1, min(r_max, h))
+            c_min = max(0, min(c_min, w - 1))
+            c_max = max(c_min + 1, min(c_max, w))
+
+            # 3. THE FIX: Convert to (x, y, width, height) and save to the pipeline state!
+            x = c_min
+            y = r_min
+            crop_w = c_max - c_min
+            crop_h = r_max - r_min
+            
+            self.analyzer.state.manual_crop_rect = (x, y, crop_w, crop_h)
+            
+            # Let your existing pipeline apply the crop so it persists across tabs
+            self._preprocess()
+            
             self.lbl_auto_detect_result.setText(
-                f"✅  Cropped to {cropped.shape[1]}×{cropped.shape[0]} px."
+                f"✅  Cropped to {crop_w}×{crop_h} px."
             )
             self.status_message.emit("Band region crop applied.")
+            
         except Exception as e:
             self.status_message.emit(f"Crop error: {e}")
             logger.exception("Confirm crop error")
@@ -976,6 +1015,11 @@ class WesternBlotPanel(QWidget):
                 num_lanes=num_lanes,
                 smoothing_window=smoothing,
             )
+
+            if self.chk_auto_lanes.isChecked():
+                self.spin_lanes.blockSignals(True)
+                self.spin_lanes.setValue(len(lanes))
+                self.spin_lanes.blockSignals(False)
 
             self.lbl_lane_status.setText(f"✅  Detected {len(lanes)} lanes")
             self.lbl_lane_status.setStyleSheet(f"color: {Colors.SUCCESS};")
@@ -1379,6 +1423,11 @@ class WesternBlotPanel(QWidget):
             # If image is loaded, preprocess
             if self.analyzer.state.original_image is not None:
                 self._preprocess()
+                
+                # ---> ADD THIS: Pre-trigger lane detection so step 2 is populated!
+                if self.chk_auto_lanes.isChecked():
+                    self._detect_lanes()
+                # <---
             else:
                 self.status_message.emit("Please load an image first.")
                 return

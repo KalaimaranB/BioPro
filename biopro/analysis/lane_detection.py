@@ -26,6 +26,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import find_peaks
+from skimage.filters import threshold_otsu
 
 
 @dataclass
@@ -98,81 +99,93 @@ def detect_lanes_projection(
     smoothing_window: int = 15,
     min_lane_gap_fraction: float = 0.02,
 ) -> list[LaneROI]:
-    """Detect lane boundaries using vertical intensity projection.
-
+    """Detect lane boundaries by isolating structural band cores.
+    
     Algorithm:
-        1. Compute mean intensity per column (vertical projection).
-        2. Smooth the projection to reduce noise.
-        3. Find peaks in the projection (peaks = inter-lane gaps).
-        4. Use peak positions to define lane boundaries.
-
-    If ``num_lanes`` is specified, the algorithm selects the N most
-    prominent inter-lane gaps. If not specified, it auto-detects based
-    on peak prominence.
-
-    Args:
-        image: Grayscale float64 image in [0.0, 1.0].
-            Should be preprocessed (inverted so that bands are dark
-            on light background).
-        num_lanes: Expected number of lanes. If None, auto-detect.
-        smoothing_window: Width of the smoothing kernel (in pixels)
-            applied to the projection profile. Larger values reduce
-            noise but may merge narrow lanes.
-        min_lane_gap_fraction: Minimum gap between lanes, expressed as
-            a fraction of the image width. Gaps smaller than this are
-            ignored.
-
-    Returns:
-        List of ``LaneROI`` objects, ordered left-to-right.
-
-    Raises:
-        ValueError: If no lanes could be detected.
+        1. Use Otsu thresholding to create a binary mask of ONLY the dark bands.
+        2. Project vertically: lanes become dense blocks of 1s, gaps are 0s.
+        3. Find the exact horizontal center of each lane block.
+        4. Draw lane boundaries exactly halfway between the centers.
     """
     h, w = image.shape[:2]
 
-    # Step 1: Compute vertical projection
-    projection = compute_vertical_projection(image)
+    # 1. Ignore pure white rotation padding
+    valid_mask = image < 0.99
+    valid_pixels = image[valid_mask]
 
-    # Step 2: Smooth to reduce noise
-    smoothed = uniform_filter1d(projection, size=smoothing_window)
-
-    # Step 3: Find peaks (bright gaps between lanes)
-    min_distance = max(3, int(w * min_lane_gap_fraction))
-
-    # For a dark-on-light image, lane gaps are peaks (bright areas)
-    peaks, properties = find_peaks(
-        smoothed,
-        distance=min_distance,
-        prominence=0.01,
-    )
-
-    if len(peaks) == 0:
-        # No gaps found — treat the entire image as one lane,
-        # or fall back to equal spacing if num_lanes given.
+    if len(valid_pixels) < 100:
         if num_lanes is not None:
             return create_equal_lanes(image.shape, num_lanes)
         return [LaneROI(index=0, x_start=0, x_end=w, y_start=0, y_end=h)]
 
-    # Step 4: Select the right number of gaps
-    if num_lanes is not None:
-        # We need (num_lanes - 1) inter-lane gaps
-        num_gaps = num_lanes - 1
-        if len(peaks) >= num_gaps:
-            # Select the most prominent gaps
-            prominences = properties["prominences"]
-            top_indices = np.argsort(prominences)[-num_gaps:]
-            peaks = np.sort(peaks[top_indices])
-        else:
-            # Not enough gaps detected — use what we have
-            pass
+    # 2. Strict threshold to isolate ONLY dark band cores
+    # Multiplying by 0.95 ensures we don't pick up faint background noise.
+    try:
+        thresh = threshold_otsu(valid_pixels) * 0.95
+    except Exception:
+        thresh = float(np.percentile(valid_pixels, 20))
 
-    # Step 5: Build lane boundaries from gap positions
-    boundaries: list[int] = [0]
-    for peak in peaks:
-        boundaries.append(int(peak))
+    band_mask = (image < thresh) & valid_mask
+
+    # 3. Project vertically: lanes become mountains of 1s, gaps/shadows are 0s
+    profile = np.sum(band_mask, axis=0)
+
+    # Smooth slightly to bridge micro-gaps within a single lane's width
+    smooth_size = max(3, int(w * 0.01))
+    profile = uniform_filter1d(profile, size=smooth_size)
+
+    max_mass = float(np.max(profile))
+    if max_mass < 1:  # Failsafe if image is completely blank
+        if num_lanes is not None:
+            return create_equal_lanes(image.shape, num_lanes)
+        return [LaneROI(index=0, x_start=0, x_end=w, y_start=0, y_end=h)]
+
+    # 4. Filter out artifacts: A column is part of a lane if it has at least 10% 
+    # of the max lane's mass. This specifically ignores the far-left shadow.
+    lane_mask = profile > (max_mass * 0.10)
+
+    # 5. Extract continuous blocks (the lanes)
+    in_lane = False
+    start = 0
+    blocks = []
+    for i, val in enumerate(lane_mask):
+        if val and not in_lane:
+            in_lane = True
+            start = i
+        elif not val and in_lane:
+            in_lane = False
+            blocks.append((start, i))
+    if in_lane:
+        blocks.append((start, w))
+
+    # Filter out tiny dust blocks
+    min_width = max(2, int(w * 0.015))
+    valid_blocks = [b for b in blocks if (b[1] - b[0]) >= min_width]
+
+    if not valid_blocks:
+        if num_lanes is not None:
+            return create_equal_lanes(image.shape, num_lanes)
+        return [LaneROI(index=0, x_start=0, x_end=w, y_start=0, y_end=h)]
+
+    # 6. Find the center X-coordinate of each detected lane
+    lane_centers = [int((b[0] + b[1]) / 2) for b in valid_blocks]
+
+    # If the user requested a specific number (e.g. they know there's a faint lane),
+    # use the tallest peaks to fulfill that count.
+    if num_lanes is not None and len(lane_centers) > num_lanes:
+        masses = [np.sum(profile[b[0]:b[1]]) for b in valid_blocks]
+        top_indices = np.argsort(masses)[-num_lanes:]
+        lane_centers = np.sort(np.array(lane_centers)[top_indices]).tolist()
+
+    # 7. Build boundaries halfway between the lane centers
+    # This provides a natural, centered crop for each lane.
+    boundaries = [0]
+    for i in range(len(lane_centers) - 1):
+        mid = int((lane_centers[i] + lane_centers[i+1]) / 2)
+        boundaries.append(mid)
     boundaries.append(w)
 
-    # Create LaneROI objects
+    # 8. Construct the LaneROIs
     lanes = []
     for i in range(len(boundaries) - 1):
         lanes.append(
@@ -184,9 +197,7 @@ def detect_lanes_projection(
                 y_end=h,
             )
         )
-
     return lanes
-
 
 def create_equal_lanes(
     image_shape: tuple[int, ...],

@@ -9,6 +9,7 @@ import pytest
 
 from biopro.analysis.image_utils import (
     auto_detect_inversion,
+    auto_crop_to_bands,
     crop_to_content,
     invert_image,
     load_and_convert,
@@ -140,3 +141,25 @@ class TestCropToContent:
         image = np.ones((100, 100), dtype=np.float64)
         result = crop_to_content(image, threshold=0.95)
         np.testing.assert_array_equal(result, image)
+
+    def test_crop_ignores_sparse_noise(self) -> None:
+        """Cropping should remove borders when only tiny noisy pixels exist."""
+        image = np.ones((100, 100), dtype=np.float64)
+        image[50, 50] = 0.1
+        result = crop_to_content(image, threshold=0.95, padding=3)
+        assert result.shape[0] < 100
+        assert result.shape[1] < 100
+
+    def test_auto_crop_to_bands_detects_band_region(self) -> None:
+        """Auto-crop to bands should crop around dark horizontal band rows."""
+        image = np.ones((120, 80), dtype=np.float64)
+        image[40:55, 10:70] = 0.1
+        cropped = auto_crop_to_bands(image, dark_threshold=0.4, min_band_width_frac=0.05)
+        assert cropped.shape[0] < image.shape[0]
+        assert cropped.shape[1] == image.shape[1]
+
+    def test_auto_crop_to_bands_no_band_returns_original(self) -> None:
+        """If no band rows exist, auto_crop_to_bands should return original."""
+        image = np.ones((80, 80), dtype=np.float64)
+        cropped = auto_crop_to_bands(image)
+        np.testing.assert_array_equal(cropped, image)

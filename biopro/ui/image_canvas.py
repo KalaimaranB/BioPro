@@ -81,6 +81,91 @@ class BandOverlayItem(QGraphicsRectItem):
         else:
             super().mousePressEvent(event)
 
+class InteractiveCropItem(QGraphicsRectItem):
+    """A crop rectangle that can be moved and resized by dragging its edges."""
+    
+    def __init__(self, rect: QRectF):
+        super().__init__(rect)
+        self.setAcceptHoverEvents(True)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, True)
+        
+        self._margin = 15  # Pixel tolerance for grabbing an edge
+        self._mode = None  # Tracks which edge/corner is being dragged
+        self._start_rect = None
+        self._start_scene_pos = None
+
+    def _get_mode(self, pos) -> Optional[str]:
+        """Determine if the mouse is over an edge, corner, or the center."""
+        rect = self.rect()
+        x, y = pos.x(), pos.y()
+        rx, ry, rw, rh = rect.x(), rect.y(), rect.width(), rect.height()
+        
+        left = abs(x - rx) < self._margin
+        right = abs(x - (rx + rw)) < self._margin
+        top = abs(y - ry) < self._margin
+        bottom = abs(y - (ry + rh)) < self._margin
+        
+        if top and left: return 'tl'
+        if top and right: return 'tr'
+        if bottom and left: return 'bl'
+        if bottom and right: return 'br'
+        if top: return 't'
+        if bottom: return 'b'
+        if left: return 'l'
+        if right: return 'r'
+        if rect.contains(pos): return 'move'
+        return None
+
+    def hoverMoveEvent(self, event):
+        """Change the mouse cursor based on what part of the box it hovers over."""
+        mode = self._get_mode(event.pos())
+        if mode in ('tl', 'br'): self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+        elif mode in ('tr', 'bl'): self.setCursor(Qt.CursorShape.SizeBDiagCursor)
+        elif mode in ('t', 'b'): self.setCursor(Qt.CursorShape.SizeVerCursor)
+        elif mode in ('l', 'r'): self.setCursor(Qt.CursorShape.SizeHorCursor)
+        elif mode == 'move': self.setCursor(Qt.CursorShape.SizeAllCursor)
+        else: self.setCursor(Qt.CursorShape.ArrowCursor)
+        super().hoverMoveEvent(event)
+
+    def mousePressEvent(self, event):
+        """Lock in the starting coordinates when the user clicks."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._mode = self._get_mode(event.pos())
+            if self._mode:
+                self._start_rect = self.rect()
+                self._start_scene_pos = event.scenePos()
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        """Resize or move the rectangle based on mouse drag."""
+        if self._mode:
+            dx = event.scenePos().x() - self._start_scene_pos.x()
+            dy = event.scenePos().y() - self._start_scene_pos.y()
+            r = QRectF(self._start_rect)
+            
+            if self._mode == 'move':
+                r.translate(dx, dy)
+            else:
+                # Apply resizing with a minimum size of 20x20 pixels
+                if 'l' in self._mode: r.setLeft(min(r.left() + dx, r.right() - 20))
+                if 'r' in self._mode: r.setRight(max(r.right() + dx, r.left() + 20))
+                if 't' in self._mode: r.setTop(min(r.top() + dy, r.bottom() - 20))
+                if 'b' in self._mode: r.setBottom(max(r.bottom() + dy, r.top() + 20))
+            
+            self.setRect(r)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        """Release the drag state."""
+        if self._mode:
+            self._mode = None
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
 class ImageCanvas(QGraphicsView):
     """Zoomable, pannable image viewer with overlay support.
@@ -174,24 +259,29 @@ class ImageCanvas(QGraphicsView):
     # ── Crop preview overlay ──────────────────────────────────────────
 
     def show_crop_preview(self, rect: QRectF) -> None:
-        """Draw a dashed orange outline showing the proposed crop region.
-
-        Non-destructive preview — does not modify the image.
-        Call clear_crop_preview() to dismiss, or it is cleared automatically
-        when set_image() is next called.
-
-        Args:
-            rect: Proposed crop rectangle in scene (image pixel) coordinates.
-        """
+        """Draw an interactive dashed orange outline showing the proposed crop region."""
         self.clear_crop_preview()
 
         pen = QPen(QColor("#FF8C00"), 2, Qt.PenStyle.DashLine)
-        pen.setCosmetic(True)          # constant screen-space width at any zoom
+        pen.setCosmetic(True)          
         fill = QColor("#FF8C00")
-        fill.setAlpha(20)              # barely-there tint so the region is obvious
+        fill.setAlpha(20)              
 
-        self._crop_preview_item = self._scene.addRect(rect, pen, QBrush(fill))
-        self._crop_preview_item.setZValue(5)   # above image, below lane/band overlays
+        # USE THE NEW INTERACTIVE ITEM HERE
+        self._crop_preview_item = InteractiveCropItem(rect)
+        self._crop_preview_item.setPen(pen)
+        self._crop_preview_item.setBrush(QBrush(fill))
+        
+        self._scene.addItem(self._crop_preview_item)
+        self._crop_preview_item.setZValue(5)
+
+    def get_current_crop_preview_bounds(self) -> Optional[tuple[int, int, int, int]]:
+        """Returns the (r_min, r_max, c_min, c_max) of the current preview box."""
+        if self._crop_preview_item is not None:
+            r = self._crop_preview_item.rect()
+            # Convert Qt (x, y, w, h) to numpy (r_min, r_max, c_min, c_max)
+            return int(r.top()), int(r.bottom()), int(r.left()), int(r.right())
+        return None
 
     def clear_crop_preview(self) -> None:
         """Remove the crop preview outline from the canvas."""
