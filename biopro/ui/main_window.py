@@ -102,7 +102,6 @@ class MainWindow(QMainWindow):
 
     def _setup_central_widget(self) -> None:
         """Create the three-panel split layout."""
-        # Main splitter: [wizard] | [canvas] | [results]
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Left panel: wizard
@@ -147,6 +146,10 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self) -> None:
         """Wire signals between wizard, canvas, and results."""
+        # Give the wizard panel a direct reference to the canvas so it can
+        # call show_crop_preview() / clear_crop_preview() for the auto-crop flow.
+        self.wizard_panel.set_canvas(self.canvas)
+
         # Wizard → Canvas
         self.wizard_panel.image_changed.connect(self.canvas.set_image)
         self.wizard_panel.lanes_detected.connect(
@@ -166,7 +169,7 @@ class MainWindow(QMainWindow):
         # Wizard → Status bar
         self.wizard_panel.status_message.connect(self.status_bar.showMessage)
 
-        # Canvas interactions -> Wizard
+        # Canvas interactions → Wizard
         self.canvas.band_clicked.connect(self.wizard_panel.on_band_clicked)
         self.canvas.peak_pick_requested.connect(self.wizard_panel.on_peak_pick_requested)
         self.canvas.crop_requested.connect(self.wizard_panel.on_crop_requested)

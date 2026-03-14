@@ -833,8 +833,8 @@ class WesternBlotPanel(QWidget):
 
             # Compute the crop row bounds without actually cropping
             import numpy as np
-            dark_frac = np.mean(image < 0.85, axis=1)
-            band_rows = np.where(dark_frac >= 0.3)[0]
+            dark_frac = np.mean(image < 0.65, axis=1)
+            band_rows = np.where(dark_frac >= 0.05)[0]
 
             if len(band_rows) == 0:
                 self.lbl_auto_detect_result.setText(

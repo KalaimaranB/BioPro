@@ -14,7 +14,7 @@ Design Notes:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -155,14 +155,11 @@ def auto_detect_inversion(image: NDArray[np.float64]) -> bool:
         center = center[center > 0.0]
 
         if len(center) == 0 or len(corners) == 0:
-            # Fall back to overall darkness: dark images default to invert.
             return True
 
         corner_median = float(np.median(corners))
         center_median = float(np.median(center))
 
-        # If the center is meaningfully brighter than the corners, we likely
-        # have light bands on a dark background → invert.
         return center_median > corner_median + 0.05
 
     # For ambiguous mid-range cases (overall ~mid-gray), compare corners to center.
@@ -189,8 +186,6 @@ def auto_detect_inversion(image: NDArray[np.float64]) -> bool:
     corner_median = float(np.median(corners))
     center_median = float(np.median(center))
 
-    # Ambiguous images: only invert if the center is clearly brighter than
-    # the corners (again indicating light bands on darker surround).
     return center_median > corner_median + 0.05
 
 
@@ -240,10 +235,7 @@ def enhance_for_band_detection(
     out = np.clip(image, 0.0, 1.0)
 
     if apply_clahe:
-        # scikit-image's equalize_adapthist is CLAHE-like
-        # clip_limit is in [0, 1] for skimage; map from a more UI-friendly range.
         clip = float(np.clip(clahe_clip_limit / 10.0, 0.001, 0.2))
-        # kernel_size can be an int (square) or (rows, cols)
         k = int(max(2, clahe_tile_grid_size))
         out = exposure.equalize_adapthist(out, clip_limit=clip, kernel_size=k)
 
@@ -257,12 +249,9 @@ def enhance_for_band_detection(
         k = int(background_kernel_size)
         if k % 2 == 0:
             k += 1
-        # Approximate OpenCV kernel-size behavior with sigma.
-        # For a Gaussian kernel, sigma ~ k/6 is a common rule of thumb.
         sigma = max(1.0, float(k) / 6.0)
         bg = gaussian_filter(out, sigma=sigma)
         out = out - bg
-        # Robust rescale back to [0, 1]
         lo, hi = np.percentile(out, [1.0, 99.5])
         if hi > lo:
             out = (out - lo) / (hi - lo)
@@ -322,10 +311,8 @@ def crop_to_content(
     Returns:
         Cropped image.
     """
-    # Find rows and columns with content (below threshold)
     content_mask = image < threshold
 
-    # Find bounding box of content
     rows_with_content = np.any(content_mask, axis=1)
     cols_with_content = np.any(content_mask, axis=0)
 
@@ -404,7 +391,6 @@ def auto_detect_rotation(
     from scipy.ndimage import sobel
     from skimage.transform import rotate as sk_rotate
 
-    # Downsample for speed
     h, w = image.shape[:2]
     scale = min(1.0, 400.0 / max(h, w))
     if scale < 1.0:
@@ -414,17 +400,12 @@ def auto_detect_rotation(
     else:
         small = image.copy()
 
-    # Contrast-stretch so faint bands become visible
     alpha, beta = auto_contrast_stretch(small)
     small = np.clip(small * alpha + beta, 0.0, 1.0)
-
-    # Invert: bands become bright peaks, easier for edge detection
     small = 1.0 - small
 
-    # Horizontal Sobel edges — strong at top/bottom of horizontal bands
     edges = np.abs(sobel(small, axis=0))
 
-    # Sweep angles, maximise projection variance
     angles = np.arange(-angle_range, angle_range + angle_step, angle_step)
     best_angle = 0.0
     best_var = -1.0
@@ -475,9 +456,7 @@ def auto_crop_to_bands(
     """
     h, w = image.shape[:2]
 
-    # For each row, compute the fraction of pixels below threshold
     dark_frac = np.mean(image < dark_threshold, axis=1)  # shape (h,)
-
     band_rows = np.where(dark_frac >= min_band_width_frac)[0]
 
     if len(band_rows) == 0:
@@ -486,7 +465,6 @@ def auto_crop_to_bands(
     r_min = int(band_rows[0])
     r_max = int(band_rows[-1])
 
-    # Add padding
     band_span = max(r_max - r_min, 1)
     pad = int(band_span * padding_frac)
     r_min = max(0, r_min - pad)
@@ -514,10 +492,8 @@ def calculate_autocrop_region(
         Tuple of (x, y, width, height) defining the crop region,
         or None if no content is detected.
     """
-    # Find rows and columns with content (below threshold)
     content_mask = image < threshold
     
-    # Find bounding box of content
     rows_with_content = np.any(content_mask, axis=1)
     cols_with_content = np.any(content_mask, axis=0)
     
@@ -532,10 +508,9 @@ def calculate_autocrop_region(
     c_min = max(0, col_indices[0] - padding)
     c_max = min(image.shape[1], col_indices[-1] + padding + 1)
     
-    # Return (x, y, width, height)
     return (
-        int(c_min),                    # x
-        int(r_min),                    # y
-        int(c_max - c_min),           # width
-        int(r_max - r_min),           # height
+        int(c_min),           # x
+        int(r_min),           # y
+        int(c_max - c_min),   # width
+        int(r_max - r_min),   # height
     )
