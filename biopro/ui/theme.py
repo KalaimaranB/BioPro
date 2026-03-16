@@ -51,6 +51,7 @@ class Colors:
     ACCENT_SECONDARY = "#58a6ff"   # Blue — links, info
     ACCENT_WARNING = "#d29922"     # Amber — warnings
     ACCENT_DANGER = "#f85149"      # Red — errors, destructive
+    
 
     # Semantic
     SUCCESS = "#3fb950"

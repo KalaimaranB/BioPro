@@ -1,0 +1,330 @@
+"""Ponceau S stain analysis for western blot loading normalization.
+
+Ponceau S is a reversible total-protein stain applied to the membrane
+before antibody probing.  Because it stains all proteins proportional
+to their mass, the total Ponceau signal per lane reflects how much
+protein was actually loaded — correcting for pipetting errors and
+transfer inefficiencies.
+
+Pipeline
+--------
+The Ponceau image is processed with the same steps as a western blot
+(load → preprocess → detect lanes → detect bands), then:
+
+1. For each lane, compute the **total integrated intensity** of all
+   detected bands (or selected bands, depending on mode).
+2. Express each lane's intensity as a fraction of the mean across all
+   lanes — giving a **loading factor** centred on 1.0.
+3. The WB densitometry step divides each lane's WB intensity by its
+   Ponceau loading factor to produce the normalized result.
+
+Normalization modes
+-------------------
+``"total"``  (default, recommended)
+    Sum all detected bands in the lane.  Statistically robust because
+    it averages over many protein species.
+
+``"reference_band"``
+    User picks one prominent band per lane (mirrors the ImageJ course
+    protocol).  Less robust but easier to understand and audit.
+
+Lane mapping
+------------
+The Ponceau image may have more or fewer lanes than the WB image (e.g.
+extra ladder lanes, or failed lanes).  The user provides an explicit
+mapping ``{ponceau_lane_idx: wb_lane_idx}`` so factors are applied to
+the correct WB lane.  Unmapped WB lanes receive a factor of 1.0
+(no correction applied).
+
+Example::
+
+    from biopro.analysis.ponceau import PonceauAnalyzer
+
+    pon = PonceauAnalyzer()
+    pon.load_image("ponceau.jpg")
+    pon.preprocess(invert_lut="auto", contrast_alpha=2.0)
+    pon.detect_lanes(num_lanes=6)
+    pon.detect_bands(min_snr=2.0)          # lower SNR — faint pink bands
+    factors = pon.get_loading_factors()    # {0: 0.94, 1: 1.12, ...}
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from typing import Optional, Union
+
+import numpy as np
+import pandas as pd
+
+from biopro.analysis.western_blot import WesternBlotAnalyzer
+from biopro.analysis.state import AnalysisState
+
+logger = logging.getLogger(__name__)
+
+
+def _band_intensity(band) -> float:
+    """Return the best available intensity for a band.
+
+    Prefers ``integrated_intensity`` (area under the peak) but falls back
+    to ``peak_height`` if it is zero or near-zero.  This handles the
+    transition period while the compute_peak_areas fix propagates.
+    """
+    v = float(band.integrated_intensity)
+    if v > 1e-6:
+        return v
+    return float(band.peak_height)
+
+
+class PonceauAnalyzer:
+    """Thin wrapper around WesternBlotAnalyzer for Ponceau S quantification.
+
+    Reuses the entire WB image-processing pipeline — there is no new
+    image analysis code here.  The only addition is ``get_loading_factors``,
+    which converts per-lane integrated intensities into normalisation
+    correction factors.
+
+    Attributes:
+        state:         The underlying ``AnalysisState`` (same as WB analyzer).
+        lane_mapping:  Mapping ``{ponceau_lane_idx: wb_lane_idx}``.
+                       Set by the UI after the user confirms lane correspondence.
+        mode:          ``"total"`` or ``"reference_band"``.
+        ref_band_indices: When mode is ``"reference_band"``, the per-lane
+                       band index chosen as the reference.
+    """
+
+    def __init__(self) -> None:
+        # Delegate all image processing to WesternBlotAnalyzer
+        self._wb = WesternBlotAnalyzer()
+        self.lane_mapping: dict[int, int] = {}   # ponceau_idx → wb_idx
+        self.mode: str = "reference_band"        # default matches prof protocol
+        self.ref_band_indices: dict[int, int] = {}  # ponceau_lane_idx → band_idx
+
+    # ── Expose WB analyzer interface transparently ────────────────────
+
+    @property
+    def state(self) -> AnalysisState:
+        return self._wb.state
+
+    def load_image(self, path: Union[str, Path]) -> np.ndarray:
+        return self._wb.load_image(path)
+
+    def preprocess(self, **kwargs) -> np.ndarray:
+        return self._wb.preprocess(**kwargs)
+
+    def detect_lanes(self, **kwargs):
+        return self._wb.detect_lanes(**kwargs)
+
+    def detect_bands(self, **kwargs):
+        # Ponceau bands are faint — lower default SNR than WB
+        kwargs.setdefault("min_snr", 2.0)
+        kwargs.setdefault("min_peak_height", 0.01)
+        kwargs.setdefault("force_valleys_as_bands", True)
+        return self._wb.detect_bands(**kwargs)
+
+    def detect_bands_for_lane(self, *args, **kwargs):
+        return self._wb.detect_bands_for_lane(*args, **kwargs)
+
+    def add_manual_band(self, *args, **kwargs):
+        return self._wb.add_manual_band(*args, **kwargs)
+
+    def add_manual_band_range(self, *args, **kwargs):
+        return self._wb.add_manual_band_range(*args, **kwargs)
+
+    def remove_band_at(self, *args, **kwargs):
+        return self._wb.remove_band_at(*args, **kwargs)
+
+    # ── Loading factor computation ─────────────────────────────────────
+
+    def get_loading_factors(
+        self,
+        lane_types: Optional[dict[int, str]] = None,
+    ) -> dict[int, float]:
+        """Compute per-lane Ponceau loading factors (in Ponceau lane space).
+
+        Returns a dict keyed by **Ponceau** lane index.  Use
+        ``get_wb_loading_factors`` to get them keyed by WB lane index.
+
+        Args:
+            lane_types: Optional mapping of lane index to type string
+                (``"Sample"`` / ``"Ladder"`` / ``"Exclude"``).
+
+        Returns:
+            Dict ``{ponceau_lane_idx: loading_factor}`` where factors are
+            centred on 1.0 (mean of sample lanes = 1.0).
+        """
+        if not self.state.bands:
+            return {}
+
+        lane_types = lane_types or {}
+        active_lanes = sorted({
+            b.lane_index for b in self.state.bands
+            if getattr(b, "selected", True)
+            and lane_types.get(b.lane_index, "Sample") == "Sample"
+        })
+
+        if not active_lanes:
+            return {}
+
+        # Compute raw intensity per lane
+        raw: dict[int, float] = {}
+        for lane_idx in active_lanes:
+            lane_bands = [
+                b for b in self.state.bands
+                if b.lane_index == lane_idx
+                and getattr(b, "selected", True)
+            ]
+            if not lane_bands:
+                raw[lane_idx] = 0.0
+                logger.warning(
+                    "Lane %d: no Ponceau bands detected — loading factor will be 1.0 "
+                    "(no correction applied for this lane).",
+                    lane_idx,
+                )
+                continue
+
+            if self.mode == "total":
+                raw[lane_idx] = sum(_band_intensity(b) for b in lane_bands)
+            else:
+                # reference_band mode
+                ref_idx = self.ref_band_indices.get(lane_idx)
+                if ref_idx is None:
+                    raw[lane_idx] = sum(_band_intensity(b) for b in lane_bands)
+                    logger.warning(
+                        "Lane %d: no reference band selected — using total lane intensity.",
+                        lane_idx,
+                    )
+                else:
+                    ref_bands = [b for b in lane_bands if b.band_index == ref_idx]
+                    if ref_bands:
+                        raw[lane_idx] = _band_intensity(ref_bands[0])
+                    else:
+                        raw[lane_idx] = sum(_band_intensity(b) for b in lane_bands)
+                        logger.warning(
+                            "Lane %d: reference band index %d not found — "
+                            "using total lane intensity.",
+                            lane_idx, ref_idx,
+                        )
+
+        # Normalise so mean = 1.0
+        values = [v for v in raw.values() if v > 0]
+        if not values:
+            return {lane_idx: 1.0 for lane_idx in active_lanes}
+
+        mean_intensity = float(np.mean(values))
+        if mean_intensity == 0:
+            return {lane_idx: 1.0 for lane_idx in active_lanes}
+
+        factors = {
+            lane_idx: (raw[lane_idx] / mean_intensity if raw[lane_idx] > 0 else 1.0)
+            for lane_idx in active_lanes
+        }
+
+        logger.info(
+            "Ponceau loading factors (mode=%s): %s",
+            self.mode,
+            {k: round(v, 3) for k, v in factors.items()},
+        )
+        return factors
+
+    def get_wb_loading_factors(
+        self,
+        num_wb_lanes: int,
+        lane_types: Optional[dict[int, str]] = None,
+    ) -> dict[int, float]:
+        """Return loading factors keyed by **WB** lane index.
+
+        Unmapped WB lanes get a factor of 1.0 (no correction).
+
+        Args:
+            num_wb_lanes: Total number of WB lanes.
+            lane_types: Lane type mapping for Ponceau lanes.
+
+        Returns:
+            Dict ``{wb_lane_idx: loading_factor}`` for all WB lanes.
+        """
+        ponceau_factors = self.get_loading_factors(lane_types=lane_types)
+
+        wb_factors: dict[int, float] = {i: 1.0 for i in range(num_wb_lanes)}
+
+        for pon_idx, wb_idx in self.lane_mapping.items():
+            if pon_idx in ponceau_factors and 0 <= wb_idx < num_wb_lanes:
+                wb_factors[wb_idx] = ponceau_factors[pon_idx]
+
+        return wb_factors
+
+    def get_ponceau_raw_per_wb_lane(
+        self,
+        num_wb_lanes: int,
+    ) -> dict[int, float]:
+        """Return the raw Ponceau reference band intensity for each WB lane.
+
+        This is the actual intensity of the selected Ponceau reference band
+        used as the denominator in::
+
+            ratio = WB_band_intensity / Ponceau_ref_band_intensity
+
+        Uses ``integrated_intensity`` when available, falling back to
+        ``peak_height`` for robustness.
+
+        Returns:
+            Dict mapping ``{wb_lane_idx: ponceau_raw_intensity}``.
+            Lanes without a Ponceau mapping return 0.0.
+        """
+        result: dict[int, float] = {wb_idx: 0.0 for wb_idx in range(num_wb_lanes)}
+
+        for pon_idx, wb_idx in self.lane_mapping.items():
+            if wb_idx >= num_wb_lanes:
+                continue
+            lane_bands = [
+                b for b in self.state.bands
+                if b.lane_index == pon_idx
+            ]
+            if not lane_bands:
+                continue
+
+            if self.mode == "reference_band":
+                ref_idx = self.ref_band_indices.get(pon_idx)
+                if ref_idx is not None:
+                    ref_bands = [b for b in lane_bands if b.band_index == ref_idx]
+                    if ref_bands:
+                        result[wb_idx] = _band_intensity(ref_bands[0])
+                        continue
+                # Fallback: highest intensity band
+                result[wb_idx] = max(_band_intensity(b) for b in lane_bands)
+            else:
+                # total mode: sum all bands
+                result[wb_idx] = sum(_band_intensity(b) for b in lane_bands)
+
+        return result
+
+    def get_summary_df(self, lane_types: Optional[dict[int, str]] = None) -> pd.DataFrame:
+        """Return a summary DataFrame for display in the UI.
+
+        Columns: ponceau_lane, wb_lane, raw_intensity, loading_factor
+        """
+        ponceau_factors = self.get_loading_factors(lane_types=lane_types)
+        lane_types = lane_types or {}
+
+        records = []
+        for pon_idx, factor in ponceau_factors.items():
+            lane_bands = [
+                b for b in self.state.bands
+                if b.lane_index == pon_idx and getattr(b, "selected", True)
+            ]
+            if self.mode == "total":
+                raw = sum(_band_intensity(b) for b in lane_bands)
+            else:
+                ref_idx = self.ref_band_indices.get(pon_idx, 0)
+                ref_bands = [b for b in lane_bands if b.band_index == ref_idx]
+                raw = _band_intensity(ref_bands[0]) if ref_bands else 0.0
+
+            wb_idx = self.lane_mapping.get(pon_idx, pon_idx)
+            records.append({
+                "ponceau_lane": pon_idx,
+                "wb_lane": wb_idx,
+                "raw_intensity": round(raw, 4),
+                "loading_factor": round(factor, 4),
+            })
+
+        return pd.DataFrame(records)

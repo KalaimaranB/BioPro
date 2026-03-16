@@ -230,17 +230,8 @@ def orient_profile_for_bands(
     if force_valleys_as_bands is not None:
         valleys_as_bands = bool(force_valleys_as_bands)
     else:
-        # Compare the single strongest excursion in each direction.
-        # For a dark-on-white western blot the rolling-ball baseline tracks
-        # the bright background, so bands appear as the deepest valleys.
-        # A single real band is enough to flip the orientation correctly —
-        # no need to compare energies which can miss narrow bands.
-        max_pos = float(np.max(delta))    # highest peak above baseline
-        max_neg = float(-np.min(delta))   # deepest valley below baseline
-
-        # If the deepest valley is at least 80% as prominent as the tallest
-        # peak, treat valleys as bands.  The 0.8 margin prevents flipping
-        # for nearly symmetric noise while catching real dark bands reliably.
+        max_pos = float(np.max(delta))
+        max_neg = float(-np.min(delta))
         valleys_as_bands = max_neg >= max_pos * 0.8
 
     if valleys_as_bands:
@@ -325,10 +316,8 @@ def rolling_ball_baseline(
     from scipy.ndimage import maximum_filter1d
     size = 2 * radius + 1
     if mode == "ceiling":
-        # Ball rolls on top: baseline = local maximum (background for dark bands)
         baseline = maximum_filter1d(profile, size=size)
     else:
-        # Ball rolls underneath: baseline = local minimum (background for bright bands)
         baseline = minimum_filter1d(profile, size=size)
 
     baseline = uniform_filter1d(baseline, size=radius)
@@ -358,19 +347,16 @@ def linear_baseline(
     if len(peak_indices) == 0:
         return np.zeros_like(profile)
 
-    # Find local minima between peaks (and at edges)
     boundary_points = [0]
     for i in range(len(peak_indices)):
         peak = peak_indices[i]
 
-        # Search left of peak for minimum
         left_start = boundary_points[-1] if i == 0 else (peak_indices[i - 1] + peak) // 2
         left_region = profile[left_start : peak]
         if len(left_region) > 0:
             left_min_idx = left_start + int(np.argmin(left_region))
             boundary_points.append(left_min_idx)
 
-    # Add the minimum after the last peak
     last_peak = peak_indices[-1]
     right_region = profile[last_peak:]
     if len(right_region) > 0:
@@ -378,10 +364,8 @@ def linear_baseline(
         boundary_points.append(right_min_idx)
     boundary_points.append(n - 1)
 
-    # Remove duplicates and sort
     boundary_points = sorted(set(boundary_points))
 
-    # Linearly interpolate between boundary points
     bp_x = np.array(boundary_points)
     bp_y = profile[bp_x]
     baseline = np.interp(np.arange(n), bp_x, bp_y)
@@ -397,32 +381,39 @@ def compute_peak_areas(
 ) -> list[float]:
     """Compute integrated intensity for each peak above baseline.
 
-    The integrated intensity is the sum of (profile - baseline) within
+    The integrated intensity is the sum of the corrected signal within
     the peak region, proportional to protein amount in the band.
 
+    NOTE: ``profile`` is expected to be the already baseline-corrected
+    signal (i.e. ``corrected`` from ``analyze_lane``).  The ``baseline``
+    argument is retained for API compatibility but is NOT subtracted again
+    here — doing so would produce zero areas.
+
     Args:
-        profile: 1-D intensity profile.
+        profile: 1-D baseline-corrected intensity profile (already ≥ 0).
         peak_indices: Indices of detected peaks.
-        baseline: Estimated baseline (same length as profile).
+        baseline: Estimated baseline (same length as profile) — kept for
+            API compatibility, not used in the integration.
         peak_properties: Optional dict from ``find_peaks`` containing
             'left_ips' and 'right_ips' for peak width boundaries.
 
     Returns:
         List of integrated intensity values, one per peak.
     """
-    corrected = np.maximum(profile - baseline, 0)
+    # profile is already the corrected (baseline-subtracted) signal from
+    # orient_profile_for_bands / analyze_lane.  Do NOT subtract baseline
+    # again — that would zero everything out.
+    corrected = np.maximum(profile, 0.0)
     areas = []
 
     for i, peak in enumerate(peak_indices):
         # Determine integration bounds from peak width
         if peak_properties and "left_ips" in peak_properties:
-            # Use the full width boundaries (extend by 1.5x for better coverage)
             half_w = peak_properties["right_ips"][i] - peak_properties["left_ips"][i]
             center = (peak_properties["left_ips"][i] + peak_properties["right_ips"][i]) / 2
             left = int(np.floor(center - half_w))
             right = int(np.ceil(center + half_w)) + 1
         else:
-            # Fallback: integrate within a fixed window around the peak
             half_window = 15
             left = max(0, peak - half_window)
             right = min(len(profile), peak + half_window)
@@ -511,15 +502,10 @@ def analyze_lane(
     smoothed = uniform_filter1d(profile, size=3)
 
     # Auto-compute baseline radius when 0 (Auto) is passed.
-    # Must be larger than the widest band so the ball rolls over bands, not into them.
-    # 40% of lane height is a robust default for typical western blots.
     if baseline_radius <= 0:
         baseline_radius = int(np.clip(lane_height * 0.40, 15, 300))
 
-    # For dark-on-white blots, bands are valleys so we need a CEILING baseline
-    # (maximum filter) — the ball rolls on top of the profile, tracking the
-    # bright background while passing over dark band valleys.
-    # For bright-peak blots, use the standard FLOOR baseline (minimum filter).
+    # For dark-on-white blots, bands are valleys so we need a CEILING baseline.
     is_valleys = force_valleys_as_bands if force_valleys_as_bands is not None else True
     baseline_mode = "ceiling" if is_valleys else "floor"
 
@@ -539,16 +525,12 @@ def analyze_lane(
     )
 
     # Step 5: Estimate noise from the corrected signal.
-    # Use a high-frequency residual so broad background/smear doesn't inflate noise.
     slow = uniform_filter1d(corrected, size=31)
     residual = corrected - slow
     mad = float(np.median(np.abs(residual - np.median(residual))))
     noise = max(mad * 1.4826, 1e-6)
 
     # Step 6: Adaptive peak height threshold.
-    # For valley-type blots (dark on white) the corrected signal magnitude is
-    # the depth of the valley, which can be small relative to the absolute
-    # scale of [0,1]. Use a lower floor so faint bands aren't missed.
     adaptive_height = max(min_peak_height, noise * min_snr)
 
     # Adaptive prominence: must stand out from local surroundings
@@ -583,12 +565,12 @@ def analyze_lane(
             smoothed, baseline
         )
 
-    # Step 9: Compute peak areas on the corrected signal
+    # Step 9: Compute peak areas on the corrected signal.
+    # Pass `corrected` as profile — compute_peak_areas expects an already
+    # baseline-subtracted signal and will NOT subtract baseline again.
     areas = compute_peak_areas(corrected, peaks, baseline, properties)
 
     # If bands correspond to valleys in the original image, flip lane_strip
-    # so that real bands still look like horizontal bright structures in the
-    # quality scoring step.
     if valleys_as_bands:
         lane_strip_for_score = 1.0 - lane_strip
     else:
@@ -601,8 +583,6 @@ def analyze_lane(
         peak_snr = float(corrected[peak] / noise) if noise > 0 else 0.0
 
         quality = _band_likeness_score(lane_strip_for_score, int(peak))
-        # Reject peaks that are not horizontally coherent bands.
-        # Threshold scales slightly with noise to avoid killing faint but real bands.
         min_quality = max(0.002, float(noise) * 0.8)
         if quality < min_quality:
             continue
@@ -623,6 +603,4 @@ def analyze_lane(
             )
         )
 
-    # Return the oriented display_profile so downstream consumers (plots, etc.)
-    # see bands as peaks regardless of original image polarity.
     return display_profile, baseline, bands, valleys_as_bands

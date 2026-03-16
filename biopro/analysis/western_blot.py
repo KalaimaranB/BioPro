@@ -33,7 +33,6 @@ Example::
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Optional, Union
 
@@ -64,48 +63,11 @@ from biopro.analysis.peak_analysis import (
     rolling_ball_baseline,
     orient_profile_for_bands,
 )
+from biopro.analysis.state import AnalysisState  # noqa: F401 — re-exported for back-compat
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class AnalysisState:
-    """Internal state of a WesternBlotAnalyzer instance.
-
-    Tracks all intermediate results so the user can inspect them,
-    adjust parameters, and re-run individual steps without starting
-    from scratch.
-
-    Attributes:
-        image_path: Path to the loaded image file.
-        original_image: The raw loaded image (unchanged).
-        processed_image: Image after preprocessing (inversion, rotation, crop).
-        is_inverted: Whether LUT inversion was applied.
-        rotation_angle: Applied rotation angle in degrees.
-        lanes: Detected lane ROIs.
-        profiles: Intensity profiles per lane (list of 1-D arrays).
-        baselines: Estimated baselines per lane (list of 1-D arrays).
-        bands: All detected bands across all lanes.
-        results_df: Final results DataFrame.
-    """
-
-    image_path: Optional[Path] = None
-    original_image: Optional[NDArray[np.float64]] = None
-    processed_image: Optional[NDArray[np.float64]] = None
-    detection_image: Optional[NDArray[np.float64]] = None  # Enhanced image used for band detection
-    is_inverted: bool = False
-    rotation_angle: float = 0.0
-    contrast_alpha: float = 1.0
-    contrast_beta: float = 0.0
-    lanes: list[LaneROI] = field(default_factory=list)
-    profiles: list[NDArray[np.float64]] = field(default_factory=list)
-    baselines: list[NDArray[np.float64]] = field(default_factory=list)
-    bands: list[DetectedBand] = field(default_factory=list)
-    results_df: Optional[pd.DataFrame] = None
-    lane_orientations: list[bool] = field(default_factory=list)  # True if valleys are bands
-
-
-    manual_crop_rect: Optional[tuple[int, int, int, int]] = None
 
 class WesternBlotAnalyzer:
     """High-level western blot densitometry analyzer.
@@ -159,10 +121,11 @@ class WesternBlotAnalyzer:
 
         image = load_and_convert(path, as_grayscale=True)
 
-        # Reset state
+        # Reset state — raw_image is the source of truth, never modified
         self.state = AnalysisState(
             image_path=path,
-            original_image=image.copy(),
+            raw_image=image.copy(),
+            base_image=image.copy(),
             processed_image=image.copy(),
         )
 
@@ -214,7 +177,10 @@ class WesternBlotAnalyzer:
         """
         self._require_image("preprocess")
 
-        image = self.state.original_image.copy()
+        # ── Stage 1: base_image — inversion + contrast + rotation ────────
+        # Always rebuilt from raw_image so base_image is a stable coordinate
+        # space.  Crop rects are always expressed in base_image coordinates.
+        image = self.state.raw_image.copy()
 
         # LUT inversion
         if invert_lut == "auto":
@@ -223,14 +189,13 @@ class WesternBlotAnalyzer:
         else:
             needs_inversion = bool(invert_lut)
 
-        # Ensure state reflects the current preprocessing run
         self.state.is_inverted = False
         if needs_inversion:
             image = invert_image(image)
             self.state.is_inverted = True
             logger.info("Applied LUT inversion")
 
-        # Contrast/Brightness Adjustment
+        # Contrast/Brightness
         self.state.contrast_alpha = contrast_alpha
         self.state.contrast_beta = contrast_beta
         if abs(contrast_alpha - 1.0) > 0.001 or abs(contrast_beta) > 0.001:
@@ -238,32 +203,37 @@ class WesternBlotAnalyzer:
             logger.info("Applied contrast alpha=%.3f, beta=%.3f", contrast_alpha, contrast_beta)
 
         # Rotation
+        self.state.rotation_angle = rotation_angle
         if abs(rotation_angle) > 0.01:
             image = rotate_image(image, rotation_angle)
-            self.state.rotation_angle = rotation_angle
             logger.info("Rotated image by %.2f degrees", rotation_angle)
 
-        # Manual Crop
+        # Commit base_image — crop rects are always in these coordinates
+        self.state.base_image = image.copy()
+
+        # ── Stage 2: processed_image — crop applied to base_image ────────
+        # manual_crop_rect coords are in base_image space — always correct
+        # regardless of how many times the user crops.
         self.state.manual_crop_rect = manual_crop_rect
         if manual_crop_rect is not None:
             x, y, w, h = manual_crop_rect
-            # Ensure bounds are within image to prevent crashes
-            y_end = min(y + h, image.shape[0])
-            x_end = min(x + w, image.shape[1])
+            bh, bw = image.shape[:2]
             y_start = max(0, y)
             x_start = max(0, x)
+            y_end = min(y + h, bh)
+            x_end = min(x + w, bw)
             if y_end > y_start and x_end > x_start:
                 image = image[y_start:y_end, x_start:x_end]
-                logger.info("Applied manual crop: %s", manual_crop_rect)
+                logger.info("Applied crop: %s → %dx%d", manual_crop_rect,
+                            image.shape[1], image.shape[0])
 
-        # Auto-crop
         if auto_crop:
             image = crop_to_content(image)
             logger.info("Auto-cropped to content")
 
         self.state.processed_image = image
 
-        # Clear downstream state since image changed
+        # Clear downstream state — lanes/bands are invalidated by image change
         self.state.lanes = []
         self.state.profiles = []
         self.state.baselines = []
@@ -791,6 +761,7 @@ class WesternBlotAnalyzer:
         match_bands_across_lanes: bool = True,
         matching_tolerance_px: float = 12.0,
         alignment_max_shift_px: int = 40,
+        ponceau_loading_factors: Optional[dict[int, float]] = None,
     ) -> pd.DataFrame:
         """Compute normalized densitometry values.
 
@@ -820,6 +791,11 @@ class WesternBlotAnalyzer:
                 - raw_intensity: Integrated intensity above baseline.
                 - percent_of_total: Intensity as % of all bands.
                 - normalized: Normalized intensity value.
+
+        Args:
+            ponceau_loading_factors: Optional dict mapping WB lane index to
+                Ponceau loading factor (centred on 1.0). When provided,
+                ``ponceau_normalized = normalized / factor`` is added.
 
         Raises:
             RuntimeError: If bands have not been detected.
@@ -954,6 +930,24 @@ class WesternBlotAnalyzer:
                 scale_factor = 1.0 / first_lane_value.iloc[0]
                 df["normalized"] = df["normalized"] * scale_factor
 
+        # ── Ponceau loading correction ────────────────────────────────────
+        if ponceau_loading_factors and len(df) > 0:
+            df["ponceau_factor"] = df["lane"].map(
+                lambda lane_idx: ponceau_loading_factors.get(int(lane_idx), 1.0)
+            )
+            df["ponceau_normalized"] = df.apply(
+                lambda row: (
+                    row["normalized"] / row["ponceau_factor"]
+                    if row["ponceau_factor"] > 0
+                    else row["normalized"]
+                ),
+                axis=1,
+            )
+        else:
+            if len(df) > 0:
+                df["ponceau_factor"] = 1.0
+                df["ponceau_normalized"] = df["normalized"]
+
         self.state.results_df = df
         logger.info("Computed densitometry for %d bands", len(df))
         return df
@@ -1050,7 +1044,7 @@ class WesternBlotAnalyzer:
 
     def _require_image(self, step_name: str) -> None:
         """Ensure an image has been loaded."""
-        if self.state.processed_image is None:
+        if self.state.raw_image is None:
             raise RuntimeError(
                 f"Cannot run '{step_name}': no image loaded. "
                 "Call load_image() first."

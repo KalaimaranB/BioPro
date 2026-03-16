@@ -115,7 +115,7 @@ def detect_lanes_projection(
 
     if len(valid_pixels) < 100:
         if num_lanes is not None:
-            return create_equal_lanes(image.shape, num_lanes)
+            return create_equal_lanes(image.shape, num_lanes, margin_fraction=0.0)
         return [LaneROI(index=0, x_start=0, x_end=w, y_start=0, y_end=h)]
 
     # 2. Strict threshold to isolate ONLY dark band cores
@@ -137,7 +137,7 @@ def detect_lanes_projection(
     max_mass = float(np.max(profile))
     if max_mass < 1:  # Failsafe if image is completely blank
         if num_lanes is not None:
-            return create_equal_lanes(image.shape, num_lanes)
+            return create_equal_lanes(image.shape, num_lanes, margin_fraction=0.0)
         return [LaneROI(index=0, x_start=0, x_end=w, y_start=0, y_end=h)]
 
     # 4. Filter out artifacts: A column is part of a lane if it has at least 10% 
@@ -164,7 +164,7 @@ def detect_lanes_projection(
 
     if not valid_blocks:
         if num_lanes is not None:
-            return create_equal_lanes(image.shape, num_lanes)
+            return create_equal_lanes(image.shape, num_lanes, margin_fraction=0.0)
         return [LaneROI(index=0, x_start=0, x_end=w, y_start=0, y_end=h)]
 
     # 6. Find the center X-coordinate of each detected lane
@@ -172,10 +172,15 @@ def detect_lanes_projection(
 
     # If the user requested a specific number (e.g. they know there's a faint lane),
     # use the tallest peaks to fulfill that count.
-    if num_lanes is not None and len(lane_centers) > num_lanes:
-        masses = [np.sum(profile[b[0]:b[1]]) for b in valid_blocks]
-        top_indices = np.argsort(masses)[-num_lanes:]
-        lane_centers = np.sort(np.array(lane_centers)[top_indices]).tolist()
+    if num_lanes is not None:
+        if len(lane_centers) > num_lanes:
+            # More blocks found than requested — keep the most prominent ones
+            masses = [np.sum(profile[b[0]:b[1]]) for b in valid_blocks]
+            top_indices = np.argsort(masses)[-num_lanes:]
+            lane_centers = np.sort(np.array(lane_centers)[top_indices]).tolist()
+        elif len(lane_centers) < num_lanes:
+            # Fewer blocks found than requested — trust the user, use equal spacing
+            return create_equal_lanes(image.shape, num_lanes, margin_fraction=0.0)
 
     # 7. Build boundaries halfway between the lane centers
     # This provides a natural, centered crop for each lane.
