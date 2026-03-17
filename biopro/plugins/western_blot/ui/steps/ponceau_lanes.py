@@ -21,6 +21,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.steps.base_step import BaseStepWidget
+
 from biopro.ui.theme import Colors
 from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
@@ -35,30 +38,28 @@ class PonceauLanesStep(WizardStep):
     def build_page(self, panel: WizardPanel) -> QWidget:
         self._panel = panel
         self._canvas = None
-        self._manually_adjusted = False  # True after any border drag
-        self._wb_lane_count = 0   # filled when we enter this step
+        self._manually_adjusted = False
+        self._wb_lane_count = 0
 
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setSpacing(12)
+        # 1. Use the new Base Class!
+        page = BaseStepWidget(
+            title="Step 2: Ponceau Lanes",
+            subtitle="Detect Ponceau lanes and map them to the Western Blot lanes."
+        )
 
-        # Lane detection
+        # 2. Lane detection group
         lane_group = QGroupBox("Ponceau Lane Detection")
         lane_layout = QVBoxLayout(lane_group)
         lane_layout.setSpacing(8)
 
         self.chk_auto = QCheckBox("Auto-detect lanes")
         self.chk_auto.setChecked(True)
-        self.chk_auto.toggled.connect(lambda auto: None)  # spinbox always enabled
         lane_layout.addWidget(self.chk_auto)
 
         self.spin_lanes = QSpinBox()
         self.spin_lanes.setRange(1, 30)
         self.spin_lanes.setValue(6)
-        self.spin_lanes.setToolTip("Override lane count — auto-detect unchecks automatically.")
-        self.spin_lanes.valueChanged.connect(
-            lambda _: self._on_lane_count_manually_changed(panel)
-        )
+        self.spin_lanes.valueChanged.connect(lambda _: self._on_lane_count_manually_changed(panel))
         lane_layout.addLayout(self._row("Number of lanes:", self.spin_lanes))
 
         self.spin_smoothing = QSpinBox()
@@ -72,8 +73,6 @@ class PonceauLanesStep(WizardStep):
             f"QPushButton {{ background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
             f" border: none; border-radius: 6px; padding: 8px 16px; font-weight: 600; }}"
             f"QPushButton:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}"
-            f"QPushButton:pressed {{ background-color: {Colors.ACCENT_PRIMARY_PRESSED}; }}"
-            f"QPushButton:disabled {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_DISABLED}; }}"
         )
         self.btn_detect.setMinimumHeight(36)
         self.btn_detect.clicked.connect(lambda: self._detect_lanes(panel))
@@ -81,27 +80,20 @@ class PonceauLanesStep(WizardStep):
 
         self.lbl_status = QLabel("")
         self.lbl_status.setObjectName("subtitle")
-        self.lbl_status.setWordWrap(True)
-        self.lbl_status.setMinimumHeight(18)
         lane_layout.addWidget(self.lbl_status)
 
-        layout.addWidget(lane_group)
+        page.add_content_widget(lane_group) # <-- Add it to the base class!
 
-        # Lane count warning
+        # 3. Lane count warning
         self.lbl_mismatch = QLabel("")
         self.lbl_mismatch.setWordWrap(True)
-        self.lbl_mismatch.setMinimumHeight(18)
-        layout.addWidget(self.lbl_mismatch)
+        page.add_content_widget(self.lbl_mismatch) # <-- Add it to the base class!
 
-        # Lane mapping
+        # 4. Lane mapping
         self._mapping_group = QGroupBox("Lane Mapping  —  Ponceau lane → WB lane")
         mapping_top = QVBoxLayout(self._mapping_group)
-        mapping_top.setSpacing(6)
-
-        map_hint = QLabel(
-            "For each Ponceau lane, select the corresponding WB lane.\n"
-            "Set to 'Skip' for ladder or extra lanes not in the WB image."
-        )
+        
+        map_hint = QLabel("Select the corresponding WB lane for each Ponceau lane.")
         map_hint.setWordWrap(True)
         map_hint.setObjectName("subtitle")
         mapping_top.addWidget(map_hint)
@@ -114,10 +106,10 @@ class PonceauLanesStep(WizardStep):
         self.lbl_no_lanes.setObjectName("subtitle")
         mapping_top.addWidget(self.lbl_no_lanes)
 
-        layout.addWidget(self._mapping_group)
-        layout.addStretch()
-        return self._scroll(page)
+        page.add_content_widget(self._mapping_group) # <-- Add it to the base class!
 
+        return self._scroll(page)
+    
     def set_canvas(self, canvas) -> None:
         self._canvas = canvas
 

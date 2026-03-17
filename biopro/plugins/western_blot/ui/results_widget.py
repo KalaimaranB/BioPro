@@ -7,6 +7,7 @@ from typing import Optional
 
 import matplotlib
 matplotlib.use("QtAgg")  # noqa: E402
+from biopro.ui.theme import Colors, theme_manager
 
 import numpy as np
 import pandas as pd
@@ -300,6 +301,7 @@ class ResultsWidget(QWidget):
         self._num_slots = 2
         self._slot_btns: list[QPushButton] = []
         self._setup_ui()
+        theme_manager.theme_changed.connect(self._on_theme_changed)
 
     def set_canvas(self, canvas) -> None:
         self._canvas_ref = canvas
@@ -414,7 +416,7 @@ class ResultsWidget(QWidget):
         self._rebuild_slots(2)
 
     def _col(self, idx: int) -> str:
-        return self._SLOT_COLORS[idx % len(self._SLOT_COLORS)]
+        return Colors.CHART_COLORS[idx % len(Colors.CHART_COLORS)]
 
     def _rebuild_slots(self, n: int) -> None:
         """Recreate n slot buttons, preserving existing assignments where possible."""
@@ -515,15 +517,22 @@ class ResultsWidget(QWidget):
         idx = self._active_slot
         if idx is None:
             return
+            
         self._slots[idx] = band
         self._slot_btns[idx].blockSignals(True)
         self._slot_btns[idx].setChecked(False)
         self._slot_btns[idx].blockSignals(False)
         self._active_slot = None
-        self._update_slot_label(idx)
-        self._update_canvas_markers()
-        self._render_result()
-        self._refresh_chart()
+        
+        try:
+            self._update_slot_label(idx)
+            self._update_canvas_markers()
+            self._render_result()
+            self._refresh_chart()
+        except Exception as e:
+            import traceback
+            print("🚨 CRASH DURING BAND ASSIGNMENT 🚨")
+            traceback.print_exc()
 
     # Back-compat shim
     def highlight_band_for_comparison(self, band) -> None:
@@ -731,3 +740,28 @@ class ResultsWidget(QWidget):
         self._rebuild_slots(val)
         self._refresh_chart()
         self._render_result()
+
+    def _on_theme_changed(self) -> None:
+        """Force Matplotlib and internal styles to redraw when the theme changes."""
+        # 1. Update the Chart Canvas Backgrounds
+        self.chart.fig.patch.set_facecolor(Colors.BG_DARK)
+        self.chart.setStyleSheet(f"background-color: {Colors.BG_DARK};")
+        
+        # 2. Force the chart to redraw with new Colors.CHART_COLORS
+        self._refresh_chart()
+        
+        # 3. Update the text labels to use the new colors
+        self._render_result()
+        
+        # 4. Update the slot buttons
+        for i in range(self._num_slots):
+            c = self._col(i)
+            btn = self._slot_btns[i]
+            btn.setStyleSheet(
+                f"QPushButton {{ border: 2px solid {c}; border-radius: 5px;"
+                f" background: {Colors.BG_DARK}; color: {Colors.FG_SECONDARY};"
+                f" padding: 4px 8px; text-align: left; font-size: 11px; }}"
+                f"QPushButton:checked {{ background: {c}22; color: {c};"
+                f" font-weight: 600; }}"
+                f"QPushButton:hover:!checked {{ background: {c}11; }}"
+            )

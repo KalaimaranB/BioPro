@@ -14,6 +14,7 @@ import logging
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
+from biopro.plugins.western_blot.ui.results_widget import ResultsWidget
 
 from biopro.plugins.western_blot.analysis.western_blot import WesternBlotAnalyzer
 from biopro.plugins.western_blot.analysis.ponceau import PonceauAnalyzer
@@ -56,6 +57,9 @@ class WesternBlotPanel(QWidget):
         self._canvas = None
         self._wizard: WizardPanel | None = None
         self._wb_results_step: WBResultsStep | None = None
+        self.results_widget = ResultsWidget()
+        if hasattr(self, 'selected_bands_changed'):
+            self.selected_bands_changed.connect(self.results_widget.update_pairwise_comparison)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -77,6 +81,7 @@ class WesternBlotPanel(QWidget):
 
     def set_canvas(self, canvas) -> None:
         self._canvas = canvas
+        self.results_widget.set_canvas(canvas)
         if self._wizard is not None:
             self._wizard.set_canvas(canvas)
 
@@ -103,6 +108,9 @@ class WesternBlotPanel(QWidget):
         if self._wizard:
             self._wizard.on_band_clicked(band)
 
+        if hasattr(self, 'results_widget'):
+            self.results_widget.assign_band_to_active_slot(band)
+
     def on_peak_pick_requested(self, x: float, y: float) -> None:
         if self._wizard:
             self._wizard.on_peak_pick_requested(x, y)
@@ -111,32 +119,6 @@ class WesternBlotPanel(QWidget):
         if self._wizard:
             self._wizard.on_crop_requested(rect)
 
-    def set_results_widget(self, rw) -> None:
-        """Pass the ResultsWidget reference so band clicks can update it directly.
-
-        Also wires the slot-count spinner so changing the number of bands
-        to compare triggers an automatic recompute.
-        """
-        if self._wizard is None:
-            return
-
-        self._wizard._results_widget_ref = rw
-
-        # Wire slot-count spinner → recompute results automatically.
-        # Disconnect any previous connection first to avoid duplicates.
-        if rw is not None and self._wb_results_step is not None:
-            try:
-                rw._spin_slots.valueChanged.disconnect()
-            except Exception:
-                pass
-
-            step = self._wb_results_step
-
-            def _on_slots_changed(n: int) -> None:
-                rw._rebuild_slots(n)
-                step._compute_results()
-
-            rw._spin_slots.valueChanged.connect(_on_slots_changed)
 
     @property
     def analyzer(self):
@@ -169,6 +151,17 @@ class WesternBlotPanel(QWidget):
         # Store reference so set_results_widget can wire the spinner
         self._wb_results_step = wb_results
 
+        try:
+            self.results_widget._spin_slots.valueChanged.disconnect()
+        except Exception:
+            pass
+
+        def _on_slots_changed(n: int) -> None:
+            self.results_widget._rebuild_slots(n)
+            wb_results._compute_results()
+
+        self.results_widget._spin_slots.valueChanged.connect(_on_slots_changed)
+
         # Wire lane detection → update ref lane combo in results step
         _orig_run = wb_lanes.run_detection
         def _run_and_update(panel):
@@ -192,11 +185,18 @@ class WesternBlotPanel(QWidget):
         wizard.image_changed.connect(self.image_changed)
         wizard.lanes_detected.connect(self.lanes_detected)
         wizard.bands_detected.connect(self.bands_detected)
-        wizard.results_ready.connect(self.results_ready)
+
+        def _handle_results(df):
+            self.results_widget.set_results(df)
+            self.results_ready.emit(df)
+            
+        wizard.results_ready.connect(_handle_results)
+
         wizard.selected_bands_changed.connect(self.selected_bands_changed)
         wizard.peak_picking_enabled.connect(self.peak_picking_enabled)
         wizard.crop_mode_toggled.connect(self.crop_mode_toggled)
         wizard.profile_hovered.connect(self.profile_hovered)
+        
 
         if self._canvas is not None:
             wizard.set_canvas(self._canvas)
@@ -206,3 +206,7 @@ class WesternBlotPanel(QWidget):
         self._stack.removeWidget(self._wizard_placeholder)
         self._stack.addWidget(wizard)
         self._stack.setCurrentWidget(wizard)
+
+    def get_right_panel_widget(self):
+        """Returns the custom results widget to the core host."""
+        return self.results_widget

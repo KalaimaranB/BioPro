@@ -5,9 +5,6 @@ __pycache__/
 *.so
 *.egg-info/
 *.egg
-dist/
-build/
-.eggs/
 
 # Virtual environments
 .venv/
@@ -30,12 +27,24 @@ Thumbs.db
 .coverage
 htmlcov/
 
-# Distribution
-*.tar.gz
-*.whl
-
 # Output files
 *.csv
 *.xlsx
 output/
 results/
+
+# ── NEW ADDITIONS BELOW ──
+
+# Distribution & Releases
+dist/
+build/
+.eggs/
+*.tar.gz
+*.whl
+*.zip
+
+# PyInstaller Specific
+*.spec
+
+# Application Logs
+*.log

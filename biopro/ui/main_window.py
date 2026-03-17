@@ -25,9 +25,9 @@ from PyQt6.QtWidgets import (
 
 from biopro.ui.home_screen import HomeScreen
 from biopro.shared.ui.image_canvas import ImageCanvas
-from biopro.shared.ui.results_widget import ResultsWidget
 from biopro.core.project_manager import ProjectManager
 from biopro.ui.theme import Colors, Fonts
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +118,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"BioPro Workspace — {project_name}")
         self.setMinimumSize(1200, 800)
 
+        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+
         self._apply_supplemental_qss()
         self.resize(self.DEFAULT_SIZE)
 
@@ -130,6 +132,8 @@ class MainWindow(QMainWindow):
         self.home_screen.populate_modules(self.module_manager.get_available_modules())
 
         self._show_home()
+        # Listen for global theme changes
+        theme_manager.theme_changed.connect(self._on_theme_changed)
 
     def _apply_supplemental_qss(self) -> None:
         from PyQt6.QtWidgets import QApplication
@@ -175,6 +179,18 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
+        
+        theme_menu = menubar.addMenu("&Theme")
+        
+        action_default = QAction("BioPro Default", self)
+        action_default.triggered.connect(lambda: self._switch_theme("default.json"))
+        theme_menu.addAction(action_default)
+        
+        action_sw = QAction("Star Wars (Dark Side)", self)
+        action_sw.triggered.connect(lambda: self._switch_theme("star_wars.json"))
+        theme_menu.addAction(action_sw)
+        
+
         help_menu = menubar.addMenu("&Help")
         about_action = QAction("&About BioPro", self)
         about_action.triggered.connect(self._show_about)
@@ -211,11 +227,10 @@ class MainWindow(QMainWindow):
 
         self.canvas = ImageCanvas()
 
-        self.results_widget = ResultsWidget()
+        # Right: dynamic panel container — hidden by default
         self._right_container = QWidget()
-        right_layout = QVBoxLayout(self._right_container)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.addWidget(self.results_widget)
+        self.right_layout = QVBoxLayout(self._right_container)
+        self.right_layout.setContentsMargins(0, 0, 0, 0)
         self._right_container.setMinimumWidth(300)
         self._right_container.hide()
 
@@ -272,14 +287,25 @@ class MainWindow(QMainWindow):
 
             self.left_layout.addWidget(self.wizard_panel)
 
+            # --- NEW: Dynamic Right Panel Injection ---
+            # 1. Clear the old right panel if it exists
+            while self.right_layout.count():
+                item = self.right_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+            
+            # 2. Ask the plugin if it has a custom right panel
+            if hasattr(self.wizard_panel, 'get_right_panel_widget'):
+                right_widget = self.wizard_panel.get_right_panel_widget()
+                if right_widget:
+                    self.right_layout.addWidget(right_widget)
+            # ------------------------------------------
+
             self.analysis_toolbar.set_title(manifest.get("icon", "📦"), manifest.get("name", "Analysis"))
 
             if hasattr(self.wizard_panel, 'set_canvas'):
                 self.wizard_panel.set_canvas(self.canvas)
-            if hasattr(self.wizard_panel, 'set_results_widget'):
-                self.wizard_panel.set_results_widget(self.results_widget)
             
-            self.results_widget.set_canvas(self.canvas)
 
             # Reconnect dynamic signals
             self.wizard_panel.image_changed.connect(self.canvas.set_image)
@@ -296,9 +322,7 @@ class MainWindow(QMainWindow):
             if hasattr(self.wizard_panel, 'profile_hovered'):
                 self.wizard_panel.profile_hovered.connect(self._on_profile_hovered)
             if hasattr(self.wizard_panel, 'results_ready'):
-                self.wizard_panel.results_ready.connect(self._on_results_ready)
-            if hasattr(self.wizard_panel, 'selected_bands_changed'):
-                self.wizard_panel.selected_bands_changed.connect(self.results_widget.update_pairwise_comparison)
+                self.wizard_panel.results_ready.connect(self._reveal_right_panel)
 
             # Canvas -> Wizard reconnects
             try: self.canvas.band_clicked.disconnect() 
@@ -321,15 +345,17 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Module Error", f"Failed to load module {module_id}:\n{str(e)}")
             logger.exception(f"Failed to load module {module_id}")
 
-    def _on_results_ready(self, df) -> None:
-        self.wizard_panel.set_results_widget(self.results_widget)
-        self.results_widget.set_results(df)
+    def _reveal_right_panel(self, *args) -> None:
+        """Slides the right panel open when the plugin has data to show."""
         if self._right_container.isHidden():
             self._right_container.show()
+            
+            # Recalculate the QSplitter sizes to fit the new panel
             total = self.splitter.width()
-            left = 340
-            right = max(320, total // 4)
-            centre = max(200, total - left - right)
+            left = 340  # Keep wizard panel fixed
+            right = max(320, total // 4) # Give results a quarter of the screen
+            centre = max(200, total - left - right) # Canvas gets the rest
+            
             self.splitter.setSizes([left, centre, right])
 
     def _on_profile_hovered(self, lane_idx: int, y_pos: float) -> None:
@@ -390,3 +416,39 @@ class MainWindow(QMainWindow):
         from biopro.ui.store_dialog import StoreDialog
         dialog = StoreDialog(self.module_manager, self)
         dialog.exec()
+
+    def _switch_theme(self, filename: str) -> None:
+        """Locates the theme JSON and tells the engine to load it."""
+        from pathlib import Path
+        # Go up 3 levels from biopro/ui/main_window.py to reach the root, then into themes/
+        theme_path = Path(__file__).parent.parent.parent / "themes" / filename
+        theme_manager.load_theme(theme_path)
+
+    def _on_theme_changed(self) -> None:
+        """Called automatically when theme_manager broadcasts a change."""
+        # 1. Update the Main Window background and text
+        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        self._apply_supplemental_qss()
+        
+        # 2. Update the Canvas background
+        self.canvas.setStyleSheet(
+            f"QGraphicsView {{ border: 1px solid {Colors.BORDER};"
+            f" background-color: {Colors.BG_DARKEST}; }}"
+        )
+        
+        # 3. Update the Toolbar
+        self.analysis_toolbar.setStyleSheet(
+            f"QWidget#analysisToolBar {{"
+            f"  background: {Colors.BG_DARK};"
+            f"  border-bottom: 1px solid {Colors.BORDER};"
+            f"}}"
+        )
+        self.analysis_toolbar.title_lbl.setStyleSheet(
+            f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
+            f" color: {Colors.FG_PRIMARY}; background: transparent;"
+        )
+        self.analysis_toolbar.btn_close_project.setStyleSheet(
+            f"QPushButton {{ background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER};"
+            f" border-radius: 5px; padding: 3px 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
+            f"QPushButton:hover {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; }}"
+        )

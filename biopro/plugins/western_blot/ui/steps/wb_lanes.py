@@ -18,6 +18,8 @@ from PyQt6.QtWidgets import (
 
 from biopro.ui.theme import Colors
 from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.steps.base_step import BaseStepWidget
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +36,13 @@ class WBLanesStep(WizardStep):
         self._canvas = None
         self._manually_adjusted = False
 
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setSpacing(12)
+        # 1. Use the new Base Class!
+        page = BaseStepWidget(
+            title="Step 2: Detect Lanes",
+            subtitle="Auto-detect or manually set the number of lanes."
+        )
 
+        # 2. Build the Lane Detection Group
         lane_group = QGroupBox("Lane Detection")
         lane_layout = QVBoxLayout(lane_group)
         lane_layout.setSpacing(8)
@@ -50,23 +55,14 @@ class WBLanesStep(WizardStep):
         self.spin_lanes = QSpinBox()
         self.spin_lanes.setRange(1, 30)
         self.spin_lanes.setValue(6)
-        self.spin_lanes.setToolTip(
-            "Override lane count — uncheck auto-detect to use this value.\n"
-            "You can also type directly here; auto-detect will be unchecked automatically."
-        )
-        self.spin_lanes.valueChanged.connect(
-            lambda _: self._on_lane_count_manually_changed(panel)
-        )
+        self.spin_lanes.setToolTip("Override lane count — uncheck auto-detect to use this value.")
+        self.spin_lanes.valueChanged.connect(lambda _: self._on_lane_count_manually_changed(panel))
         lane_layout.addLayout(self._row("Number of lanes:", self.spin_lanes))
 
         self.spin_smoothing = QSpinBox()
         self.spin_smoothing.setRange(3, 51)
         self.spin_smoothing.setValue(15)
         self.spin_smoothing.setSingleStep(2)
-        self.spin_smoothing.setToolTip(
-            "Smoothing window for the lane detection projection. "
-            "Increase for noisy images."
-        )
         lane_layout.addLayout(self._row("Smoothing:", self.spin_smoothing))
 
         self.btn_detect = QPushButton("🔍  Detect Lanes")
@@ -74,8 +70,6 @@ class WBLanesStep(WizardStep):
             f"QPushButton {{ background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
             f" border: none; border-radius: 6px; padding: 8px 16px; font-weight: 600; }}"
             f"QPushButton:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}"
-            f"QPushButton:pressed {{ background-color: {Colors.ACCENT_PRIMARY_PRESSED}; }}"
-            f"QPushButton:disabled {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_DISABLED}; }}"
         )
         self.btn_detect.setMinimumHeight(36)
         self.btn_detect.clicked.connect(lambda: self.run_detection(panel))
@@ -84,19 +78,16 @@ class WBLanesStep(WizardStep):
         self.lbl_status = QLabel("")
         self.lbl_status.setObjectName("subtitle")
         self.lbl_status.setWordWrap(True)
-        self.lbl_status.setMinimumHeight(18)
         lane_layout.addWidget(self.lbl_status)
 
-        layout.addWidget(lane_group)
+        page.add_content_widget(lane_group) # <-- Add it to the base class!
 
-        # Lane type selectors — populated after detection
+        # 3. Build the Lane Types Group
         self._lane_type_group = QGroupBox("Lane Types")
         lane_type_layout = QVBoxLayout(self._lane_type_group)
-        lane_type_layout.setSpacing(4)
-
+        
         desc = QLabel("Mark lanes as Ladder or Exclude to skip them in analysis:")
         desc.setWordWrap(True)
-        desc.setMinimumHeight(18)
         lane_type_layout.addWidget(desc)
 
         self._lane_type_container = QVBoxLayout()
@@ -107,8 +98,8 @@ class WBLanesStep(WizardStep):
         self.lbl_no_lanes.setObjectName("subtitle")
         lane_type_layout.addWidget(self.lbl_no_lanes)
 
-        layout.addWidget(self._lane_type_group)
-        layout.addStretch()
+        page.add_content_widget(self._lane_type_group) # <-- Add it to the base class!
+
         return self._scroll(page)
 
     def on_next(self, panel: WizardPanel) -> bool:

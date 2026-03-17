@@ -25,8 +25,6 @@ from PyQt6.QtWidgets import (
     QGraphicsTextItem,
 )
 
-from biopro.plugins.western_blot.analysis.peak_analysis import DetectedBand
-from biopro.plugins.western_blot.analysis.lane_detection import LaneROI
 from biopro.ui.theme import Colors
 
 
@@ -38,7 +36,7 @@ class BandOverlayItem(QGraphicsRectItem):
     def __init__(
         self,
         rect: QRectF,
-        band: DetectedBand,
+        band: object,
         color: QColor,
         callback,
     ) -> None:
@@ -448,7 +446,7 @@ class ImageCanvas(QGraphicsView):
             # Redraw with current mode — caller must re-call add_lane_overlays
             pass
 
-    def add_lane_overlays(self, lanes: list[LaneROI]) -> None:
+    def add_lane_overlays(self, lanes: list) -> None:
         """Draw lane boundary overlays, with draggable borders in edit mode."""
         self.clear_lane_overlays()
         if not lanes:
@@ -549,7 +547,7 @@ class ImageCanvas(QGraphicsView):
 
     # ── Band overlays ─────────────────────────────────────────────────
 
-    def add_band_overlays(self, lanes: list[LaneROI], bands: list) -> None:
+    def add_band_overlays(self, lanes: list, bands: list) -> None:
         self.clear_band_overlays()
         for band in bands:
             if band.lane_index >= len(lanes):
@@ -568,7 +566,7 @@ class ImageCanvas(QGraphicsView):
             self._scene.addItem(item)
             self._band_overlays.append(item)
 
-    def _on_band_toggled(self, band: DetectedBand) -> None:
+    def _on_band_toggled(self, band: object) -> None:
         self.band_clicked.emit(band)
 
     def set_band_comparison_slots(self, band_a, band_b) -> None:
@@ -605,7 +603,7 @@ class ImageCanvas(QGraphicsView):
 
     # ── Hover indicator ───────────────────────────────────────────────
 
-    def show_hover_indicator(self, lane: LaneROI, y_position: float) -> None:
+    def show_hover_indicator(self, lane: object, y_position: float) -> None:
         if y_position < 0:
             self.hide_hover_indicator()
             return
