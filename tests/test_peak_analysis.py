@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from biopro.analysis.peak_analysis import (
+from biopro.plugins.western_blot.analysis.peak_analysis import (
     compute_peak_areas,
     detect_peaks,
     extract_lane_profile,

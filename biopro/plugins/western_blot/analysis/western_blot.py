@@ -41,11 +41,11 @@ import pandas as pd
 from numpy.typing import NDArray
 from scipy.ndimage import uniform_filter1d
 
-from biopro.analysis.band_matching import (
+from biopro.plugins.western_blot.analysis.band_matching import (
     align_lanes_by_correlation,
     assign_matched_bands,
 )
-from biopro.analysis.image_utils import (
+from biopro.shared.analysis.image_utils import (
     auto_detect_inversion,
     crop_to_content,
     enhance_for_band_detection,
@@ -54,8 +54,8 @@ from biopro.analysis.image_utils import (
     rotate_image,
     adjust_contrast,
 )
-from biopro.analysis.lane_detection import LaneROI, detect_lanes_projection
-from biopro.analysis.peak_analysis import (
+from biopro.plugins.western_blot.analysis.lane_detection import LaneROI, detect_lanes_projection
+from biopro.plugins.western_blot.analysis.peak_analysis import (
     DetectedBand,
     analyze_lane,
     estimate_noise_level,
@@ -63,7 +63,7 @@ from biopro.analysis.peak_analysis import (
     rolling_ball_baseline,
     orient_profile_for_bands,
 )
-from biopro.analysis.state import AnalysisState  # noqa: F401 — re-exported for back-compat
+from biopro.plugins.western_blot.analysis.state import AnalysisState  # noqa: F401 — re-exported for back-compat
 
 logger = logging.getLogger(__name__)
 
@@ -716,7 +716,7 @@ class WesternBlotAnalyzer:
         params.update(detection_params)
         
         # Analyze just this lane
-        from biopro.analysis.peak_analysis import analyze_lane
+        from biopro.plugins.western_blot.analysis.peak_analysis import analyze_lane
         profile, baseline, bands, auto_valleys = analyze_lane(
             image,
             lane_index=lane.index,

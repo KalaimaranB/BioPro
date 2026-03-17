@@ -48,8 +48,8 @@ import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
-from biopro.analysis.lane_detection import LaneROI
-from biopro.analysis.peak_analysis import DetectedBand
+from biopro.plugins.western_blot.analysis.lane_detection import LaneROI
+from biopro.plugins.western_blot.analysis.peak_analysis import DetectedBand
 
 
 @dataclass

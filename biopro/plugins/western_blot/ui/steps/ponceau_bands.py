@@ -24,7 +24,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
 from biopro.ui.theme import Colors
-from biopro.ui.wizard.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
 matplotlib.use("QtAgg")
 

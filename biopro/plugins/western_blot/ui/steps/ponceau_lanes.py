@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.ui.theme import Colors
-from biopro.ui.wizard.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ class PonceauLanesStep(WizardStep):
 
     def on_enter(self) -> None:
         """Refresh WB lane count when we arrive at this step."""
-        from biopro.ui.wizard.steps.wb_lanes import WBLanesStep
+        from biopro.plugins.western_blot.ui.steps.wb_lanes import WBLanesStep
         for step in self._panel._steps:
             if isinstance(step, WBLanesStep):
                 self._wb_lane_count = len(self._panel.analyzer.state.lanes)
@@ -187,7 +187,7 @@ class PonceauLanesStep(WizardStep):
         for i in range(1, len(boundaries)):
             if boundaries[i] <= boundaries[i - 1] + MIN_WIDTH:
                 boundaries[i] = boundaries[i - 1] + MIN_WIDTH
-        from biopro.analysis.lane_detection import LaneROI
+        from biopro.plugins.western_blot.analysis.lane_detection import LaneROI
         img_h = lanes[0].y_end
         new_lanes = [
             LaneROI(index=i, x_start=boundaries[i], x_end=boundaries[i+1],

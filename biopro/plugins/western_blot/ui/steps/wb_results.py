@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.ui.theme import Colors
-from biopro.ui.wizard.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class WBResultsStep(WizardStep):
         norm_layout.addLayout(self._row("Reference lane:", self.combo_ref_lane))
 
         self.chk_normalize_one = QCheckBox("Set control lane to 1.0")
-        self.chk_normalize_one.setChecked(True)
+        self.chk_normalize_one.setChecked(False)
         self.chk_normalize_one.toggled.connect(lambda _: self._compute_results())
         norm_layout.addWidget(self.chk_normalize_one)
 
@@ -215,6 +215,9 @@ class WBResultsStep(WizardStep):
 
             # ── Step 3: compute per-lane ratio ─────────────────────────
             records = []
+            # 1. Calculate the total WB intensity once before the loop
+            total_wb = sum(wb_intensity.values()) or 1.0
+
             for lane_idx in sorted(wb_intensity.keys()):
                 wb_raw = wb_intensity[lane_idx]
                 pon_raw = ponceau_raw.get(lane_idx, 0.0)
@@ -229,6 +232,7 @@ class WBResultsStep(WizardStep):
                     "lane": lane_idx,
                     "wb_band_position": wb_band_pos.get(lane_idx, 0),
                     "wb_raw": round(wb_raw, 4),
+                    "percent_of_total": round((wb_raw / total_wb) * 100, 2),
                     "ponceau_raw": round(pon_raw, 4) if use_ponceau else None,
                     "ratio": round(ratio, 6),
                     "normalised_ratio": ratio,  # scaled below
@@ -265,7 +269,7 @@ class WBResultsStep(WizardStep):
             logger.exception("Densitometry error")
 
     def _get_lane_types(self) -> dict[int, str]:
-        from biopro.ui.wizard.steps.wb_lanes import WBLanesStep
+        from biopro.plugins.western_blot.ui.steps.wb_lanes import WBLanesStep
         for step in self._panel._steps:
             if isinstance(step, WBLanesStep):
                 return step.get_lane_types()

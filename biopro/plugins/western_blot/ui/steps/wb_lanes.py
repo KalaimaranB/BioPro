@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.ui.theme import Colors
-from biopro.ui.wizard.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +252,7 @@ class WBLanesStep(WizardStep):
             if boundaries[i] <= boundaries[i - 1] + MIN_WIDTH:
                 boundaries[i] = boundaries[i - 1] + MIN_WIDTH
 
-        from biopro.analysis.lane_detection import LaneROI
+        from biopro.plugins.western_blot.analysis.lane_detection import LaneROI
         img_h = lanes[0].y_end
         new_lanes = [
             LaneROI(

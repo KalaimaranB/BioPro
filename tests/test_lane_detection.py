@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from biopro.analysis.lane_detection import (
+from biopro.plugins.western_blot.analysis.lane_detection import (
     LaneROI,
     compute_vertical_projection,
     create_equal_lanes,

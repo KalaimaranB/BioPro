@@ -66,12 +66,23 @@ class DataTableDialog(QDialog):
             "ponceau_factor": "Ponceau Factor",
             "ponceau_normalized": "Ponceau Norm.",
             "snr": "SNR", "width": "Width (px)",
+            # Add labels for your custom professor schema
+            "wb_band_position": "Position (px)",
+            "wb_raw": "WB Raw Intensity",
+            "ponceau_raw": "Ponceau Raw",
+            "ratio": "WB/Pon Ratio",
+            "normalised_ratio": "Normalised",
         }
+        
         core = ["lane", "band", "position", "raw_intensity",
                 "percent_of_total", "normalized"]
+        # Define the custom columns
+        prof_cols = ["wb_band_position", "wb_raw", "ponceau_raw", "ratio", "normalised_ratio"]
         pon_cols = ["ponceau_factor", "ponceau_normalized"]
         extra = ["snr", "width"]
-        cols = [c for c in core + pon_cols + extra if c in df.columns]
+        
+        # Add prof_cols to the final list generation
+        cols = [c for c in core + prof_cols + pon_cols + extra if c in df.columns]
 
         table.setColumnCount(len(cols))
         table.setRowCount(len(df))
@@ -355,6 +366,7 @@ class ResultsWidget(QWidget):
             "Click a Band button to enter selection mode,\n"
             "then click a band on the image."
         )
+        self._spin_slots.valueChanged.connect(self._on_slots_changed)
         # valueChanged is wired externally by WesternBlotPanel.set_results_widget
         # so that changing the count also triggers a results recompute.
         cr.addWidget(self._spin_slots)
@@ -713,3 +725,9 @@ class ResultsWidget(QWidget):
         )
         if path:
             self.chart.save_chart(path)
+
+    def _on_slots_changed(self, val: int) -> None:
+        """Handle changes to the number of comparison slots."""
+        self._rebuild_slots(val)
+        self._refresh_chart()
+        self._render_result()

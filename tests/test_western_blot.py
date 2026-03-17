@@ -12,7 +12,7 @@ import pytest
 # Add samples directory to path for importing the generator
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from biopro.analysis.western_blot import WesternBlotAnalyzer
+from biopro.plugins.western_blot.analysis.western_blot import WesternBlotAnalyzer
 from samples.generate_samples import generate_western_blot
 
 

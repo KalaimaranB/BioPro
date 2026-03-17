@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.ui.theme import Colors
-from biopro.ui.wizard.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
 logger = logging.getLogger(__name__)
 
@@ -271,19 +271,60 @@ class PonceauLoadStep(WizardStep):
     # ── File loading ──────────────────────────────────────────────────
 
     def _open_file(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from pathlib import Path
+        import logging
+        
+        logger = logging.getLogger(__name__)
+
+        main_win = self._panel.window()
+        pm = getattr(main_win, "project_manager", None)
+        default_dir = str(pm.project_dir) if pm else ""
+
         path, _ = QFileDialog.getOpenFileName(
-            None,
+            self._panel,
             "Open Ponceau S Image",
-            "",
+            default_dir,
             "Image Files (*.tif *.tiff *.png *.jpg *.jpeg *.bmp);;All Files (*)",
         )
         if not path:
             return
+            
+        final_path = Path(path)
+        
+        if pm:
+            try:
+                is_in_workspace = pm.assets_dir.resolve() in final_path.resolve().parents
+                
+                if not is_in_workspace:
+                    reply = QMessageBox.question(
+                        self._panel,
+                        "Copy to Workspace?",
+                        f"The image '{final_path.name}' is outside the project folder.\n\n"
+                        "Would you like to copy it into the project's 'assets' folder for safe keeping and portability?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.Yes
+                    )
+                    copy_to_workspace = (reply == QMessageBox.StandardButton.Yes)
+                else:
+                    copy_to_workspace = False
+                    
+                file_hash = pm.add_image(final_path, copy_to_workspace)
+                resolved_path = pm.get_asset_path(file_hash)
+                if resolved_path:
+                    final_path = resolved_path
+                    
+            except Exception as e:
+                QMessageBox.warning(self._panel, "Asset Error", f"Failed to add asset to project:\n{e}")
+                logger.exception("Asset Management Error")
+
         try:
-            self._panel.ponceau_analyzer.load_image(path)
-            self.lbl_filename.setText(f"✅  {Path(path).name}")
-            self._panel.status_message.emit(f"Ponceau: Loaded {Path(path).name}")
-            self._preprocess()
+            self._panel.ponceau_analyzer.load_image(str(final_path))
+            self.lbl_filename.setText(f"✅  {final_path.name}")
+            self._panel.status_message.emit(f"Ponceau: Loaded {final_path.name}")
+            
+            self._on_auto_contrast() 
+            
         except Exception as e:
             self.lbl_filename.setText(f"❌  Error: {e}")
             self._panel.status_message.emit(f"Error loading Ponceau image: {e}")
@@ -343,7 +384,7 @@ class PonceauLoadStep(WizardStep):
             return
         try:
             import numpy as np
-            from biopro.analysis.image_utils import auto_detect_rotation
+            from biopro.shared.analysis.image_utils import auto_detect_rotation
             self.lbl_auto_result.setText("⏳  Detecting rotation…")
             self.btn_auto_rotation.setEnabled(False)
             self.btn_auto_rotation.repaint()
@@ -407,7 +448,7 @@ class PonceauLoadStep(WizardStep):
             self._panel.status_message.emit("Load and preprocess first.")
             return
         try:
-            from biopro.analysis.image_utils import calculate_band_crop_region
+            from biopro.shared.analysis.image_utils import calculate_band_crop_region
             self.btn_auto_crop.setEnabled(False)
             self.btn_auto_crop.repaint()
 

@@ -25,8 +25,8 @@ from PyQt6.QtWidgets import (
     QGraphicsTextItem,
 )
 
-from biopro.analysis.peak_analysis import DetectedBand
-from biopro.analysis.lane_detection import LaneROI
+from biopro.plugins.western_blot.analysis.peak_analysis import DetectedBand
+from biopro.plugins.western_blot.analysis.lane_detection import LaneROI
 from biopro.ui.theme import Colors
 
 

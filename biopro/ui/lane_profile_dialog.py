@@ -19,7 +19,7 @@ from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as Navigation
 from matplotlib.figure import Figure
 from matplotlib.widgets import SpanSelector
 
-from biopro.analysis.state import AnalysisState
+from biopro.plugins.western_blot.analysis.state import AnalysisState
 
 matplotlib.use("QtAgg")
 

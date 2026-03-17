@@ -16,6 +16,10 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QPushButton, QGridLayout, QSizePolicy
+)
 
 from biopro.ui.theme import Colors, Fonts
 
@@ -124,7 +128,9 @@ class HomeScreen(QWidget):
         western_blot_requested: Emitted when user selects Western Blot Analysis.
     """
 
-    western_blot_requested = pyqtSignal()
+    module_selected = pyqtSignal(dict)  # Passes the entire manifest dictionary
+    return_to_hub_requested = pyqtSignal()
+    open_store_requested = pyqtSignal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -167,6 +173,39 @@ class HomeScreen(QWidget):
             f"font-size: 11px; color: {Colors.FG_DISABLED}; background: transparent;"
         )
         title_row.addWidget(version)
+
+        # --- Add Store Button ---
+        self.btn_store = QPushButton("☁️ Store")
+        self.btn_store.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: transparent; border: 1px solid {Colors.BORDER};"
+            f"  border-radius: 5px; padding: 6px 14px; margin-left: 20px;"
+            f"  color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px;"
+            f"}}"
+            f"QPushButton:hover {{"
+            f"  background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY};"
+            f"}}"
+        )
+        self.btn_store.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_store.clicked.connect(self.open_store_requested.emit)
+        title_row.addWidget(self.btn_store)
+        # ------------------------
+
+        self.btn_return_hub = QPushButton("🏠 Return to Hub")
+        self.btn_return_hub.setStyleSheet(
+            f"QPushButton {{"
+            f"  background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER};"
+            f"  border-radius: 5px; padding: 6px 14px; margin-left: 20px;"
+            f"  color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px;"
+            f"}}"
+            f"QPushButton:hover {{"
+            f"  background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
+            f"}}"
+        )
+        self.btn_return_hub.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_return_hub.clicked.connect(self.return_to_hub_requested.emit)
+        title_row.addWidget(self.btn_return_hub)
+
         hero_layout.addLayout(title_row)
 
         tagline = QLabel("Bio-Image Analysis Made Simple — open-source alternative to ImageJ")
@@ -189,50 +228,16 @@ class HomeScreen(QWidget):
         )
         content_layout.addWidget(section_lbl)
 
-        grid = QGridLayout()
-        grid.setSpacing(14)
-        grid.setColumnStretch(0, 1)
-        grid.setColumnStretch(1, 1)
-        grid.setColumnStretch(2, 1)
+        # Save the grid layout to 'self' so we can populate it dynamically
+        self.grid = QGridLayout()
+        self.grid.setSpacing(14)
+        self.grid.setColumnStretch(0, 1)
+        self.grid.setColumnStretch(1, 1)
+        self.grid.setColumnStretch(2, 1)
 
-        wb = ModuleCard(
-            icon="🔬",
-            title="Western Blot",
-            description=(
-                "Automated lane & band detection, densitometry, "
-                "and relative quantification."
-            ),
-            badge="Available",
-            enabled=True,
-        )
-        wb.clicked.connect(self.western_blot_requested)
-        grid.addWidget(wb, 0, 0)
+        # Notice: NO HARDCODED MODULE CARDS HERE ANYMORE!
 
-        grid.addWidget(ModuleCard(
-            icon="🧪", title="SDS-PAGE Gel",
-            description="Molecular weight estimation and band pattern analysis.",
-            enabled=False,
-        ), 0, 1)
-
-        grid.addWidget(ModuleCard(
-            icon="🔆", title="Fluorescence",
-            description="Multi-channel quantification and co-localisation.",
-            enabled=False,
-        ), 0, 2)
-
-        grid.addWidget(ModuleCard(
-            icon="🦠", title="Cell Counting",
-            description="Automated segmentation, counting, and morphometry.",
-            enabled=False,
-        ), 1, 0)
-
-        grid.addWidget(ModuleCard(
-            icon="⚡", title="Batch Processing",
-            description="Run any module across a folder of images automatically.",
-            enabled=False,
-        ), 1, 1)
-
-        content_layout.addLayout(grid)
+        content_layout.addLayout(self.grid)
         content_layout.addStretch()
 
         hint = QLabel("Click an available module to begin  ·  More modules coming soon")
@@ -243,3 +248,76 @@ class HomeScreen(QWidget):
         content_layout.addWidget(hint)
 
         root.addWidget(content, stretch=1)
+
+    def populate_modules(self, manifests: list[dict]) -> None:
+        """Dynamically build the selection grid based on installed plugins."""
+        # Clear any existing buttons
+        for i in reversed(range(self.grid_layout.count())): 
+            widget = self.grid_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
+        if not manifests:
+            lbl = QLabel("No analysis modules installed. Use the Module Manager to download plugins.")
+            lbl.setStyleSheet(f"color: {Colors.FG_DISABLED}; font-style: italic;")
+            self.grid_layout.addWidget(lbl, 0, 0)
+            return
+
+        # Build buttons from manifests
+        for i, manifest in enumerate(manifests):
+            icon = manifest.get("icon", "📦")
+            name = manifest.get("name", "Unknown Module")
+            desc = manifest.get("description", "")
+
+            btn = QPushButton(f"{icon}  {name}\n\n{desc}")
+            btn.setStyleSheet(
+                f"QPushButton {{"
+                f"  background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER};"
+                f"  border-radius: 8px; padding: 20px; text-align: left;"
+                f"  color: {Colors.FG_PRIMARY}; font-size: 14px; font-weight: bold;"
+                f"}}"
+                f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
+            )
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            # Use a lambda to pass the specific manifest when clicked
+            btn.clicked.connect(lambda checked, m=manifest: self.module_selected.emit(m))
+
+            self.grid_layout.addWidget(btn, i // 2, i % 2) # 2 columns
+
+    def populate_modules(self, manifests: list[dict]) -> None:
+        """Dynamically build the selection grid based on installed plugins."""
+        # 1. Clear any existing widgets in the grid
+        for i in reversed(range(self.grid.count())): 
+            widget = self.grid.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
+        # 2. Handle empty state
+        if not manifests:
+            lbl = QLabel("No analysis modules installed. Use the Hub to download plugins.")
+            lbl.setStyleSheet(f"color: {Colors.FG_DISABLED}; font-style: italic;")
+            self.grid.addWidget(lbl, 0, 0)
+            return
+
+        # 3. Build a ModuleCard for every manifest
+        for i, manifest in enumerate(manifests):
+            icon = manifest.get("icon", "📦")
+            title = manifest.get("name", "Unknown Module")
+            desc = manifest.get("description", "")
+
+            # Create your custom UI card
+            card = ModuleCard(
+                icon=icon,
+                title=title,
+                description=desc,
+                badge="Installed",
+                enabled=True,
+            )
+            
+            # Wire the click to emit the specific manifest
+            card.clicked.connect(lambda *args, m=manifest: self.module_selected.emit(m))
+                        
+            # Calculate grid position (3 columns wide)
+            row = i // 3
+            col = i % 3
+            self.grid.addWidget(card, row, col)

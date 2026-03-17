@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from biopro.analysis.image_utils import (
+from biopro.shared.analysis.image_utils import (
     auto_detect_inversion,
     auto_crop_to_bands,
     crop_to_content,

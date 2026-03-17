@@ -38,7 +38,7 @@ the correct WB lane.  Unmapped WB lanes receive a factor of 1.0
 
 Example::
 
-    from biopro.analysis.ponceau import PonceauAnalyzer
+    from biopro.plugins.western_blot.analysis.ponceau import PonceauAnalyzer
 
     pon = PonceauAnalyzer()
     pon.load_image("ponceau.jpg")
@@ -57,8 +57,8 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 
-from biopro.analysis.western_blot import WesternBlotAnalyzer
-from biopro.analysis.state import AnalysisState
+from biopro.plugins.western_blot.analysis.western_blot import WesternBlotAnalyzer
+from biopro.plugins.western_blot.analysis.state import AnalysisState
 
 logger = logging.getLogger(__name__)
 

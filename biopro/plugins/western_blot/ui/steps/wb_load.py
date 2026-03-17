@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.ui.theme import Colors, Fonts
-from biopro.ui.wizard.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +274,7 @@ class WBLoadStep(WizardStep):
             return False
         self._preprocess()
         # Auto-run lane detection so step 2 is pre-populated
-        from biopro.ui.wizard.steps.wb_lanes import WBLanesStep
+        from biopro.plugins.western_blot.ui.steps.wb_lanes import WBLanesStep
         for step in panel._steps:
             if isinstance(step, WBLanesStep) and step._auto_lanes_checked():
                 step.run_detection(panel)
@@ -285,26 +285,78 @@ class WBLoadStep(WizardStep):
         self._canvas = canvas
 
     # ── File loading ──────────────────────────────────────────────────
-
     def _open_file(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        from pathlib import Path
+        import logging
+        
+        logger = logging.getLogger(__name__)
+
+        # 1. Safely grab the Project Manager directly from the top-level MainWindow
+        main_win = self._panel.window()
+        pm = getattr(main_win, "project_manager", None)
+
+        # 2. Set the default directory to the project folder (if it exists)
+        default_dir = str(pm.project_dir) if pm else ""
+
+        # 3. Pass default_dir as the third argument so it opens there automatically
         path, _ = QFileDialog.getOpenFileName(
-            None,
+            self._panel,
             "Open Western Blot Image",
-            "",
+            default_dir,
             "Image Files (*.tif *.tiff *.png *.jpg *.jpeg *.bmp);;All Files (*)",
         )
         if not path:
             return
+            
+        final_path = Path(path)
+        
+        # --- PHASE 2: Project Asset Management ---
+        if pm:
+            try:
+                # Check if it's already inside the project's assets folder
+                is_in_workspace = pm.assets_dir.resolve() in final_path.resolve().parents
+                
+                if not is_in_workspace:
+                    reply = QMessageBox.question(
+                        self._panel,
+                        "Copy to Workspace?",
+                        f"The image '{final_path.name}' is outside the project folder.\n\n"
+                        "Would you like to copy it into the project's 'assets' folder for safe keeping and portability?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.Yes
+                    )
+                    copy_to_workspace = (reply == QMessageBox.StandardButton.Yes)
+                else:
+                    copy_to_workspace = False
+                    
+                # Hash the file and add it to project.biopro
+                file_hash = pm.add_image(final_path, copy_to_workspace)
+                
+                # Update our target path to the safe workspace copy if we moved it
+                resolved_path = pm.get_asset_path(file_hash)
+                if resolved_path:
+                    final_path = resolved_path
+                    
+            except Exception as e:
+                QMessageBox.warning(self._panel, "Asset Error", f"Failed to add asset to project:\n{e}")
+                logger.exception("Asset Management Error")
+        else:
+            print("DEBUG: Project Manager not found on MainWindow!")
+        # -----------------------------------------
+
         try:
-            self._panel.analyzer.load_image(path)
-            self.lbl_filename.setText(f"✅  {Path(path).name}")
-            self._panel.status_message.emit(f"Loaded: {Path(path).name}")
-            self._preprocess()
+            self._panel.analyzer.load_image(str(final_path))
+            self.lbl_filename.setText(f"✅  {final_path.name}")
+            self._panel.status_message.emit(f"Western Blot: Loaded {final_path.name}")
+            
+            self._preprocess() 
+            
         except Exception as e:
             self.lbl_filename.setText(f"❌  Error: {e}")
-            self._panel.status_message.emit(f"Error loading file: {e}")
-            logger.exception("Error loading image")
-
+            self._panel.status_message.emit(f"Error loading Western Blot image: {e}")
+            logger.exception("Error loading Western Blot image")
+    
     # ── Preprocessing ─────────────────────────────────────────────────
 
     def _preprocess(self) -> None:
@@ -379,7 +431,7 @@ class WBLoadStep(WizardStep):
             self._panel.status_message.emit("Load an image first.")
             return
         try:
-            from biopro.analysis.image_utils import auto_detect_rotation
+            from biopro.shared.analysis.image_utils import auto_detect_rotation
             self.lbl_auto_result.setText("⏳  Detecting rotation…")
             self.btn_auto_rotation.setEnabled(False)
             self.btn_auto_rotation.repaint()
@@ -445,7 +497,7 @@ class WBLoadStep(WizardStep):
             self._panel.status_message.emit("Load and preprocess an image first.")
             return
         try:
-            from biopro.analysis.image_utils import calculate_band_crop_region
+            from biopro.shared.analysis.image_utils import calculate_band_crop_region
             self.btn_auto_crop.setEnabled(False)
             self.btn_auto_crop.repaint()
 

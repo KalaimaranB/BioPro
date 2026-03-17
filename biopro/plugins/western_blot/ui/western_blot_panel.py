@@ -15,17 +15,17 @@ import logging
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QStackedWidget, QVBoxLayout, QWidget
 
-from biopro.analysis.western_blot import WesternBlotAnalyzer
-from biopro.analysis.ponceau import PonceauAnalyzer
-from biopro.ui.wizard.base import WizardPanel
-from biopro.ui.wizard.setup_screen import SetupScreen
-from biopro.ui.wizard.steps.wb_load import WBLoadStep
-from biopro.ui.wizard.steps.wb_lanes import WBLanesStep
-from biopro.ui.wizard.steps.wb_bands import WBBandsStep
-from biopro.ui.wizard.steps.wb_results import WBResultsStep
-from biopro.ui.wizard.steps.ponceau_load import PonceauLoadStep
-from biopro.ui.wizard.steps.ponceau_lanes import PonceauLanesStep
-from biopro.ui.wizard.steps.ponceau_bands import PonceauBandsStep
+from biopro.plugins.western_blot.analysis.western_blot import WesternBlotAnalyzer
+from biopro.plugins.western_blot.analysis.ponceau import PonceauAnalyzer
+from biopro.plugins.western_blot.ui.base import WizardPanel
+from biopro.plugins.western_blot.ui.setup_screen import SetupScreen
+from biopro.plugins.western_blot.ui.steps.wb_load import WBLoadStep
+from biopro.plugins.western_blot.ui.steps.wb_lanes import WBLanesStep
+from biopro.plugins.western_blot.ui.steps.wb_bands import WBBandsStep
+from biopro.plugins.western_blot.ui.steps.wb_results import WBResultsStep
+from biopro.plugins.western_blot.ui.steps.ponceau_load import PonceauLoadStep
+from biopro.plugins.western_blot.ui.steps.ponceau_lanes import PonceauLanesStep
+from biopro.plugins.western_blot.ui.steps.ponceau_bands import PonceauBandsStep
 
 logger = logging.getLogger(__name__)
 

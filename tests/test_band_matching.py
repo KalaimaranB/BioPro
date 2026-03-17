@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from biopro.analysis.band_matching import align_lanes_by_correlation, assign_matched_bands
+from biopro.plugins.western_blot.analysis.band_matching import align_lanes_by_correlation, assign_matched_bands
 
 
 def _profile_with_peaks(length: int, peaks: list[int], heights: list[float]) -> np.ndarray:

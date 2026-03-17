@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.ui.theme import Colors
-from biopro.ui.wizard.base import WizardPanel, WizardStep
+from biopro.plugins.western_blot.ui.base import WizardPanel, WizardStep
 
 logger = logging.getLogger(__name__)
 
@@ -364,7 +364,7 @@ class WBBandsStep(WizardStep):
 
     def _get_lane_types(self) -> dict[int, str]:
         """Pull lane types from WBLanesStep if present, else default all Sample."""
-        from biopro.ui.wizard.steps.wb_lanes import WBLanesStep
+        from biopro.plugins.western_blot.ui.steps.wb_lanes import WBLanesStep
         for step in self._panel._steps:
             if isinstance(step, WBLanesStep):
                 return step.get_lane_types()
