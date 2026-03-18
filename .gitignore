@@ -45,6 +45,7 @@ build/
 
 # PyInstaller Specific
 *.spec
+!BioPro.spec
 
 # Application Logs
 *.log
