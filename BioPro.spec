@@ -1,7 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
+from PyInstaller.utils.hooks import collect_all
 
-# 1. Base External Dependencies (No internal files needed here anymore!)
+# 1. Force-collect the entirety of scikit-image
+sk_bins, sk_datas, sk_hidden = collect_all('skimage')
+
+# 2. Base External Dependencies
 hidden_imports = [
     'biopro.plugins',
     'matplotlib.backends.backend_qtagg',
@@ -9,21 +13,19 @@ hidden_imports = [
     'numpy',
     'scipy',
     'cv2',
-    'skimage', # <-- The missing piece!
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
-]
+] + sk_hidden  # Add the skimage submodules here!
 
 a = Analysis(
     ['biopro/__main__.py'],
     pathex=[],
-    binaries=[],
-    # 2. THE SILVER BULLET: Treat the 'shared' folder as an external SDK
-    # This physically copies the folder so external plugins can read the raw files.
+    binaries=[] + sk_bins, # Add skimage binaries here!
+    # Physically copy your shared folder as raw data
     datas=[
         ('themes', 'themes'),
         ('biopro/shared', 'biopro/shared') 
-    ],
+    ] + sk_datas, # Add skimage data files here!
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
