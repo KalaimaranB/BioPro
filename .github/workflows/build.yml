@@ -1,0 +1,52 @@
+name: BioPro Production Build
+
+# This tells GitHub to run this pipeline whenever you push to main, 
+# or manually via a button on the website (workflow_dispatch).
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    # This is the "Matrix". It spins up 3 different virtual machines!
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11' # Locking the build environment
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Run PyInstaller (Mac/Linux)
+      if: runner.os != 'Windows'
+      run: |
+        pyinstaller --name "BioPro" --windowed --noconfirm --icon="icon.icns" --add-data "themes:themes" --collect-submodules "biopro.shared" --hidden-import "matplotlib.backends.backend_qtagg" --hidden-import "biopro.plugins" --hidden-import "pandas" --hidden-import "numpy" --hidden-import "scipy" biopro/__main__.py
+
+    - name: Run PyInstaller (Windows)
+      if: runner.os == 'Windows'
+      # Windows uses a semicolon (;) for --add-data instead of a colon (:)
+      run: |
+        pyinstaller --name "BioPro" --windowed --noconfirm --icon="icon.icns" --add-data "themes;themes" --collect-submodules "biopro.shared" --hidden-import "matplotlib.backends.backend_qtagg" --hidden-import "biopro.plugins" --hidden-import "pandas" --hidden-import "numpy" --hidden-import "scipy" biopro/__main__.py
+
+    - name: Upload Finished App to GitHub
+      uses: actions/upload-artifact@v4
+      with:
+        name: BioPro-Executable-${{ runner.os }}
+        path: |
+          dist/BioPro.app
+          dist/BioPro.exe
+          dist/BioPro

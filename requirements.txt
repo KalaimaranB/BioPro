@@ -1,0 +1,9 @@
+PyQt6
+numpy
+pandas
+scipy
+matplotlib
+scikit-image
+opencv-python-headless
+requests
+pytest
