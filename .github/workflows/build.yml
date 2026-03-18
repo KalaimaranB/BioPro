@@ -40,8 +40,8 @@ jobs:
       run: |
         cd dist
         tar -czf BioPro-macOS.tar.gz BioPro.app
-        rm -rf BioPro.app  # Delete the raw app so GitHub doesn't upload it!
-        rm -f BioPro       # Delete the raw unix executable artifact
+        rm -rf BioPro.app  # Delete the raw app bundle
+        rm -rf BioPro      # Delete the raw directory (added the -r here!)
 
     - name: Upload Finished App to GitHub
       uses: actions/upload-artifact@v4
