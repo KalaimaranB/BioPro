@@ -1,0 +1,1 @@
+"""Shared corefor biopro package."""

@@ -3,10 +3,14 @@
 import importlib
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Dict, Any, Type
 
 from PyQt6.QtWidgets import QWidget
+
+# HACK: Import the base plugins namespace so we can expand it
+import biopro.plugins
 
 logger = logging.getLogger(__name__)
 
@@ -14,35 +18,48 @@ class ModuleManager:
     """Discovers, manages, and loads BioPro analysis modules dynamically."""
 
     def __init__(self):
-        # Resolve the absolute path to the plugins directory
-        self.plugins_dir = Path(__file__).parent.parent / "plugins"
+        # 1. The built-in plugins (baked into the PyInstaller .app)
+        self.internal_plugins_dir = Path(__file__).parent.parent / "plugins"
+        
+        # 2. The dynamic downloaded plugins (safe from macOS code-signing blocks)
+        self.user_plugins_dir = Path.home() / ".biopro" / "plugins"
+        self.user_plugins_dir.mkdir(parents=True, exist_ok=True)
+
+        # 3. THE MAGIC BULLET: Bind the user folder to the internal plugin namespace!
+        if str(self.user_plugins_dir) not in biopro.plugins.__path__:
+            biopro.plugins.__path__.append(str(self.user_plugins_dir))
+            logger.info(f"Appended user directory to plugin namespace: {self.user_plugins_dir}")
+
         self.modules: Dict[str, Any] = {}
         self._discover_modules()
 
     def _discover_modules(self) -> None:
-        """Scan the plugins directory for valid manifests."""
-        if not self.plugins_dir.exists():
-            return
-
-        for plugin_path in self.plugins_dir.iterdir():
-            if plugin_path.is_dir():
-                manifest_file = plugin_path / "manifest.json"
-                if manifest_file.exists():
-                    try:
-                        with open(manifest_file, "r") as f:
-                            manifest = json.load(f)
-                        
-                        module_id = manifest.get("id")
-                        if module_id:
-                            self.modules[module_id] = {
-                                "package_name": plugin_path.name,
-                                "path": plugin_path,
-                                "manifest": manifest,
-                                "loaded": False,
-                                "plugin_ref": None
-                            }
-                    except Exception as e:
-                        logger.error(f"Failed to read manifest in {plugin_path.name}: {e}")
+        """Scan both internal and user plugin directories for valid manifests."""
+        directories_to_scan = [self.internal_plugins_dir, self.user_plugins_dir]
+        
+        for directory in directories_to_scan:
+            if not directory.exists():
+                continue
+                
+            for plugin_path in directory.iterdir():
+                if plugin_path.is_dir():
+                    manifest_file = plugin_path / "manifest.json"
+                    if manifest_file.exists():
+                        try:
+                            with open(manifest_file, "r") as f:
+                                manifest = json.load(f)
+                            
+                            module_id = manifest.get("id")
+                            if module_id:
+                                self.modules[module_id] = {
+                                    "package_name": plugin_path.name,
+                                    "path": plugin_path,
+                                    "manifest": manifest,
+                                    "loaded": False,
+                                    "plugin_ref": None
+                                }
+                        except Exception as e:
+                            logger.error(f"Failed to read manifest in {plugin_path.name}: {e}")
 
     def get_available_modules(self) -> list[dict]:
         """Return a list of manifests so the UI can build the 'Home Screen' grid."""

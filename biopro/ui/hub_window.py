@@ -169,7 +169,22 @@ class HubWindow(QMainWindow):
         self.module_manager = ModuleManager()
         self.setWindowTitle("BioPro Hub")
         self.setMinimumSize(800, 500)
-        self.setStyleSheet(f"background-color: {Colors.BG_DARKEST};")
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {Colors.BG_DARKEST}; }}
+            QWidget {{ color: {Colors.FG_PRIMARY}; }}
+            QLineEdit {{ 
+                background-color: {Colors.BG_MEDIUM}; 
+                border: 1px solid {Colors.BORDER}; 
+                padding: 5px; 
+                border-radius: 4px; 
+            }}
+            QLabel {{ background: transparent; }}
+            QPushButton {{ 
+                background-color: {Colors.BG_MEDIUM}; 
+                border: 1px solid {Colors.BORDER};
+                padding: 8px;
+            }}
+        """)
         
         self._setup_ui()
         self._load_recent_projects()
@@ -319,7 +334,13 @@ class HubWindow(QMainWindow):
         if not dir_path:
             return
 
-        project_dir = Path(dir_path) / name.strip()
+        selected_path = Path(dir_path)
+        
+        # Prevent "MyProject/MyProject" inception
+        if selected_path.name == name.strip():
+            project_dir = selected_path
+        else:
+            project_dir = selected_path / name.strip()
         
         try:
             pm = ProjectManager(project_dir)

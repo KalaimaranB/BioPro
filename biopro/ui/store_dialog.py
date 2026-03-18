@@ -112,7 +112,7 @@ class StoreDialog(QDialog):
             if widget: widget.setEnabled(False) # Disable store while downloading
             
         # Start Worker
-        self.worker = PluginInstallerWorker(mod_data["id"], download_url, self.module_manager.plugins_dir)
+        self.worker = PluginInstallerWorker(mod_data["id"], download_url, self.module_manager.user_plugins_dir)
         self.worker.progress.connect(self._update_progress)
         self.worker.finished.connect(self._on_install_finished)
         self.worker.start()
