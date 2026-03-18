@@ -1,23 +1,28 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
-# 1. The Scalable Imports List
+# 1. Base External Dependencies
 hidden_imports = [
-    'biopro.shared.analysis',
     'biopro.plugins',
     'matplotlib.backends.backend_qtagg',
     'pandas',
     'numpy',
     'scipy',
-    'cv2',  # Grabbed this from your old spec!
+    'cv2',
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
 ]
 
-# Automatically grab everything inside your shared folder
+# 2. DYNAMIC Internal Collection
+# Because __init__.py now exists, this automatically grabs image_utils.py 
+# and any future tools you add to the shared folder!
+hidden_imports += collect_submodules('biopro.shared')
+
+# Grab any associated data files/binaries in the shared folder
 shared_bins, shared_datas, shared_hidden = collect_all('biopro.shared')
 hidden_imports.extend(shared_hidden)
+
 
 a = Analysis(
     ['biopro/__main__.py'],
