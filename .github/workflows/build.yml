@@ -42,11 +42,16 @@ jobs:
       run: |
         pyinstaller --name "BioPro" --windowed --noconfirm --icon="icon.icns" --add-data "themes;themes" --collect-submodules "biopro.shared" --hidden-import "matplotlib.backends.backend_qtagg" --hidden-import "biopro.plugins" --hidden-import "pandas" --hidden-import "PyQt6.QtPrintSupport" --hidden-import "PyQt6.QtCore" --hidden-import "numpy" --hidden-import "scipy" biopro/__main__.py
 
+    - name: Compress macOS App Bundle
+      if: runner.os == 'macOS'
+      run: |
+        cd dist
+        tar -czf BioPro-macOS.tar.gz BioPro.app
+
     - name: Upload Finished App to GitHub
       uses: actions/upload-artifact@v4
       with:
         name: BioPro-Executable-${{ runner.os }}
         path: |
-          dist/BioPro.app
+          dist/BioPro-macOS.tar.gz
           dist/BioPro.exe
-          dist/BioPro
