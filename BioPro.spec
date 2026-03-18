@@ -1,8 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
-from PyInstaller.utils.hooks import collect_all, collect_submodules
 
-# 1. Base External Dependencies
+# 1. Base External Dependencies (No internal files needed here anymore!)
 hidden_imports = [
     'biopro.plugins',
     'matplotlib.backends.backend_qtagg',
@@ -14,22 +13,16 @@ hidden_imports = [
     'PyQt6.QtCore',
 ]
 
-# 2. DYNAMIC Internal Collection
-# Because __init__.py now exists, this automatically grabs image_utils.py 
-# and any future tools you add to the shared folder!
-hidden_imports += collect_submodules('biopro.shared')
-
-# Grab any associated data files/binaries in the shared folder
-shared_bins, shared_datas, shared_hidden = collect_all('biopro.shared')
-hidden_imports.extend(shared_hidden)
-
-
 a = Analysis(
     ['biopro/__main__.py'],
     pathex=[],
-    binaries=shared_bins,
-    # The tuple format ('source', 'dest') automatically handles Mac vs Windows pathing!
-    datas=[('themes', 'themes')] + shared_datas, 
+    binaries=[],
+    # 2. THE SILVER BULLET: Treat the 'shared' folder as an external SDK
+    # This physically copies the folder so external plugins can read the raw files.
+    datas=[
+        ('themes', 'themes'),
+        ('biopro/shared', 'biopro/shared') 
+    ],
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
