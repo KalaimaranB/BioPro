@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [macos-14, windows-latest, ubuntu-latest]
 
     steps:
     - name: Checkout Code
@@ -34,13 +34,13 @@ jobs:
     - name: Run PyInstaller (Mac/Linux)
       if: runner.os != 'Windows'
       run: |
-        pyinstaller --name "BioPro" --windowed --noconfirm --icon="icon.icns" --add-data "themes:themes" --collect-submodules "biopro.shared" --hidden-import "matplotlib.backends.backend_qtagg" --hidden-import "biopro.plugins" --hidden-import "pandas" --hidden-import "numpy" --hidden-import "scipy" biopro/__main__.py
+        pyinstaller --name "BioPro" --windowed --noconfirm --icon="icon.icns" --add-data "themes:themes" --collect-submodules "biopro.shared" --hidden-import "matplotlib.backends.backend_qtagg" --hidden-import "biopro.plugins" --hidden-import "pandas" --hidden-import "PyQt6.QtPrintSupport" --hidden-import "PyQt6.QtCore" --hidden-import "numpy" --hidden-import "scipy" biopro/__main__.py
 
     - name: Run PyInstaller (Windows)
       if: runner.os == 'Windows'
       # Windows uses a semicolon (;) for --add-data instead of a colon (:)
       run: |
-        pyinstaller --name "BioPro" --windowed --noconfirm --icon="icon.icns" --add-data "themes;themes" --collect-submodules "biopro.shared" --hidden-import "matplotlib.backends.backend_qtagg" --hidden-import "biopro.plugins" --hidden-import "pandas" --hidden-import "numpy" --hidden-import "scipy" biopro/__main__.py
+        pyinstaller --name "BioPro" --windowed --noconfirm --icon="icon.icns" --add-data "themes;themes" --collect-submodules "biopro.shared" --hidden-import "matplotlib.backends.backend_qtagg" --hidden-import "biopro.plugins" --hidden-import "pandas" --hidden-import "PyQt6.QtPrintSupport" --hidden-import "PyQt6.QtCore" --hidden-import "numpy" --hidden-import "scipy" biopro/__main__.py
 
     - name: Upload Finished App to GitHub
       uses: actions/upload-artifact@v4
