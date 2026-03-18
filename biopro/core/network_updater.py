@@ -10,8 +10,7 @@ import requests
 from PyQt6.QtCore import QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
-
-REGISTRY_URL = "https://raw.githubusercontent.com/KalaimaranB/BioPro/main/registry.json"
+REGISTRY_URL = "https://kalaimaranb.github.io/BioPro-Plugins/registry.json"
 
 class PluginInstallerWorker(QThread):
     """Downloads, extracts, and installs a plugin into the user directory."""
