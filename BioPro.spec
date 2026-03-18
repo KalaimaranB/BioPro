@@ -50,7 +50,7 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     # Fixes the Apple Silicon Segfault natively
-    target_arch='universal2' if sys.platform == 'darwin' else None,
+    target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
     icon=['icon.icns'],
