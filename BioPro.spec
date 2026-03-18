@@ -9,6 +9,7 @@ hidden_imports = [
     'numpy',
     'scipy',
     'cv2',
+    'skimage', # <-- The missing piece!
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
 ]
