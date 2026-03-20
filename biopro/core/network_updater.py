@@ -34,7 +34,7 @@ class PluginInstallerWorker(QThread):
 
             # 2. Download the Zip File
             self.progress.emit(10, f"Downloading {self.plugin_id}...")
-            response = requests.get(self.download_url, stream=True, timeout=15)
+            response = requests.get(self.download_url, stream=True, timeout=15, verify=False)
             response.raise_for_status()
             
             # 3. Extract the Zip
@@ -87,10 +87,14 @@ class NetworkUpdater:
 
     def fetch_remote_registry(self, registry_url):
         """Pulls the master JSON from your GitHub repository."""
+        import ssl # <--- ADD THIS
         try:
-            # Using urllib to avoid needing third-party libraries in PyInstaller
+            # Create an unverified SSL context to bypass PyInstaller's missing certs
+            context = ssl._create_unverified_context()
+            
             req = urllib.request.Request(registry_url, headers={'User-Agent': 'BioPro-App'})
-            with urllib.request.urlopen(req, timeout=5) as response:
+            # Pass the context into urlopen
+            with urllib.request.urlopen(req, timeout=5, context=context) as response:
                 return json.loads(response.read().decode('utf-8'))
         except Exception as e:
             print(f"Network error fetching registry: {e}")
@@ -149,11 +153,14 @@ class NetworkUpdater:
         import io
         import json
         import shutil
+        import ssl # <--- ADD THIS
 
         try:
-            # 1. Fetch the zip file from GitHub
+            context = ssl._create_unverified_context() # <--- ADD THIS
+            
             req = urllib.request.Request(remote_info['download_url'], headers={'User-Agent': 'BioPro-App'})
-            with urllib.request.urlopen(req, timeout=15) as response:
+            # Pass the context into urlopen
+            with urllib.request.urlopen(req, timeout=15, context=context) as response:
                 zip_bytes = response.read()
                 
             # 2. Prepare the destination folder
