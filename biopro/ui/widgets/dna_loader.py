@@ -1,129 +1,230 @@
 import math
 import random
-from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient
 from PyQt6.QtWidgets import QWidget
-from biopro.ui.theme import Colors
+from PyQt6.QtCore import QTimer, Qt, QRectF, QPointF
+from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient, QRadialGradient, QFont
 
 class ProgrammaticLoader(QWidget):
-    """A procedural 3D rotating DNA double helix with cellular dust & neon bloom."""
+    """A high-drama, transparent 3D DNA helix with absorbed binary data."""
+    
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(180, 180) # Removed fixed size so it can scale!
-        self.angle = 0.0
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setMinimumSize(250, 250)
         
-        # Generate ambient "cellular dust" particles
-        self.particles = []
+        self.angle = 0.0
+        self.pulse = 0.0
+        
+        self.binary_bits = []
+        for _ in range(12):
+            self.binary_bits.append(self._make_bit(stagger=True))
+
+        self.dust = []
         for _ in range(25):
-            self.particles.append({
+            self.dust.append({
                 'x': random.uniform(0, 1),
                 'y': random.uniform(0, 1),
-                'speed': random.uniform(0.002, 0.006),
-                'size': random.uniform(1, 3),
-                'alpha': random.randint(20, 80)
+                'size_mult': random.uniform(0.5, 1.2),
+                'flicker': random.uniform(0, math.pi)
             })
         
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_animation)
         self.timer.start(16)
 
+    def _make_bit(self, stagger=False):
+        """Create a binary stream entering from top or bottom, converging on the DNA."""
+        from_top = random.random() < 0.5
+        x = random.uniform(0.05, 0.95)
+        if stagger:
+            # Spread initial positions along the whole travel path so screen isn't empty at start
+            if from_top:
+                y = random.uniform(-0.1, 0.60)
+            else:
+                y = random.uniform(0.40, 1.10)
+        else:
+            y = -0.05 if from_top else 1.05
+
+        return {
+            'x': x,
+            'y': y,
+            'from_top': from_top,
+            'speed': random.uniform(0.002, 0.004) * (1 if from_top else -1),
+            # x slowly drifts toward centre as it nears the DNA
+            'x_drift': (0.5 - x) * random.uniform(0.002, 0.006),
+            'chars': [random.choice(['0', '1']) for _ in range(random.randint(2, 4))],
+            'base_alpha': random.randint(80, 130),
+        }
+
     def _update_animation(self):
         self.angle += 0.025
-        if self.angle >= math.pi * 2:
-            self.angle = 0.0
-            
-        # Float the ambient particles upwards and sway them
-        for p in self.particles:
-            p['y'] -= p['speed']
-            p['x'] += math.sin(self.angle * 4 + p['y'] * 10) * 0.001
-            if p['y'] < 0:
-                p['y'] = 1.0
-                p['x'] = random.uniform(0, 1)
+        self.pulse = math.sin(self.angle * 0.8) * 0.1
+        
+        for b in self.binary_bits:
+            b['y'] += b['speed']
+            b['x'] += b['x_drift']
 
+            # Absorbed when they reach the DNA mid-zone, or gone off-screen
+            absorbed = (b['from_top'] and b['y'] > 0.62) or \
+                       (not b['from_top'] and b['y'] < 0.38)
+            off_screen = b['y'] < -0.4 or b['y'] > 1.4
+
+            if absorbed or off_screen:
+                b.update(self._make_bit(stagger=False))
+
+            if random.random() < 0.08:
+                idx = random.randint(0, len(b['chars']) - 1)
+                b['chars'][idx] = random.choice(['0', '1'])
+        
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         
         w, h = self.width(), self.height()
-        cy, cx = h / 2, w / 2
-        
-        # 1. Draw cellular dust
-        painter.setPen(Qt.PenStyle.NoPen)
-        for p in self.particles:
-            c = QColor(Colors.ACCENT_PRIMARY)
-            c.setAlpha(p['alpha'])
-            painter.setBrush(c)
-            painter.drawEllipse(QRectF(p['x'] * w, p['y'] * h, p['size'], p['size']))
-            
-        # Dynamic DNA scale based on the current widget size
-        scale = min(w, h) / 180.0
-        num_bases, spacing, amplitude, twist = 14, 10 * scale, 45 * scale, 0.45
+        cx, cy = w / 2, h / 2
+        unit = min(w, h) / 100.0
+
+        # --- LAYER 1: BINARY STREAMS (top + bottom) ---
+        font_size = max(8, int(5.5 * unit))
+        painter.setFont(QFont("Monospace", font_size, QFont.Weight.Bold))
+
+        for b in self.binary_bits:
+            y_norm = b['y']
+
+            if b['from_top']:
+                # Travels 0 → 0.62; absorption zone at end
+                progress = y_norm / 0.62
+            else:
+                # Travels 1 → 0.38; flip so progress still goes 0→1
+                progress = (1.0 - y_norm) / 0.62
+
+            # Clamp to avoid issues outside [0,1]
+            progress = max(0.0, min(1.0, progress))
+
+            # Smooth fade-in over first 20%, full brightness middle, fade-out last 25%
+            fade_in  = min(1.0, progress / 0.20)
+            fade_out = max(0.0, 1.0 - max(0.0, progress - 0.75) / 0.25)
+            master_alpha = b['base_alpha'] * fade_in * fade_out
+
+            if master_alpha < 2:
+                continue
+
+            char_x = b['x'] * w
+            char_y = b['y'] * h
+            # Trail extends back the way the stream came from (opposite travel direction)
+            trail_dy = -math.copysign(font_size * 1.4, b['speed'])
+
+            for i, char in enumerate(b['chars']):
+                cy_char = char_y + trail_dy * i
+                taper = 1.0 - (i / len(b['chars'])) * 0.85
+                alpha = int(master_alpha * taper)
+                if alpha <= 0:
+                    continue
+                painter.setPen(QColor(0, 242, 255, alpha))
+                painter.drawText(QPointF(char_x, cy_char), char)
+
+        # --- LAYER 2: DIGITAL DUST ---
+        for d in self.dust:
+            alpha = int(40 + 30 * math.sin(self.angle * 3 + d['flicker']))
+            painter.setBrush(QColor(163, 113, 247, alpha))
+            painter.setPen(Qt.PenStyle.NoPen)
+            s = 1.2 * unit * d['size_mult']
+            painter.drawRect(QRectF(d['x'] * w, d['y'] * h, s, s))
+
+        # --- LAYER 3: THE HELIX MATH ---
+        scale_mod = 1.0 + self.pulse
+
+        # num_bases from stable base_spacing — never recalculated with scale_mod
+        base_spacing = 5.0 * unit
+        target_helix_height = min(w, h) * 0.85
+        num_bases = max(8, int(target_helix_height / base_spacing))
+        spacing   = base_spacing * scale_mod
+        amplitude = min(w, h) * 0.18 * scale_mod
+
+        twist = 0.40
         start_y = cy - (num_bases * spacing) / 2
         
-        # 2. Calculate 3D coordinates
         points = []
         for i in range(num_bases):
             y = start_y + i * spacing
-            phase1 = self.angle + (i * twist)
-            x1 = cx + math.sin(phase1) * amplitude
-            z1 = math.cos(phase1)
-            
-            phase2 = phase1 + math.pi
-            x2 = cx + math.sin(phase2) * amplitude
-            z2 = math.cos(phase2)
-            points.append({'y': y, 'x1': x1, 'z1': z1, 'x2': x2, 'z2': z2})
+            p1 = self.angle + (i * twist)
+            dist_from_center = abs(y - cy)
+            max_dist = (num_bases * spacing) / 2.0
+            fade = max(0.0, 1.0 - (dist_from_center / max_dist) ** 1.5)
+            points.append({
+                'y': y,
+                'x1': cx + math.sin(p1) * amplitude,
+                'z1': math.cos(p1),
+                'x2': cx + math.sin(p1 + math.pi) * amplitude,
+                'z2': math.cos(p1 + math.pi),
+                'fade': fade
+            })
 
-        # Base colors: Strand 1 is Teal, Strand 2 is Purple
-        c_strand1 = QColor(Colors.ACCENT_PRIMARY)
-        c_strand2 = QColor("#a371f7") # A nice bio-purple
-
-        # 3. Draw Pass 1: The Back Nodes (z < 0)
-        painter.setPen(Qt.PenStyle.NoPen)
+        # Back nodes
         for p in points:
-            s1, s2 = (5 + p['z1']*2.5) * scale, (5 + p['z2']*2.5) * scale
-            if p['z1'] < 0:
-                c = QColor(c_strand1); c.setAlpha(80)
-                painter.setBrush(c)
-                painter.drawEllipse(QRectF(p['x1']-s1/2, p['y']-s1/2, s1, s1))
-            if p['z2'] < 0:
-                c = QColor(c_strand2); c.setAlpha(80)
-                painter.setBrush(c)
-                painter.drawEllipse(QRectF(p['x2']-s2/2, p['y']-s2/2, s2, s2))
+            self._draw_node(painter, p['x1'], p['y'], p['z1'], "#00f2ff", unit, False, p['fade'])
+            self._draw_node(painter, p['x2'], p['y'], p['z2'], "#a371f7", unit, False, p['fade'])
 
-        # 4. Draw Pass 2: The Hydrogen Bonds (Gradient)
+        # Rungs
         for p in points:
             pen = QPen()
-            pen.setWidthF(max(1.0, 2.0 * scale))
+            pen.setWidthF(1.2 * unit)
             grad = QLinearGradient(p['x1'], p['y'], p['x2'], p['y'])
-            
-            c_bond1 = QColor(c_strand1); c_bond1.setAlpha(int(120 + p['z1']*80))
-            c_bond2 = QColor(c_strand2); c_bond2.setAlpha(int(120 + p['z2']*80))
-            grad.setColorAt(0.0, c_bond1)
-            grad.setColorAt(1.0, c_bond2)
-            
-            pen.setBrush(QBrush(grad))
+            base_alpha = 100 + (p['z1'] + p['z2']) * 25
+            alpha = int(base_alpha * p['fade'])
+            c1, c2 = QColor("#00f2ff"), QColor("#a371f7")
+            c1.setAlpha(alpha); c2.setAlpha(alpha)
+            grad.setColorAt(0.2, c1); grad.setColorAt(0.8, c2)
+            pen.setBrush(grad)
             painter.setPen(pen)
             painter.drawLine(QPointF(p['x1'], p['y']), QPointF(p['x2'], p['y']))
 
-        # 5. Draw Pass 3: The Front Nodes (z >= 0) with Neon Bloom
-        painter.setPen(Qt.PenStyle.NoPen)
+        # Front nodes
         for p in points:
-            s1, s2 = (5 + p['z1']*2.5) * scale, (5 + p['z2']*2.5) * scale
-            if p['z1'] >= 0:
-                glow = QColor(c_strand1); glow.setAlpha(40) # Neon bloom
-                painter.setBrush(glow)
-                painter.drawEllipse(QRectF(p['x1']-s1, p['y']-s1, s1*2, s1*2))
-                
-                core = QColor(c_strand1); core.setAlpha(255)
-                painter.setBrush(core)
-                painter.drawEllipse(QRectF(p['x1']-s1/2, p['y']-s1/2, s1, s1))
-            if p['z2'] >= 0:
-                glow = QColor(c_strand2); glow.setAlpha(40) # Neon bloom
-                painter.setBrush(glow)
-                painter.drawEllipse(QRectF(p['x2']-s2, p['y']-s2, s2*2, s2*2))
-                
-                core = QColor(c_strand2); core.setAlpha(255)
-                painter.setBrush(core)
-                painter.drawEllipse(QRectF(p['x2']-s2/2, p['y']-s2/2, s2, s2))
+            self._draw_node(painter, p['x1'], p['y'], p['z1'], "#00f2ff", unit, True, p['fade'])
+            self._draw_node(painter, p['x2'], p['y'], p['z2'], "#a371f7", unit, True, p['fade'])
+
+    def _draw_node(self, painter, x, y, z, color_str, unit, is_front, fade):
+        if (is_front and z < 0) or (not is_front and z >= 0): return
+        
+        size = (4.0 * unit) * (1.2 + z * 0.4)
+        color = QColor(color_str)
+        
+        if is_front:
+            # Outer bloom — wide, soft halo
+            glow_radius = size * 4.5
+            glow = QRadialGradient(x, y, glow_radius)
+            gc = QColor(color)
+            gc.setAlpha(int(70 * (z + 0.5) * fade))   # was 25 → now 70
+            glow.setColorAt(0, gc)
+            glow.setColorAt(1, QColor(0, 0, 0, 0))
+            painter.setBrush(glow)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(QRectF(x - glow_radius, y - glow_radius, glow_radius*2, glow_radius*2))
+
+            # Inner bloom — tight hot core
+            inner_radius = size * 2.0
+            inner_glow = QRadialGradient(x, y, inner_radius)
+            ic = QColor(color)
+            ic.setAlpha(int(100 * (z + 0.5) * fade))
+            inner_glow.setColorAt(0, ic)
+            inner_glow.setColorAt(1, QColor(0, 0, 0, 0))
+            painter.setBrush(inner_glow)
+            painter.drawEllipse(QRectF(x - inner_radius, y - inner_radius, inner_radius*2, inner_radius*2))
+
+            # Sphere body
+            color.setAlpha(int(255 * fade))
+            grad = QRadialGradient(x - size*0.2, y - size*0.2, size)
+            grad.setColorAt(0, QColor(255, 255, 255, int(255 * fade)))
+            grad.setColorAt(0.3, color)
+            grad.setColorAt(1, QColor(color.darker(150).name()))
+            painter.setBrush(grad)
+        else:
+            color.setAlpha(int((60 + (z+1)*30) * fade))
+            painter.setBrush(color)
+            
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(QRectF(x - size/2, y - size/2, size, size))

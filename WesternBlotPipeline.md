@@ -1,53 +1,65 @@
-# BioPro: Automated Western Blot Densitometry Pipeline
+# 🎞️ Western Blot Pro: Automated Densitometry
 
-BioPro is an automated image analysis pipeline for quantifying Western Blot (WB) and Ponceau S stains. It is designed to mathematically replicate the standard manual ImageJ densitometry protocol (Profile Plot → Baseline Subtraction → Wand Tool Area Integration) while eliminating subjective manual drawing and streamlining Ponceau loading normalization.
+This module provides a high-precision pipeline for quantifying Western Blot and Ponceau S stains. It replicates the gold-standard ImageJ protocol while removing human bias through automated peak-finding and dynamic lane mapping.
 
-## ⚙️ The Processing Pipeline
+## 📖 Deep Dive: How it Works
 
-The pipeline processes images through the following automated steps:
+BioPro treats your gel image as a series of 1D signals. To achieve this, it uses a multi-stage mathematical engine.
 
-### 1. Image Preprocessing
-* **Loading:** Reads standard image formats and converts them to 8-bit grayscale arrays.
-* **Inversion (LUT):** Automatically detects if the background is light (standard WB/Ponceau) and inverts the Look-Up Table (LUT) so bands become bright peaks against a dark background.
-* **Cropping & Rotation:** Allows rotational correction for crooked gels and crops the image to the region of interest.
+### 1. 1D Projection Analysis
+For every lane you define, BioPro calculates a "Profile." This is done by averaging the horizontal pixel intensities across the width of the lane at every vertical coordinate ($y$). 
 
-### 2. Lane Detection
-* **Projection Analysis:** Instead of manually drawing rectangles of identical widths (which fails on distorted gels), BioPro projects vertical pixel intensities to automatically detect inter-lane gaps and map dynamic lane boundaries.
+By averaging across the lane width, we significantly increase the **Signal-to-Noise Ratio (SNR)**, making faint bands stand out more clearly than they do in a single-pixel line scan.
 
-### 3. Band Detection & Baseline Subtraction
-* **Profile Extraction:** Generates a 1D intensity profile for each lane (identical to ImageJ's `Analyze > Gels > Plot Lanes`).
-* **Peak Finding & Baseline:** Uses a rolling-ball or linear algorithm to estimate background noise and draw a baseline underneath peaks. 
-* **Integration:** Calculates the area of the peak strictly *above* the baseline. This mathematically mirrors drawing a straight line across the base of a peak and clicking it with the ImageJ Wand Tool.
+### 2. The Rolling Ball Algorithm
+Background noise in Western Blots is rarely flat (it’s often a "gradient" or "splotchy"). BioPro uses a **Rolling Ball** algorithm for background subtraction.
 
-### 4. Ponceau Normalization
-* Analyzes a paired Ponceau S image using the same pipeline.
-* Extracts the density of a specific **Reference Band** (or total lane density) to quantify the total protein loaded into each well.
+Mathematically, a virtual circle of radius $r$ is "rolled" underneath the profile curve. The path traced by the top of the ball becomes your **Baseline**. Any intensity below this line is discarded as background noise, ensuring that your measurements represent true protein signal.
 
-### 5. Densitometry & Output
-* Merges the WB and Ponceau data.
-* Calculates percentage contributions, WB-to-Ponceau ratios, and relative fold-changes against a defined control lane.
+### 3. Area Integration (AUC)
+The final intensity ($I$) is the **Area Under the Curve**. BioPro calculates the definite integral of the peak $P(y)$ minus the baseline $B(y)$:
+
+
+$$I = \int_{y_{start}}^{y_{end}} (P(y) - B(y)) \,dy$$
+
+This is the mathematical equivalent of the ImageJ "Wand Tool" area, but with the baseline drawn with 100% geometric consistency every time.
 
 ---
 
-## 📊 Understanding the Final Output
+## 🏗️ Step-by-Step Guide & Pro-Tips
 
-At the end of the pipeline, BioPro generates a comprehensive results table that can be exported directly to CSV or Excel. Here is a dictionary of the output columns and what they mean:
+### Step 1: Image Setup
+* **Auto-Inversion:** BioPro checks the "mean intensity" of the image edges. If the edges are brighter than the center, it assumes a light background and flips the LUT. 
+* **Critical Rotation:** If your lanes are even 2° crooked, a vertical slice will "cut through" the side of a band instead of the center. Use the slider until the lanes look perfectly parallel to the sidebar.
 
-### Identification
-* **Lane:** The detected lane number (1-indexed).
-* **Band:** The index of the band within that lane.
-* **Position (px):** The vertical pixel coordinate of the band's peak intensity.
+### Step 2: Lane Detection
+* **Gaps Matter:** When dragging lane boxes, try to center them on the bands. 
+* **Dynamic Boundaries:** BioPro doesn't just look at where you draw the box; it analyzes the "valleys" between lanes to ensure signal from Lane 1 doesn't bleed into Lane 2.
 
-### Raw Measurements
-* **WB Raw Intensity:** The integrated area under the curve for the Western Blot band, minus the background baseline. *(Equivalent to the "Area" measurement from the ImageJ Wand Tool).*
-* **% of Total:** The WB Raw Intensity of the band divided by the sum of all WB band intensities in that lane, multiplied by 100. *(Equivalent to the "Percent" value generated by ImageJ's Label Peaks function).*
-* **Ponceau Raw:** The raw integrated intensity of the corresponding reference band selected from the Ponceau S stain.
+### Step 3: Band Detection
+* **SNR Threshold:** High SNR (e.g., 5.0) only finds the strongest bands. Low SNR (e.g., 2.0) finds faint bands but may pick up "ghost" noise.
+* **Refining with Clicks:**
+    * **Left-Click:** Snaps to the nearest local maximum (the darkest part of the band).
+    * **Shift + Drag:** Manually defines the start ($y_1$) and end ($y_2$) for integration. Use this for "smeared" bands where a single peak doesn't exist.
+    * **Right-Click:** Instantly removes a band marker (▲).
 
-### Normalized Results
-* **WB/Pon Ratio:** Calculated as `WB Raw Intensity / Ponceau Raw`. This corrects the target band's intensity based on the total protein loaded in that lane. If a lane was accidentally overloaded (high Ponceau Raw), this math scales the target WB intensity down to prevent false positives.
-* **Normalised:** The `WB/Pon Ratio` scaled relative to your chosen control lane. The control lane is set to exactly `1.0`, and all other lanes are expressed as a relative fold-change (e.g., `2.50` means a 2.5x increase in expression compared to the control, after accounting for loading differences).
+### Step 4: Ponceau Normalization
+BioPro offers two ways to correct for loading errors:
+1.  **Reference Band:** You pick a "housekeeping" protein (like Actin or GAPDH) in the Ponceau stain. All WB data is divided by the intensity of this specific band.
+2.  **Total Lane:** The app sums the intensity of *every* detected band in the Ponceau lane. This is often more accurate as it accounts for the entire protein load, not just one potentially saturated band.
 
 ---
 
-### Why BioPro?
-Traditional ImageJ analysis requires assuming lanes run perfectly vertical and forces you to manually draw baselines, which introduces human bias. BioPro's automated peak-finding, dynamic lane-width mapping, and built-in Ponceau ratio calculations produce faster, highly reproducible, and mathematically rigorous densitometry data.
+## 🧪 Understanding the Data Dictionary
+
+| Column | Formula | Description |
+| :--- | :--- | :--- |
+| **WB Raw Intensity** | $\int (P-B)dy$ | The raw "signal" of your target protein. |
+| **Ponceau Raw** | $I_{loading}$ | The "weight" of the lane (Reference or Total). |
+| **WB/Pon Ratio** | $\frac{I_{WB}}{I_{Pon}}$ | The loading-corrected signal. **Use this for your stats.** |
+| **Normalized** | $\frac{Ratio_{Sample}}{Ratio_{Control}}$ | Relative fold-change. Your control lane will always be **1.00**. |
+
+---
+
+### Why use this over ImageJ?
+ImageJ requires "subjective thresholding"—you decide where the baseline starts and ends by eye. If you're tired or biased, you might draw the line slightly lower for a "key" sample. **BioPro is an objective judge.** It treats every pixel and every lane with the exact same geometric rules, making your data 100% reproducible for publication.
