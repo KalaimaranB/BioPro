@@ -30,6 +30,7 @@ from biopro.ui.theme import Colors, Fonts, theme_manager
 from biopro.shared.ui.ui_components import SecondaryButton
 
 logger = logging.getLogger(__name__)
+logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
 _PAGE_HOME = 0
 _PAGE_ANALYSIS = 1
