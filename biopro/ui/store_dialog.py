@@ -9,127 +9,170 @@ from PyQt6.QtWidgets import (
 from biopro.ui.theme import Colors, Fonts
 from biopro.core.network_updater import NetworkUpdater, PluginInstallerWorker
 from biopro.core.module_manager import ModuleManager
+from biopro.shared.ui.ui_components import PrimaryButton, SecondaryButton, DangerButton, ModuleCard, HeaderLabel
 
 class StoreDialog(QDialog):
-    def __init__(self, module_manager: ModuleManager, parent=None):
+    def __init__(self, module_manager: ModuleManager, updater: NetworkUpdater, parent=None):
         super().__init__(parent)
         self.module_manager = module_manager
+        self.updater = updater
+
         self.setWindowTitle("BioPro Module Store")
         self.setMinimumSize(600, 450)
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
         
-        self.worker = None  # Holds the background download thread
         self._setup_ui()
         self._load_store_data()
 
     def _setup_ui(self):
+        # Fix the width so nothing gets cut off, but let it expand!
+        self.setMinimumSize(550, 400)
+        self.resize(750, 550) 
+        
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0) # Remove default window margins
+        layout.setSpacing(0)
         
-        # Header
-        header = QLabel("☁️ Plugin Store & Updates")
-        header.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: bold;")
-        layout.addWidget(header)
+        # --- A Fancy Header Banner ---
+        header_banner = QWidget()
+        header_banner.setStyleSheet(f"background-color: {Colors.BG_MEDIUM}; border-bottom: 1px solid {Colors.BORDER};")
+        header_layout = QHBoxLayout(header_banner)
+        header_layout.setContentsMargins(20, 15, 20, 15)
         
-        # Scroll Area for Modules
+        header_title = QLabel("☁️ Plugin Store & Updates")
+        header_title.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 800; color: {Colors.FG_PRIMARY};")
+        header_layout.addWidget(header_title)
+        
+        layout.addWidget(header_banner)
+        
+        # --- The Scroll Area ---
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("border: none;")
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
         
         self.store_container = QWidget()
+        self.store_container.setStyleSheet("background: transparent;")
         self.store_layout = QVBoxLayout(self.store_container)
         self.store_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.scroll.setWidget(self.store_container)
+        self.store_layout.setContentsMargins(20, 20, 20, 20) # Add breathing room around the cards
+        self.store_layout.setSpacing(15)
         
+        self.scroll.setWidget(self.store_container)
         layout.addWidget(self.scroll)
         
-        # Progress Bar (Hidden by default)
-        self.progress_bar = QProgressBar()
-        self.progress_bar.hide()
-        layout.addWidget(self.progress_bar)
-        
         self.status_lbl = QLabel("")
+        self.status_lbl.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; padding: 10px;")
         self.status_lbl.hide()
-        layout.addWidget(self.status_lbl)
-
+        layout.addWidget(self.status_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
+    
     def _load_store_data(self):
-        # 1. Fetch cloud registry
-        registry = NetworkUpdater.fetch_registry()
-        cloud_modules = registry.get("modules", [])
+        # 1. Clear existing cards if we are refreshing the UI
+        for i in reversed(range(self.store_layout.count())): 
+            widget = self.store_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
+
+        # 2. Use our new Logic Engine to get the exact state of every plugin
+        inventory = self.updater.evaluate_store_state()
         
-        # 2. Get currently installed modules
-        installed_ids = [m["id"] for m in self.module_manager.get_available_modules()]
-        
-        # 3. Build UI Cards
-        if not cloud_modules:
-            self.store_layout.addWidget(QLabel("No modules found in the cloud registry."))
+        if not inventory:
+            self.store_layout.addWidget(QLabel("Could not connect to the cloud registry."))
             return
             
-        for mod in cloud_modules:
-            is_installed = mod["id"] in installed_ids
-            self._add_module_card(mod, is_installed)
+        # 3. Build UI Cards
+        for plugin_id, data in inventory.items():
+            self._add_module_card(plugin_id, data)
 
-    def _add_module_card(self, mod_data: dict, is_installed: bool):
-        card = QWidget()
-        card.setStyleSheet(f"background: {Colors.BG_DARK}; border-radius: 8px; padding: 10px;")
-        layout = QHBoxLayout(card)
+    def _add_module_card(self, plugin_id: str, data: dict):
+        mod_data = data["info"]
+        state = data["state"]
+        local_ver = data["local_version"]
+
+        # 1. Use our new standardized card! (No CSS needed)
+        card = ModuleCard()
         
-        # Info
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(15, 15, 15, 15)
+        
+        # --- Info Section ---
         info_layout = QVBoxLayout()
-        title = QLabel(f"{mod_data.get('icon', '📦')} {mod_data.get('name', 'Unknown')} (v{mod_data.get('version')})")
+        title_text = f"{mod_data.get('icon', '📦')} {mod_data.get('name', 'Unknown')}"
+        
+        if local_ver:
+            title_text += f" (Installed: v{local_ver} | Latest: v{mod_data.get('version')})"
+        else:
+            title_text += f" (v{mod_data.get('version')})"
+            
+        title = QLabel(title_text)
         title.setStyleSheet("font-weight: bold; font-size: 14px;")
         desc = QLabel(mod_data.get('description', ''))
         desc.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
+        
         info_layout.addWidget(title)
         info_layout.addWidget(desc)
         layout.addLayout(info_layout)
         
-        # Install Button
-        btn = QPushButton("Installed" if is_installed else "Download")
-        btn.setEnabled(not is_installed)
-        if not is_installed:
-            btn.setStyleSheet(
-                f"QPushButton {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; "
-                f"border-radius: 4px; padding: 6px 15px; font-weight: bold; }}"
-            )
-            btn.clicked.connect(lambda checked, m=mod_data: self._install_module(m))
+        # --- Dynamic Button Section ---
+        btn_layout = QHBoxLayout()
         
-        layout.addWidget(btn)
+        if state == "INCOMPATIBLE":
+            btn = SecondaryButton(f"Requires Core v{mod_data.get('min_core_version')}")
+            btn.setEnabled(False)
+            btn_layout.addWidget(btn)
+            
+        elif state == "INSTALL":
+            btn = PrimaryButton("Download")
+            btn.clicked.connect(lambda checked, pid=plugin_id, m=mod_data: self._install_module(pid, m))
+            btn_layout.addWidget(btn)
+            
+        elif state == "UPDATE":
+            # Using Primary for Update, Danger for Remove
+            btn = PrimaryButton("Update Available")
+            btn.clicked.connect(lambda checked, pid=plugin_id, m=mod_data: self._install_module(pid, m))
+            
+            rm_btn = DangerButton("Remove")
+            rm_btn.clicked.connect(lambda checked, pid=plugin_id: self._remove_module(pid))
+            
+            btn_layout.addWidget(btn)
+            btn_layout.addWidget(rm_btn)
+            
+        elif state == "UP_TO_DATE":
+            lbl = QLabel("✓ Up to Date")
+            lbl.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; padding-right: 10px;")
+            
+            rm_btn = DangerButton("Remove")
+            rm_btn.clicked.connect(lambda checked, pid=plugin_id: self._remove_module(pid))
+            
+            btn_layout.addWidget(lbl)
+            btn_layout.addWidget(rm_btn)
+            
+        layout.addLayout(btn_layout)
         self.store_layout.addWidget(card)
 
-    def _install_module(self, mod_data: dict):
-        """Spawns the background thread to download and pip install the module."""
-        download_url = mod_data.get("download_url")
-        if not download_url:
-            QMessageBox.warning(self, "Error", "No download link provided in registry.")
-            return
-            
-        # UI Updates
-        self.progress_bar.setValue(0)
-        self.progress_bar.show()
+
+    def _install_module(self, plugin_id: str, mod_data: dict):
+        """Uses the Logic Engine to install the plugin and update the tracker."""
+        from PyQt6.QtWidgets import QApplication
+        
+        # Briefly show the user that something is happening
+        self.status_lbl.setText(f"Installing {mod_data.get('name')}...")
         self.status_lbl.show()
-        for i in range(self.store_layout.count()):
-            widget = self.store_layout.itemAt(i).widget()
-            if widget: widget.setEnabled(False) # Disable store while downloading
-            
-        # Start Worker
-        self.worker = PluginInstallerWorker(mod_data["id"], download_url, self.module_manager.user_plugins_dir)
-        self.worker.progress.connect(self._update_progress)
-        self.worker.finished.connect(self._on_install_finished)
-        self.worker.start()
-
-    def _update_progress(self, val: int, msg: str):
-        self.progress_bar.setValue(val)
-        self.status_lbl.setText(msg)
-
-    def _on_install_finished(self, success: bool, msg: str):
-        self.progress_bar.hide()
-        self.status_lbl.setText(msg)
-        for i in range(self.store_layout.count()):
-            widget = self.store_layout.itemAt(i).widget()
-            if widget: widget.setEnabled(True)
-            
+        QApplication.processEvents() # Forces the UI to visually update immediately
+        
+        # Let the NetworkUpdater handle the download AND the json tracking
+        success, msg = self.updater.install_plugin(plugin_id, mod_data)
+        
+        self.status_lbl.hide()
+        
         if success:
-            QMessageBox.information(self, "Success", f"{msg}\n\nPlease restart BioPro to load the new module.")
-            self.accept()
+            # Instantly redraw the store. The button will magically turn into "✓ Up to Date"!
+            self._load_store_data() 
         else:
-            QMessageBox.critical(self, "Failed", msg)
+            QMessageBox.critical(self, "Installation Failed", msg)
+
+    def _remove_module(self, plugin_id: str):
+        success, msg = self.updater.remove_plugin(plugin_id)
+        if success:
+            self._load_store_data() # Refresh the UI instantly!
+        else:
+            QMessageBox.critical(self, "Error", msg)

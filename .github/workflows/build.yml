@@ -48,5 +48,7 @@ jobs:
       with:
         name: BioPro-Executable-${{ runner.os }}
         path: |
-          dist/BioPro-macOS.tar.gz
-          dist/BioPro.exe
+          dist/*.tar.gz
+          dist/*.exe
+          dist/BioPro
+        if-no-files-found: warn

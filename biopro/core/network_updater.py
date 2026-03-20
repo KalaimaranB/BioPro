@@ -6,6 +6,7 @@ import logging
 import zipfile
 from pathlib import Path
 import requests
+from biopro.core.config import AppConfig
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -57,29 +58,146 @@ class PluginInstallerWorker(QThread):
             self.finished.emit(False, f"Installation error: {str(e)}")
 
 
-class NetworkUpdater:
-    """Manager class to fetch the registry and handle core/plugin updates."""
-    
-    CURRENT_CORE_VERSION = "0.1.0"
-    
-    @staticmethod
-    def fetch_registry() -> dict:
-        """Fetches the master list of available updates from GitHub."""
-        try:
-            response = requests.get(REGISTRY_URL, timeout=5)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            logger.warning(f"Failed to fetch live registry. ({e})")
-            return {"core": {}, "modules": []}
+import json
+import os
+import urllib.request
+from pathlib import Path
 
-    @classmethod
-    def check_for_core_update(cls) -> dict | None:
-        """Compares live core version with cloud core version."""
-        registry = cls.fetch_registry()
-        core_info = registry.get("core", {})
-        latest_version = core_info.get("latest_version", "0.0.0")
+class NetworkUpdater:
+    def __init__(self): 
+        # Grab the values directly from the config!
+        self.core_version = AppConfig.CORE_VERSION
+        self.registry_url = AppConfig.REGISTRY_URL
         
-        if latest_version > cls.CURRENT_CORE_VERSION:
-            return core_info
-        return None
+        self.plugin_dir = Path.home() / ".biopro" / "plugins"
+        self.plugin_dir.mkdir(parents=True, exist_ok=True)
+        
+        # This is our local tracker file
+        self.local_registry_path = self.plugin_dir / "installed.json"
+        
+        # Create an empty local tracker if they are a first-time user
+        if not self.local_registry_path.exists():
+            with open(self.local_registry_path, 'w') as f:
+                json.dump({}, f)
+
+    def get_local_state(self):
+        """Reads the local tracker to see what the user already has."""
+        with open(self.local_registry_path, 'r') as f:
+            return json.load(f)
+
+    def fetch_remote_registry(self, registry_url):
+        """Pulls the master JSON from your GitHub repository."""
+        try:
+            # Using urllib to avoid needing third-party libraries in PyInstaller
+            req = urllib.request.Request(registry_url, headers={'User-Agent': 'BioPro-App'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                return json.loads(response.read().decode('utf-8'))
+        except Exception as e:
+            print(f"Network error fetching registry: {e}")
+            return {}
+
+    # REMOVE registry_url from the arguments here too!
+    def evaluate_store_state(self): 
+        # USE self.registry_url instead
+        remote_data = self.fetch_remote_registry(self.registry_url) 
+        local_data = self.get_local_state()
+        
+        store_inventory = {}
+        
+        plugins_data = remote_data.get("plugins", {})
+        
+        for plugin_id, remote_info in plugins_data.items():
+            state = "INSTALL" 
+            
+            # 1. The Safety Lock
+            if self.core_version < remote_info.get("min_core_version", "0.0.0"):
+                state = "INCOMPATIBLE"
+                
+            # 2. Local check
+            elif plugin_id in local_data:
+                local_version = local_data[plugin_id].get("version", "0.0.0")
+                if local_version < remote_info["version"]:
+                    state = "UPDATE"
+                else:
+                    state = "UP_TO_DATE"
+                    
+            store_inventory[plugin_id] = {
+                "info": remote_info,
+                "state": state,
+                "local_version": local_data.get(plugin_id, {}).get("version", None)
+            }
+            
+        return store_inventory
+    
+    def check_for_core_updates(self): 
+        """Checks if the PyInstaller Core App needs an update."""
+        # USE self.registry_url instead
+        remote_data = self.fetch_remote_registry(self.registry_url) 
+        
+        # Extract the core app data safely
+        core_info = remote_data.get("core_app", {})
+        remote_version = core_info.get("version", "0.0.0")
+        
+        if self.core_version < remote_version:
+            return True, core_info
+        return False, None
+    
+    def install_plugin(self, plugin_id, remote_info):
+        """Downloads a .zip plugin package, extracts it, and updates the registry."""
+        import urllib.request
+        import zipfile
+        import io
+        import json
+        import shutil
+
+        try:
+            # 1. Fetch the zip file from GitHub
+            req = urllib.request.Request(remote_info['download_url'], headers={'User-Agent': 'BioPro-App'})
+            with urllib.request.urlopen(req, timeout=15) as response:
+                zip_bytes = response.read()
+                
+            # 2. Prepare the destination folder
+            plugin_folder = self.plugin_dir / plugin_id
+            if plugin_folder.exists():
+                shutil.rmtree(plugin_folder) # Wipe the old version if updating
+                
+            # 3. Extract the zip into memory, then to the hard drive
+            with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+                # Note: This assumes the zip file itself contains a folder named `plugin_id`
+                z.extractall(self.plugin_dir) 
+                
+            # 4. Update the local tracker
+            local_data = self.get_local_state()
+            local_data[plugin_id] = {
+                "version": remote_info["version"],
+                "name": remote_info["name"]
+            }
+            
+            with open(self.local_registry_path, 'w') as f:
+                json.dump(local_data, f, indent=4)
+                
+            return True, "Installation successful."
+        except Exception as e:
+            return False, f"Failed to install: {e}"
+
+    def remove_plugin(self, plugin_id):
+        """Deletes the plugin folder and removes it from the registry."""
+        import json
+        import shutil
+        try:
+            # 1. Delete the entire physical folder
+            plugin_folder = self.plugin_dir / plugin_id
+            if plugin_folder.exists():
+                shutil.rmtree(plugin_folder)
+                
+            # 2. Erase the record
+            local_data = self.get_local_state()
+            if plugin_id in local_data:
+                del local_data[plugin_id]
+                
+            with open(self.local_registry_path, 'w') as f:
+                json.dump(local_data, f, indent=4)
+                
+            return True, "Plugin removed successfully."
+        except Exception as e:
+            return False, f"Failed to remove: {e}"

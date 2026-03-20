@@ -83,3 +83,9 @@ class ModuleManager:
         except Exception as e:
             logger.exception(f"Fatal error loading module {module_id}")
             raise
+
+    def reload_modules(self) -> None:
+        """Clears the registry and rescans the disk for new/removed plugins (Hot-Reload)."""
+        self.modules.clear()
+        self._discover_modules()
+        logger.info(f"Hot-reloaded plugins. Currently loaded: {list(self.modules.keys())}")

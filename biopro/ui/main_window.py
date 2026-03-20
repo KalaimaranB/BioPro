@@ -7,6 +7,7 @@ Navigation flow:
 from __future__ import annotations
 
 import logging
+from PyQt6.QtGui import QAction, QKeySequence  # <-- Add QKeySequence here
 
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QAction
@@ -15,7 +16,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
-    QPushButton,
+    QMessageBox,
     QSplitter,
     QStackedWidget,
     QStatusBar,
@@ -24,10 +25,9 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.ui.home_screen import HomeScreen
-from biopro.shared.ui.image_canvas import ImageCanvas
-from biopro.core.project_manager import ProjectManager
-from biopro.ui.theme import Colors, Fonts
+from biopro.core.config import AppConfig
 from biopro.ui.theme import Colors, Fonts, theme_manager
+from biopro.shared.ui.ui_components import SecondaryButton
 
 logger = logging.getLogger(__name__)
 
@@ -53,30 +53,11 @@ class AnalysisToolBar(QWidget):
         layout.setContentsMargins(10, 0, 14, 0)
         layout.setSpacing(8)
 
-        self.btn_close_project = QPushButton("🏠 Return to Hub")
-        self.btn_close_project.setStyleSheet(
-            f"QPushButton {{"
-            f"  background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER};"
-            f"  border-radius: 5px; padding: 3px 10px;"
-            f"  color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"  background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
-            f"}}"
-        )
+        # Look how clean this is using our SDK!
+        self.btn_close_project = SecondaryButton("🏠 Return to Hub")
         layout.addWidget(self.btn_close_project)
 
-        self.btn_home = QPushButton("← Home")
-        self.btn_home.setStyleSheet(
-            f"QPushButton {{"
-            f"  background: transparent; border: 1px solid {Colors.BORDER};"
-            f"  border-radius: 5px; padding: 3px 10px;"
-            f"  color: {Colors.FG_SECONDARY}; font-size: {Fonts.SIZE_SMALL}px;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"  background: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};"
-            f"}}"
-        )
+        self.btn_home = SecondaryButton("← Home")
         layout.addWidget(self.btn_home)
 
         sep = QFrame()
@@ -109,10 +90,14 @@ class MainWindow(QMainWindow):
     APP_TITLE = "BioPro — Bio-Image Analysis"
     DEFAULT_SIZE = QSize(1400, 860)
 
-    def __init__(self, project_manager: ProjectManager, module_manager, parent=None):
-        super().__init__(parent)
+    # Added hub_callback to the signature!
+    def __init__(self, project_manager, module_manager, updater, store_callback, hub_callback):
+        super().__init__()
         self.project_manager = project_manager
         self.module_manager = module_manager
+        self.updater = updater
+        self.open_store_callback = store_callback
+        self.return_to_hub_callback = hub_callback 
         
         project_name = self.project_manager.data.get("project_name", "Untitled Project")
         self.setWindowTitle(f"BioPro Workspace — {project_name}")
@@ -132,12 +117,10 @@ class MainWindow(QMainWindow):
         self.home_screen.populate_modules(self.module_manager.get_available_modules())
 
         self._show_home()
-        # Listen for global theme changes
         theme_manager.theme_changed.connect(self._on_theme_changed)
 
     def _apply_supplemental_qss(self) -> None:
         from PyQt6.QtWidgets import QApplication
-        from biopro.ui.theme import Colors
         extra = (
             "QCheckBox { spacing: 8px; color: #e6edf3; }"
             f"QCheckBox::indicator {{ width: 16px; height: 16px;"
@@ -148,6 +131,32 @@ class MainWindow(QMainWindow):
             f"QCheckBox::indicator:unchecked:hover {{ border-color: {Colors.FG_SECONDARY}; }}"
             f"QCheckBox::indicator:disabled {{ border-color: {Colors.BG_LIGHT};"
             f" background: {Colors.BG_DARK}; }}"
+            f"QGroupBox {{ color: {Colors.FG_PRIMARY}; font-weight: bold; "
+            f" border: 1px solid {Colors.BORDER}; border-radius: 6px; margin-top: 12px; }}"
+            f"QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0 5px; }}"
+            f"QRadioButton {{ color: {Colors.FG_PRIMARY}; }}"
+            f"QLabel {{ color: {Colors.FG_PRIMARY}; }}"
+            f"QSpinBox, QDoubleSpinBox, QLineEdit, QComboBox {{"
+            f"  background-color: {Colors.BG_DARKEST};"
+            f"  color: {Colors.FG_PRIMARY};"
+            f"  border: 1px solid {Colors.BORDER};"
+            f"  border-radius: 4px;"
+            f"  padding: 4px 8px;"
+            f"}}"
+            f"QSpinBox:focus, QDoubleSpinBox:focus, QLineEdit:focus, QComboBox:focus {{"
+            f"  border: 1px solid {Colors.BORDER_FOCUS};"
+            f"  background-color: {Colors.BG_DARK};"
+            f"}}"
+            f"QSpinBox::up-button, QDoubleSpinBox::up-button {{"
+            f"  subcontrol-origin: border; subcontrol-position: top right; width: 16px; border: none;"
+            f"}}"
+            f"QSpinBox::down-button, QDoubleSpinBox::down-button {{"
+            f"  subcontrol-origin: border; subcontrol-position: bottom right; width: 16px; border: none;"
+            f"}}"
+            f"QGraphicsView {{"
+            f"  border: 1px solid {Colors.BORDER};"
+            f"  background-color: {Colors.BG_DARKEST};"
+            f"}}"
         )
         app = QApplication.instance()
         if app:
@@ -157,6 +166,22 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
 
         file_menu = menubar.addMenu("&File")
+
+        # --- Edit Menu for History ---
+        edit_menu = menubar.addMenu("&Edit")
+        
+        undo_action = QAction("&Undo", self)
+        # Magic cross-platform native Undo shortcut
+        undo_action.setShortcut(QKeySequence.StandardKey.Undo) 
+        undo_action.triggered.connect(self.trigger_undo)
+        edit_menu.addAction(undo_action)
+        
+        redo_action = QAction("&Redo", self)
+        # Magic cross-platform native Redo shortcut
+        redo_action.setShortcut(QKeySequence.StandardKey.Redo) 
+        redo_action.triggered.connect(self.trigger_redo)
+        edit_menu.addAction(redo_action)
+        # -----------------------------
 
         open_action = QAction("&Open Image...", self)
         open_action.setShortcut("Ctrl+O")
@@ -178,7 +203,6 @@ class MainWindow(QMainWindow):
         exit_action.setShortcut("Ctrl+Q")
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
-
         
         theme_menu = menubar.addMenu("&Theme")
         
@@ -190,7 +214,6 @@ class MainWindow(QMainWindow):
         action_sw.triggered.connect(lambda: self._switch_theme("star_wars.json"))
         theme_menu.addAction(action_sw)
         
-
         help_menu = menubar.addMenu("&Help")
         about_action = QAction("&About BioPro", self)
         about_action.triggered.connect(self._show_about)
@@ -217,7 +240,6 @@ class MainWindow(QMainWindow):
 
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        # Left container starts empty and waits for a module click
         self.wizard_panel = None
         self.left_container = QWidget()
         self.left_layout = QVBoxLayout(self.left_container)
@@ -225,9 +247,6 @@ class MainWindow(QMainWindow):
         self.left_container.setMinimumWidth(360)
         self.left_container.setMaximumWidth(560)
 
-        self.canvas = ImageCanvas()
-
-        # Right: dynamic panel container — hidden by default
         self._right_container = QWidget()
         self.right_layout = QVBoxLayout(self._right_container)
         self.right_layout.setContentsMargins(0, 0, 0, 0)
@@ -235,7 +254,10 @@ class MainWindow(QMainWindow):
         self._right_container.hide()
 
         self.splitter.addWidget(self.left_container)
-        self.splitter.addWidget(self.canvas)
+        self.center_container = QWidget()
+        self.center_layout = QVBoxLayout(self.center_container)
+        self.center_layout.setContentsMargins(0, 0, 0, 0)
+        self.splitter.addWidget(self.center_container)
         self.splitter.addWidget(self._right_container)
         self.splitter.setSizes([420, 980, 0])
         self.splitter.setCollapsible(0, False)
@@ -261,9 +283,7 @@ class MainWindow(QMainWindow):
         self.home_screen.module_selected.connect(self._open_module)
         self.home_screen.return_to_hub_requested.connect(self.return_to_hub)
         self.home_screen.open_store_requested.connect(self._open_store)
-        self.canvas.zoom_changed.connect(
-            lambda z: self.zoom_label.setText(f"{z * 100:.0f}%")
-        )
+        
 
     def _show_home(self) -> None:
         if self.wizard_panel and hasattr(self.wizard_panel, 'reset_to_setup'):
@@ -274,6 +294,7 @@ class MainWindow(QMainWindow):
 
     def _open_module(self, manifest: dict) -> None:
         module_id = manifest["id"]
+        self.current_module_id = module_id
 
         try:
             PanelClass = self.module_manager.load_module_ui(module_id)
@@ -285,57 +306,48 @@ class MainWindow(QMainWindow):
             self.wizard_panel = PanelClass()
             self.wizard_panel.project_manager = self.project_manager
 
+            # 1. Add Left Panel (The Wizard)
             self.left_layout.addWidget(self.wizard_panel)
 
-            # --- NEW: Dynamic Right Panel Injection ---
-            # 1. Clear the old right panel if it exists
+            # 2. Clear and Add Center Panel (The Canvas)
+            # (Assuming you have a self.center_layout where the canvas used to be. 
+            # If you add directly to the splitter, use self.splitter.insertWidget(1, center_widget))
+            while hasattr(self, 'center_layout') and self.center_layout.count():
+                item = self.center_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+                    
+            if hasattr(self.wizard_panel, 'get_center_widget'):
+                center_widget = self.wizard_panel.get_center_widget()
+                if center_widget and hasattr(self, 'center_layout'):
+                    self.center_layout.addWidget(center_widget)
+
+                    if hasattr(center_widget, 'zoom_changed') and hasattr(self, 'zoom_label'):
+                        center_widget.zoom_changed.connect(
+                            lambda z: self.zoom_label.setText(f"{z * 100:.0f}%")
+                        )
+
+            # 3. Clear and Add Right Panel (The Results)
             while self.right_layout.count():
                 item = self.right_layout.takeAt(0)
                 if item.widget():
                     item.widget().deleteLater()
             
-            # 2. Ask the plugin if it has a custom right panel
             if hasattr(self.wizard_panel, 'get_right_panel_widget'):
                 right_widget = self.wizard_panel.get_right_panel_widget()
                 if right_widget:
                     self.right_layout.addWidget(right_widget)
-            # ------------------------------------------
 
             self.analysis_toolbar.set_title(manifest.get("icon", "📦"), manifest.get("name", "Analysis"))
 
-            if hasattr(self.wizard_panel, 'set_canvas'):
-                self.wizard_panel.set_canvas(self.canvas)
-            
-
-            # Reconnect dynamic signals
-            self.wizard_panel.image_changed.connect(self.canvas.set_image)
-            self.wizard_panel.status_message.connect(self.status_bar.showMessage)
-            
-            if hasattr(self.wizard_panel, 'lanes_detected'):
-                self.wizard_panel.lanes_detected.connect(lambda lanes: self.canvas.add_lane_overlays(lanes))
-            if hasattr(self.wizard_panel, 'bands_detected'):
-                self.wizard_panel.bands_detected.connect(lambda bands, lanes: self.canvas.add_band_overlays(lanes, bands))
-            if hasattr(self.wizard_panel, 'peak_picking_enabled'):
-                self.wizard_panel.peak_picking_enabled.connect(self.canvas.set_peak_picking_enabled)
-            if hasattr(self.wizard_panel, 'crop_mode_toggled'):
-                self.wizard_panel.crop_mode_toggled.connect(self.canvas.set_crop_mode)
-            if hasattr(self.wizard_panel, 'profile_hovered'):
-                self.wizard_panel.profile_hovered.connect(self._on_profile_hovered)
+            # --- THE PLUGIN NOW MANAGES ITS OWN CANVAS SIGNALS ---
+            # We ONLY connect universal UI signals here
+            if hasattr(self.wizard_panel, 'status_message'):
+                self.wizard_panel.status_message.connect(self.status_bar.showMessage)
             if hasattr(self.wizard_panel, 'results_ready'):
                 self.wizard_panel.results_ready.connect(self._reveal_right_panel)
-
-            # Canvas -> Wizard reconnects
-            try: self.canvas.band_clicked.disconnect() 
-            except: pass
-            self.canvas.band_clicked.connect(self.wizard_panel.on_band_clicked)
-            
-            try: self.canvas.peak_pick_requested.disconnect()
-            except: pass
-            self.canvas.peak_pick_requested.connect(self.wizard_panel.on_peak_pick_requested)
-            
-            try: self.canvas.crop_requested.disconnect()
-            except: pass
-            self.canvas.crop_requested.connect(self.wizard_panel.on_crop_requested)
+            if hasattr(self.wizard_panel, 'state_changed'):
+                self.wizard_panel.state_changed.connect(self._push_history)
 
             self.root_stack.setCurrentIndex(_PAGE_ANALYSIS)
             self.status_bar.showMessage(f"{manifest.get('name')} — open an image to begin (Ctrl+O)")
@@ -346,28 +358,13 @@ class MainWindow(QMainWindow):
             logger.exception(f"Failed to load module {module_id}")
 
     def _reveal_right_panel(self, *args) -> None:
-        """Slides the right panel open when the plugin has data to show."""
         if self._right_container.isHidden():
             self._right_container.show()
-            
-            # Recalculate the QSplitter sizes to fit the new panel
             total = self.splitter.width()
-            left = 340  # Keep wizard panel fixed
-            right = max(320, total // 4) # Give results a quarter of the screen
-            centre = max(200, total - left - right) # Canvas gets the rest
-            
+            left = 340
+            right = max(320, total // 4)
+            centre = max(200, total - left - right)
             self.splitter.setSizes([left, centre, right])
-
-    def _on_profile_hovered(self, lane_idx: int, y_pos: float) -> None:
-        lanes = getattr(self.wizard_panel.analyzer.state, "lanes", [])
-        if not lanes or lane_idx < 0 or lane_idx >= len(lanes):
-            self.canvas.hide_hover_indicator()
-            return
-        if y_pos < 0:
-            self.canvas.hide_hover_indicator()
-            return
-        lane = lanes[lane_idx]
-        self.canvas.show_hover_indicator(lane, lane.y_start + float(y_pos))
 
     def _on_open_file(self) -> None:
         if self.root_stack.currentIndex() == _PAGE_HOME:
@@ -377,11 +374,11 @@ class MainWindow(QMainWindow):
             self.wizard_panel._open_file()
 
     def _show_about(self) -> None:
-        from PyQt6.QtWidgets import QMessageBox
+        # Dynamic Version from Config!
         QMessageBox.about(
             self,
             "About BioPro",
-            "<h2>🧬 BioPro v0.1.0</h2>"
+            f"<h2>🧬 BioPro v{AppConfig.CORE_VERSION}</h2>"
             "<p>Bio-Image Analysis Made Simple</p>"
             "<p>An open-source, intuitive alternative to ImageJ for lab "
             "students and professionals.</p>"
@@ -394,49 +391,39 @@ class MainWindow(QMainWindow):
             try:
                 self.project_manager.close()
             except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Error closing project: {e}")
+                logger.error(f"Error closing project: {e}")
         super().closeEvent(event)
 
     def return_to_hub(self):
+        # 1. Cleanly close the active project
         if hasattr(self, 'project_manager') and self.project_manager:
             try:
                 self.project_manager.close()
                 self.project_manager = None 
             except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"Error closing project: {e}")
+                logger.error(f"Error closing project: {e}")
         
-        from biopro.ui.hub_window import HubWindow
-        self.hub_window = HubWindow()
-        self.hub_window.show()
+        # 2. Ask the Controller to open the Hub!
+        self.return_to_hub_callback()
+        
+        # 3. Destroy this window
         self.close()
 
     def _open_store(self):
-        from biopro.ui.store_dialog import StoreDialog
-        dialog = StoreDialog(self.module_manager, self)
-        dialog.exec()
+        self.open_store_callback(self)
+        
+    def refresh_ui(self):
+        """Hot-reloads the module UI after the Store is closed."""
+        self.home_screen.populate_modules(self.module_manager.get_available_modules())
 
     def _switch_theme(self, filename: str) -> None:
-        """Locates the theme JSON and tells the engine to load it."""
         from pathlib import Path
-        # Go up 3 levels from biopro/ui/main_window.py to reach the root, then into themes/
         theme_path = Path(__file__).parent.parent.parent / "themes" / filename
         theme_manager.load_theme(theme_path)
 
     def _on_theme_changed(self) -> None:
-        """Called automatically when theme_manager broadcasts a change."""
-        # 1. Update the Main Window background and text
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
         self._apply_supplemental_qss()
-        
-        # 2. Update the Canvas background
-        self.canvas.setStyleSheet(
-            f"QGraphicsView {{ border: 1px solid {Colors.BORDER};"
-            f" background-color: {Colors.BG_DARKEST}; }}"
-        )
-        
-        # 3. Update the Toolbar
         self.analysis_toolbar.setStyleSheet(
             f"QWidget#analysisToolBar {{"
             f"  background: {Colors.BG_DARK};"
@@ -447,8 +434,41 @@ class MainWindow(QMainWindow):
             f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
             f" color: {Colors.FG_PRIMARY}; background: transparent;"
         )
-        self.analysis_toolbar.btn_close_project.setStyleSheet(
-            f"QPushButton {{ background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER};"
-            f" border-radius: 5px; padding: 3px 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
-            f"QPushButton:hover {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; }}"
-        )
+
+    def _push_history(self):
+        """Captures a snapshot of the active module and pushes it to RAM."""
+        # Check if we actually have a module ID loaded
+        if not self.wizard_panel or not hasattr(self.wizard_panel, "export_state") or not getattr(self, "current_module_id", None):
+            return
+            
+        # Dynamically fetch the history for WHATEVER module is open!
+        history = self.project_manager.history_manager.get_module_history(self.current_module_id)
+        history.push(self.wizard_panel.export_state())
+
+    def trigger_undo(self):
+        """Asks the HistoryManager to step back, then hands the old state to the plugin."""
+        if not self.wizard_panel or not hasattr(self.wizard_panel, "load_state") or not getattr(self, "current_module_id", None):
+            return
+            
+        history = self.project_manager.history_manager.get_module_history(self.current_module_id)
+        
+        previous_state = history.undo()
+        if previous_state is not None:
+            self.wizard_panel.load_state(previous_state)
+            self.status_bar.showMessage("Undid last action.")
+        else:
+            self.status_bar.showMessage("Nothing to undo.")
+
+    def trigger_redo(self):
+        """Asks the HistoryManager to step forward, then hands the state to the plugin."""
+        if not self.wizard_panel or not hasattr(self.wizard_panel, "load_state") or not getattr(self, "current_module_id", None):
+            return
+            
+        history = self.project_manager.history_manager.get_module_history(self.current_module_id)
+        
+        next_state = history.redo()
+        if next_state is not None:
+            self.wizard_panel.load_state(next_state)
+            self.status_bar.showMessage("Redid last action.")
+        else:
+            self.status_bar.showMessage("Nothing to redo.")

@@ -7,6 +7,9 @@ from biopro.core.config import AppConfig
 from biopro.core.module_manager import ModuleManager
 from PyQt6.QtWidgets import QPushButton
 from biopro.ui.theme import Colors, Fonts
+import random
+from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
+from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient
 
 
 from PyQt6.QtCore import Qt, QSize
@@ -28,145 +31,25 @@ from PyQt6.QtWidgets import (
 
 from biopro.core.project_manager import ProjectManager, ProjectLockedError
 from biopro.ui.theme import Colors
-
-import math
-import random
-from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
-from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient
-from PyQt6.QtWidgets import QWidget
-from biopro.ui.theme import Colors
-
-class ProgrammaticLoader(QWidget):
-    """A procedural 3D rotating DNA double helix with cellular dust & neon bloom."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setMinimumSize(180, 180) # Removed fixed size so it can scale!
-        self.angle = 0.0
-        
-        # Generate ambient "cellular dust" particles
-        self.particles = []
-        for _ in range(25):
-            self.particles.append({
-                'x': random.uniform(0, 1),
-                'y': random.uniform(0, 1),
-                'speed': random.uniform(0.002, 0.006),
-                'size': random.uniform(1, 3),
-                'alpha': random.randint(20, 80)
-            })
-        
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self._update_animation)
-        self.timer.start(16)
-
-    def _update_animation(self):
-        self.angle += 0.025
-        if self.angle >= math.pi * 2:
-            self.angle = 0.0
-            
-        # Float the ambient particles upwards and sway them
-        for p in self.particles:
-            p['y'] -= p['speed']
-            p['x'] += math.sin(self.angle * 4 + p['y'] * 10) * 0.001
-            if p['y'] < 0:
-                p['y'] = 1.0
-                p['x'] = random.uniform(0, 1)
-
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        w, h = self.width(), self.height()
-        cy, cx = h / 2, w / 2
-        
-        # 1. Draw cellular dust
-        painter.setPen(Qt.PenStyle.NoPen)
-        for p in self.particles:
-            c = QColor(Colors.ACCENT_PRIMARY)
-            c.setAlpha(p['alpha'])
-            painter.setBrush(c)
-            painter.drawEllipse(QRectF(p['x'] * w, p['y'] * h, p['size'], p['size']))
-            
-        # Dynamic DNA scale based on the current widget size
-        scale = min(w, h) / 180.0
-        num_bases, spacing, amplitude, twist = 14, 10 * scale, 45 * scale, 0.45
-        start_y = cy - (num_bases * spacing) / 2
-        
-        # 2. Calculate 3D coordinates
-        points = []
-        for i in range(num_bases):
-            y = start_y + i * spacing
-            phase1 = self.angle + (i * twist)
-            x1 = cx + math.sin(phase1) * amplitude
-            z1 = math.cos(phase1)
-            
-            phase2 = phase1 + math.pi
-            x2 = cx + math.sin(phase2) * amplitude
-            z2 = math.cos(phase2)
-            points.append({'y': y, 'x1': x1, 'z1': z1, 'x2': x2, 'z2': z2})
-
-        # Base colors: Strand 1 is Teal, Strand 2 is Purple
-        c_strand1 = QColor(Colors.ACCENT_PRIMARY)
-        c_strand2 = QColor("#a371f7") # A nice bio-purple
-
-        # 3. Draw Pass 1: The Back Nodes (z < 0)
-        painter.setPen(Qt.PenStyle.NoPen)
-        for p in points:
-            s1, s2 = (5 + p['z1']*2.5) * scale, (5 + p['z2']*2.5) * scale
-            if p['z1'] < 0:
-                c = QColor(c_strand1); c.setAlpha(80)
-                painter.setBrush(c)
-                painter.drawEllipse(QRectF(p['x1']-s1/2, p['y']-s1/2, s1, s1))
-            if p['z2'] < 0:
-                c = QColor(c_strand2); c.setAlpha(80)
-                painter.setBrush(c)
-                painter.drawEllipse(QRectF(p['x2']-s2/2, p['y']-s2/2, s2, s2))
-
-        # 4. Draw Pass 2: The Hydrogen Bonds (Gradient)
-        for p in points:
-            pen = QPen()
-            pen.setWidthF(max(1.0, 2.0 * scale))
-            grad = QLinearGradient(p['x1'], p['y'], p['x2'], p['y'])
-            
-            c_bond1 = QColor(c_strand1); c_bond1.setAlpha(int(120 + p['z1']*80))
-            c_bond2 = QColor(c_strand2); c_bond2.setAlpha(int(120 + p['z2']*80))
-            grad.setColorAt(0.0, c_bond1)
-            grad.setColorAt(1.0, c_bond2)
-            
-            pen.setBrush(QBrush(grad))
-            painter.setPen(pen)
-            painter.drawLine(QPointF(p['x1'], p['y']), QPointF(p['x2'], p['y']))
-
-        # 5. Draw Pass 3: The Front Nodes (z >= 0) with Neon Bloom
-        painter.setPen(Qt.PenStyle.NoPen)
-        for p in points:
-            s1, s2 = (5 + p['z1']*2.5) * scale, (5 + p['z2']*2.5) * scale
-            if p['z1'] >= 0:
-                glow = QColor(c_strand1); glow.setAlpha(40) # Neon bloom
-                painter.setBrush(glow)
-                painter.drawEllipse(QRectF(p['x1']-s1, p['y']-s1, s1*2, s1*2))
-                
-                core = QColor(c_strand1); core.setAlpha(255)
-                painter.setBrush(core)
-                painter.drawEllipse(QRectF(p['x1']-s1/2, p['y']-s1/2, s1, s1))
-            if p['z2'] >= 0:
-                glow = QColor(c_strand2); glow.setAlpha(40) # Neon bloom
-                painter.setBrush(glow)
-                painter.drawEllipse(QRectF(p['x2']-s2, p['y']-s2, s2*2, s2*2))
-                
-                core = QColor(c_strand2); core.setAlpha(255)
-                painter.setBrush(core)
-                painter.drawEllipse(QRectF(p['x2']-s2/2, p['y']-s2/2, s2, s2))
+from biopro.ui.widgets.dna_loader import ProgrammaticLoader
+from biopro.shared.ui.ui_components import PrimaryButton, SecondaryButton
 
 logger = logging.getLogger(__name__)
 
 class HubWindow(QMainWindow):
     """The main entry hub for creating and opening BioPro projects."""
 
-    def __init__(self):
+    # We now REQUIRE the dependencies to be passed in!
+    def __init__(self, module_manager, updater, store_callback, hub_callback):
         super().__init__()
-        self.module_manager = ModuleManager()
+        
+        # Save the references
+        self.module_manager = module_manager
+        self.updater = updater
+        self.open_store_callback = store_callback
+        
+        # ADD THIS LINE to save the hub callback so we can pass it to MainWindow later
+        self.return_to_hub_callback = hub_callback
         self.setWindowTitle("BioPro Hub")
         self.setMinimumSize(800, 500)
         self.setStyleSheet(f"""
@@ -188,6 +71,13 @@ class HubWindow(QMainWindow):
         
         self._setup_ui()
         self._load_recent_projects()
+        # Initialize the Logic Engine for the Core App and Store
+        # (Make sure to import NetworkUpdater at the top of your file!)
+        from biopro.core.network_updater import NetworkUpdater 
+        self.updater = NetworkUpdater()
+        
+        # Trigger the Core Update Check 0.5 seconds AFTER the Hub loads
+        QTimer.singleShot(500, self.perform_startup_check)
 
     def _setup_ui(self) -> None:
         central_widget = QWidget()
@@ -220,18 +110,7 @@ class HubWindow(QMainWindow):
         self.list_recent.itemDoubleClicked.connect(self._on_recent_double_clicked)
         left_layout.addWidget(self.list_recent)
 
-        self.btn_store = QPushButton("☁️ Plugin Store & Updates")
-        self.btn_store.setStyleSheet(
-            f"QPushButton {{"
-            f"  background: transparent; border: 1px solid {Colors.ACCENT_PRIMARY};"
-            f"  border-radius: 5px; padding: 10px;"
-            f"  color: {Colors.ACCENT_PRIMARY}; font-size: {Fonts.SIZE_NORMAL}px; font-weight: bold;"
-            f"}}"
-            f"QPushButton:hover {{"
-            f"  background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
-            f"}}"
-        )
-        self.btn_store.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_store = SecondaryButton("☁️ Plugin Store & Updates")
         self.btn_store.clicked.connect(self._open_store)
         left_layout.addWidget(self.btn_store)
         
@@ -280,23 +159,11 @@ class HubWindow(QMainWindow):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15)
 
-        self.btn_new = QPushButton("✨ Create New Project")
-        self.btn_new.setStyleSheet(
-            f"QPushButton {{ background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
-            f" border: none; border-radius: 6px; padding: 12px 24px; font-size: 13px; font-weight: bold; }}"
-            f"QPushButton:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}"
-        )
-        self.btn_new.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_new = PrimaryButton("✨ Create New Project")
         self.btn_new.clicked.connect(self._on_new_project)
         btn_layout.addWidget(self.btn_new)
 
-        self.btn_open = QPushButton("📁 Open Project...")
-        self.btn_open.setStyleSheet(
-            f"QPushButton {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};"
-            f" border: 1px solid {Colors.BORDER}; border-radius: 6px; padding: 12px 24px; font-size: 13px; }}"
-            f"QPushButton:hover {{ background-color: {Colors.BG_LIGHT}; }}"
-        )
-        self.btn_open.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_open = SecondaryButton("📁 Open Project...")
         self.btn_open.clicked.connect(self._on_open_project)
         btn_layout.addWidget(self.btn_open)
 
@@ -304,6 +171,25 @@ class HubWindow(QMainWindow):
         main_layout.addWidget(right_panel)
 
     # ── Logic ─────────────────────────────────────────────────────────
+    def perform_startup_check(self):
+        """Silently checks GitHub for Core App updates."""
+        import webbrowser
+        has_update, core_info = self.updater.check_for_core_updates()
+        
+        if has_update:
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Update Available")
+            msg.setText(f"A new version of BioPro (v{core_info.get('version', 'Unknown')}) is available!")
+            msg.setInformativeText(core_info.get("release_notes", "Please update to the latest version."))
+            
+            # Add a custom button to take them to GitHub
+            download_btn = msg.addButton("Download Now", QMessageBox.ButtonRole.AcceptRole)
+            msg.addButton("Later", QMessageBox.ButtonRole.RejectRole)
+            
+            msg.exec()
+            
+            if msg.clickedButton() == download_btn:
+                webbrowser.open(core_info.get('download_url', 'https://github.com/KalaimaranB/BioPro/releases'))
 
     def _load_recent_projects(self):
         self.list_recent.clear()
@@ -380,16 +266,20 @@ class HubWindow(QMainWindow):
         # 2. Transition the UI
         from biopro.ui.main_window import MainWindow
         # Pass self.module_manager instead of the undefined variable
-        self.workspace = MainWindow(project_manager, self.module_manager) 
+        self.workspace = MainWindow(
+            project_manager, 
+            self.module_manager, 
+            self.updater,              
+            self.open_store_callback,  
+            self.return_to_hub_callback
+        )
         self.workspace.show()
         self.close()
 
     def _open_store(self):
-        """Launches the app-level plugin store."""
-        # Local import to prevent circular dependencies at boot
-        from biopro.ui.store_dialog import StoreDialog
-        dialog = StoreDialog(self.module_manager, self)
-        dialog.exec()
+        """Tells the main Controller that the user wants to open the store."""
+        self.open_store_callback(self)
+        
 
     def resizeEvent(self, event):
         """Dynamically scale the UI when the window changes size."""
@@ -410,21 +300,12 @@ class HubWindow(QMainWindow):
             self.lbl_subtitle.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: {int(16 * scale)}px; font-weight: bold;")
             self.lbl_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; font-size: {int(13 * scale)}px; margin-bottom: 20px;")
             
-            # Scale the Action Buttons
-            btn_sz = int(13 * scale)
-            pad_v = int(12 * scale)
-            pad_h = int(24 * scale)
+            # We completely removed the button scaling here!
+            # The UI components now manage themselves.
             
-            self.btn_new.setStyleSheet(
-                f"QPushButton {{ background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
-                f" border: none; border-radius: 6px; padding: {pad_v}px {pad_h}px; font-size: {btn_sz}px; font-weight: bold; }}"
-                f"QPushButton:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}"
-            )
-            self.btn_open.setStyleSheet(
-                f"QPushButton {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};"
-                f" border: 1px solid {Colors.BORDER}; border-radius: 6px; padding: {pad_v}px {pad_h}px; font-size: {btn_sz}px; }}"
-                f"QPushButton:hover {{ background-color: {Colors.BG_LIGHT}; }}"
-            )
         except AttributeError:
-            # Fails silently on the very first boot before the widgets are fully constructed
             pass
+
+    def refresh_ui(self):
+        """The Hub doesn't display module buttons natively, so we pass."""
+        pass

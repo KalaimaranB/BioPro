@@ -49,3 +49,9 @@ build/
 
 # Application Logs
 *.log
+
+# ── Plugins ──
+# Ignore the contents of plugin subfolders if they are separate repos
+biopro/plugins/*/
+# But keep the directory structure itself
+!biopro/plugins/.gitkeep

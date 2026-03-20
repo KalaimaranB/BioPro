@@ -8,6 +8,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
+from biopro.core.history_manager import HistoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,10 @@ class ProjectManager:
         self.project_file = self.project_dir / "project.biopro"
         self.assets_dir = self.project_dir / "assets"
         self.lock_file = self.project_dir / ".biopro.lock"
-        self.data: Dict[str, Any] = {}
+        self.history_file = self.project_dir / "history.json"
+        
+        self.history_manager = HistoryManager()
+        self.data: Dict[str, Any] = {} # Keep just the type-hinted one!
 
     # ── Project Lifecycle ─────────────────────────────────────────────
 
@@ -56,6 +60,15 @@ class ProjectManager:
 
         with open(self.project_file, "r") as f:
             self.data = json.load(f)
+        
+        if self.history_file.exists():
+            try:
+                with open(self.history_file, "r") as f:
+                    history_data = json.load(f)
+                self.history_manager.load_all(history_data)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Could not load history.json: {e}")
             
         logger.info(f"Opened project: {self.data.get('project_name')}")
 
@@ -64,6 +77,13 @@ class ProjectManager:
         self.data["last_modified"] = datetime.now().isoformat()
         with open(self.project_file, "w") as f:
             json.dump(self.data, f, indent=4)
+        try:
+            history_data = self.history_manager.serialize_all()
+            with open(self.history_file, "w") as f:
+                json.dump(history_data, f, indent=4)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to save history.json: {e}")
 
     def close(self) -> None:
         """Save and safely release the project lock."""
