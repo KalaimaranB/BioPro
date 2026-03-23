@@ -10,6 +10,8 @@ from biopro.core.module_manager import ModuleManager
 from biopro.core.network_updater import NetworkUpdater
 from biopro.ui.hub_window import HubWindow
 from biopro.ui.store_dialog import StoreDialog
+import biopro.ui.dialogs 
+import biopro.ui.theme
 
 class BioProApp:
     def __init__(self):
