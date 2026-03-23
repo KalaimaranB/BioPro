@@ -15,6 +15,8 @@ class Colors:
     BG_LIGHT = "#30363d"
     FG_PRIMARY = "#c9d1d9"
     FG_SECONDARY = "#8b949e"
+    DNA_PRIMARY = "#00f2ff"   # Default Cyan
+    DNA_SECONDARY = "#a371f7" # Default Purple
     FG_DISABLED = "#484f58"
     BORDER = "#30363d"
     BORDER_FOCUS = "#58a6ff"

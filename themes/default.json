@@ -1,5 +1,7 @@
 {
     "name": "BioPro Default",
+    "DNA_PRIMARY": "#00f2ff",
+    "DNA_SECONDARY": "#a371f7",
     "BG_DARKEST": "#0d1117",
     "BG_DARK": "#161b22",
     "BG_MEDIUM": "#21262d",

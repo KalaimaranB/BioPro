@@ -24,6 +24,21 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve
+from PyQt6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QSplitter,
+    QStackedWidget,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+    QGraphicsOpacityEffect
+)
+
 from biopro.ui.home_screen import HomeScreen
 from biopro.core.config import AppConfig
 from biopro.ui.theme import Colors, Fonts, theme_manager
@@ -116,6 +131,7 @@ class MainWindow(QMainWindow):
 
         # Populate the Home Screen with dynamic modules
         self.home_screen.populate_modules(self.module_manager.get_available_modules())
+        self._refresh_hub_workflows()
 
         self._show_home()
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -223,7 +239,7 @@ class MainWindow(QMainWindow):
     def _setup_central_widget(self) -> None:
         self.root_stack = QStackedWidget()
 
-        # ── Page 0: Home ──────────────────────────────────────────────
+        # ── Page 0: Hub (Tabbed View) ──────────────────────────────────
         self.home_screen = HomeScreen()
         self.root_stack.addWidget(self.home_screen)
 
@@ -285,11 +301,18 @@ class MainWindow(QMainWindow):
         self.home_screen.return_to_hub_requested.connect(self.return_to_hub)
         self.home_screen.open_store_requested.connect(self._open_store)
         
+        # ── THE NEW WORKFLOW SIGNALS ──
+        self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
+        self.home_screen.workflow_delete_requested.connect(self._handle_delete_workflow)
+        
 
     def _show_home(self) -> None:
         if self.wizard_panel and hasattr(self.wizard_panel, 'reset_to_setup'):
             self.wizard_panel.reset_to_setup()
-        self.root_stack.setCurrentIndex(_PAGE_HOME)
+            
+        # THE FIX:
+        self._transition_to_page(_PAGE_HOME) 
+        
         self.status_bar.showMessage("Welcome to BioPro — choose a module to begin")
         self.zoom_label.setText("")
 
@@ -341,8 +364,7 @@ class MainWindow(QMainWindow):
 
             self.analysis_toolbar.set_title(manifest.get("icon", "📦"), manifest.get("name", "Analysis"))
 
-            # --- THE PLUGIN NOW MANAGES ITS OWN CANVAS SIGNALS ---
-            # We ONLY connect universal UI signals here
+            # -- THE PLUGIN NOW MANAGES ITS OWN CANVAS SIGNALS ---
             if hasattr(self.wizard_panel, 'status_message'):
                 self.wizard_panel.status_message.connect(self.status_bar.showMessage)
             if hasattr(self.wizard_panel, 'results_ready'):
@@ -350,7 +372,9 @@ class MainWindow(QMainWindow):
             if hasattr(self.wizard_panel, 'state_changed'):
                 self.wizard_panel.state_changed.connect(self._push_history)
 
-            self.root_stack.setCurrentIndex(_PAGE_ANALYSIS)
+            # THE FIX:
+            self._transition_to_page(_PAGE_ANALYSIS)
+            
             self.status_bar.showMessage(f"{manifest.get('name')} — open an image to begin (Ctrl+O)")
 
         except Exception as e:
@@ -396,18 +420,19 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def return_to_hub(self):
-        # 1. Cleanly close the active project
+        """Safely closes the active data and launches the main Project Hub window."""
+        # 1. Cleanly clear the active project memory
         if hasattr(self, 'project_manager') and self.project_manager:
             try:
                 self.project_manager.close()
-                self.project_manager = None 
             except Exception as e:
                 logger.error(f"Error closing project: {e}")
         
-        # 2. Ask the Controller to open the Hub!
-        self.return_to_hub_callback()
-        
-        # 3. Destroy this window
+        # 2. THE FIX: Wake up the external DNA Hub window!
+        if hasattr(self, 'return_to_hub_callback') and self.return_to_hub_callback:
+            self.return_to_hub_callback()
+            
+        # 3. THE FIX: Destroy this workspace window so it actually closes
         self.close()
 
     def _open_store(self):
@@ -423,8 +448,14 @@ class MainWindow(QMainWindow):
         theme_manager.load_theme(theme_path)
 
     def _on_theme_changed(self) -> None:
+        # Save where the user is currently looking!
+        current_idx = self.root_stack.currentIndex()
+
+        # 1. Update Main Window Base
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
         self._apply_supplemental_qss()
+        
+        # 2. Update the Top Toolbar
         self.analysis_toolbar.setStyleSheet(
             f"QWidget#analysisToolBar {{"
             f"  background: {Colors.BG_DARK};"
@@ -435,6 +466,34 @@ class MainWindow(QMainWindow):
             f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
             f" color: {Colors.FG_PRIMARY}; background: transparent;"
         )
+
+        # 3. Update the Status Bar
+        self.status_bar.setStyleSheet(
+            f"background: {Colors.BG_DARK}; color: {Colors.FG_SECONDARY};"
+            f" border-top: 1px solid {Colors.BORDER};"
+        )
+
+        # 4. Rebuild the Hub
+        self.root_stack.removeWidget(self.home_screen)
+        self.home_screen.deleteLater()
+        
+        self.home_screen = HomeScreen()
+        
+        # Rewire signals
+        self.home_screen.module_selected.connect(self._open_module)
+        self.home_screen.return_to_hub_requested.connect(self.return_to_hub)
+        self.home_screen.open_store_requested.connect(self._open_store)
+        self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
+        self.home_screen.workflow_delete_requested.connect(self._handle_delete_workflow)
+        
+        # Insert back into stack at index 0
+        self.root_stack.insertWidget(_PAGE_HOME, self.home_screen)
+        self.home_screen.populate_modules(self.module_manager.get_available_modules())
+        self._refresh_hub_workflows()
+        
+        # ── THE FIX: Restore the user's view so the screen doesn't go blank! ──
+        self.root_stack.setCurrentIndex(current_idx)
+
 
     def _push_history(self):
         """Captures a snapshot of the active module and pushes it to RAM."""
@@ -473,3 +532,100 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("Redid last action.")
         else:
             self.status_bar.showMessage("Nothing to redo.")
+    def _refresh_hub_workflows(self) -> None:
+        """Scans the project workflows folder and populates the dashboard."""
+        workflows = []
+        if self.project_manager and self.project_manager.project_dir:
+            wf_dir = self.project_manager.project_dir / "workflows"
+            if wf_dir.exists():
+                import json
+                # ── THE FIX: Use rglob to find ALL .json files, ignoring folder structure! ──
+                for wf_file in wf_dir.rglob("*.json"):
+                    try:
+                        with open(wf_file, "r") as f:
+                            data = json.load(f)
+                            metadata = data.get("metadata", {})
+                            workflows.append({
+                                "filename": wf_file.name,
+                                # Pull the module type directly from the file's saved metadata
+                                "module_id": metadata.get("module", "western_blot"),
+                                "name": metadata.get("name", wf_file.stem),
+                                "timestamp": metadata.get("timestamp", "Unknown Date")
+                            })
+                    except Exception:
+                        pass
+                # ────────────────────────────────────────────────────────────────────────────
+        
+        # Sort newest first
+        workflows.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        self.home_screen.populate_workflows(workflows)
+    
+    def _load_workflow_from_dashboard(self, module_id: str, filename: str) -> None:
+        """Handler for when a user clicks a workflow card in the Hub."""
+        try:
+            # 1. Load the payload 
+            payload = self.project_manager.load_workflow_payload(filename)
+            
+            # 2. Find the manifest
+            manifests = self.module_manager.get_available_modules()
+            manifest = next((m for m in manifests if m["id"] == module_id), None)
+            
+            if not manifest:
+                from PyQt6.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "Load Error", f"Module {module_id} is not currently installed.")
+                return
+
+            # 3. Open the module 
+            self._open_module(manifest)
+            
+            # 4. Inject the payload
+            if self.wizard_panel and hasattr(self.wizard_panel, "load_workflow"):
+                self.wizard_panel.load_workflow(payload)
+                self.status_bar.showMessage(f"Successfully loaded workflow: {filename}")
+                
+        except Exception as e:
+            logger.exception("Failed to load workflow")
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "Load Error", f"Could not load workflow:\n{str(e)}")
+
+    def _handle_delete_workflow(self, module_id: str, filename: str) -> None:
+        success = self.project_manager.delete_workflow(module_id, filename)
+        if success:
+            # Refresh the UI so the card instantly vanishes!
+            self._refresh_hub_workflows()
+
+    # ─── ANIMATION ENGINE ───────────────────────────────────────────
+    def _transition_to_page(self, page_index: int) -> None:
+        """Smoothly fades out the current page and fades in the new one."""
+        if self.root_stack.currentIndex() == page_index:
+            return
+
+        # 1. Attach an opacity effect to the entire window stack
+        self._fade_effect = QGraphicsOpacityEffect(self.root_stack)
+        self.root_stack.setGraphicsEffect(self._fade_effect)
+
+        # 2. Animate the fade out (1.0 to 0.0)
+        self._anim_out = QPropertyAnimation(self._fade_effect, b"opacity")
+        self._anim_out.setDuration(150) # 150ms is the UI standard for snappy but smooth
+        self._anim_out.setStartValue(1.0)
+        self._anim_out.setEndValue(0.0)
+        self._anim_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
+
+        # 3. When it hits absolute black, swap the page and trigger the fade in!
+        self._anim_out.finished.connect(lambda: self._on_fade_out_finished(page_index))
+        self._anim_out.start()
+
+    def _on_fade_out_finished(self, page_index: int) -> None:
+        """Triggers the fade-in sequence once the screen is black."""
+        self.root_stack.setCurrentIndex(page_index)
+        
+        self._anim_in = QPropertyAnimation(self._fade_effect, b"opacity")
+        self._anim_in.setDuration(150)
+        self._anim_in.setStartValue(0.0)
+        self._anim_in.setEndValue(1.0)
+        self._anim_in.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        
+        # Remove the effect completely when done so it doesn't mess with text anti-aliasing!
+        self._anim_in.finished.connect(lambda: self.root_stack.setGraphicsEffect(None))
+        self._anim_in.start()
+    # ────────────────────────────────────────────────────────────────

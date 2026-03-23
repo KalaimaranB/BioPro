@@ -10,6 +10,8 @@ from biopro.ui.theme import Colors, Fonts
 import random
 from PyQt6.QtCore import Qt, QTimer, QRectF, QPointF
 from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QLinearGradient
+from PyQt6.QtGui import QAction, QFont
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 
 from PyQt6.QtCore import Qt, QSize
@@ -68,6 +70,13 @@ class HubWindow(QMainWindow):
                 padding: 8px;
             }}
         """)
+
+        self._setup_menu_bar() # ── ADD THIS ──
+        self._setup_ui()
+        self._apply_theme_styles() # ── ADD THIS ──
+        
+        # Listen for global theme changes
+        theme_manager.theme_changed.connect(self._on_theme_changed)
         
         self._setup_ui()
         self._load_recent_projects()
@@ -280,32 +289,73 @@ class HubWindow(QMainWindow):
         """Tells the main Controller that the user wants to open the store."""
         self.open_store_callback(self)
         
-
     def resizeEvent(self, event):
-        """Dynamically scale the UI when the window changes size."""
         super().resizeEvent(event)
-        
-        # Calculate a scale multiplier based on the default width of 800px.
-        # We cap it at 1.8x so it doesn't get ridiculously huge on 4K monitors.
         scale = max(1.0, min(self.width() / 800.0, 1.8))
         
         try:
-            # Scale the DNA Widget
-            anim_sz = int(180 * scale)
+            # Increase DNA size but keep it centered
+            # We increase the 'box' so the fade has room to reach 0 alpha
+            anim_sz = int(320 * scale) # Increased from 180
             self.animation_widget.setFixedSize(anim_sz, anim_sz)
             
-            # Scale the Text
-            self.lbl_title.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: {int(42 * scale)}px; font-weight: 900; letter-spacing: 1px;")
-            self.lbl_badge.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; background: transparent; border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; padding: 2px 6px; font-size: {int(10 * scale)}px; font-weight: bold; margin-top: {int(15 * scale)}px;")
+            # Update Title & Subtitle Colors (This forces them to re-read the theme)
+            self.lbl_title.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: {int(42 * scale)}px; font-weight: 900;")
             self.lbl_subtitle.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: {int(16 * scale)}px; font-weight: bold;")
-            self.lbl_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; font-size: {int(13 * scale)}px; margin-bottom: 20px;")
+            self.lbl_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; font-size: {int(13 * scale)}px;")
             
-            # We completely removed the button scaling here!
-            # The UI components now manage themselves.
-            
+            # Update the Window Background itself
+            self.setStyleSheet(f"QMainWindow {{ background-color: {Colors.BG_DARKEST}; }}")
         except AttributeError:
             pass
-
+    
     def refresh_ui(self):
         """The Hub doesn't display module buttons natively, so we pass."""
         pass
+
+    def _setup_menu_bar(self):
+        """Adds the Theme menu to the Hub so you can switch before entering a project."""
+        menubar = self.menuBar()
+        theme_menu = menubar.addMenu("&Theme")
+        
+        action_default = QAction("BioPro Default", self)
+        action_default.triggered.connect(lambda: self._switch_theme("default.json"))
+        theme_menu.addAction(action_default)
+        
+        action_sw = QAction("Star Wars (Dark Side)", self)
+        action_sw.triggered.connect(lambda: self._switch_theme("star_wars.json"))
+        theme_menu.addAction(action_sw)
+
+    def _switch_theme(self, filename: str):
+        from pathlib import Path
+        # Assuming themes is 2 levels up from biopro/ui/
+        theme_path = Path(__file__).parent.parent.parent / "themes" / filename
+        theme_manager.load_theme(theme_path)
+
+    def _on_theme_changed(self):
+        """Refreshes the Hub visuals when the theme changes."""
+        self._apply_theme_styles()
+        # Trigger a resize event to force the DNA and labels to re-read Colors
+        self.resizeEvent(None) 
+
+    def _apply_theme_styles(self):
+        """Sets the styleSheet using the LATEST color values."""
+        self.setStyleSheet(f"""
+            QMainWindow {{ background-color: {Colors.BG_DARKEST}; }}
+            QWidget {{ color: {Colors.FG_PRIMARY}; }}
+            QLineEdit {{ 
+                background-color: {Colors.BG_MEDIUM}; 
+                border: 1px solid {Colors.BORDER}; 
+                padding: 5px; 
+                border-radius: 4px; 
+            }}
+            QLabel {{ background: transparent; }}
+        """)
+        # Update the left panel specifically if it's already created
+        if hasattr(self, 'list_recent'):
+            self.list_recent.setStyleSheet(
+                f"QListWidget {{ border: none; background: transparent; color: {Colors.FG_SECONDARY}; }}"
+                f"QListWidget::item {{ padding: 10px; border-radius: 5px; }}"
+                f"QListWidget::item:hover {{ background: {Colors.BG_MEDIUM}; }}"
+                f"QListWidget::item:selected {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; font-weight: bold; }}"
+            )

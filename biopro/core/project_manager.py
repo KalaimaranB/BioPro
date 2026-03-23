@@ -187,3 +187,94 @@ class ProjectManager:
         # 3. File is missing.
         logger.error(f"Asset missing! Hash: {file_hash}, File: {asset['filename']}")
         return None
+    
+    def save_workflow(self, module_id: str, payload: dict, metadata: dict) -> str:
+        """Saves an aggregated module payload as a JSON workflow."""
+        if getattr(self, 'project_dir', None) is None:
+            raise ValueError("No project open.")
+
+        wf_dir = self.project_dir / "workflows"
+        wf_dir.mkdir(exist_ok=True)
+
+        # Sanitize the user's workflow name for a safe filename
+        safe_name = "".join([c for c in metadata["name"] if c.isalnum() or c == ' '])
+        safe_name = safe_name.replace(" ", "_").lower()
+        if not safe_name:
+            safe_name = "untitled_workflow"
+
+        # Ensure we don't overwrite an existing file
+        filepath = wf_dir / f"{safe_name}.json"
+        counter = 1
+        while filepath.exists():
+            filepath = wf_dir / f"{safe_name}_{counter}.json"
+            counter += 1
+
+        # Lock in the module ID so we know which plugin to load it into later
+        metadata["module"] = module_id
+        
+        workflow_data = {
+            "metadata": metadata,
+            "payload": payload
+        }
+
+        with open(filepath, 'w') as f:
+            json.dump(workflow_data, f, indent=4)
+            
+        return str(filepath.name)
+
+    def list_workflows(self) -> list[dict]:
+        """Scans the workflows directory and returns metadata for the Hub UI."""
+        if getattr(self, 'project_dir', None) is None:
+            return []
+        
+        wf_dir = self.project_dir / "workflows"
+        if not wf_dir.exists():
+            return []
+            
+        workflows = []
+        for file in wf_dir.glob("*.json"):
+            try:
+                with open(file, 'r') as f:
+                    data = json.load(f)
+                    meta = data.get("metadata", {})
+                    meta["filename"] = file.name # Keep track of the file so we can load it
+                    workflows.append(meta)
+            except Exception as e:
+                pass # Skip corrupted files
+                
+        # Sort by newest first
+        workflows.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        return workflows
+
+    def load_workflow_payload(self, filename: str) -> dict:
+        """Extracts the exact scientific payload to hand back to the module."""
+        if getattr(self, 'project_dir', None) is None:
+            return {}
+            
+        filepath = self.project_dir / "workflows" / filename
+        if not filepath.exists():
+            return {}
+            
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            return data.get("payload", {})
+        
+    def delete_workflow(self, module_id: str, filename: str) -> bool:
+        """Deletes a saved workflow JSON file from the project workspace."""
+        import os
+        
+        if not self.project_dir:
+            return False
+            
+        target_dir = self.project_dir / "workflows" / module_id
+        file_path = target_dir / filename
+        
+        try:
+            if file_path.exists() and file_path.is_file():
+                os.remove(file_path)
+                return True
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to delete workflow {filename}: {e}")
+            
+        return False
