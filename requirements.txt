@@ -8,3 +8,9 @@ opencv-python-headless
 requests
 pytest
 psutil
+torch
+torchvision
+cellpose
+Pillow
+tifffile
+pyinstaller
