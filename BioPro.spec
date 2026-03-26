@@ -27,7 +27,7 @@ all_hidden = sk_hidden + cp_hidden + torch_hidden
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
 bloat_modules = [
-    'tkinter', 'unittest', 'IPython', 'notebook', 'tensorboard',
+    'tkinter', 'IPython', 'notebook', 'tensorboard',
     'pydoc', 'pytest', 'win32com', 'macpath', 'pdb', 'setuptools'
 ]
 
