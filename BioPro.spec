@@ -39,7 +39,7 @@ hidden_imports = [
     'numpy',
     'scipy',
     'cv2',
-    'psutil',          # <--- Added our new hardware monitor!
+    'psutil',          
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
 ] + all_hidden 
