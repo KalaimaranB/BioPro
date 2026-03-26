@@ -1,7 +1,5 @@
 name: BioPro Production Build
 
-# This tells GitHub to run this pipeline whenever you push to main, 
-# or manually via a button on the website (workflow_dispatch).
 on:
   push:
     branches: [ "main" ]
@@ -10,11 +8,10 @@ on:
 jobs:
   build:
     name: Build on ${{ matrix.os }}
-    # This is the "Matrix". It spins up 3 different virtual machines!
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-14, windows-latest, ubuntu-latest]
+        os: [macos-14, windows-latest]
 
     steps:
     - name: Checkout Code
@@ -23,15 +20,25 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11' # Locking the build environment
+        python-version: '3.11' 
 
-    - name: Install Dependencies
+    # --- THE FIX: OS-SPECIFIC INSTALLS ---
+    - name: Install Dependencies (Windows - CPU Only)
+      if: runner.os == 'Windows'
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Install Dependencies (macOS)
+      if: runner.os == 'macOS'
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
+    # -------------------------------------
 
-    # One command handles every OS.
     - name: Run PyInstaller Build
       run: pyinstaller BioPro.spec --clean
 
@@ -40,9 +47,9 @@ jobs:
       run: |
         cd dist
         tar -czf BioPro-macOS.tar.gz BioPro.app
-        rm -rf BioPro.app  # Delete the raw app bundle
-        rm -rf BioPro      # Delete the raw directory (added the -r here!)
-
+        rm -rf BioPro.app  
+        rm -rf BioPro      
+        
     - name: Upload Finished App to GitHub
       uses: actions/upload-artifact@v4
       with:

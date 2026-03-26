@@ -11,7 +11,7 @@ from biopro.core.network_updater import NetworkUpdater, PluginInstallerWorker
 from biopro.core.module_manager import ModuleManager
 from biopro.shared.ui.ui_components import PrimaryButton, SecondaryButton, DangerButton, ModuleCard, HeaderLabel
 
-class StoreDialog(QDialog):
+class PluginStoreDialog(QDialog):
     def __init__(self, module_manager: ModuleManager, updater: NetworkUpdater, parent=None):
         super().__init__(parent)
         self.module_manager = module_manager

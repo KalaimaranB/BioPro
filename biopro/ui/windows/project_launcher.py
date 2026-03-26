@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from biopro.ui.main_window import MainWindow
+from biopro.ui.windows.workspace_window import WorkspaceWindow
 from biopro.core.config import AppConfig
 from biopro.core.module_manager import ModuleManager
 from PyQt6.QtWidgets import QPushButton
@@ -38,7 +38,7 @@ from biopro.shared.ui.ui_components import PrimaryButton, SecondaryButton
 
 logger = logging.getLogger(__name__)
 
-class HubWindow(QMainWindow):
+class ProjectLauncherWindow(QMainWindow):
     """The main entry hub for creating and opening BioPro projects."""
 
     # We now REQUIRE the dependencies to be passed in!
@@ -50,7 +50,7 @@ class HubWindow(QMainWindow):
         self.updater = updater
         self.open_store_callback = store_callback
         
-        # ADD THIS LINE to save the hub callback so we can pass it to MainWindow later
+        # ADD THIS LINE to save the hub callback so we can pass it to WorkspaceWindow later
         self.return_to_hub_callback = hub_callback
         self.setWindowTitle("BioPro Hub")
         self.setMinimumSize(800, 500)
@@ -273,9 +273,9 @@ class HubWindow(QMainWindow):
         config.add_recent_project(project_manager.project_dir)
 
         # 2. Transition the UI
-        from biopro.ui.main_window import MainWindow
+        from biopro.ui.windows.workspace_window import WorkspaceWindow
         # Pass self.module_manager instead of the undefined variable
-        self.workspace = MainWindow(
+        self.workspace = WorkspaceWindow(
             project_manager, 
             self.module_manager, 
             self.updater,              
@@ -359,3 +359,37 @@ class HubWindow(QMainWindow):
                 f"QListWidget::item:hover {{ background: {Colors.BG_MEDIUM}; }}"
                 f"QListWidget::item:selected {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; font-weight: bold; }}"
             )
+
+from PyQt6.QtCore import QThread, pyqtSignal
+
+class ModuleLoaderWorker(QThread):
+    """Dynamically loads a module and injects workflow data without freezing the Hub."""
+    # Emits the fully instantiated panel widget back to the main thread
+    finished = pyqtSignal(object) 
+    error = pyqtSignal(str)
+
+    def __init__(self, module_id, workflow_data=None):
+        super().__init__()
+        self.module_id = module_id
+        self.workflow_data = workflow_data
+
+    def run(self):
+        try:
+            # 1. Dynamically import the module (this is what usually causes the lag)
+            import importlib
+            module_path = f"biopro.plugins.{self.module_id}.ui.main_panel"
+            mod = importlib.import_module(module_path)
+            
+            # Note: You will need to make sure your plugins have a standard class name
+            # or a factory function to grab the main widget.
+            # Assuming your modules have a standard 'get_panel()' function or similar:
+            panel_class = getattr(mod, "CytoMetricsPanel") # Adjust to your dynamic loading logic
+            
+            # We can't actually instantiate QWidgets in a background thread without 
+            # making PyQt angry, so we just import the heavy libraries and 
+            # pass the Class reference back to the main thread to be built instantly.
+            
+            self.finished.emit((panel_class, self.workflow_data))
+            
+        except Exception as e:
+            self.error.emit(str(e))

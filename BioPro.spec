@@ -2,10 +2,36 @@
 import sys
 from PyInstaller.utils.hooks import collect_all
 
-# 1. Force-collect the entirety of scikit-image
-sk_bins, sk_datas, sk_hidden = collect_all('skimage')
+# Prevent PyInstaller from crashing when tracing PyTorch's massive dependency tree
+sys.setrecursionlimit(5000)
 
-# 2. Base External Dependencies
+# 1. Force-collect heavy imaging and AI libraries
+sk_bins, sk_datas, sk_hidden = collect_all('skimage')
+cp_bins, cp_datas, cp_hidden = collect_all('cellpose')
+torch_bins, torch_datas, torch_hidden = collect_all('torch')
+
+# --- THE OPTIMIZATION ENGINE ---
+# Strip out hundreds of MBs of useless testing/mock data from the final build
+def filter_bloat(item_list):
+    clean_list = []
+    for item in item_list:
+        dest = item[1].lower() if len(item) > 1 else item[0].lower()
+        if any(bad in dest for bad in ['/test/', '/tests/', '/testing/', 'test_', '__pycache__']):
+            continue
+        clean_list.append(item)
+    return clean_list
+
+all_bins = filter_bloat(sk_bins + cp_bins + torch_bins)
+all_datas = filter_bloat(sk_datas + cp_datas + torch_datas)
+all_hidden = sk_hidden + cp_hidden + torch_hidden
+
+# 2. Aggressive Excludes (Modules BioPro does not need to run)
+bloat_modules = [
+    'tkinter', 'unittest', 'IPython', 'notebook', 'tensorboard',
+    'pydoc', 'pytest', 'win32com', 'macpath', 'pdb', 'setuptools'
+]
+
+# 3. Hidden Imports (Ensuring dynamic libraries are packed)
 hidden_imports = [
     'biopro.plugins',
     'matplotlib.backends.backend_qtagg',
@@ -13,26 +39,26 @@ hidden_imports = [
     'numpy',
     'scipy',
     'cv2',
+    'psutil',          # <--- Added our new hardware monitor!
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
-] + sk_hidden  # Add the skimage submodules here!
+] + all_hidden 
 
 a = Analysis(
     ['biopro/__main__.py'],
     pathex=[],
-    binaries=[] + sk_bins, # Add skimage binaries here!
-    # Physically copy your shared folder as raw data
+    binaries=all_bins, 
     datas=[
         ('themes', 'themes'),
         ('biopro/shared', 'biopro/shared') 
-    ] + sk_datas, # Add skimage data files here!
+    ] + all_datas, 
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=bloat_modules,
     noarchive=False,
-    optimize=0,
+    optimize=1, # Strips assert statements and docstrings to save space
 )
 
 pyz = PYZ(a.pure)
@@ -50,7 +76,6 @@ exe = EXE(
     console=False, 
     disable_windowed_traceback=False,
     argv_emulation=False,
-    # Fixes the Apple Silicon Segfault natively
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
@@ -67,7 +92,7 @@ coll = COLLECT(
     name='BioPro',
 )
 
-# Protects the Windows/Linux servers from trying to build Apple bundles
+# Protects Windows/Linux servers from trying to build Apple bundles
 if sys.platform == 'darwin':
     app = BUNDLE(
         coll,

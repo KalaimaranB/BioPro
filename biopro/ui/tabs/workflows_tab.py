@@ -1,6 +1,6 @@
 # biopro/ui/workflows_tab.py
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QScrollArea
-from .hub_widgets import WorkflowCard
+from biopro.ui.components.cards import DetailedWorkflowCard as WorkflowCard
 
 class WorkflowsTab(QWidget):
     """Searchable list of saved work sessions."""

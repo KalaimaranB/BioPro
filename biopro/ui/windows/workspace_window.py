@@ -1,48 +1,20 @@
-"""Main application window for BioPro.
-
-Navigation flow:
-    Home Screen  →  Analysis View  (Dynamically loaded modules)
-"""
+"""Workspace Window for BioPro."""
 
 from __future__ import annotations
-
 import logging
-from PyQt6.QtGui import QAction, QKeySequence  # <-- Add QKeySequence here
-
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import (
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QMessageBox,
-    QSplitter,
-    QStackedWidget,
-    QStatusBar,
-    QVBoxLayout,
-    QWidget,
-)
-
 from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import (
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QMessageBox,
-    QSplitter,
-    QStackedWidget,
-    QStatusBar,
-    QVBoxLayout,
-    QWidget,
+    QFrame, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
+    QSplitter, QStackedWidget, QStatusBar, QVBoxLayout, QWidget,
     QGraphicsOpacityEffect
 )
 
-from biopro.ui.home_screen import HomeScreen
+from biopro.ui.dashboards.workspace_dashboard import WorkspaceDashboard as HomeScreen
 from biopro.core.config import AppConfig
 from biopro.ui.theme import Colors, Fonts, theme_manager
 from biopro.shared.ui.ui_components import SecondaryButton
+from biopro.ui.components.toolbars import AnalysisToolBar
 
 logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
@@ -50,57 +22,7 @@ logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 _PAGE_HOME = 0
 _PAGE_ANALYSIS = 1
 
-
-class AnalysisToolBar(QWidget):
-    """Slim contextual toolbar shown above the analysis splitter."""
-
-    def __init__(self, title: str, parent=None) -> None:
-        super().__init__(parent)
-        self.setObjectName("analysisToolBar")
-        self.setStyleSheet(
-            f"QWidget#analysisToolBar {{"
-            f"  background: {Colors.BG_DARK};"
-            f"  border-bottom: 1px solid {Colors.BORDER};"
-            f"}}"
-        )
-        self.setFixedHeight(42)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(10, 0, 14, 0)
-        layout.setSpacing(8)
-
-        # Look how clean this is using our SDK!
-        self.btn_close_project = SecondaryButton("🏠 Return to Hub")
-        layout.addWidget(self.btn_close_project)
-
-        self.btn_home = SecondaryButton("← Home")
-        layout.addWidget(self.btn_home)
-
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setStyleSheet(f"color: {Colors.BORDER};")
-        layout.addWidget(sep)
-
-        self.title_lbl = QLabel(f"🔬  {title}")
-        self.title_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
-            f" color: {Colors.FG_PRIMARY}; background: transparent;"
-        )
-        layout.addWidget(self.title_lbl)
-        layout.addStretch()
-
-        self.lbl_hint = QLabel("Ctrl+O to open image")
-        self.lbl_hint.setStyleSheet(
-            f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_DISABLED};"
-            f" background: transparent;"
-        )
-        layout.addWidget(self.lbl_hint)
-
-    def set_title(self, icon: str, name: str) -> None:
-        self.title_lbl.setText(f"{icon}  {name}")
-
-
-class MainWindow(QMainWindow):
+class WorkspaceWindow(QMainWindow):
     """BioPro main application window."""
 
     APP_TITLE = "BioPro — Bio-Image Analysis"
