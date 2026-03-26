@@ -26,10 +26,7 @@ all_datas = filter_bloat(sk_datas + cp_datas + torch_datas)
 all_hidden = sk_hidden + cp_hidden + torch_hidden
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
-bloat_modules = [
-    'tkinter', 'IPython', 'notebook', 'tensorboard',
-    'pydoc', 'pytest', 'win32com', 'macpath', 'pdb', 'setuptools'
-]
+bloat_modules = []
 
 # 3. Hidden Imports (Ensuring dynamic libraries are packed)
 hidden_imports = [
