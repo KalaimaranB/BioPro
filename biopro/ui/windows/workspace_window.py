@@ -177,33 +177,12 @@ class WorkspaceWindow(QMainWindow):
         self.analysis_toolbar.btn_close_project.clicked.connect(self.return_to_hub)
         ap_layout.addWidget(self.analysis_toolbar)
 
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
-
         self.wizard_panel = None
-        self.left_container = QWidget()
-        self.left_layout = QVBoxLayout(self.left_container)
-        self.left_layout.setContentsMargins(0, 0, 0, 0)
-        self.left_container.setMinimumWidth(360)
-        self.left_container.setMaximumWidth(560)
+        self.main_module_container = QWidget()
+        self.main_module_layout = QVBoxLayout(self.main_module_container)
+        self.main_module_layout.setContentsMargins(0, 0, 0, 0)
 
-        self._right_container = QWidget()
-        self.right_layout = QVBoxLayout(self._right_container)
-        self.right_layout.setContentsMargins(0, 0, 0, 0)
-        self._right_container.setMinimumWidth(300)
-        self._right_container.hide()
-
-        self.splitter.addWidget(self.left_container)
-        self.center_container = QWidget()
-        self.center_layout = QVBoxLayout(self.center_container)
-        self.center_layout.setContentsMargins(0, 0, 0, 0)
-        self.splitter.addWidget(self.center_container)
-        self.splitter.addWidget(self._right_container)
-        self.splitter.setSizes([420, 980, 0])
-        self.splitter.setCollapsible(0, False)
-        self.splitter.setCollapsible(1, False)
-        self.splitter.setCollapsible(2, True)
-
-        ap_layout.addWidget(self.splitter, stretch=1)
+        ap_layout.addWidget(self.main_module_container, stretch=1)
         self.root_stack.addWidget(analysis_page)
 
         self.setCentralWidget(self.root_stack)
@@ -252,45 +231,24 @@ class WorkspaceWindow(QMainWindow):
             self.wizard_panel = PanelClass()
             self.wizard_panel.project_manager = self.project_manager
 
-            # 1. Add Left Panel (The Wizard)
-            self.left_layout.addWidget(self.wizard_panel)
+            # Place the module directly into the main container
+            self.main_module_layout.addWidget(self.wizard_panel)
 
-            # 2. Clear and Add Center Panel (The Canvas)
-            # (Assuming you have a self.center_layout where the canvas used to be. 
-            # If you add directly to the splitter, use self.splitter.insertWidget(1, center_widget))
-            while hasattr(self, 'center_layout') and self.center_layout.count():
-                item = self.center_layout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
-                    
-            if hasattr(self.wizard_panel, 'get_center_widget'):
-                center_widget = self.wizard_panel.get_center_widget()
-                if center_widget and hasattr(self, 'center_layout'):
-                    self.center_layout.addWidget(center_widget)
-
-                    if hasattr(center_widget, 'zoom_changed') and hasattr(self, 'zoom_label'):
-                        center_widget.zoom_changed.connect(
-                            lambda z: self.zoom_label.setText(f"{z * 100:.0f}%")
-                        )
-
-            # 3. Clear and Add Right Panel (The Results)
-            while self.right_layout.count():
-                item = self.right_layout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
-            
-            if hasattr(self.wizard_panel, 'get_right_panel_widget'):
-                right_widget = self.wizard_panel.get_right_panel_widget()
-                if right_widget:
-                    self.right_layout.addWidget(right_widget)
+            # Attempt to wire up zoom signals if the module exposes it (or a canvas object)
+            if hasattr(self.wizard_panel, 'canvas') and hasattr(self.wizard_panel.canvas, 'zoom_changed'):
+                self.wizard_panel.canvas.zoom_changed.connect(
+                    lambda z: self.zoom_label.setText(f"{z * 100:.0f}%")
+                )
+            elif hasattr(self.wizard_panel, 'zoom_changed'):
+                self.wizard_panel.zoom_changed.connect(
+                    lambda z: self.zoom_label.setText(f"{z * 100:.0f}%")
+                )
 
             self.analysis_toolbar.set_title(manifest.get("icon", "📦"), manifest.get("name", "Analysis"))
 
             # -- THE PLUGIN NOW MANAGES ITS OWN CANVAS SIGNALS ---
             if hasattr(self.wizard_panel, 'status_message'):
                 self.wizard_panel.status_message.connect(self.status_bar.showMessage)
-            if hasattr(self.wizard_panel, 'results_ready'):
-                self.wizard_panel.results_ready.connect(self._reveal_right_panel)
             if hasattr(self.wizard_panel, 'state_changed'):
                 self.wizard_panel.state_changed.connect(self._push_history)
 
@@ -304,14 +262,7 @@ class WorkspaceWindow(QMainWindow):
             QMessageBox.critical(self, "Module Error", f"Failed to load module {module_id}:\n{str(e)}")
             logger.exception(f"Failed to load module {module_id}")
 
-    def _reveal_right_panel(self, *args) -> None:
-        if self._right_container.isHidden():
-            self._right_container.show()
-            total = self.splitter.width()
-            left = 340
-            right = max(320, total // 4)
-            centre = max(200, total - left - right)
-            self.splitter.setSizes([left, centre, right])
+
 
     def _on_open_file(self) -> None:
         if self.root_stack.currentIndex() == _PAGE_HOME:

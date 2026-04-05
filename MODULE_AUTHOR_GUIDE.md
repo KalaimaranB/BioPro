@@ -55,13 +55,7 @@ When BioPro launches your plugin, it instances the class returned by `get_panel_
 
 ### Standardized Methods
 
-Implementation of these methods is mandatory to allow the Core Application to dock your UI and manage your data state:
-
-- `get_center_widget(self) -> QWidget`
-  Returns the widget to be placed in the center screen area (typically an interactive Image Canvas or plot).
-  
-- `get_right_panel_widget(self) -> QWidget`
-  Returns the widget to be placed in the right-hand collapsible sidebar (typically results tables, charts, or export tools).
+Implementation of these methods is mandatory to allow the Core Application to manage your data state. Note that your class is placed directly into the main workspace as a single unified widget; if you require an image canvas, sidebars, or splitters, you must create and arrange them yourself inside your panel class.
 
 - `export_state(self) -> dict`
   Packages your entire UI and scientific state into a deep-copyable Python dictionary. This is heavily utilized by the Core's `HistoryManager` to capture invisible snapshots of your tool.
@@ -90,7 +84,7 @@ class MyMainPanel(QWidget):
 
 1. **`state_changed`**: Emit this ANY time the user makes a destructive/structural edit (drawing a box, changing a threshold, moving an anchor). BioPro will instantly call your `export_state()` and record it to the Undo stack.
 2. **`status_message(message: str)`**: Emit text to this signal to cleanly pipe tool tips and updates to the user's primary status bar at the bottom of the screen.
-3. **`results_ready(payload: object)`**: Tell the Core host to physically slide open the right-hand panel, as you have populated it with data that needs viewing.
+3. **`results_ready(payload: object)`**: Optionally emit this to pass final analysis data back to the core host if you are integrating with global reporting systems.
 
 ---
 
