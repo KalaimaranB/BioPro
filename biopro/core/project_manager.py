@@ -73,14 +73,20 @@ class ProjectManager:
         logger.info(f"Opened project: {self.data.get('project_name')}")
 
     def save(self) -> None:
-        """Save current data to the project.biopro file."""
+        """Save current data to the project.biopro file atomically to prevent corruption."""
         self.data["last_modified"] = datetime.now().isoformat()
-        with open(self.project_file, "w") as f:
+        
+        temp_project = self.project_file.with_suffix(".tmp")
+        with open(temp_project, "w") as f:
             json.dump(self.data, f, indent=4)
+        os.replace(temp_project, self.project_file)
+        
         try:
             history_data = self.history_manager.serialize_all()
-            with open(self.history_file, "w") as f:
+            temp_history = self.history_file.with_suffix(".tmp")
+            with open(temp_history, "w") as f:
                 json.dump(history_data, f, indent=4)
+            os.replace(temp_history, self.history_file)
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Failed to save history.json: {e}")
@@ -266,8 +272,9 @@ class ProjectManager:
         if not self.project_dir:
             return False
             
-        target_dir = self.project_dir / "workflows" / module_id
-        file_path = target_dir / filename
+        target_dir = self.project_dir / "workflows"
+        safe_filename = os.path.basename(filename)
+        file_path = target_dir / safe_filename
         
         try:
             if file_path.exists() and file_path.is_file():

@@ -86,6 +86,14 @@ class ModuleManager:
 
     def reload_modules(self) -> None:
         """Clears the registry and rescans the disk for new/removed plugins (Hot-Reload)."""
+        for mod_info in self.modules.values():
+            if mod_info["loaded"]:
+                prefix = f"biopro.plugins.{mod_info['package_name']}"
+                # Purge Python's aggressively cached module data
+                keys_to_remove = [k for k in sys.modules if k == prefix or k.startswith(f"{prefix}.")]
+                for k in keys_to_remove:
+                    del sys.modules[k]
+                    
         self.modules.clear()
         self._discover_modules()
         logger.info(f"Hot-reloaded plugins. Currently loaded: {list(self.modules.keys())}")

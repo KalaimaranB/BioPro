@@ -6,7 +6,7 @@ from typing import List
 
 class AppConfig:
     """Manages global settings stored in the user's home directory."""
-    CORE_VERSION = "1.0.0"
+    from biopro import __version__ as CORE_VERSION
     REGISTRY_URL = "https://raw.githubusercontent.com/KalaimaranB/BioPro-Plugins/main/registry.json"
     
     def __init__(self):

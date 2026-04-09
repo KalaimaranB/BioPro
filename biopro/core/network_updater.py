@@ -11,7 +11,6 @@ from biopro.core.config import AppConfig
 from PyQt6.QtCore import QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
-REGISTRY_URL = "https://kalaimaranb.github.io/BioPro-Plugins/registry.json"
 
 class PluginInstallerWorker(QThread):
     """Downloads, extracts, and installs a plugin into the user directory."""
@@ -145,6 +144,18 @@ class NetworkUpdater:
         if self.core_version < remote_version:
             return True, core_info
         return False, None
+        
+    def launch_core_update_page(self) -> bool:
+        """Opens the user's default browser to the PyInstaller App download page."""
+        import webbrowser
+        remote_data = self.fetch_remote_registry(self.registry_url) 
+        core_info = remote_data.get("core_app", {})
+        download_url = core_info.get("download_url")
+        
+        if download_url:
+            webbrowser.open_new_tab(download_url)
+            return True
+        return False
     
     def install_plugin(self, plugin_id, remote_info):
         """Downloads a .zip plugin package, extracts it, and updates the registry."""
