@@ -17,16 +17,27 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    # --- OPTIMIZATION 1: Native Pip Caching ---
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11' 
+        cache: 'pip' # Automatically caches pip downloads based on requirements.txt
 
-    # --- THE FIX: OS-SPECIFIC INSTALLS ---
+    # --- OPTIMIZATION 2: PyInstaller AST Caching ---
+    - name: Cache PyInstaller workspace
+      uses: actions/cache@v4
+      with:
+        path: build/
+        # Cache breaks and resets if you change the spec file or dependencies
+        key: ${{ runner.os }}-pyinstaller-${{ hashFiles('BioPro.spec', 'requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pyinstaller-
+
     - name: Install Dependencies (Windows - CPU Only)
       if: runner.os == 'Windows'
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip wheel
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
         pip install -r requirements.txt
         pip install pyinstaller
@@ -34,21 +45,29 @@ jobs:
     - name: Install Dependencies (macOS)
       if: runner.os == 'macOS'
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip wheel
         pip install -r requirements.txt
         pip install pyinstaller
-    # -------------------------------------
 
+    # --- OPTIMIZATION 3: Removed --clean flag ---
     - name: Run PyInstaller Build
-      run: pyinstaller BioPro.spec --clean
+      run: pyinstaller BioPro.spec
 
+    # --- OPTIMIZATION 4: Zip Windows Output ---
+    - name: Compress Windows Build
+      if: runner.os == 'Windows'
+      run: |
+        cd dist
+        # PowerShell command to zip the folder. 
+        # Uploading 1 zip file is 10x faster than uploading 5,000 raw PyTorch files.
+        Compress-Archive -Path BioPro\* -DestinationPath BioPro-Windows.zip
+        
     - name: Compress macOS App Bundle
       if: runner.os == 'macOS'
       run: |
         cd dist
         tar -czf BioPro-macOS.tar.gz BioPro.app
-        rm -rf BioPro.app  
-        rm -rf BioPro      
+        # No need to rm -rf the folders, the runner destroys the VM anyway after upload
         
     - name: Upload Finished App to GitHub
       uses: actions/upload-artifact@v4
@@ -56,6 +75,5 @@ jobs:
         name: BioPro-Executable-${{ runner.os }}
         path: |
           dist/*.tar.gz
-          dist/*.exe
-          dist/BioPro
+          dist/*.zip
         if-no-files-found: warn

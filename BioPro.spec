@@ -32,14 +32,19 @@ bloat_modules = []
 hidden_imports = [
     'biopro.plugins',
     'matplotlib.backends.backend_qtagg',
+    'matplotlib',
     'pandas',
     'numpy',
     'scipy',
     'cv2',
+    'fcsparser',
     'psutil',          
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
-] + all_hidden 
+    'flowkit',
+    'flowio',      
+    'flowutils' 
+] + all_hidden
 
 a = Analysis(
     ['biopro/__main__.py'],
@@ -69,7 +74,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=False, 
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -84,7 +89,7 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='BioPro',
 )
