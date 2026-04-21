@@ -11,6 +11,7 @@ from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal, pyqtSlot
 
 from biopro.sdk.core.analysis import AnalysisBase, AnalysisWorker, AnalysisRunnable
 from biopro.sdk.core.state import PluginState
+from biopro.sdk.core.managed_task import FunctionalTask
 
 logger = logging.getLogger(__name__)
 

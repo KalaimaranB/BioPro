@@ -7,7 +7,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Union
 from biopro.core.history_manager import HistoryManager
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class ProjectLockedError(Exception):
 class ProjectManager:
     """Manages the BioPro project workspace, assets, and application state."""
 
-    def __init__(self, project_dir: Path | str):
+    def __init__(self, project_dir: Union[Path, str]):
         self.project_dir = Path(project_dir)
         self.project_file = self.project_dir / "project.biopro"
         self.assets_dir = self.project_dir / "assets"
@@ -153,7 +153,7 @@ class ProjectManager:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def add_image(self, filepath: Path | str, copy_to_workspace: bool, subfolder: Optional[str] = None) -> str:
+    def add_image(self, filepath: Union[Path, str], copy_to_workspace: bool, subfolder: Optional[str] = None) -> str:
         """
         Add an image to the project.
         Returns the hash of the file so the UI can reference it.
@@ -203,7 +203,7 @@ class ProjectManager:
         self.save()
         return file_hash
 
-    def batch_add_images(self, filepaths: list[Path | str], copy_to_workspace: bool, 
+    def batch_add_images(self, filepaths: List[Union[Path, str]], copy_to_workspace: bool, 
                          subfolder: Optional[str] = None) -> list[str]:
         """Add multiple images at once, potentially to a subdirectory."""
         hashes = []

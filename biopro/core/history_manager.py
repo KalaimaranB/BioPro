@@ -2,6 +2,7 @@
 
 import logging
 import copy
+from typing import Optional
 from .resource_inspector import ResourceInspector
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,7 @@ class ModuleHistory:
                 return False
         return True
 
-    def undo(self) -> dict | None:
+    def undo(self) -> Optional[dict]:
         """Moves current state to redo, returns the previous state to load."""
         if len(self.undo_stack) <= 1:
             return None  
@@ -82,7 +83,7 @@ class ModuleHistory:
         # a hybrid snapshot created during push().
         return self.undo_stack[-1]
 
-    def redo(self) -> dict | None:
+    def redo(self) -> Optional[dict]:
         """Moves a state from redo back to undo and returns it."""
         if not self.redo_stack:
             return None

@@ -11,6 +11,7 @@ import hashlib
 import os
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Optional, List, Dict
 from .trust_overrides import LocalTrustRegistry
 from .trust_path import TrustChain, TrustLink
 

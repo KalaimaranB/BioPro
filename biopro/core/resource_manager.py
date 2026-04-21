@@ -3,8 +3,9 @@
 import os
 import sys
 from pathlib import Path
+from typing import Union, Optional
 
-def resource_path(relative_path: str) -> Path:
+def resource_path(relative_path: Union[str, Path]) -> Path:
     """
     Get the absolute path to a resource, works for dev and for PyInstaller.
     

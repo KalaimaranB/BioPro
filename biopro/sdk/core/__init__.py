@@ -13,6 +13,7 @@ from .state import PluginState
 from .analysis import AnalysisBase, AnalysisWorker
 from .base import PluginBase
 from .managed_task import FunctionalTask
+from .interfaces import BioProPlugin
 
 __all__ = [
     "PluginSignals",
@@ -21,4 +22,5 @@ __all__ = [
     "AnalysisWorker",
     "PluginBase",
     "FunctionalTask",
+    "BioProPlugin",
 ]

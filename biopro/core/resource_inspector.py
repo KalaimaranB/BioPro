@@ -7,7 +7,7 @@ within arbitrary object trees. Enables automatic memory management.
 import logging
 import sys
 import io
-from typing import Any, List, Set, Dict, Tuple
+from typing import Any, List, Set, Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class ResourceInspector:
         return False
 
     @classmethod
-    def get_object_hash(cls, obj: Any) -> str | None:
+    def get_object_hash(cls, obj: Any) -> Optional[str]:
         """Generates a pseudo-hash for identifying identical heavy resources.
         
         This is used for structural sharing in the HistoryManager.

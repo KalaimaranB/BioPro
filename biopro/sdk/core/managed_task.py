@@ -14,16 +14,16 @@ class FunctionalTask(AnalysisBase):
     Example:
         >>> def my_download():
         ...     return {"file": "data.fcs"}
-        >>> task = FunctionalTask("my_plugin", my_download)
+        >>> task = FunctionalTask(my_download, "my_plugin")
         >>> task_scheduler.submit(task, None)
     """
     
-    def __init__(self, plugin_id: str, func: Callable[[], Any], name: str = "Utility Task"):
+    def __init__(self, func: Callable[[], Any], plugin_id: str = "unknown", name: str = "Utility Task"):
         """Initialize the task.
         
         Args:
-            plugin_id: The ID of the plugin owning this task.
             func: The function to execute. Should return a dict or None.
+            plugin_id: The ID of the plugin owning this task (optional).
             name: Human-readable name for logging/UI.
         """
         super().__init__(plugin_id)

@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 class AppConfig:
     """Manages global settings stored in the user's home directory."""
@@ -29,7 +29,7 @@ class AppConfig:
         with open(self.config_file, "w") as f:
             json.dump(self.data, f, indent=4)
 
-    def add_recent_project(self, project_path: Path | str) -> None:
+    def add_recent_project(self, project_path: Union[Path, str]) -> None:
         """Push a project to the top of the recents list."""
         path_str = str(Path(project_path).absolute())
         recent: List[str] = self.data.get("recent_projects", [])
