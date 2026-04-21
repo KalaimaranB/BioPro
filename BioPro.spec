@@ -36,7 +36,6 @@ bloat_modules = [
     'tests',
     'pytest',
     'pytest_qt',
-    'unittest',
     'mock',
     'coverage',
 ]
@@ -103,7 +102,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True, # Temporarily enabled to capture boot errors on macOS/Windows
+    console=False, # Reverted for stability; use biopro.log for troubleshooting
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -1,20 +1,9 @@
 import sys
 import logging
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
-
-# CRITICAL: WebEngine initialization must happen BEFORE QApplication is created.
-# This prevents "Symbol not found" and OpenGL context sharing errors.
-try:
-    from PyQt6.QtWebEngineWidgets import QWebEngineView
-except ImportError:
-    # Fallback for environments without WebEngine (e.g. headless CI)
-    pass
-
 from pathlib import Path
-import biopro.ui.theme
 
 # --- STABILIZATION: Bootstrap Logging ---
+# This MUST happen before any wasm/biopro imports
 def setup_logging():
     log_dir = Path.home() / ".biopro"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -25,45 +14,45 @@ def setup_logging():
         level=logging.DEBUG,
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
         handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.FileHandler(log_file, encoding='utf-8', mode='w'), # Overwrite per session
             logging.StreamHandler(sys.stdout)
         ]
     )
-    logging.info("--- BIOPRO SESSION STARTED ---")
+    logging.info("--- BIOPRO BOOTLOADER INITIALIZED ---")
     return log_file
 
-# Delayed imports to allow logging to boot first
-from biopro.core.module_manager import ModuleManager
-from biopro.core.network_updater import NetworkUpdater
-from biopro.ui.windows.project_launcher import ProjectLauncherWindow
-from biopro.ui.dialogs.plugin_store import PluginStoreDialog
-import biopro.ui.dialogs.save_workflow as dialogs
-
 class BioProApp:
-    def __init__(self):
+    def __init__(self, module_manager, updater):
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtCore import Qt
+        
+        # CRITICAL: WebEngine initialization must happen BEFORE QApplication is created.
+        try:
+            from PyQt6.QtWebEngineWidgets import QWebEngineView
+        except ImportError:
+            pass
+
         print("1. Initializing QApplication...")
-        # Required for WebEngine to map graphics properly
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
         self.app = QApplication(sys.argv)
         
-        print("2. Booting Module Manager...")
-        self.module_manager = ModuleManager()
-        
-        print("3. Booting Network Updater...")
-        self.updater = NetworkUpdater()
+        self.module_manager = module_manager
+        self.updater = updater
 
     def run(self):
         print("4. Showing Hub Window...")
         self.show_hub()
         
-        print("5. Starting PyQt Event Loop (App should stay open now)...")
+        print("5. Starting PyQt Event Loop...")
         sys.exit(self.app.exec())
 
     def show_hub(self):
+        from biopro.ui.windows.project_launcher import ProjectLauncherWindow
         self.hub = ProjectLauncherWindow(self.module_manager, self.updater, self.open_store, self.show_hub)
         self.hub.show()
 
     def open_store(self, parent_window):
+        from biopro.ui.dialogs.plugin_store import PluginStoreDialog
         dialog = PluginStoreDialog(self.module_manager, self.updater, parent=parent_window)
         dialog.exec()
         self.module_manager.reload_modules()
@@ -75,14 +64,26 @@ def main():
     
     # Handle SDK CLI commands if detected
     if len(sys.argv) > 1 and sys.argv[1] == "sdk":
-        from biopro.sdk.sdk_cli import main as sdk_main
-        sdk_main()
-        return
+        try:
+            from biopro.sdk.sdk_cli import main as sdk_main
+            sdk_main()
+            return
+        except Exception as e:
+            logging.error(f"SDK Error: {e}")
+            sys.exit(1)
 
     try:
         logger = logging.getLogger("BioPro")
         logger.info("--- APP BOOT SEQUENCE STARTED ---")
-        app = BioProApp()
+        
+        # Import core modules only after logging is setup
+        from biopro.core.module_manager import ModuleManager
+        from biopro.core.network_updater import NetworkUpdater
+        
+        module_manager = ModuleManager()
+        updater = NetworkUpdater()
+        
+        app = BioProApp(module_manager, updater)
         app.run()
     except Exception as e:
         import traceback
@@ -90,8 +91,7 @@ def main():
         print(error_msg)
         logging.critical(error_msg)
         
-        # Show a critical error message if QApplication was successfully created
-        # (Checking if 'app' exists in the local scope and has an instance)
+        from PyQt6.QtWidgets import QApplication
         if QApplication.instance():
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.critical(None, "BioPro Crash", f"BioPro failed to start.\n\nCheck the log at:\n{log_file}\n\nError: {str(e)}")
