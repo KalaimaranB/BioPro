@@ -33,7 +33,7 @@ jobs:
       - name: Sync Files
         run: |
           # Clean existing wiki files except .git
-          find wiki/ -maxdepth 1 -not -name 'wiki/' -not -name '.git' -delete
+          find wiki/ -mindepth 1 -maxdepth 1 -not -name '.git' -exec rm -rf {} +
           
           # Copy docs to wiki root
           cp -R main/docs/* wiki/

@@ -3,8 +3,13 @@ name: BioPro Production Build
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - 'docs/**'
+    paths:
+      - 'biopro/**'
+      - 'requirements.txt'
+      - 'BioPro.spec'
+      - 'pyproject.toml'
+      - 'icon.icns'
+      - 'authorities.json'
   workflow_dispatch:
 
 jobs:
