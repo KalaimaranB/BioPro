@@ -11,16 +11,33 @@ except ImportError:
     # Fallback for environments without WebEngine (e.g. headless CI)
     pass
 
-# 1. Force Python to print ALL logs to the terminal
-logging.basicConfig(level=logging.DEBUG, 
-                    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+from pathlib import Path
+import biopro.ui.theme
 
+# --- STABILIZATION: Bootstrap Logging ---
+def setup_logging():
+    log_dir = Path.home() / ".biopro"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "biopro.log"
+    
+    # Configure logging to both file and console
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logging.info("--- BIOPRO SESSION STARTED ---")
+    return log_file
+
+# Delayed imports to allow logging to boot first
 from biopro.core.module_manager import ModuleManager
 from biopro.core.network_updater import NetworkUpdater
 from biopro.ui.windows.project_launcher import ProjectLauncherWindow
 from biopro.ui.dialogs.plugin_store import PluginStoreDialog
 import biopro.ui.dialogs.save_workflow as dialogs
-import biopro.ui.theme
 
 class BioProApp:
     def __init__(self):
@@ -54,15 +71,32 @@ class BioProApp:
             parent_window.refresh_ui()
 
 def main():
+    log_file = setup_logging()
+    
     # Handle SDK CLI commands if detected
     if len(sys.argv) > 1 and sys.argv[1] == "sdk":
         from biopro.sdk.sdk_cli import main as sdk_main
         sdk_main()
         return
 
-    print("--- APP BOOT SEQUENCE STARTED ---")
-    app = BioProApp()
-    app.run()
+    try:
+        logger = logging.getLogger("BioPro")
+        logger.info("--- APP BOOT SEQUENCE STARTED ---")
+        app = BioProApp()
+        app.run()
+    except Exception as e:
+        import traceback
+        error_msg = f"FATAL BOOT ERROR:\n{str(e)}\n\n{traceback.format_exc()}"
+        print(error_msg)
+        logging.critical(error_msg)
+        
+        # Show a critical error message if QApplication was successfully created
+        # (Checking if 'app' exists in the local scope and has an instance)
+        if QApplication.instance():
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.critical(None, "BioPro Crash", f"BioPro failed to start.\n\nCheck the log at:\n{log_file}\n\nError: {str(e)}")
+        
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

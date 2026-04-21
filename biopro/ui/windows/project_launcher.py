@@ -325,9 +325,8 @@ class ProjectLauncherWindow(QMainWindow):
         theme_menu.addAction(action_sw)
 
     def _switch_theme(self, filename: str):
-        from pathlib import Path
-        # Assuming themes is 2 levels up from biopro/ui/
-        theme_path = Path(__file__).parent.parent.parent / "themes" / filename
+        from biopro.core.resource_manager import resource_path
+        theme_path = resource_path("themes") / filename
         theme_manager.load_theme(theme_path)
 
     def _on_theme_changed(self):

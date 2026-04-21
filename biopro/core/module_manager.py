@@ -9,6 +9,7 @@ from typing import Dict, Any, Type, Optional
 from PyQt6.QtWidgets import QWidget
 from biopro.sdk.core.interfaces import BioProPlugin
 from biopro.core.event_bus import event_bus, BioProEvent
+from biopro.core.resource_manager import resource_path
 from biopro.core.trust_manager import TrustManager
 
 # HACK: Import the base plugins namespace so we can expand it
@@ -21,7 +22,7 @@ class ModuleManager:
 
     def __init__(self, trust_manager: Optional[TrustManager] = None):
         # 1. The built-in plugins (baked into the PyInstaller .app)
-        self.internal_plugins_dir = Path(__file__).parent.parent / "plugins"
+        self.internal_plugins_dir = resource_path("biopro/plugins")
         
         # 2. The dynamic downloaded plugins (safe from macOS code-signing blocks)
         self.user_plugins_dir = Path.home() / ".biopro" / "plugins"

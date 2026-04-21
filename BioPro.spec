@@ -79,6 +79,7 @@ a = Analysis(
     datas=[
         ('biopro/themes', 'themes'),
         ('biopro/shared', 'biopro/shared'),
+        ('biopro/plugins', 'biopro/plugins'),
         ('docs', 'docs') 
     ] + all_datas, 
     hiddenimports=hidden_imports,
@@ -102,13 +103,13 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=False, 
+    console=True, # Temporarily enabled to capture boot errors on macOS/Windows
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,
+    icon='icon.icns',
 )
 
 coll = COLLECT(
@@ -126,6 +127,6 @@ if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
         name='BioPro.app',
-        icon=None,
-        bundle_identifier=None,
+        icon='icon.icns',
+        bundle_identifier='com.biopro.analysis',
     )
