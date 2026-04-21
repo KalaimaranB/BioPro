@@ -1,6 +1,6 @@
 # 🔬 BioPro: The Modular Lab Analysis Hub
 
-**BioPro** is a cross-platform desktop suite designed to bridge the gap between "messy" raw lab data and publication-ready results. Built on a dynamic, cryptographically-secure plugin architecture, BioPro provides a unified, mathematically rigorous environment for biological image analysis.
+**BioPro** is a cross-platform desktop suite designed to bridge the gap between messy raw lab data and publication-ready results. Built on a dynamic, cryptographically-secure plugin architecture, BioPro provides a unified, mathematically rigorous environment for biological image analysis.
 
 ---
 

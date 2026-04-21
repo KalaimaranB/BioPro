@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - 'docs/**'
+  workflow_dispatch: # Allows manual trigger from the Actions tab
+
+permissions:
+  contents: write # Ensure permission to write to wiki repository if using GITHUB_TOKEN fallbacks
 
 jobs:
   sync-wiki:
@@ -17,11 +21,14 @@ jobs:
           path: main
 
       - name: Checkout Wiki Repo
+        # NOTE: If this step fails with "Repository not found", you MUST initialize the Wiki 
+        # by creating at least one page manually in the GitHub UI first.
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository }}.wiki
           path: wiki
           token: ${{ secrets.WIKI_SYNC_TOKEN }}
+          fetch-depth: 0 # Fetch all history to facilitate clean syncing
 
       - name: Sync Files
         run: |
