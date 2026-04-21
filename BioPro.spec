@@ -79,7 +79,8 @@ a = Analysis(
         ('biopro/themes', 'themes'),
         ('biopro/shared', 'biopro/shared'),
         ('biopro/plugins', 'biopro/plugins'),
-        ('docs', 'docs') 
+        ('docs', 'docs'),
+        ('icon.icns', '.')
     ] + all_datas, 
     hiddenimports=hidden_imports,
     hookspath=[],

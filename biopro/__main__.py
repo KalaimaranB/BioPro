@@ -36,6 +36,15 @@ class BioProApp:
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
         self.app = QApplication(sys.argv)
         
+        # --- BRANDING: Set Global Application Icon ---
+        from biopro.core.resource_manager import resource_path
+        from PyQt6.QtGui import QIcon
+        icon_path = resource_path("icon.icns")
+        if icon_path.exists():
+            self.app.setWindowIcon(QIcon(str(icon_path)))
+        else:
+            print(f"Warning: Icon not found at {icon_path}")
+        
         self.module_manager = module_manager
         self.updater = updater
 

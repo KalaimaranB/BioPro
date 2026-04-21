@@ -134,9 +134,14 @@ class TrustManager:
 
     def verify_plugin(self, plugin_path: Path) -> VerificationResult:
         """Execute the full multi-layer verification for a plugin folder."""
-        # DEBUG: Log to a specific file we can read
-        with open("trust_debug.log", "a") as log:
-            log.write(f"\nComparing {plugin_path.name}...\n")
+        # DEBUG: Log to a specific file in the user's config directory
+        debug_log_path = Path.home() / ".biopro" / "trust_debug.log"
+        try:
+            with open(debug_log_path, "a") as log:
+                log.write(f"\nComparing {plugin_path.name}...\n")
+        except Exception:
+            pass # Never let a debug log crash the boot sequence
+            
         try:
             # 1. Performance Check: Trust Cache
             cache = self._get_cache()
