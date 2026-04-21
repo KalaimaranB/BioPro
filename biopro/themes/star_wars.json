@@ -1,0 +1,20 @@
+{
+    "name": "Star Wars (Dark Side)",
+    "BG_DARKEST": "#010101",
+    "BG_DARK": "#0a0a0a",
+    "BG_MEDIUM": "#1a1a1a",
+    "BG_LIGHT": "#2a2a2a",
+    "FG_PRIMARY": "#e0e0e0",
+    "FG_SECONDARY": "#9e9e9e",
+    "DNA_PRIMARY": "#e60000",   
+    "DNA_SECONDARY": "#880000", 
+    "FG_DISABLED": "#424242",
+    "BORDER": "#333333",
+    "BORDER_FOCUS": "#ff0000",
+    "ACCENT_PRIMARY": "#e60000",
+    "ACCENT_PRIMARY_HOVER": "#ff3333",
+    "ACCENT_PRIMARY_PRESSED": "#990000",
+    "SUCCESS": "#d29922",
+    "ACCENT_WARNING": "#ffeb3b",
+    "ACCENT_DANGER": "#ff0000"
+}

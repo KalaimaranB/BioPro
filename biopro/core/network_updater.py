@@ -4,13 +4,34 @@ import io
 import json
 import logging
 import zipfile
+import os
+import shutil
 from pathlib import Path
 import requests
+import certifi
 from biopro.core.config import AppConfig
+from biopro.core.event_bus import event_bus, BioProEvent
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
+
+def _safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path):
+    """
+    Safely extract zip files preventing Zip Slip (path traversal) vulnerabilities.
+    """
+    dest_dir_str = os.path.abspath(dest_dir)
+    for member in zip_ref.infolist():
+        # Get absolute path of extracted file
+        member_target_path = os.path.abspath(os.path.join(dest_dir_str, member.filename))
+        
+        # Ensure that the resolved path is within the intended destination directory
+        if not member_target_path.startswith(dest_dir_str + os.sep):
+            logger.warning(f"Prevented directory traversal attack! Skipping file: {member.filename}")
+            continue
+            
+        zip_ref.extract(member, dest_dir)
+
 
 class PluginInstallerWorker(QThread):
     """Downloads, extracts, and installs a plugin into the user directory."""
@@ -33,15 +54,14 @@ class PluginInstallerWorker(QThread):
 
             # 2. Download the Zip File
             self.progress.emit(10, f"Downloading {self.plugin_id}...")
-            response = requests.get(self.download_url, stream=True, timeout=15, verify=False)
+            # Use certifi.where() for PyInstaller compatibility
+            response = requests.get(self.download_url, stream=True, timeout=15, verify=certifi.where())
             response.raise_for_status()
             
-            # 3. Extract the Zip
+            # 3. Extract the Zip (Safely!)
             self.progress.emit(60, "Extracting plugin files...")
             with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                # This assumes your zip file contains a root folder named exactly like the plugin
-                # e.g., western_blot.zip unzips to ~/.biopro/plugins/western_blot/
-                z.extractall(self.plugins_dir)
+                _safe_extract(z, self.plugins_dir)
                 
             self.progress.emit(100, "Installation complete!")
             self.finished.emit(True, f"Successfully installed {self.plugin_id}")
@@ -57,66 +77,65 @@ class PluginInstallerWorker(QThread):
             self.finished.emit(False, f"Installation error: {str(e)}")
 
 
-import json
-import os
-import urllib.request
-from pathlib import Path
-
 class NetworkUpdater:
     def __init__(self): 
-        # Grab the values directly from the config!
         self.core_version = AppConfig.CORE_VERSION
         self.registry_url = AppConfig.REGISTRY_URL
+        self.authority_url = AppConfig.AUTHORITY_REGISTRY_URL
         
         self.plugin_dir = Path.home() / ".biopro" / "plugins"
         self.plugin_dir.mkdir(parents=True, exist_ok=True)
         
-        # This is our local tracker file
         self.local_registry_path = self.plugin_dir / "installed.json"
         
-        # Create an empty local tracker if they are a first-time user
         if not self.local_registry_path.exists():
             with open(self.local_registry_path, 'w') as f:
                 json.dump({}, f)
+                
+        self.setup_developer_tools()
+
+    def setup_developer_tools(self):
+        """Ensures a copy of the signing utility is available in the plugins folder for developers."""
+        try:
+            signer_source = Path(__file__).parent / "sign_plugin.py"
+            signer_dest = self.plugin_dir / "biopro-sign.py"
+            
+            if signer_source.exists():
+                # Only copy if it doesn't exist or we have a newer version
+                if not signer_dest.exists() or os.path.getmtime(signer_source) > os.path.getmtime(signer_dest):
+                    import shutil
+                    shutil.copy(signer_source, signer_dest)
+                    logger.info(f"Deployed biopro-sign tool to {signer_dest}")
+        except Exception as e:
+            logger.warning(f"Could not deploy signing tool: {e}")
 
     def get_local_state(self):
-        """Reads the local tracker to see what the user already has."""
         with open(self.local_registry_path, 'r') as f:
             return json.load(f)
 
     def fetch_remote_registry(self, registry_url):
-        """Pulls the master JSON from your GitHub repository."""
-        import ssl # <--- ADD THIS
+        """Pulls the master JSON from your GitHub repository using requests with certifi."""
         try:
-            # Create an unverified SSL context to bypass PyInstaller's missing certs
-            context = ssl._create_unverified_context()
-            
-            req = urllib.request.Request(registry_url, headers={'User-Agent': 'BioPro-App'})
-            # Pass the context into urlopen
-            with urllib.request.urlopen(req, timeout=5, context=context) as response:
-                return json.loads(response.read().decode('utf-8'))
+            headers = {'User-Agent': 'BioPro-App'}
+            response = requests.get(registry_url, timeout=5, headers=headers, verify=certifi.where())
+            response.raise_for_status()
+            return response.json()
         except Exception as e:
-            print(f"Network error fetching registry: {e}")
+            logger.error(f"Network error fetching registry: {e}")
             return {}
 
-    # REMOVE registry_url from the arguments here too!
     def evaluate_store_state(self): 
-        # USE self.registry_url instead
         remote_data = self.fetch_remote_registry(self.registry_url) 
         local_data = self.get_local_state()
         
         store_inventory = {}
-        
         plugins_data = remote_data.get("plugins", {})
         
         for plugin_id, remote_info in plugins_data.items():
             state = "INSTALL" 
             
-            # 1. The Safety Lock
             if self.core_version < remote_info.get("min_core_version", "0.0.0"):
                 state = "INCOMPATIBLE"
-                
-            # 2. Local check
             elif plugin_id in local_data:
                 local_version = local_data[plugin_id].get("version", "0.0.0")
                 if local_version < remote_info["version"]:
@@ -124,20 +143,78 @@ class NetworkUpdater:
                 else:
                     state = "UP_TO_DATE"
                     
+            # 4. Check if the developer is Verified
+            is_verified = False
+            # If the plugin has an author, see if that author is in our trusted list
+            author_id = remote_info.get("author_id", remote_info.get("author"))
+            if author_id:
+                roots_dir = Path.home() / ".biopro" / "trusted_roots"
+                if (roots_dir / f"network_{author_id}.pub").exists():
+                    is_verified = True
+
             store_inventory[plugin_id] = {
                 "info": remote_info,
                 "state": state,
-                "local_version": local_data.get(plugin_id, {}).get("version", None)
+                "local_version": local_data.get(plugin_id, {}).get("version", None),
+                "is_verified": is_verified
             }
             
+        self.sync_trusted_developers(remote_data.get("trusted_developers", []))
+        self.fetch_and_sync_authorities() # New separate authorities pull
         return store_inventory
     
-    def check_for_core_updates(self): 
-        """Checks if the PyInstaller Core App needs an update."""
-        # USE self.registry_url instead
-        remote_data = self.fetch_remote_registry(self.registry_url) 
+    def fetch_and_sync_authorities(self):
+        """Pulls the separate authorities JSON and syncs them to local storage."""
+        if not self.authority_url:
+            return
+            
+        logger.info("Fetching central authority registry...")
+        remote_data = self.fetch_remote_registry(self.authority_url)
+        authorities = remote_data.get("authorities", [])
         
-        # Extract the core app data safely
+        if authorities:
+            self._sync_keys(authorities, prefix="auth_")
+
+    def _sync_keys(self, trusted_list: list, prefix: str = "network_"):
+        """Generic key syncing logic used by both plugins and authority registries."""
+        roots_dir = Path.home() / ".biopro" / "trusted_roots"
+        roots_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 1. Identify current network keys for this prefix
+        existing_keys = list(roots_dir.glob(f"{prefix}*.pub"))
+        new_filenames = []
+        
+        for entity in trusted_list:
+            entity_id = entity.get("id") or entity.get("developer_id")
+            pub_hex = entity.get("public_key")
+            
+            if not entity_id or not pub_hex:
+                continue
+                
+            filename = roots_dir / f"{prefix}{entity_id}.pub"
+            new_filenames.append(filename)
+            
+            try:
+                # Save raw bytes
+                with open(filename, "wb") as f:
+                    f.write(bytes.fromhex(pub_hex))
+            except Exception as e:
+                logger.error(f"Failed to sync key for {entity_id}: {e}")
+        
+        # 2. Cleanup
+        for old_key in existing_keys:
+            if old_key not in new_filenames:
+                try:
+                    old_key.unlink()
+                except Exception:
+                    pass
+
+    def sync_trusted_developers(self, trusted_list: list):
+        """Maintained for backward compatibility but routes to generic sync."""
+        self._sync_keys(trusted_list, prefix="network_")
+    
+    def check_for_core_updates(self): 
+        remote_data = self.fetch_remote_registry(self.registry_url) 
         core_info = remote_data.get("core_app", {})
         remote_version = core_info.get("version", "0.0.0")
         
@@ -146,7 +223,6 @@ class NetworkUpdater:
         return False, None
         
     def launch_core_update_page(self) -> bool:
-        """Opens the user's default browser to the PyInstaller App download page."""
         import webbrowser
         remote_data = self.fetch_remote_registry(self.registry_url) 
         core_info = remote_data.get("core_app", {})
@@ -158,33 +234,20 @@ class NetworkUpdater:
         return False
     
     def install_plugin(self, plugin_id, remote_info):
-        """Downloads a .zip plugin package, extracts it, and updates the registry."""
-        import urllib.request
-        import zipfile
-        import io
-        import json
-        import shutil
-        import ssl # <--- ADD THIS
-
+        """Downloads a .zip plugin package, extracts it securely, and updates the registry."""
         try:
-            context = ssl._create_unverified_context() # <--- ADD THIS
-            
-            req = urllib.request.Request(remote_info['download_url'], headers={'User-Agent': 'BioPro-App'})
-            # Pass the context into urlopen
-            with urllib.request.urlopen(req, timeout=15, context=context) as response:
-                zip_bytes = response.read()
+            headers = {'User-Agent': 'BioPro-App'}
+            response = requests.get(remote_info['download_url'], timeout=15, headers=headers, verify=certifi.where())
+            response.raise_for_status()
+            zip_bytes = response.content
                 
-            # 2. Prepare the destination folder
             plugin_folder = self.plugin_dir / plugin_id
             if plugin_folder.exists():
-                shutil.rmtree(plugin_folder) # Wipe the old version if updating
+                shutil.rmtree(plugin_folder)
                 
-            # 3. Extract the zip into memory, then to the hard drive
             with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-                # Note: This assumes the zip file itself contains a folder named `plugin_id`
-                z.extractall(self.plugin_dir) 
+                _safe_extract(z, self.plugin_dir)
                 
-            # 4. Update the local tracker
             local_data = self.get_local_state()
             local_data[plugin_id] = {
                 "version": remote_info["version"],
@@ -193,28 +256,30 @@ class NetworkUpdater:
             
             with open(self.local_registry_path, 'w') as f:
                 json.dump(local_data, f, indent=4)
+            
+            # Broadcast the installation success (The Nervous System sends a pulse)
+            event_bus.emit(BioProEvent.PLUGIN_INSTALLED, plugin_id)
                 
             return True, "Installation successful."
         except Exception as e:
+            logger.error(f"Failed to install {plugin_id}: {e}")
             return False, f"Failed to install: {e}"
 
     def remove_plugin(self, plugin_id):
-        """Deletes the plugin folder and removes it from the registry."""
-        import json
-        import shutil
         try:
-            # 1. Delete the entire physical folder
             plugin_folder = self.plugin_dir / plugin_id
             if plugin_folder.exists():
                 shutil.rmtree(plugin_folder)
                 
-            # 2. Erase the record
             local_data = self.get_local_state()
             if plugin_id in local_data:
                 del local_data[plugin_id]
                 
             with open(self.local_registry_path, 'w') as f:
                 json.dump(local_data, f, indent=4)
+            
+            # Broadcast the removal
+            event_bus.emit(BioProEvent.PLUGIN_REMOVED, plugin_id)
                 
             return True, "Plugin removed successfully."
         except Exception as e:

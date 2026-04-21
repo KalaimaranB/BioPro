@@ -7,10 +7,17 @@ from biopro.ui.theme import Colors, Fonts
 class ModuleCard(QFrame):
     """Clickable card representing one analysis module."""
     clicked = pyqtSignal()
+    trust_requested = pyqtSignal()
+    trust_visual_requested = pyqtSignal()
 
-    def __init__(self, icon: str, title: str, description: str, badge: str = "", enabled: bool = True, parent=None) -> None:
+    def __init__(self, icon: str, title: str, description: str, badge: str = "", enabled: bool = True, trust_level: str = "verified", trust_path: list = None, developer_name: str = None, developer_key: str = None, parent=None) -> None:
         super().__init__(parent)
         self._enabled = enabled
+        self._trust_level = trust_level
+        self._trust_path = trust_path
+        self._developer_name = developer_name
+        self._developer_key = developer_key
+        self._title = title
         self.setObjectName("moduleCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)
         self.setMinimumSize(220, 150)
@@ -30,30 +37,79 @@ class ModuleCard(QFrame):
             badge_lbl = QLabel(badge)
             badge_lbl.setStyleSheet(f"background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 700;")
             top_row.addWidget(badge_lbl)
-        elif not enabled:
+        
+        # Add Trust Indicator
+        self.lock_btn = QPushButton()
+        self.lock_btn.setFixedSize(24, 24)
+        self.lock_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.lock_btn.clicked.connect(self._on_lock_clicked)
+        self._update_trust_ui()
+        top_row.addWidget(self.lock_btn)
+
+        if not enabled:
             soon_lbl = QLabel("Coming soon")
             soon_lbl.setStyleSheet(f"background: {Colors.BG_LIGHT}; color: {Colors.FG_DISABLED}; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 600;")
             top_row.addWidget(soon_lbl)
 
         layout.addLayout(top_row)
 
-        title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {'#e6edf3' if enabled else Colors.FG_DISABLED}; background: transparent;")
-        layout.addWidget(title_lbl)
+        self.title_lbl = QLabel(title)
+        self.title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {'#e6edf3' if enabled else Colors.FG_DISABLED}; background: transparent;")
+        layout.addWidget(self.title_lbl)
 
-        desc_lbl = QLabel(description)
-        desc_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_SECONDARY}; background: transparent;")
-        desc_lbl.setWordWrap(True)
-        layout.addWidget(desc_lbl)
+        self.desc_lbl = QLabel(description)
+        self.desc_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_SECONDARY}; background: transparent;")
+        self.desc_lbl.setWordWrap(True)
+        layout.addWidget(self.desc_lbl)
 
         layout.addStretch()
         self._apply_style(False)
+
+    def _update_trust_ui(self):
+        """Update the lock icon and style based on trust level."""
+        if self._trust_level in ["verified_developer", "verified_cache"]:
+            self.lock_btn.setText("🛡️")
+            self.lock_btn.setToolTip("Verified via Trust Tree. Click to view chain.")
+            self.lock_btn.setStyleSheet("background: transparent; border: none; font-size: 14px;")
+        elif self._trust_level == "verified_local":
+            self.lock_btn.setText("🔒")
+            self.lock_btn.setToolTip("Verified Local Override (Manual Lock). Click to view.")
+            self.lock_btn.setStyleSheet(f"background: transparent; border: none; font-size: 14px; color: {Colors.ACCENT_SUCCESS};")
+        else:
+            self.lock_btn.setText("⚠️")
+            self.lock_btn.setToolTip("Modified or Untrusted! Click to verify and lock.")
+            self.lock_btn.setStyleSheet(f"background: transparent; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 4px; font-size: 14px;")
+
+    def _on_lock_clicked(self):
+        """Logic for when the trust icon is clicked."""
+        if self._trust_level == "untrusted":
+            if self._developer_key and self._developer_name:
+                from biopro.ui.dialogs.trust_acceptance_dialog import TrustAcceptanceDialog
+                dialog = TrustAcceptanceDialog(self._title, self._developer_name, self._developer_key, self)
+                if dialog.exec() and dialog.is_accepted():
+                    # Update card state instantly
+                    self._trust_level = "verified_cache" # Simulated local trust state
+                    self._update_trust_ui()
+                    self._apply_style(False)
+            else:
+                self.trust_requested.emit()
+        else:
+            # Show the visual tree!
+            from biopro.ui.dialogs.trust_dialog import TrustTimelineDialog
+            dialog = TrustTimelineDialog(self._title, self._trust_path or [], self)
+            dialog.exec()
 
     def _apply_style(self, hovered: bool) -> None:
         if not self._enabled:
             self.setStyleSheet(f"QFrame#moduleCard {{ background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 10px; }}")
             return
-        border = Colors.ACCENT_PRIMARY if hovered else Colors.BORDER
+        
+        # Highlight border if untrusted
+        if self._trust_level == "untrusted":
+            border = Colors.ACCENT_DANGER if hovered else Colors.ACCENT_DANGER + "88"
+        else:
+            border = Colors.ACCENT_PRIMARY if hovered else Colors.BORDER
+            
         bg = Colors.BG_MEDIUM if hovered else Colors.BG_DARK
         self.setStyleSheet(f"QFrame#moduleCard {{ background: {bg}; border: 1.5px solid {border}; border-radius: 10px; }}")
 
@@ -104,13 +160,13 @@ class DashboardWorkflowCard(QFrame):
         top_row.addWidget(self.btn_delete)
         layout.addLayout(top_row)
 
-        title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: #e6edf3; background: transparent;")
-        layout.addWidget(title_lbl)
+        self.title_lbl = QLabel(title)
+        self.title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: #e6edf3; background: transparent;")
+        layout.addWidget(self.title_lbl)
 
-        date_lbl = QLabel(f"Saved: {date_str}")
-        date_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; background: transparent;")
-        layout.addWidget(date_lbl)
+        self.date_lbl = QLabel(f"Saved: {date_str}")
+        self.date_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; background: transparent;")
+        layout.addWidget(self.date_lbl)
 
         layout.addStretch()
         self._apply_style(False)

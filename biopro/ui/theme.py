@@ -23,7 +23,7 @@ class Colors:
     ACCENT_PRIMARY = "#2f81f7"
     ACCENT_PRIMARY_HOVER = "#388bfd"
     ACCENT_PRIMARY_PRESSED = "#0550ae"
-    SUCCESS = "#238636"
+    ACCENT_SUCCESS = "#238636"
     ACCENT_WARNING = "#d29922"
     ACCENT_DANGER = "#f85149"
     CHART_COLORS = ["#58a6ff", "#3fb950", "#d29922", "#f85149", "#a371f7", "#f778ba"]

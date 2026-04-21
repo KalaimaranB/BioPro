@@ -1,0 +1,15 @@
+{
+  "authorities": [
+    {
+      "id": "biopro_core",
+      "name": "BioPro Core Authority",
+      "public_key": "10715dbf53aefc8f971fa1e9b7b3d3444a5360222db5e5709e51430c8a77e886"
+    },
+    {
+      "id": "ubc",
+      "name": "University of British Columbia",
+      "public_key": "ef70051b8c0a876798e98675402599763d15fad9548aad8325f27708cd0b9a68" 
+    }
+  ],
+  "last_updated": "2026-04-21T05:17:00Z"
+}

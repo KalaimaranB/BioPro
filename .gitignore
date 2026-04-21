@@ -50,8 +50,16 @@ build/
 # Application Logs
 *.log
 
-# ── Plugins ──
+# ── Plugins & Security ──
 # Ignore the contents of plugin subfolders if they are separate repos
 biopro/plugins/*/
 # But keep the directory structure itself
 !biopro/plugins/.gitkeep
+
+# Security & Trust transients
+trust_debug.log
+tests/core/trust_debug.log
+.biopro/
+*.key
+*.pub
+!docs/*.pub

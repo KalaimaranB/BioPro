@@ -70,7 +70,7 @@ If you are contributing to the core application itself, familiarizing yourself w
   - `theme.py`: The global Publisher/Subscriber engine that hot-swaps active color palettes across the entire application instantly.
 - **`biopro/shared/`**: Common assets, mathematical helpers, or baseline QWidget classes explicitly designed to be imported by BOTH the Core App and installed Plugins safely.
 - **`tests/`**: Contains all unit and integration coverage for the application logic. 
-- **`themes/`**: JSON payloads mapped to the `theme.py` engine defining global application colors (e.g. `default.json`, `star_wars.json`).
+- **`biopro/themes/`**: JSON payloads mapped to the `theme.py` engine defining global application colors (e.g. `default.json`, `star_wars.json`).
 
 ---
 

@@ -34,7 +34,7 @@ from PyQt6.QtWidgets import (
 from biopro.core.project_manager import ProjectManager, ProjectLockedError
 from biopro.ui.theme import Colors
 from biopro.ui.widgets.dna_loader import ProgrammaticLoader
-from biopro.shared.ui.ui_components import PrimaryButton, SecondaryButton
+from biopro.sdk.ui import PrimaryButton, SecondaryButton
 
 logger = logging.getLogger(__name__)
 
@@ -71,14 +71,13 @@ class ProjectLauncherWindow(QMainWindow):
             }}
         """)
 
-        self._setup_menu_bar() # ── ADD THIS ──
+        self._setup_menu_bar()
         self._setup_ui()
-        self._apply_theme_styles() # ── ADD THIS ──
-        
+        self._apply_theme_styles()
+
         # Listen for global theme changes
         theme_manager.theme_changed.connect(self._on_theme_changed)
         
-        self._setup_ui()
         self._load_recent_projects()
         # Initialize the Logic Engine for the Core App and Store
         # (Make sure to import NetworkUpdater at the top of your file!)
@@ -96,16 +95,16 @@ class ProjectLauncherWindow(QMainWindow):
         main_layout.setSpacing(0)
 
         # ── Left Panel: Recent Projects ───────────────────────────────────
-        left_panel = QWidget()
-        left_panel.setStyleSheet(f"background-color: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};")
-        left_panel.setFixedWidth(280)
-        left_layout = QVBoxLayout(left_panel)
+        self.left_panel = QWidget()
+        self.left_panel.setStyleSheet(f"background-color: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};")
+        self.left_panel.setFixedWidth(280)
+        left_layout = QVBoxLayout(self.left_panel)
         left_layout.setContentsMargins(20, 20, 20, 20)
         left_layout.setSpacing(15)
 
-        lbl_recent = QLabel("Recent Projects")
-        lbl_recent.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 14px; font-weight: bold; border: none;")
-        left_layout.addWidget(lbl_recent)
+        self.lbl_recent = QLabel("Recent Projects")
+        self.lbl_recent.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 14px; font-weight: bold; border: none;")
+        left_layout.addWidget(self.lbl_recent)
 
         
 
@@ -123,7 +122,7 @@ class ProjectLauncherWindow(QMainWindow):
         self.btn_store.clicked.connect(self._open_store)
         left_layout.addWidget(self.btn_store)
         
-        main_layout.addWidget(left_panel)
+        main_layout.addWidget(self.left_panel)
 
         # ── Right Panel: Branding & Actions ───────────────────────────────
         right_panel = QWidget()
@@ -139,10 +138,10 @@ class ProjectLauncherWindow(QMainWindow):
         title_layout = QHBoxLayout()
         title_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        self.lbl_title = QLabel("BioPro") # ADDED self.
+        self.lbl_title = QLabel("BioPro")
         self.lbl_title.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 42px; font-weight: 900; letter-spacing: 1px;")
         
-        self.lbl_badge = QLabel("BETA") # ADDED self.
+        self.lbl_badge = QLabel("BETA")
         self.lbl_badge.setStyleSheet(
             f"color: {Colors.ACCENT_PRIMARY}; background: transparent; "
             f"border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; "
@@ -154,12 +153,12 @@ class ProjectLauncherWindow(QMainWindow):
         right_layout.addLayout(title_layout)
 
         # 3. Broadened Subtitles
-        self.lbl_subtitle = QLabel("The Extensible Bio-Image Analysis Ecosystem") # ADDED self.
+        self.lbl_subtitle = QLabel("The Extensible Bio-Image Analysis Ecosystem")
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 16px; font-weight: bold;")
         right_layout.addWidget(self.lbl_subtitle)
         
-        self.lbl_desc = QLabel("Modular · Open-Source · Python-Powered") # ADDED self.
+        self.lbl_desc = QLabel("Modular · Open-Source · Python-Powered")
         self.lbl_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; font-size: 13px; margin-bottom: 20px;")
         right_layout.addWidget(self.lbl_desc)
@@ -273,14 +272,13 @@ class ProjectLauncherWindow(QMainWindow):
         config.add_recent_project(project_manager.project_dir)
 
         # 2. Transition the UI
-        from biopro.ui.windows.workspace_window import WorkspaceWindow
         # Pass self.module_manager instead of the undefined variable
         self.workspace = WorkspaceWindow(
-            project_manager, 
-            self.module_manager, 
-            self.updater,              
-            self.open_store_callback,  
-            self.return_to_hub_callback
+            project_manager,
+            self.module_manager,
+            self.updater,
+            self.open_store_callback,  # Fixed name
+            self.return_to_hub_callback # Fixed name
         )
         self.workspace.show()
         self.close()
@@ -335,8 +333,28 @@ class ProjectLauncherWindow(QMainWindow):
     def _on_theme_changed(self):
         """Refreshes the Hub visuals when the theme changes."""
         self._apply_theme_styles()
-        # Trigger a resize event to force the DNA and labels to re-read Colors
-        self.resizeEvent(None) 
+        if hasattr(self, 'left_panel'):
+            self.left_panel.setStyleSheet(
+                f"background-color: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};"
+            )
+        if hasattr(self, 'lbl_recent'):
+            self.lbl_recent.setStyleSheet(
+                f"color: {Colors.FG_PRIMARY}; font-size: 14px; font-weight: bold; border: none;"
+            )
+        if hasattr(self, 'lbl_title'):
+            self.lbl_title.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 42px; font-weight: 900; letter-spacing: 1px;")
+        if hasattr(self, 'lbl_badge'):
+            self.lbl_badge.setStyleSheet(
+                f"color: {Colors.ACCENT_PRIMARY}; background: transparent; "
+                f"border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; "
+                f"padding: 2px 6px; font-size: 10px; font-weight: bold; margin-top: 15px;"
+            )
+        if hasattr(self, 'lbl_subtitle'):
+            self.lbl_subtitle.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 16px; font-weight: bold;")
+        if hasattr(self, 'lbl_desc'):
+            self.lbl_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; font-size: 13px; margin-bottom: 20px;")
+        # Trigger a resize event to force dynamic elements to redraw
+        self.resizeEvent(None)
 
     def _apply_theme_styles(self):
         """Sets the styleSheet using the LATEST color values."""

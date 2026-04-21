@@ -1,8 +1,8 @@
 """Analysis toolbars."""
 
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
-from biopro.shared.ui.ui_components import SecondaryButton
-from biopro.ui.theme import Colors, Fonts
+from biopro.sdk.ui import SecondaryButton
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 class AnalysisToolBar(QWidget):
     """Slim contextual toolbar shown above the analysis splitter."""
@@ -41,6 +41,7 @@ class AnalysisToolBar(QWidget):
         layout.addWidget(self.title_lbl)
         layout.addStretch()
 
+        theme_manager.theme_changed.connect(self._apply_theme_styles)
         self.lbl_hint = QLabel("Ctrl+O to open image")
         self.lbl_hint.setStyleSheet(
             f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_DISABLED};"
@@ -48,5 +49,22 @@ class AnalysisToolBar(QWidget):
         )
         layout.addWidget(self.lbl_hint)
 
+        self._apply_theme_styles()
+
     def set_title(self, icon: str, name: str) -> None:
         self.title_lbl.setText(f"{icon}  {name}")
+
+    def _apply_theme_styles(self) -> None:
+        self.setStyleSheet(
+            f"QWidget#analysisToolBar {{"
+            f"  background: {Colors.BG_DARK};"
+            f"  border-bottom: 1px solid {Colors.BORDER};"
+            f"}}"
+        )
+        self.title_lbl.setStyleSheet(
+            f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
+            f" color: {Colors.FG_PRIMARY}; background: transparent;"
+        )
+        self.lbl_hint.setStyleSheet(
+            f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_DISABLED}; background: transparent;"
+        )

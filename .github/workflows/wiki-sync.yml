@@ -1,0 +1,51 @@
+name: Sync Wiki
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Repo
+        uses: actions/checkout@v4
+        with:
+          path: main
+
+      - name: Checkout Wiki Repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+          token: ${{ secrets.WIKI_SYNC_TOKEN }}
+
+      - name: Sync Files
+        run: |
+          # Clean existing wiki files except .git
+          find wiki/ -maxdepth 1 -not -name 'wiki/' -not -name '.git' -delete
+          
+          # Copy docs to wiki root
+          cp -R main/docs/* wiki/
+          
+          # GitHub Wiki expects "Home.md" instead of "01_Introduction.md" for the landing page
+          cd wiki
+          if [ -f "01_Introduction.md" ]; then
+            cp 01_Introduction.md Home.md
+          fi
+
+      - name: Commit and Push
+        run: |
+          cd wiki
+          git config user.name "BioPro CI Bot"
+          git config user.email "bot@biopro.xyz"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to sync."
+          else
+            git commit -m "Auto-sync docs from main repository"
+            git push
+          fi

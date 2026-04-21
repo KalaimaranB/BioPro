@@ -9,6 +9,11 @@ sys.setrecursionlimit(5000)
 sk_bins, sk_datas, sk_hidden = collect_all('skimage')
 cp_bins, cp_datas, cp_hidden = collect_all('cellpose')
 torch_bins, torch_datas, torch_hidden = collect_all('torch')
+tv_bins, tv_datas, tv_hidden = collect_all('torchvision')
+fk_bins, fk_datas, fk_hidden = collect_all('flowkit')
+fio_bins, fio_datas, fio_hidden = collect_all('flowio')
+pil_bins, pil_datas, pil_hidden = collect_all('PIL')
+cert_bins, cert_datas, cert_hidden = collect_all('certifi')
 
 # --- THE OPTIMIZATION ENGINE ---
 # Strip out hundreds of MBs of useless testing/mock data from the final build
@@ -21,12 +26,20 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = filter_bloat(sk_bins + cp_bins + torch_bins)
-all_datas = filter_bloat(sk_datas + cp_datas + torch_datas)
-all_hidden = sk_hidden + cp_hidden + torch_hidden
+all_bins = filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins)
+all_datas = filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas)
+all_hidden = sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
-bloat_modules = []
+# Explicitly exclude test modules and development dependencies
+bloat_modules = [
+    'tests',
+    'pytest',
+    'pytest_qt',
+    'unittest',
+    'mock',
+    'coverage',
+]
 
 # 3. Hidden Imports (Ensuring dynamic libraries are packed)
 hidden_imports = [
@@ -38,12 +51,25 @@ hidden_imports = [
     'scipy',
     'cv2',
     'fcsparser',
-    'psutil',          
+    'psutil',
+    'requests',
+    'tifffile',
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
+    'PIL',
     'flowkit',
-    'flowio',      
-    'flowutils' 
+    'flowio',
+    'flowutils',
+    'fast_histogram',
+    'torchvision',
+    'certifi',
+    'cryptography',
+    'markdown',
+    'PyQt6.QtWebEngineWidgets',
+    'PyQt6.QtWebEngineCore',
+    'pygments',
+    'pygments.lexers',
+    'pygments.formatters'
 ] + all_hidden
 
 a = Analysis(
@@ -51,8 +77,9 @@ a = Analysis(
     pathex=[],
     binaries=all_bins, 
     datas=[
-        ('themes', 'themes'),
-        ('biopro/shared', 'biopro/shared') 
+        ('biopro/themes', 'themes'),
+        ('biopro/shared', 'biopro/shared'),
+        ('docs', 'docs') 
     ] + all_datas, 
     hiddenimports=hidden_imports,
     hookspath=[],
@@ -81,7 +108,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['icon.icns'],
+    icon=None,
 )
 
 coll = COLLECT(
@@ -99,6 +126,6 @@ if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
         name='BioPro.app',
-        icon='icon.icns',
+        icon=None,
         bundle_identifier=None,
     )

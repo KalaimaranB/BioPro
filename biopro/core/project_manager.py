@@ -29,6 +29,16 @@ class ProjectManager:
         self.history_manager = HistoryManager()
         self.data: Dict[str, Any] = {} # Keep just the type-hinted one!
 
+    @property
+    def project_name(self) -> str:
+        """Friendly name of the project."""
+        return self.data.get("project_name", self.project_dir.name)
+
+    @property
+    def config(self) -> dict:
+        """Alias for self.data to maintain compatibility with older tests."""
+        return self.data
+
     # ── Project Lifecycle ─────────────────────────────────────────────
 
     def create_new(self, project_name: str) -> None:
@@ -58,8 +68,18 @@ class ProjectManager:
 
         self._acquire_lock()
 
-        with open(self.project_file, "r") as f:
-            self.data = json.load(f)
+        try:
+            with open(self.project_file, "r") as f:
+                self.data = json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError) as e:
+            logger.warning(f"Project file corrupted or missing: {e}. Using default state.")
+            # Fallback to a minimal safe state
+            if not self.data:
+                self.data = {
+                    "project_name": self.project_dir.name,
+                    "assets": {},
+                    "analysis_state": {}
+                }
         
         if self.history_file.exists():
             try:
@@ -70,6 +90,7 @@ class ProjectManager:
                 import logging
                 logging.getLogger(__name__).warning(f"Could not load history.json: {e}")
             
+        self.validate_assets()
         logger.info(f"Opened project: {self.data.get('project_name')}")
 
     def save(self) -> None:
@@ -132,7 +153,7 @@ class ProjectManager:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def add_image(self, filepath: Path | str, copy_to_workspace: bool) -> str:
+    def add_image(self, filepath: Path | str, copy_to_workspace: bool, subfolder: Optional[str] = None) -> str:
         """
         Add an image to the project.
         Returns the hash of the file so the UI can reference it.
@@ -143,20 +164,30 @@ class ProjectManager:
 
         file_hash = self.compute_hash(filepath)
 
-        # If we already have this exact file registered, just return its hash
+        # If we already have this exact file registered, check if we need to upgrade it
         if file_hash in self.data["assets"]:
-            logger.info("File already exists in project assets.")
-            return file_hash
+            asset = self.data["assets"][file_hash]
+            if copy_to_workspace and not asset.get("copied_to_workspace", False):
+                logger.info("Upgrading asset to workspace copy.")
+            else:
+                logger.info("File already exists in project assets.")
+                return file_hash
 
         local_path = None
         if copy_to_workspace:
+            # Handle optional subdirectory
+            target_dir = self.assets_dir
+            if subfolder:
+                target_dir = self.assets_dir / subfolder
+                target_dir.mkdir(parents=True, exist_ok=True)
+
             # Create a safe filename inside the assets folder
             dest_filename = f"{filepath.stem}_{file_hash[:8]}{filepath.suffix}"
-            dest_path = self.assets_dir / dest_filename
+            dest_path = target_dir / dest_filename
             shutil.copy2(filepath, dest_path)
             
             # Store relative path for portability (the USB drive test)
-            local_path = f"./assets/{dest_filename}"
+            local_path = str(dest_path.relative_to(self.project_dir))
             logger.info(f"Copied asset to workspace: {local_path}")
         else:
             logger.warning(f"Referencing external asset: {filepath}. If moved, the project may break.")
@@ -171,6 +202,50 @@ class ProjectManager:
 
         self.save()
         return file_hash
+
+    def batch_add_images(self, filepaths: list[Path | str], copy_to_workspace: bool, 
+                         subfolder: Optional[str] = None) -> list[str]:
+        """Add multiple images at once, potentially to a subdirectory."""
+        hashes = []
+        for fp in filepaths:
+            try:
+                h = self.add_image(fp, copy_to_workspace, subfolder)
+                hashes.append(h)
+            except Exception as e:
+                logger.error(f"Failed to add {fp} during batch import: {e}")
+        return hashes
+
+    def validate_assets(self) -> None:
+        """
+        Checks all registered assets and removes records for files that no longer exist.
+        This keeps the project file in sync with manual filesystem changes.
+        """
+        if "assets" not in self.data:
+            return
+
+        to_remove = []
+        for file_hash, asset in self.data["assets"].items():
+            # Check if at least one of the paths exists
+            has_local = False
+            if asset.get("local_path"):
+                local_path = self.project_dir / asset["local_path"]
+                if local_path.exists():
+                    has_local = True
+            
+            has_original = False
+            if asset.get("original_path"):
+                original_path = Path(asset["original_path"])
+                if original_path.exists():
+                    has_original = True
+            
+            if not has_local and not has_original:
+                logger.warning(f"Removing record for missing asset: {asset.get('filename')} ({file_hash})")
+                to_remove.append(file_hash)
+        
+        if to_remove:
+            for h in to_remove:
+                del self.data["assets"][h]
+            self.save()
 
     def get_asset_path(self, file_hash: str) -> Optional[Path]:
         """Resolve the best path to load an asset, preferring the local workspace copy."""

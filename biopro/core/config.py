@@ -8,6 +8,7 @@ class AppConfig:
     """Manages global settings stored in the user's home directory."""
     from biopro import __version__ as CORE_VERSION
     REGISTRY_URL = "https://raw.githubusercontent.com/KalaimaranB/BioPro-Plugins/main/registry.json"
+    AUTHORITY_REGISTRY_URL = "https://raw.githubusercontent.com/KalaimaranB/BioPro-Plugins/main/authorities.json"
     
     def __init__(self):
         self.config_dir = Path.home() / ".biopro"

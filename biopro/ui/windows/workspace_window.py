@@ -13,7 +13,8 @@ from PyQt6.QtWidgets import (
 from biopro.ui.dashboards.workspace_dashboard import WorkspaceDashboard as HomeScreen
 from biopro.core.config import AppConfig
 from biopro.ui.theme import Colors, Fonts, theme_manager
-from biopro.shared.ui.ui_components import SecondaryButton
+from biopro.core.event_bus import event_bus, BioProEvent
+from biopro.sdk.ui import SecondaryButton
 from biopro.ui.components.toolbars import AnalysisToolBar
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,12 @@ class WorkspaceWindow(QMainWindow):
         self._setup_menu_bar()
         self._setup_central_widget()
         self._setup_status_bar()
+        self._setup_shortcuts()
         self._connect_signals()
+        
+        # Connect to the core's nervous system (The Event Bus)
+        event_bus.subscribe(BioProEvent.PLUGIN_INSTALLED, lambda _: self.refresh_ui())
+        event_bus.subscribe(BioProEvent.PLUGIN_REMOVED, lambda _: self.refresh_ui())
 
         # Populate the Home Screen with dynamic modules
         self.home_screen.populate_modules(self.module_manager.get_available_modules())
@@ -99,7 +105,8 @@ class WorkspaceWindow(QMainWindow):
         )
         app = QApplication.instance()
         if app:
-            app.setStyleSheet(app.styleSheet() + extra)
+            app.setStyleSheet("")
+            app.setStyleSheet(extra)
 
     def _setup_menu_bar(self) -> None:
         menubar = self.menuBar()
@@ -152,12 +159,42 @@ class WorkspaceWindow(QMainWindow):
         action_sw = QAction("Star Wars (Dark Side)", self)
         action_sw.triggered.connect(lambda: self._switch_theme("star_wars.json"))
         theme_menu.addAction(action_sw)
-        
+
+        # Help Menu
         help_menu = menubar.addMenu("&Help")
-        about_action = QAction("&About BioPro", self)
+        
+        docs_action = QAction("📖 BioPro &Help Center", self)
+        docs_action.setShortcut(QKeySequence("F1"))
+        docs_action.triggered.connect(self._open_help_center)
+        help_menu.addAction(docs_action)
+        
+        help_menu.addSeparator()
+        
+        wiki_action = QAction("🌐 View GitHub Wiki Online", self)
+        wiki_action.triggered.connect(self._open_wiki_online)
+        help_menu.addAction(wiki_action)
+
+        about_action = QAction("🧬 &About BioPro", self)
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
 
+    def _setup_shortcuts(self):
+        """Register global app shortcuts."""
+        help_shortcut = QAction(self)
+        help_shortcut.setShortcut(QKeySequence("F1"))
+        help_shortcut.triggered.connect(self._open_help_center)
+        self.addAction(help_shortcut)
+
+    def _open_help_center(self):
+        """Launch the localized help center."""
+        from biopro.ui.dialogs.help_dialog import HelpCenterDialog
+        dialog = HelpCenterDialog(module_manager=self.module_manager, parent=self)
+        dialog.exec()
+
+    def _open_wiki_online(self):
+        """Open the public wiki in the browser."""
+        import webbrowser
+        webbrowser.open("https://github.com/KalaimaranB/BioPro/wiki")
     def _setup_central_widget(self) -> None:
         self.root_stack = QStackedWidget()
 
@@ -205,6 +242,7 @@ class WorkspaceWindow(QMainWindow):
         # ── THE NEW WORKFLOW SIGNALS ──
         self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
         self.home_screen.workflow_delete_requested.connect(self._handle_delete_workflow)
+        self.home_screen.trust_module_requested.connect(self._on_trust_requested)
         
 
     def _show_home(self) -> None:
@@ -225,6 +263,10 @@ class WorkspaceWindow(QMainWindow):
             PanelClass = self.module_manager.load_module_ui(module_id)
 
             if self.wizard_panel is not None:
+                # 1. Trigger the explicit lifecycle cleanup
+                if hasattr(self.wizard_panel, "cleanup"):
+                    self.wizard_panel.cleanup()
+                
                 self.wizard_panel.setParent(None)
                 self.wizard_panel.deleteLater()
 
@@ -285,6 +327,16 @@ class WorkspaceWindow(QMainWindow):
         )
 
     def closeEvent(self, event):
+        """Ensures all projects and plugins release resources before exit."""
+        # 1. Shutdown active plugin if any
+        if hasattr(self, 'wizard_panel') and self.wizard_panel:
+            try:
+                if hasattr(self.wizard_panel, 'shutdown'):
+                    self.wizard_panel.shutdown()
+            except Exception as e:
+                logger.error(f"Error shutting down plugin: {e}")
+
+        # 2. Close project
         if hasattr(self, 'project_manager') and self.project_manager:
             try:
                 self.project_manager.close()
@@ -319,6 +371,26 @@ class WorkspaceWindow(QMainWindow):
         from pathlib import Path
         theme_path = Path(__file__).parent.parent.parent / "themes" / filename
         theme_manager.load_theme(theme_path)
+
+    def _on_trust_requested(self, module_id: str) -> None:
+        """Handle the user clicking the '⚠️ Lock' button on an untrusted plugin."""
+        reply = QMessageBox.question(
+            self,
+            "Security: Trust Local Changes?",
+            f"The module '{module_id}' has been modified locally.\n\n"
+            "Do you trust these changes and want to lock them on this machine?\n\n"
+            "By clicking 'Yes', BioPro will snapshot these files and trust them from now on.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.module_manager.trust_module(module_id):
+                self.status_bar.showMessage(f"Permanently trusted local changes for {module_id}.", 5000)
+                # Refresh dashboard
+                self.home_screen.populate_modules(self.module_manager.get_available_modules())
+            else:
+                QMessageBox.critical(self, "Error", "Failed to trust module. Could not calculate hashes.")
 
     def _on_theme_changed(self) -> None:
         # Save where the user is currently looking!
@@ -363,6 +435,12 @@ class WorkspaceWindow(QMainWindow):
         self.root_stack.insertWidget(_PAGE_HOME, self.home_screen)
         self.home_screen.populate_modules(self.module_manager.get_available_modules())
         self._refresh_hub_workflows()
+
+        # Update active module UI, if present
+        if hasattr(self, 'wizard_panel') and self.wizard_panel is not None:
+            if hasattr(self.wizard_panel, '_apply_theme_styles'):
+                self.wizard_panel._apply_theme_styles()
+            self.wizard_panel.update()
         
         # ── THE FIX: Restore the user's view so the screen doesn't go blank! ──
         self.root_stack.setCurrentIndex(current_idx)

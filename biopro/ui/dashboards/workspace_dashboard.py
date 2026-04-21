@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 
 from biopro.ui.theme import Colors, Fonts
 from biopro.ui.components.cards import ModuleCard, DashboardWorkflowCard as WorkflowCard
+from biopro.ui.widgets.dna_loader import ProgrammaticLoader
 
 class WorkspaceDashboard(QWidget):
     """Welcome / dashboard screen."""
@@ -20,6 +21,7 @@ class WorkspaceDashboard(QWidget):
     
     return_to_hub_requested = pyqtSignal()
     open_store_requested = pyqtSignal()
+    trust_module_requested = pyqtSignal(str) # Passes module_id
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -47,9 +49,10 @@ class WorkspaceDashboard(QWidget):
         title_row = QHBoxLayout()
         title_row.setAlignment(Qt.AlignmentFlag.AlignVCenter) 
         
-        logo = QLabel("🧬")
-        logo.setStyleSheet("font-size: 38px; background: transparent;")
-        title_row.addWidget(logo)
+        # Replacing static logo with high-fidelity DNA animation
+        self.logo_animation = ProgrammaticLoader()
+        self.logo_animation.setFixedSize(100, 100) # Compact for the header
+        title_row.addWidget(self.logo_animation)
 
         name = QLabel("BioPro")
         name.setStyleSheet(f"font-size: 34px; font-weight: 800; color: {Colors.FG_PRIMARY}; background: transparent; letter-spacing: -1px;")
@@ -174,8 +177,13 @@ class WorkspaceDashboard(QWidget):
                 description=manifest.get("description", ""),
                 badge="Installed",
                 enabled=True,
+                trust_level=manifest.get("trust_level", "verified"),
+                trust_path=manifest.get("trust_path", []),
+                developer_name=manifest.get("developer_name"),
+                developer_key=manifest.get("developer_key")
             )
             card.clicked.connect(lambda *args, m=manifest: self.module_selected.emit(m))
+            card.trust_requested.connect(lambda *args, mid=manifest.get("id"): self.trust_module_requested.emit(mid))
             self.modules_grid.addWidget(card, i // 3, i % 3)
 
     def populate_workflows(self, workflows: list[dict]) -> None:

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biopro"
-version = "1.0.1"
+version = "1.0.2"
 description = "An open-source, intuitive bio-image analysis tool — a modern alternative to ImageJ"
 readme = "README.md"
 license = "MIT"
@@ -32,6 +32,20 @@ dependencies = [
     "matplotlib>=3.8",
     "pandas>=2.1",
     "openpyxl>=3.1",
+    # Plugin: cytometrics
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "cellpose>=3.0",
+    "psutil>=6.0",
+    "requests>=2.31",
+    # Plugin: flow_cytometry
+    "flowkit>=0.9",
+    "flowio>=1.1",
+    "fast-histogram>=0.12",
+    # Image utilities
+    "Pillow>=10.0",
+    "tifffile>=2023.8",
+    "cryptography>=42.0",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +57,7 @@ dev = [
 
 [project.scripts]
 biopro = "biopro.__main__:main"
+biopro-sign = "biopro.core.sign_plugin:main"
 
 [project.urls]
 Homepage = "https://github.com/BioPro/biopro"
@@ -52,6 +67,7 @@ Issues = "https://github.com/BioPro/biopro/issues"
 
 [tool.setuptools.packages.find]
 include = ["biopro*"]
+exclude = ["tests*", "test_*"]
 
 [tool.ruff]
 line-length = 100
@@ -69,3 +85,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "unit: unit tests for core functionality",
+    "integration: integration tests",
+    "slow: slow running tests",
+]
