@@ -54,20 +54,21 @@ class TaskScheduler(QObject):
             f"TaskScheduler initialized. Thread pool limit: {self.pool.maxThreadCount()}"
         )
 
-    def submit(self, analyzer: AnalysisBase, state: PluginState) -> str:
+    def submit(self, analyzer: AnalysisBase, state: Optional[PluginState] = None) -> AnalysisWorker:
         """Submit an analysis task to the central thread pool.
         
         Args:
             analyzer: Instance of AnalysisBase subclass containing the logic.
-            state: Instance of PluginState containing parameters.
+            state: Instance of PluginState containing parameters (optional).
             
         Returns:
-            A unique task_id (UUID string) for tracking.
+            The AnalysisWorker instance for signal connection.
         """
         task_id = str(uuid.uuid4())
         
         # 1. Create the worker (The QObject that does the work and talks to the UI)
         worker = AnalysisWorker(analyzer, state)
+        worker.task_id = task_id  # Attach ID for tracking
         
         # 2. Bridge worker signals to the global scheduler signals
         # Use keyword arguments or local functions to capture task_id correctly
@@ -84,7 +85,7 @@ class TaskScheduler(QObject):
         self.pool.start(runnable)
         
         logger.debug(f"Submitted task {task_id} ({analyzer.plugin_id}) to pool.")
-        return task_id
+        return worker
 
     def cancel_all(self) -> None:
         """Attempt to stop all pending tasks in the pool."""

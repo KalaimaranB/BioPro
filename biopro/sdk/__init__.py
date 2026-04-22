@@ -44,6 +44,10 @@ Example:
 
 from . import core, ui, utils, contrib
 
+from .core.events import CentralEventBus
+from .core.docs import PluginDocumentation, docs_registry
+from .core.ai import AIAssistant, AIServerManager, ai_manager
+
 from .core import (
     PluginBase,
     PluginState,
@@ -99,6 +103,12 @@ __all__ = [
     "PluginSignals",
     "AnalysisBase",
     "AnalysisWorker",
+    "CentralEventBus",
+    "PluginDocumentation",
+    "docs_registry",
+    "AIAssistant",
+    "AIServerManager",
+    "ai_manager",
     # UI
     "PrimaryButton",
     "SecondaryButton",

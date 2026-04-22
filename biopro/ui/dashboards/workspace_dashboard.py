@@ -21,6 +21,7 @@ class WorkspaceDashboard(QWidget):
     
     return_to_hub_requested = pyqtSignal()
     open_store_requested = pyqtSignal()
+    open_ai_requested = pyqtSignal()
     trust_module_requested = pyqtSignal(str) # Passes module_id
 
     def __init__(self, parent=None) -> None:
@@ -67,6 +68,15 @@ class WorkspaceDashboard(QWidget):
         self.btn_store.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_store.clicked.connect(self.open_store_requested.emit)
         title_row.addWidget(self.btn_store)
+
+        self.btn_ai = QPushButton("🧠 AI Chat")
+        self.btn_ai.setStyleSheet(
+            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
+            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
+        )
+        self.btn_ai.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_ai.clicked.connect(self.open_ai_requested.emit)
+        title_row.addWidget(self.btn_ai)
 
         self.btn_return_hub = QPushButton("🏠 Return to Project Hub")
         self.btn_return_hub.setStyleSheet(

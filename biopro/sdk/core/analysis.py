@@ -50,6 +50,15 @@ class AnalysisBase(ABC):
         """
         self.plugin_id = plugin_id
         self.signals = PluginSignals()
+        self._is_cancelled = False
+        
+    def cancel(self):
+        """Request the analysis to stop."""
+        self._is_cancelled = True
+        
+    def is_cancelled(self) -> bool:
+        """Check if analysis was cancelled. Subclasses should check this frequently in loops."""
+        return self._is_cancelled
     
     @abstractmethod
     def run(self, state: PluginState) -> dict[str, Any]:
@@ -104,6 +113,7 @@ class AnalysisWorker(QObject):
     finished = pyqtSignal(dict)  # Emitted with results dict on success
     error = pyqtSignal(str)  # Emitted with error message on failure
     progress = pyqtSignal(int)  # Emitted with 0-100 progress value
+    cancelled = pyqtSignal()  # Emitted if analysis was cancelled
     
     def __init__(self, analyzer: AnalysisBase, state: PluginState):
         """Initialize the worker.
@@ -119,6 +129,10 @@ class AnalysisWorker(QObject):
         # Link the analyzer signals to our worker proxy signals
         self.analyzer.signals.analysis_progress.connect(self.progress.emit)
     
+    def cancel(self):
+        """Request the worker to cancel the analysis."""
+        self.analyzer.cancel()
+
     def run(self) -> None:
         """Execute the analysis and emit results or error signal.
         
@@ -127,10 +141,16 @@ class AnalysisWorker(QObject):
         """
         try:
             results = self.analyzer.run(self.state)
-            self.finished.emit(results)
+            if self.analyzer.is_cancelled():
+                self.cancelled.emit()
+            else:
+                self.finished.emit(results)
         except Exception as e:
-            self.error.emit(str(e))
-            logger.exception("Analysis failed in background worker")
+            if self.analyzer.is_cancelled():
+                self.cancelled.emit()
+            else:
+                self.error.emit(str(e))
+                logger.exception("Analysis failed in background worker")
 
 
 class AnalysisRunnable(QRunnable):

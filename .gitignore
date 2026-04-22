@@ -63,3 +63,6 @@ tests/core/trust_debug.log
 *.key
 *.pub
 !docs/*.pub
+
+# AI Models (Heavy)
+models/

@@ -21,3 +21,4 @@ cryptography
 markdown
 PyQt6-WebEngine
 pygments
+llama-cpp-python

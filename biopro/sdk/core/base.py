@@ -13,6 +13,8 @@ from .signals import PluginSignals
 from .state import PluginState
 from .interfaces import BioProPlugin
 from biopro.core.resource_inspector import ResourceInspector
+from .events import CentralEventBus
+from typing import Any, Callable
 
 
 class PluginBase(QWidget):
@@ -59,6 +61,14 @@ class PluginBase(QWidget):
         self.plugin_id = plugin_id
         self.history = HistoryManager()
         self._current_state = None
+
+    def publish_event(self, topic: str, data: Any = None) -> None:
+        """Publish an event to the Central Event Bus."""
+        CentralEventBus.publish(topic, data)
+        
+    def subscribe_event(self, topic: str, callback: Callable[[Any], None]) -> None:
+        """Subscribe to an event on the Central Event Bus."""
+        CentralEventBus.subscribe(topic, callback)
 
     def __getattr__(self, name: str):
         """Proxy signal access to self.signals for convenience.

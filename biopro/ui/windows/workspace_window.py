@@ -16,6 +16,7 @@ from biopro.ui.theme import Colors, Fonts, theme_manager
 from biopro.core.event_bus import event_bus, BioProEvent
 from biopro.sdk.ui import SecondaryButton
 from biopro.ui.components.toolbars import AnalysisToolBar
+from biopro.ui.components.ai_panel import AIChatWindow
 
 logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
@@ -60,6 +61,8 @@ class WorkspaceWindow(QMainWindow):
         # Populate the Home Screen with dynamic modules
         self.home_screen.populate_modules(self.module_manager.get_available_modules())
         self._refresh_hub_workflows()
+        
+        self._ai_window = None
 
         self._show_home()
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -212,6 +215,7 @@ class WorkspaceWindow(QMainWindow):
         self.analysis_toolbar = AnalysisToolBar("Analysis")
         self.analysis_toolbar.btn_home.clicked.connect(self._show_home)
         self.analysis_toolbar.btn_close_project.clicked.connect(self.return_to_hub)
+        self.analysis_toolbar.btn_ai.clicked.connect(self._open_ai_chat)
         ap_layout.addWidget(self.analysis_toolbar)
 
         self.wizard_panel = None
@@ -238,6 +242,7 @@ class WorkspaceWindow(QMainWindow):
         self.home_screen.module_selected.connect(self._open_module)
         self.home_screen.return_to_hub_requested.connect(self.return_to_hub)
         self.home_screen.open_store_requested.connect(self._open_store)
+        self.home_screen.open_ai_requested.connect(self._open_ai_chat)
         
         # ── THE NEW WORKFLOW SIGNALS ──
         self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
@@ -249,7 +254,7 @@ class WorkspaceWindow(QMainWindow):
         if self.wizard_panel and hasattr(self.wizard_panel, 'reset_to_setup'):
             self.wizard_panel.reset_to_setup()
             
-        # THE FIX:
+        self.current_module_id = None
         self._transition_to_page(_PAGE_HOME) 
         
         self.status_bar.showMessage("Welcome to BioPro — choose a module to begin")
@@ -362,6 +367,21 @@ class WorkspaceWindow(QMainWindow):
 
     def _open_store(self):
         self.open_store_callback(self)
+        
+    def _open_ai_chat(self):
+        """Show the floating AI Chat window."""
+        # Get the currently loaded module directly
+        mod_id = getattr(self, "current_module_id", None)
+        
+        if self._ai_window is None:
+            self._ai_window = AIChatWindow(parent=self, current_module_id=mod_id)
+        else:
+            # Update the module ID and refresh the UI checkboxes
+            self._ai_window.update_module_context(mod_id)
+            
+        self._ai_window.show()
+        self._ai_window.raise_()
+        self._ai_window.activateWindow()
         
     def refresh_ui(self):
         """Hot-reloads the module UI after the Store is closed."""

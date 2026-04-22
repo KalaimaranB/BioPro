@@ -5,6 +5,7 @@ from pathlib import Path
 from biopro.ui.windows.workspace_window import WorkspaceWindow
 from biopro.core.config import AppConfig
 from biopro.core.module_manager import ModuleManager
+from biopro.ui.components.ai_panel import AIChatWindow
 from PyQt6.QtWidgets import QPushButton
 from biopro.ui.theme import Colors, Fonts
 import random
@@ -84,6 +85,8 @@ class ProjectLauncherWindow(QMainWindow):
         from biopro.core.network_updater import NetworkUpdater 
         self.updater = NetworkUpdater()
         
+        self._ai_window = None
+        
         # Trigger the Core Update Check 0.5 seconds AFTER the Hub loads
         QTimer.singleShot(500, self.perform_startup_check)
 
@@ -121,6 +124,10 @@ class ProjectLauncherWindow(QMainWindow):
         self.btn_store = SecondaryButton("☁️ Plugin Store & Updates")
         self.btn_store.clicked.connect(self._open_store)
         left_layout.addWidget(self.btn_store)
+        
+        self.btn_ai = SecondaryButton("🧠 Gemma AI Assistant")
+        self.btn_ai.clicked.connect(self._open_ai_chat)
+        left_layout.addWidget(self.btn_ai)
         
         main_layout.addWidget(self.left_panel)
 
@@ -286,6 +293,14 @@ class ProjectLauncherWindow(QMainWindow):
     def _open_store(self):
         """Tells the main Controller that the user wants to open the store."""
         self.open_store_callback(self)
+        
+    def _open_ai_chat(self):
+        """Show the floating AI Chat window from the Hub."""
+        if self._ai_window is None:
+            self._ai_window = AIChatWindow(parent=self, current_module_id=None)
+        self._ai_window.show()
+        self._ai_window.raise_()
+        self._ai_window.activateWindow()
         
     def resizeEvent(self, event):
         super().resizeEvent(event)

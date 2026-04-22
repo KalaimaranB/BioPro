@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biopro"
-version = "1.0.3"
+version = "1.0.4"
 description = "An open-source, intuitive bio-image analysis tool — a modern alternative to ImageJ"
 readme = "README.md"
 license = "MIT"
@@ -46,6 +46,7 @@ dependencies = [
     "Pillow>=10.0",
     "tifffile>=2023.8",
     "cryptography>=42.0",
+    "llama-cpp-python>=0.2.75",
 ]
 
 [project.optional-dependencies]

@@ -14,6 +14,7 @@ fk_bins, fk_datas, fk_hidden = collect_all('flowkit')
 fio_bins, fio_datas, fio_hidden = collect_all('flowio')
 pil_bins, pil_datas, pil_hidden = collect_all('PIL')
 cert_bins, cert_datas, cert_hidden = collect_all('certifi')
+llm_bins, llm_datas, llm_hidden = collect_all('llama_cpp')
 
 # --- THE OPTIMIZATION ENGINE ---
 # Strip out hundreds of MBs of useless testing/mock data from the final build
@@ -26,9 +27,9 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins)
-all_datas = filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas)
-all_hidden = sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden
+all_bins = filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins + llm_bins)
+all_datas = filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas + llm_datas)
+all_hidden = sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden + llm_hidden
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
 # Explicitly exclude test modules and development dependencies
@@ -68,7 +69,8 @@ hidden_imports = [
     'PyQt6.QtWebEngineCore',
     'pygments',
     'pygments.lexers',
-    'pygments.formatters'
+    'pygments.formatters',
+    'llama_cpp'
 ] + all_hidden
 
 a = Analysis(

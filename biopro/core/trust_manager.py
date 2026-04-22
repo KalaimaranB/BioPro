@@ -165,16 +165,18 @@ class TrustManager:
                 if self.overrides.is_locally_trusted(plugin_path.name, hashes):
                     return VerificationResult(success=True, trust_level="verified_local")
                 
-                # If no override, return the specific failure
-                if not auth_result.success:
-                    with open("trust_debug.log", "a") as log:
-                        log.write(f"Auth Failed: {auth_result.error_message}\n")
-                    return auth_result
+                # If no override, return the specific failure but ALWAYS include calculated hashes
+                # so the UI can offer to 'Lock' (snapshot) the current state.
+                final_res = auth_result if not auth_result.success else integrity_result
+                final_res.calculated_hashes = hashes
                 
-                if not integrity_result.success:
-                    with open("trust_debug.log", "a") as log:
-                        log.write(f"Integrity Failed: {integrity_result.error_message}\n")
-                    return integrity_result
+                if not auth_result.success:
+                    try:
+                        with open(debug_log_path, "a") as log:
+                            log.write(f"Auth Failed: {auth_result.error_message}\n")
+                    except Exception: pass
+                
+                return final_res
 
             # 4. Finalize: Update Cache
             if cache:
@@ -189,7 +191,11 @@ class TrustManager:
             
         except Exception as e:
             logger.exception(f"Verification failed critically for {plugin_path.name}")
-            return VerificationResult(success=False, error_message=f"Critical Verification Error: {str(e)}")
+            return VerificationResult(
+                success=False, 
+                error_message=f"Critical Verification Error: {str(e)}",
+                calculated_hashes=integrity_result.calculated_hashes if 'integrity_result' in locals() else None
+            )
 
     def _verify_signatures(self, plugin_path: Path) -> VerificationResult:
         """Verifies the multi-level trust chain and the plugin signature."""
@@ -314,6 +320,7 @@ class TrustManager:
             found_hashes: Dict[str, str] = {}  # Properly initialized for snapshotting
             integrity_passed = True
             error_msg = ""
+            
             for root, dirs, files in os.walk(plugin_path):
                 # Skip ignored directories (like __pycache__)
                 dirs[:] = [d for d in dirs if d not in active_ignore]
@@ -325,36 +332,37 @@ class TrustManager:
                     rel_path = os.path.relpath(os.path.join(root, file), plugin_path)
                     found_files.add(rel_path)
                     
-                    # 1. Check for unauthorized files (Smart Strictness)
-                    if rel_path not in signed_hashes:
-                        # Allow dynamic path patterns? (Phase 4 stretch)
-                        # For now, if it's a code/asset file, reject it.
-                        if any(file.endswith(ext) for ext in self.MANDATORY_EXTENSIONS):
-                            return VerificationResult(success=False, error_message=f"Unauthorized File: {rel_path} is not in the signed manifest.")
-                        continue # Skip other noise if not mandatory
-                    
-                    # 2. Check File Hash
+                    # ALWAYS calculate the hash so we can snapshot/lock the current state
                     calc_hash = self._hash_file(os.path.join(root, file))
                     found_hashes[rel_path] = calc_hash
                     
+                    # 1. Check for unauthorized files (Smart Strictness)
+                    if rel_path not in signed_hashes:
+                        if any(file.endswith(ext) for ext in self.MANDATORY_EXTENSIONS):
+                            integrity_passed = False
+                            if not error_msg:
+                                error_msg = f"Unauthorized File: {rel_path} is not in the signed manifest."
+                        continue 
+                    
+                    # 2. Check File Hash
                     if calc_hash != signed_hashes.get(rel_path):
                         integrity_passed = False
-                        error_msg = f"Integrity Mismatch: {rel_path} has been tampered with."
+                        if not error_msg:
+                            error_msg = f"Integrity Mismatch: {rel_path} has been tampered with."
 
             # 3. Check for missing files
             for signed_path in signed_hashes:
                 if signed_path not in found_files:
                     integrity_passed = False
-                    error_msg = f"Missing File: {signed_path} was signed but is not present on disk."
+                    if not error_msg:
+                        error_msg = f"Missing File: {signed_path} was signed but is not present on disk."
 
-            if not integrity_passed:
-                return VerificationResult(
-                    success=False, 
-                    error_message=error_msg or "Integrity check failed.",
-                    calculated_hashes=found_hashes
-                )
-
-            return VerificationResult(success=True, calculated_hashes=found_hashes)
+            return VerificationResult(
+                success=integrity_passed, 
+                trust_level="verified_developer" if integrity_passed else "untrusted",
+                error_message=error_msg,
+                calculated_hashes=found_hashes
+            )
 
         except Exception as e:
             return VerificationResult(success=False, error_message=f"Integrity Check Error: {str(e)}")

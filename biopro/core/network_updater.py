@@ -110,8 +110,39 @@ class NetworkUpdater:
             logger.warning(f"Could not deploy signing tool: {e}")
 
     def get_local_state(self):
-        with open(self.local_registry_path, 'r') as f:
-            return json.load(f)
+        """
+        Scans the plugin directory for actual manifest files to determine current state.
+        This ensures that manually updated or locally developed plugins are correctly identified.
+        """
+        local_state = {}
+        
+        # 1. Scan the plugin directory for subfolders
+        if not self.plugin_dir.exists():
+            return local_state
+            
+        for item in self.plugin_dir.iterdir():
+            if item.is_dir():
+                manifest_path = item / "manifest.json"
+                if manifest_path.exists():
+                    try:
+                        with open(manifest_path, 'r') as f:
+                            manifest = json.load(f)
+                            plugin_id = manifest.get("id") or item.name
+                            local_state[plugin_id] = {
+                                "version": manifest.get("version", "0.0.0"),
+                                "name": manifest.get("name", item.name)
+                            }
+                    except Exception as e:
+                        logger.warning(f"Could not read manifest for {item.name}: {e}")
+        
+        # 2. Sync back to installed.json for consistency (legacy support)
+        try:
+            with open(self.local_registry_path, 'w') as f:
+                json.dump(local_state, f, indent=4)
+        except Exception as e:
+            logger.error(f"Failed to sync local registry: {e}")
+            
+        return local_state
 
     def fetch_remote_registry(self, registry_url):
         """Pulls the master JSON from your GitHub repository using requests with certifi."""
