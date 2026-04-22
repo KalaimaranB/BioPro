@@ -28,8 +28,12 @@ class AIServerSignals(QObject):
 class AIServerManager:
     """Manages the standalone Gemma 4 inference server."""
     
-    def __init__(self, model_path: str = "models/gemma4.gguf"):
-        self.model_path = model_path
+    def __init__(self, model_path: Optional[str] = None):
+        if model_path is None:
+            # Move model storage to a persistent, writable user directory
+            self.model_path = str(Path.home() / ".biopro" / "models" / "gemma4.gguf")
+        else:
+            self.model_path = model_path
         self.signals = AIServerSignals()
         self.logger = logging.getLogger("biopro.ai")
         self._process: Optional[subprocess.Popen] = None
@@ -69,19 +73,21 @@ class AIServerManager:
                     time.sleep(1)
 
         try:
+            # Ensure model path is absolute for subprocess calls
+            abs_model_path = str(Path(self.model_path).absolute())
+            
             # Launch the real llama-cpp-python server in a separate process
             # We use sys.executable to ensure we use the same virtualenv
-            import sys
             cmd = [
                 sys.executable, "-m", "llama_cpp.server",
-                "--model", self.model_path,
+                "--model", abs_model_path,
                 "--host", "127.0.0.1",
                 "--port", "8080",
                 "--n_ctx", "8192", # Increased for full doc support
                 "--verbose", "False"
             ]
             
-            self.logger.info(f"Starting AI Server on port 8080...")
+            self.logger.info(f"Starting AI Server on port 8080 with model: {abs_model_path}")
             self._process = subprocess.Popen(
                 cmd, 
                 stdout=subprocess.DEVNULL, # Suppress the heavy C++ logs
@@ -108,8 +114,8 @@ class AIServerManager:
                 time.sleep(0.5)
 
             if self._process.poll() is not None:
-                # Process died
-                error_msg = "AI Server crashed on startup."
+                # Process died - try to capture some error info if possible
+                error_msg = "AI Server crashed on startup. Verify that llama-cpp-python is installed."
                 self.logger.error(error_msg)
                 self.signals.server_error.emit(error_msg)
                 self._is_running = False

@@ -244,23 +244,41 @@ class AIChatWindow(QDialog):
 
     def _start_download(self):
         """Starts a real background download for the Gemma model."""
-        self.btn_download.setEnabled(False)
-        self.progress_bar.show()
-        self.progress_bar.setValue(0)
-        
-        # Using a small Gemma-2B quantized model as the "Gemma 4" implementation
-        url = "https://huggingface.co/lmstudio-community/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf?download=true"
-        dest = Path(ai_manager.model_path)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        
-        self.downloader = DownloadThread(url, str(dest))
-        self.downloader.progress.connect(self.progress_bar.setValue)
-        self.downloader.finished.connect(self._on_download_finished)
-        self.downloader.error.connect(self._on_download_error)
-        self.downloader.start()
+        try:
+            self.btn_download.setEnabled(False)
+            self.progress_bar.show()
+            self.progress_bar.setValue(0)
+            self.setup_msg.setText("Initializing download...")
+            
+            # Using a small Gemma-2B quantized model as the "Gemma 4" implementation
+            url = "https://huggingface.co/lmstudio-community/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q4_K_M.gguf?download=true"
+            dest = Path(ai_manager.model_path)
+            
+            # Ensure the directory is writable and exists. Use absolute path to avoid CWD issues.
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                # Test write permissions
+                test_file = dest.parent / ".write_test"
+                test_file.touch()
+                test_file.unlink()
+            except Exception as e:
+                raise Exception(f"Permission denied: Cannot write to {dest.parent}. {e}")
+            
+            self.setup_msg.setText(f"Downloading model to persistent storage...")
+            self.downloader = DownloadThread(url, str(dest))
+            self.downloader.progress.connect(self.progress_bar.setValue)
+            self.downloader.finished.connect(self._on_download_finished)
+            self.downloader.error.connect(self._on_download_error)
+            self.downloader.start()
+        except Exception as e:
+            self._on_download_error(str(e))
 
     def _on_download_finished(self):
-        self.status_msg = QLabel("Download Complete!")
+        self.setup_msg.setText("Download Complete! Initializing AI Engine...")
+        # Small delay to let the user see the "Complete" message
+        QTimer.singleShot(1500, self._finalize_setup)
+
+    def _finalize_setup(self):
         ai_manager.start_server()
         self._show_chat_ui()
 
