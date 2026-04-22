@@ -190,6 +190,7 @@ class AIChatWindow(QDialog):
         ai_manager.signals.prompt_download.connect(self._show_download_ui)
         ai_manager.signals.server_started.connect(self._show_chat_ui)
         ai_manager.signals.download_progress.connect(self.progress_bar.setValue)
+        ai_manager.signals.server_error.connect(self._on_server_error)
         
         self.btn_send.clicked.connect(self._send_message)
         self.input_field.returnPressed.connect(self._send_message)
@@ -286,6 +287,14 @@ class AIChatWindow(QDialog):
         self.btn_download.setEnabled(True)
         self.setup_msg.setText(f"Download Failed: {error_msg}")
         self.progress_bar.hide()
+
+    def _on_server_error(self, error_msg):
+        """Handle AI Engine crashes or startup failures."""
+        self.thinking_indicator.hide()
+        self.btn_send.setEnabled(True)
+        self.input_field.setEnabled(True)
+        self._append_chat(f"<span style='color:red;'>**System Error:** {error_msg}</span>")
+        self.status_lbl.setText("🧠 AI Assistant (Offline)")
 
     def _send_message(self):
         text = self.input_field.text().strip()

@@ -76,10 +76,11 @@ class AIServerManager:
             # Ensure model path is absolute for subprocess calls
             abs_model_path = str(Path(self.model_path).absolute())
             
-            # Launch the real llama-cpp-python server in a separate process
-            # We use sys.executable to ensure we use the same virtualenv
+            # Launch the AI server as a subprocess of BioPro.
+            # We use 'ai-server' as the first argument, which is handled in biopro/__main__.py
+            # to launch the actual llama_cpp.server logic.
             cmd = [
-                sys.executable, "-m", "llama_cpp.server",
+                sys.executable, "ai-server",
                 "--model", abs_model_path,
                 "--host", "127.0.0.1",
                 "--port", "8080",

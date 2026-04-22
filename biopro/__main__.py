@@ -81,6 +81,18 @@ def main():
             logging.error(f"SDK Error: {e}")
             sys.exit(1)
 
+    # Handle AI Server launch (used by the internal AI manager)
+    if len(sys.argv) > 1 and sys.argv[1] == "ai-server":
+        try:
+            import llama_cpp.server.__main__ as ai_server
+            # Remove 'ai-server' from args so llama_cpp.server sees its own flags
+            sys.argv.pop(1)
+            ai_server.main()
+            return
+        except Exception as e:
+            logging.error(f"AI Server Startup Error: {e}")
+            sys.exit(1)
+
     try:
         logger = logging.getLogger("BioPro")
         logger.info("--- APP BOOT SEQUENCE STARTED ---")
