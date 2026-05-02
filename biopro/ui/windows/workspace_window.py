@@ -17,12 +17,35 @@ from biopro.core.event_bus import event_bus, BioProEvent
 from biopro.sdk.ui import SecondaryButton
 from biopro.ui.components.toolbars import AnalysisToolBar
 from biopro.ui.components.ai_panel import AIChatWindow
+from biopro.ui.widgets.star_wars_loader import StarWarsLoader
 
 logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
 
 _PAGE_HOME = 0
 _PAGE_ANALYSIS = 1
+_PAGE_LOADING = 2
+
+from PyQt6.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
+
+class PluginUIWorker(QObject):
+    """Worker to handle the slow import of plugin modules off the main thread."""
+    finished = pyqtSignal(object)  # Passes the PanelClass
+    error = pyqtSignal(str)
+
+    def __init__(self, module_manager, module_id, parent=None):
+        super().__init__(parent)
+        self.module_manager = module_manager
+        self.module_id = module_id
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            # This is the 'Rainbow Wheel' culprit (the imports inside load_module_ui)
+            PanelClass = self.module_manager.load_module_ui(self.module_id)
+            self.finished.emit(PanelClass)
+        except Exception as e:
+            self.error.emit(str(e))
 
 class WorkspaceWindow(QMainWindow):
     """BioPro main application window."""
@@ -39,8 +62,9 @@ class WorkspaceWindow(QMainWindow):
         self.open_store_callback = store_callback
         self.return_to_hub_callback = hub_callback 
         
+        from biopro.ui.theme import Strings
         project_name = self.project_manager.data.get("project_name", "Untitled Project")
-        self.setWindowTitle(f"BioPro Workspace — {project_name}")
+        self.setWindowTitle(f"{Strings.APP_TITLE} — {project_name}")
         self.setMinimumSize(1200, 800)
 
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
@@ -63,6 +87,8 @@ class WorkspaceWindow(QMainWindow):
         self._refresh_hub_workflows()
         
         self._ai_window = None
+        self._module_thread = None
+        self._module_worker = None
 
         self._show_home()
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -155,13 +181,12 @@ class WorkspaceWindow(QMainWindow):
         
         theme_menu = menubar.addMenu("&Theme")
         
-        action_default = QAction("BioPro Default", self)
-        action_default.triggered.connect(lambda: self._switch_theme("default.json"))
-        theme_menu.addAction(action_default)
-        
-        action_sw = QAction("Star Wars (Dark Side)", self)
-        action_sw.triggered.connect(lambda: self._switch_theme("star_wars.json"))
-        theme_menu.addAction(action_sw)
+        # DYNAMIC THEME DISCOVERY
+        available_themes = theme_manager.discover_themes()
+        for name, path in available_themes:
+            action = QAction(name, self)
+            action.triggered.connect(lambda checked, p=path: self._switch_theme(p))
+            theme_menu.addAction(action)
 
         # Help Menu
         help_menu = menubar.addMenu("&Help")
@@ -206,9 +231,9 @@ class WorkspaceWindow(QMainWindow):
         self.root_stack.addWidget(self.home_screen)
 
         # ── Page 1: Analysis view ─────────────────────────────────────
-        analysis_page = QWidget()
-        analysis_page.setStyleSheet(f"background: {Colors.BG_DARKEST};")
-        ap_layout = QVBoxLayout(analysis_page)
+        self.analysis_page = QWidget()
+        self.analysis_page.setStyleSheet(f"background: {Colors.BG_DARKEST};")
+        ap_layout = QVBoxLayout(self.analysis_page)
         ap_layout.setContentsMargins(0, 0, 0, 0)
         ap_layout.setSpacing(0)
 
@@ -216,7 +241,14 @@ class WorkspaceWindow(QMainWindow):
         self.analysis_toolbar.btn_home.clicked.connect(self._show_home)
         self.analysis_toolbar.btn_close_project.clicked.connect(self.return_to_hub)
         self.analysis_toolbar.btn_ai.clicked.connect(self._open_ai_chat)
+        
+        # --- NEW: Aurebesh/Techy Subtitle ---
+        self.aurebesh_lbl = QLabel("")
+        self.aurebesh_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.aurebesh_lbl.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-size: 9px; padding-bottom: 2px; background: {Colors.BG_DARK}; border-bottom: 1px solid {Colors.BORDER};")
+        
         ap_layout.addWidget(self.analysis_toolbar)
+        ap_layout.addWidget(self.aurebesh_lbl)
 
         self.wizard_panel = None
         self.main_module_container = QWidget()
@@ -224,7 +256,17 @@ class WorkspaceWindow(QMainWindow):
         self.main_module_layout.setContentsMargins(0, 0, 0, 0)
 
         ap_layout.addWidget(self.main_module_container, stretch=1)
-        self.root_stack.addWidget(analysis_page)
+        
+        # --- NEW: Hologram Effect Overlay ---
+        from biopro.ui.effects.hologram_effect import HologramEffect
+        self.hologram_overlay = HologramEffect(self.analysis_page)
+        self.hologram_overlay.hide() # Hidden by default, shown via theme
+        
+        self.root_stack.addWidget(self.analysis_page)
+
+        # ── Page 2: Loading Screen (Star Wars Hyperspace) ─────────────
+        self.loading_screen = StarWarsLoader()
+        self.root_stack.addWidget(self.loading_screen)
 
         self.setCentralWidget(self.root_stack)
 
@@ -261,27 +303,54 @@ class WorkspaceWindow(QMainWindow):
         self.zoom_label.setText("")
 
     def _open_module(self, manifest: dict) -> None:
+        """Triggers the Star Wars transition and starts async module loading."""
+        module_id = manifest["id"]
+        module_name = manifest.get("name", "Analysis Module")
+        
+        # 1. Setup the Loading Screen
+        self.loading_screen.set_module(module_name)
+        self._transition_to_page(_PAGE_LOADING)
+        
+        # 2. Cleanup existing thread if any
+        if self._module_thread and self._module_thread.isRunning():
+            self._module_thread.quit()
+            self._module_thread.wait()
+
+        # 3. Kick off the background worker
+        self._module_thread = QThread(self)
+        self._module_worker = PluginUIWorker(self.module_manager, module_id)
+        self._module_worker.moveToThread(self._module_thread)
+        
+        self._module_thread.started.connect(self._module_worker.run)
+        self._module_worker.finished.connect(lambda PanelClass: self._on_module_loaded(manifest, PanelClass))
+        self._module_worker.error.connect(lambda err: self._on_module_load_error(module_id, err))
+        
+        # Cleanup when done
+        self._module_worker.finished.connect(self._module_thread.quit)
+        self._module_worker.error.connect(self._module_thread.quit)
+        
+        self._module_thread.start()
+
+    def _on_module_loaded(self, manifest: dict, PanelClass: type) -> None:
+        """Callback for when the background thread finished importing the module."""
         module_id = manifest["id"]
         self.current_module_id = module_id
 
         try:
-            PanelClass = self.module_manager.load_module_ui(module_id)
-
+            # We are back on the MAIN THREAD here. 
+            # Widget instantiation MUST happen on the main thread.
+            
             if self.wizard_panel is not None:
-                # 1. Trigger the explicit lifecycle cleanup
                 if hasattr(self.wizard_panel, "cleanup"):
                     self.wizard_panel.cleanup()
-                
                 self.wizard_panel.setParent(None)
                 self.wizard_panel.deleteLater()
 
             self.wizard_panel = PanelClass()
             self.wizard_panel.project_manager = self.project_manager
 
-            # Place the module directly into the main container
             self.main_module_layout.addWidget(self.wizard_panel)
 
-            # Attempt to wire up zoom signals if the module exposes it (or a canvas object)
             if hasattr(self.wizard_panel, 'canvas') and hasattr(self.wizard_panel.canvas, 'zoom_changed'):
                 self.wizard_panel.canvas.zoom_changed.connect(
                     lambda z: self.zoom_label.setText(f"{z * 100:.0f}%")
@@ -292,22 +361,30 @@ class WorkspaceWindow(QMainWindow):
                 )
 
             self.analysis_toolbar.set_title(manifest.get("icon", "📦"), manifest.get("name", "Analysis"))
+            
+            if "Star Wars" in theme_manager.current_theme_name:
+                self.aurebesh_lbl.setText(f"PROJECT: {self.project_manager.data.get('project_name', 'UNKNOWN')} | NODE: {module_id.upper()} | ENCRYPTION: ACTIVE")
+                self.aurebesh_lbl.show()
+            else:
+                self.aurebesh_lbl.hide()
 
-            # -- THE PLUGIN NOW MANAGES ITS OWN CANVAS SIGNALS ---
             if hasattr(self.wizard_panel, 'status_message'):
                 self.wizard_panel.status_message.connect(self.status_bar.showMessage)
             if hasattr(self.wizard_panel, 'state_changed'):
                 self.wizard_panel.state_changed.connect(self._push_history)
 
-            # THE FIX:
+            # Jump from Hyperspace to the Analysis view!
             self._transition_to_page(_PAGE_ANALYSIS)
-            
             self.status_bar.showMessage(f"{manifest.get('name')} — open an image to begin (Ctrl+O)")
 
         except Exception as e:
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.critical(self, "Module Error", f"Failed to load module {module_id}:\n{str(e)}")
-            logger.exception(f"Failed to load module {module_id}")
+            self._on_module_load_error(module_id, str(e))
+
+    def _on_module_load_error(self, module_id: str, error_msg: str) -> None:
+        """Handles loading failures gracefully."""
+        self._transition_to_page(_PAGE_HOME)
+        QMessageBox.critical(self, "Module Error", f"Failed to load module {module_id}:\n{error_msg}")
+        logger.error(f"Failed to load module {module_id}: {error_msg}")
 
 
 
@@ -324,16 +401,30 @@ class WorkspaceWindow(QMainWindow):
             self,
             "About BioPro",
             f"<h2>🧬 BioPro v{AppConfig.CORE_VERSION}</h2>"
-            "<p>Bio-Image Analysis Made Simple</p>"
-            "<p>An open-source, intuitive alternative to ImageJ for lab "
-            "students and professionals.</p>"
+            "<p>Bio Analysis Made Simple</p>"
+            "<p>An open-source, intuitive platform for lab students "
+            "and professionals.</p>"
             "<p>© 2026 BioPro Contributors<br>"
             "Licensed under the MIT License</p>",
         )
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'hologram_overlay') and self.hologram_overlay.isVisible():
+            self.hologram_overlay.setGeometry(self.root_stack.geometry())
+
     def closeEvent(self, event):
         """Ensures all projects and plugins release resources before exit."""
-        # 1. Shutdown active plugin if any
+        # 1. Stop background loading thread if active
+        if hasattr(self, "_module_thread") and self._module_thread and self._module_thread.isRunning():
+            self._module_thread.quit()
+            self._module_thread.wait()
+            
+        # 2. Stop any pending scientific analysis tasks
+        from biopro.core.task_scheduler import task_scheduler
+        task_scheduler.cancel_all()
+
+        # 3. Shutdown active plugin if any
         if hasattr(self, 'wizard_panel') and self.wizard_panel:
             try:
                 if hasattr(self.wizard_panel, 'shutdown'):
@@ -370,26 +461,31 @@ class WorkspaceWindow(QMainWindow):
         
     def _open_ai_chat(self):
         """Show the floating AI Chat window."""
+        logger.info("AI Chat button clicked.")
         # Get the currently loaded module directly
         mod_id = getattr(self, "current_module_id", None)
         
-        if self._ai_window is None:
-            self._ai_window = AIChatWindow(parent=self, current_module_id=mod_id)
-        else:
-            # Update the module ID and refresh the UI checkboxes
-            self._ai_window.update_module_context(mod_id)
-            
-        self._ai_window.show()
-        self._ai_window.raise_()
-        self._ai_window.activateWindow()
+        try:
+            if self._ai_window is None:
+                logger.info("Creating new AI Chat window...")
+                self._ai_window = AIChatWindow(parent=self, current_module_id=mod_id)
+            else:
+                logger.info("Refreshing existing AI Chat window...")
+                # Update the module ID and refresh the UI checkboxes
+                self._ai_window.update_module_context(mod_id)
+                
+            self._ai_window.show()
+            self._ai_window.raise_()
+            self._ai_window.activateWindow()
+            logger.info("AI Chat window shown successfully.")
+        except Exception as e:
+            logger.error(f"Failed to open AI Chat: {e}")
         
     def refresh_ui(self):
         """Hot-reloads the module UI after the Store is closed."""
         self.home_screen.populate_modules(self.module_manager.get_available_modules())
 
-    def _switch_theme(self, filename: str) -> None:
-        from pathlib import Path
-        theme_path = Path(__file__).parent.parent.parent / "themes" / filename
+    def _switch_theme(self, theme_path: Path) -> None:
         theme_manager.load_theme(theme_path)
 
     def _on_trust_requested(self, module_id: str) -> None:
@@ -413,6 +509,13 @@ class WorkspaceWindow(QMainWindow):
                 QMessageBox.critical(self, "Error", "Failed to trust module. Could not calculate hashes.")
 
     def _on_theme_changed(self) -> None:
+        """Full workspace UI rebuild on theme swap."""
+        from biopro.ui.theme import Strings
+        
+        # 0. Update Window Title
+        project_name = self.project_manager.data.get("project_name", "Untitled Project")
+        self.setWindowTitle(f"{Strings.APP_TITLE} — {project_name}")
+
         # Save where the user is currently looking!
         current_idx = self.root_stack.currentIndex()
 
@@ -420,27 +523,27 @@ class WorkspaceWindow(QMainWindow):
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
         self._apply_supplemental_qss()
         
-        # 2. Update the Top Toolbar
-        self.analysis_toolbar.setStyleSheet(
-            f"QWidget#analysisToolBar {{"
-            f"  background: {Colors.BG_DARK};"
-            f"  border-bottom: 1px solid {Colors.BORDER};"
-            f"}}"
-        )
-        self.analysis_toolbar.title_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
-            f" color: {Colors.FG_PRIMARY}; background: transparent;"
-        )
-
-        # 3. Update the Status Bar
+        # 2. Update status bar and toolbar
+        is_sw = "Star Wars" in theme_manager.current_theme_name
         self.status_bar.setStyleSheet(
             f"background: {Colors.BG_DARK}; color: {Colors.FG_SECONDARY};"
             f" border-top: 1px solid {Colors.BORDER};"
+            f" font-family: {Fonts.FAMILY_MONO if is_sw else 'inherit'};"
         )
+        if hasattr(self, 'analysis_toolbar'):
+            self.analysis_toolbar._apply_theme_styles()
+        
+        # 3. Update status message
+        is_sw = "Star Wars" in theme_manager.current_theme_name
+        if is_sw:
+            self.status_bar.showMessage("SECTOR STATUS: READY | NAV-COMPUTER ONLINE")
+        else:
+            self.status_bar.showMessage("Welcome to BioPro — choose a module to begin")
 
         # 4. Rebuild the Hub
-        self.root_stack.removeWidget(self.home_screen)
-        self.home_screen.deleteLater()
+        if hasattr(self, 'home_screen'):
+            self.root_stack.removeWidget(self.home_screen)
+            self.home_screen.deleteLater()
         
         self.home_screen = HomeScreen()
         
@@ -448,8 +551,10 @@ class WorkspaceWindow(QMainWindow):
         self.home_screen.module_selected.connect(self._open_module)
         self.home_screen.return_to_hub_requested.connect(self.return_to_hub)
         self.home_screen.open_store_requested.connect(self._open_store)
+        self.home_screen.open_ai_requested.connect(self._open_ai_chat)
         self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
         self.home_screen.workflow_delete_requested.connect(self._handle_delete_workflow)
+        self.home_screen.trust_module_requested.connect(self._on_trust_requested)
         
         # Insert back into stack at index 0
         self.root_stack.insertWidget(_PAGE_HOME, self.home_screen)
@@ -458,13 +563,52 @@ class WorkspaceWindow(QMainWindow):
 
         # Update active module UI, if present
         if hasattr(self, 'wizard_panel') and self.wizard_panel is not None:
-            if hasattr(self.wizard_panel, '_apply_theme_styles'):
-                self.wizard_panel._apply_theme_styles()
+            self._refresh_widget_theme(self.wizard_panel)
             self.wizard_panel.update()
         
-        # ── THE FIX: Restore the user's view so the screen doesn't go blank! ──
+        # 4.5 Refresh Analysis Page and Tech Subtitle
+        if hasattr(self, 'analysis_page'):
+            self.analysis_page.setStyleSheet(f"background: {Colors.BG_DARKEST};")
+        if hasattr(self, 'aurebesh_lbl'):
+            self.aurebesh_lbl.setStyleSheet(
+                f"color: {Colors.ACCENT_PRIMARY}; font-size: 9px; padding-bottom: 2px; "
+                f"background: {Colors.BG_DARK}; border-bottom: 1px solid {Colors.BORDER};"
+            )
+
+        # 5. Update Hologram Overlay
+        if hasattr(self, 'hologram_overlay'):
+            if Colors.SCANLINE_OPACITY > 0:
+                self.hologram_overlay.show()
+                self.hologram_overlay.setGeometry(self.root_stack.geometry())
+                self.hologram_overlay.raise_()
+            else:
+                self.hologram_overlay.hide()
+
+        # Restore the view
         self.root_stack.setCurrentIndex(current_idx)
 
+    def _refresh_widget_theme(self, widget: QWidget):
+        """Recursively refreshes theme styles for a widget and its children."""
+        if widget is None:
+            return
+
+        if hasattr(widget, "_apply_theme_styles"):
+            widget._apply_theme_styles()
+        elif hasattr(widget, "refresh_styles"):
+            widget.refresh_styles()
+            
+        if widget.styleSheet():
+            widget.setStyleSheet(widget.styleSheet())
+            
+        for child in widget.findChildren(QWidget):
+            if hasattr(child, "_apply_theme_styles"):
+                child._apply_theme_styles()
+            elif hasattr(child, "refresh_styles"):
+                child.refresh_styles()
+            
+            if child.styleSheet():
+                child.setStyleSheet(child.styleSheet())
+            child.update()
 
     def _push_history(self):
         """Captures a snapshot of the active module and pushes it to RAM."""

@@ -7,7 +7,7 @@ This guide clarifies:
 - **What the SDK provides for you** (core infrastructure and utilities)
 
 > [!TIP]
-> Just starting out? Check the [DEVELOPER_HANDBOOK.md](DEVELOPER_HANDBOOK.md) for a high-level "Fast Track" guide to building your first plugin.
+> Just starting out? Check the [06_Developer_Handbook.md](06_Developer_Handbook.md) for a high-level "Fast Track" guide to building your first plugin.
 
 ---
 
@@ -678,11 +678,6 @@ self.thread = QThread()
 worker.moveToThread(self.thread)
 self.thread.started.connect(worker.run)
 self.thread.start()
-```
-
----
-
-## 8. Security & Trust Architecture (Phase 4)
 
 To protect users from malicious code and ensure scientific integrity, BioPro enforces a **Chain of Trust**. Plugins that are not cryptographically signed or have been tampered with will not be loaded.
 
@@ -738,7 +733,7 @@ biopro-sign sign path/to/your_plugin
 
 ---
 
-## 10. Memory Management & RAII (Phase 5)
+## 10. Memory Management & RAII
 
 BioPro is designed to handle massive scientific datasets (large TIFs, multi-GB multi-dimensional arrays) without exhausting system RAM. As a developer, the framework handles most of this for you automatically.
 

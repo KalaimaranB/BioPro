@@ -39,7 +39,13 @@ class EventManager(QObject):
         self._internal_bus.connect(self._dispatch)
 
     def subscribe(self, event_type: BioProEvent, callback):
-        """Register a callback for a specific event."""
+        """Register a callback for a specific event.
+        
+        Args:
+            event_type (BioProEvent): The type of event to listen for.
+            callback (callable): The function to call when the event occurs.
+                                Must accept the arguments emitted by the event.
+        """
         if event_type not in self._listeners:
             self._listeners[event_type] = []
         
@@ -48,7 +54,12 @@ class EventManager(QObject):
             logger.debug(f"Subscribed to {event_type.name}: {callback}")
 
     def unsubscribe(self, event_type: BioProEvent, callback):
-        """Unregister a callback."""
+        """Unregister a callback.
+        
+        Args:
+            event_type (BioProEvent): The type of event to unsubscribe from.
+            callback (callable): The previously registered function to remove.
+        """
         if event_type in self._listeners:
             if callback in self._listeners[event_type]:
                 self._listeners[event_type].remove(callback)
@@ -57,7 +68,13 @@ class EventManager(QObject):
     def emit(self, event_type: BioProEvent, *args, **kwargs):
         """Broadcast an event to all subscribers.
         
-        Safe to call from any thread.
+        Safe to call from any thread. Payloads are automatically routed 
+        to the main UI thread for thread-safe processing.
+
+        Args:
+            event_type (BioProEvent): The event to broadcast.
+            *args: Positional arguments to pass to listeners.
+            **kwargs: Keyword arguments to pass to listeners.
         """
         # We use the internal signal to ensure that if this is called from a
         # background thread, it gets queued and dispatched on the thread 

@@ -4,11 +4,14 @@
 
 ---
 
+### 📖 Documentation
+- [**User Guide**](docs/01_User_Guide.md) - For researchers and lab technicians.
+- [**Developer Handbook**](docs/06_Developer_Handbook.md) - For building your own analysis modules.
+
+
+---
+
 ## 🌟 Key Features
-* **Dynamic Plugin Store:** Install only the modules you need (Western Blot, Flow Cytometry, etc.) directly from the cloud registry.
-* **The "Time Machine" Engine:** Full undo/redo support for every single adjustment, from crops to band deletions.
-* **Automated Reproducibility:** Every analysis step is tracked and saved, ensuring that your $n=3$ is analyzed identically every time.
-* **Cross-Platform Performance:** Native support for **Windows** and **macOS** with high-fidelity Matplotlib rendering.
 
 ---
 
@@ -55,7 +58,7 @@ BioPro uses a split-update architecture to ensure your tools are always cutting-
 ---
 
 ## 🛠 For Developers
-BioPro is designed to be extensible. You can build your own analysis modules using our `ModuleManager` API. Simply create a Python package with a `manifest.json` and drop it into the `plugins/` directory. For a highly detailed walkthrough of the module creation process, see [MODULE_AUTHOR_GUIDE.md](MODULE_AUTHOR_GUIDE.md).
+BioPro is designed to be extensible. You can build your own analysis modules using our `ModuleManager` API. Simply create a Python package with a `manifest.json` and drop it into the `plugins/` directory. For a highly detailed walkthrough of the module creation process, see [**Module Author Guide**](docs/07_Module_Author_Guide.md).
 
 ### Repository Architecture
 
@@ -67,8 +70,6 @@ If you are contributing to the core application itself, familiarizing yourself w
   - `dashboards/`: Full screen panels living inside windows (e.g., the `WorkspaceDashboard`).
   - `components/`: Granular, reusable, mathematically distinct QWidgets (`Cards`, `Toolbars`, `Overlays`) isolated to prevent God classes.
   - `dialogs/` & `tabs/`: Specialized modal windows like the Plugin Store and contextual workflows.
-  - `theme.py`: The global Publisher/Subscriber engine that hot-swaps active color palettes across the entire application instantly.
-- **`biopro/shared/`**: Common assets, mathematical helpers, or baseline QWidget classes explicitly designed to be imported by BOTH the Core App and installed Plugins safely.
 - **`tests/`**: Contains all unit and integration coverage for the application logic. 
 - **`biopro/themes/`**: JSON payloads mapped to the `theme.py` engine defining global application colors (e.g. `default.json`, `star_wars.json`).
 

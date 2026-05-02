@@ -160,7 +160,7 @@ class ProjectLauncherWindow(QMainWindow):
         right_layout.addLayout(title_layout)
 
         # 3. Broadened Subtitles
-        self.lbl_subtitle = QLabel("The Extensible Bio-Image Analysis Ecosystem")
+        self.lbl_subtitle = QLabel("The Extensible BioPro Analysis Platform")
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 16px; font-weight: bold;")
         right_layout.addWidget(self.lbl_subtitle)
@@ -331,17 +331,14 @@ class ProjectLauncherWindow(QMainWindow):
         menubar = self.menuBar()
         theme_menu = menubar.addMenu("&Theme")
         
-        action_default = QAction("BioPro Default", self)
-        action_default.triggered.connect(lambda: self._switch_theme("default.json"))
-        theme_menu.addAction(action_default)
-        
-        action_sw = QAction("Star Wars (Dark Side)", self)
-        action_sw.triggered.connect(lambda: self._switch_theme("star_wars.json"))
-        theme_menu.addAction(action_sw)
+        # DYNAMIC THEME DISCOVERY
+        available_themes = theme_manager.discover_themes()
+        for name, path in available_themes:
+            action = QAction(name, self)
+            action.triggered.connect(lambda checked, p=path: self._switch_theme(p))
+            theme_menu.addAction(action)
 
-    def _switch_theme(self, filename: str):
-        from biopro.core.resource_manager import resource_path
-        theme_path = resource_path("themes") / filename
+    def _switch_theme(self, theme_path: Path):
         theme_manager.load_theme(theme_path)
 
     def _on_theme_changed(self):

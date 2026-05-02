@@ -13,7 +13,10 @@ class AppConfig:
     def __init__(self):
         self.config_dir = Path.home() / ".biopro"
         self.config_file = self.config_dir / "config.json"
-        self.data = {"recent_projects": []}
+        self.data = {
+            "recent_projects": [],
+            "ai_enabled": True
+        }
         self._load()
 
     def _load(self) -> None:

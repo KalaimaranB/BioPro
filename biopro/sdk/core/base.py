@@ -12,6 +12,7 @@ from biopro.core.history_manager import HistoryManager
 from .signals import PluginSignals
 from .state import PluginState
 from .interfaces import BioProPlugin
+from biopro.ui.theme import Colors, Fonts, theme_manager
 from biopro.core.resource_inspector import ResourceInspector
 from .events import CentralEventBus
 from typing import Any, Callable
@@ -61,6 +62,9 @@ class PluginBase(QWidget):
         self.plugin_id = plugin_id
         self.history = HistoryManager()
         self._current_state = None
+        
+        # Connect to global theme engine
+        theme_manager.theme_changed.connect(self._apply_theme_styles)
 
     def publish_event(self, topic: str, data: Any = None) -> None:
         """Publish an event to the Central Event Bus."""
@@ -179,6 +183,26 @@ class PluginBase(QWidget):
     def shutdown(self) -> None:
         """Default shutdown. Subclasses should override if managing GPU models."""
         pass
+
+    def _apply_theme_styles(self) -> None:
+        """Re-applies theme-aware styles to the plugin. 
+        Subclasses should override this if they have complex custom styling.
+        """
+        # Force a re-evaluation of the base stylesheet
+        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        
+        # Propagate to children if they have their own theme handlers
+        from PyQt6.QtWidgets import QWidget
+        for child in self.findChildren(QWidget):
+            if hasattr(child, "_apply_theme_styles") and child is not self:
+                child._apply_theme_styles()
+            elif hasattr(child, "refresh_styles"):
+                child.refresh_styles()
+            
+            # Re-evaluate local stylesheets to pick up {Colors.VAR} changes
+            if child.styleSheet():
+                child.setStyleSheet(child.styleSheet())
+            child.update()
 
     def closeEvent(self, event):
         """Triggers automatic cleanup when the plugin widget is closed."""

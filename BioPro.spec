@@ -68,10 +68,6 @@ hidden_imports = [
     'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore',
     'pygments',
-    'pygments.lexers',
-    'pygments.formatters',
-    'llama_cpp'
-] + all_hidden
 
 a = Analysis(
     ['biopro/__main__.py'],

@@ -42,7 +42,12 @@ class ModuleManager:
         event_bus.subscribe(BioProEvent.PLUGIN_REMOVED, lambda _: self.reload_modules())
 
     def _discover_modules(self) -> None:
-        """Scan both internal and user plugin directories for valid manifests."""
+        """Scan both internal and user plugin directories for valid manifests.
+        
+        This method performs security verification for each discovered directory.
+        Modules that fail verification are still registered but marked as untrusted,
+        allowing the UI to prompt the user for action.
+        """
         directories_to_scan = [self.internal_plugins_dir, self.user_plugins_dir]
         
         for directory in directories_to_scan:
@@ -94,7 +99,19 @@ class ModuleManager:
         return [m["manifest"] for m in self.modules.values()]
 
     def load_module_ui(self, module_id: str) -> Type[QWidget]:
-        """Dynamically import the Python package and extract the main UI class."""
+        """Dynamically import the Python package and extract the main UI class.
+        
+        Args:
+            module_id (str): The unique identifier for the module from its manifest.
+            
+        Returns:
+            Type[QWidget]: The class object for the module's main UI panel.
+            
+        Raises:
+            ValueError: If the module is not found.
+            PermissionError: If the module is untrusted and blocked by security policy.
+            TypeError: If the module does not implement the required BioProPlugin interface.
+        """
         if module_id not in self.modules:
             raise ValueError(f"Module {module_id} is not installed.")
         
@@ -138,7 +155,18 @@ class ModuleManager:
         logger.info(f"Hot-reloaded plugins. Currently loaded: {list(self.modules.keys())}")
 
     def trust_module(self, module_id: str) -> bool:
-        """Manually trust the current state of a module (Verified Lock)."""
+        """Manually trust the current state of a module (Verified Lock).
+        
+        Saves the current file hashes to the local trust store. This is used 
+        when a user wants to approve local modifications to a plugin or 
+        install an unverified plugin from source.
+
+        Args:
+            module_id (str): The ID of the module to trust.
+
+        Returns:
+            bool: True if the module was successfully trusted, False otherwise.
+        """
         if module_id not in self.modules:
             return False
             

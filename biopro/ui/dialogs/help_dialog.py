@@ -141,6 +141,37 @@ class HelpCenterDialog(QDialog):
         splitter.addWidget(self.viewer)
         layout.addWidget(splitter)
 
+    def _populate_tree_from_dir(self, directory: Path, parent_item: QTreeWidgetItem):
+        """Recursively scan for .md files and build tree structure."""
+        # 1. Add files in this directory
+        for f in sorted(list(directory.glob("*.md"))):
+            name = f.stem
+            # Clean up display name: remove leading numbers and underscores
+            display_name = name.split("_", 1)[1].replace("_", " ") if "_" in name and name[:2].isdigit() else name.replace("_", " ")
+            
+            item = QTreeWidgetItem(parent_item, [f"• {display_name}"])
+            item.setData(0, Qt.ItemDataRole.UserRole, str(f))
+            
+            # Add to lookup table. We use the filename as key for cross-links.
+            # To handle collisions, we store the full path string as well if needed, 
+            # but for now we'll just map the filename to the item.
+            self.lookup_table[f.name] = item
+
+        # 2. Add subdirectories recursively
+        for d in sorted(list(directory.iterdir())):
+            if d.is_dir() and not d.name.startswith(".") and d.name != "images":
+                sub_item = QTreeWidgetItem(parent_item, [d.name.title()])
+                sub_item.setFlags(sub_item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+                sub_item.setForeground(0, Qt.GlobalColor.gray)
+                
+                self._populate_tree_from_dir(d, sub_item)
+                
+                # Only add if it contains markdown files (recursively)
+                if sub_item.childCount() > 0:
+                    sub_item.setExpanded(True)
+                else:
+                    parent_item.removeChild(sub_item)
+
     def _load_topics(self):
         """Build hierarchical categories."""
         categories = {
@@ -168,6 +199,7 @@ class HelpCenterDialog(QDialog):
         self.plugin_group.setFont(0, font)
 
         if self.docs_dir.exists():
+            # For core docs, we still want to categorize by prefix at the top level
             for f in sorted(list(self.docs_dir.glob("*.md"))):
                 name = f.stem
                 prefix = name[:2]
@@ -177,7 +209,7 @@ class HelpCenterDialog(QDialog):
                         target_group = self.groups[cat]
                         break
                 
-                display_name = name.split("_", 1)[1].replace("_", " ") if "_" in name else name
+                display_name = name.split("_", 1)[1].replace("_", " ") if "_" in name and name[:2].isdigit() else name.replace("_", " ")
                 item = QTreeWidgetItem(target_group, [f"• {display_name}"])
                 item.setData(0, Qt.ItemDataRole.UserRole, str(f))
                 self.lookup_table[f.name] = item
@@ -191,10 +223,9 @@ class HelpCenterDialog(QDialog):
                     manifest = mod_info["manifest"]
                     plugin_root = QTreeWidgetItem(self.plugin_group, [f"📦 {manifest.get('name', mod_id)}"])
                     plugin_root.setFlags(plugin_root.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-                    for doc_f in sorted(list(plugin_docs.glob("*.md"))):
-                        doc_item = QTreeWidgetItem(plugin_root, [doc_f.stem.replace("_", " ")])
-                        doc_item.setData(0, Qt.ItemDataRole.UserRole, str(doc_f))
-                        self.lookup_table[doc_f.name] = doc_item
+                    
+                    # Use recursive scan for plugins
+                    self._populate_tree_from_dir(plugin_docs, plugin_root)
             
             if not found_plugins: self.plugin_group.setHidden(True)
             else: self.plugin_group.setExpanded(True)
@@ -205,11 +236,15 @@ class HelpCenterDialog(QDialog):
         for i in range(self.tree.topLevelItemCount()):
             group = self.tree.topLevelItem(i)
             if group.childCount() > 0:
-                first_doc = group.child(0)
-                if first_doc.childCount() > 0: first_doc = first_doc.child(0)
-                self.tree.setCurrentItem(first_doc)
-                self._on_item_clicked(first_doc)
-                break
+                # Find the first item that actually has data (not a category/folder)
+                item = group.child(0)
+                while item.childCount() > 0 and not item.data(0, Qt.ItemDataRole.UserRole):
+                    item = item.child(0)
+                
+                if item.data(0, Qt.ItemDataRole.UserRole):
+                    self.tree.setCurrentItem(item)
+                    self._on_item_clicked(item)
+                    break
 
     def navigate_to_md(self, filename: str):
         if filename in self.lookup_table:

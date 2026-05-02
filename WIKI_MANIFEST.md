@@ -4,20 +4,30 @@ This repository uses **Automated Documentation Sync**. All content in the [GitHu
 
 ## 🗂 Navigation Structure
 
-The Wiki is organized into the following sections:
+The Wiki is organized into the following logical sections:
 
-1.  **[Home](Home)**: The main introduction and landing page.
-2.  **[Getting Started](01_Introduction)**: Installation guide for Windows and macOS.
-3.  **[Security & Trust Model](02_Security_and_Trust)**: Deep dive into the cryptographic Trust Tree.
-4.  **[Developer Handbook](03_Developer_Handbook)**: Setting up your dev environment and local building.
-5.  **[Module Author Guide](04_Module_Author_Guide)**: Step-by-step instructions for building new analysis plugins.
-6.  **[Plugin Development Reference](05_Plugin_Reference)**: API hooks and contract details.
-7.  **[SDK Summary](06_SDK_Summary)**: Concise reference for the BioPro Plugin SDK.
-8.  **[Architecture: Nervous System](07_Core_Nervous_System)**: The Event Bus and decoupled communication.
-9.  **[Architecture: Project Management](08_LifeCycle_Project_Management)**: Persistence, asset tracking, and file locking.
-10. **[Architecture: History Engine](09_The_Time_Machine_Engine)**: Undo/Redo logic and memory optimization.
-11. **[Architecture: High-Performance Scaling](10_High_Performance_Scaling)**: Task scheduling and resource management.
-12. **[Architecture: Plugin Internals](11_Dynamic_Plugin_Internals)**: Module discovery and the loader pipeline.
+### 🔬 User Guides (Researchers)
+1.  **[User Guide Hub](01_User_Guide)**: The central entry point for all users.
+2.  **[Getting Started](02_Getting_Started)**: Installation guide and first launch.
+3.  **[Tutorial: Your First Analysis](03_Tutorial_First_Analysis)**: Step-by-step walkthrough of the Wizard workflow.
+4.  **[Project Management](04_Project_Management)**: Experiments, portability, and data formats.
+5.  **[AI Assistant: Grogu](17_AI_Assistant_Grogu)**: Using the integrated research assistant.
+6.  **[FAQ & Troubleshooting](05_FAQ_Troubleshooting)**: Common issues and answers.
+
+### 🛠 Developer Guides (Authors)
+7.  **[Developer Handbook](06_Developer_Handbook)**: Setting up your environment.
+8.  **[Module Author Guide](07_Module_Author_Guide)**: Building your first analysis plugin.
+9.  **[Plugin Development Reference](08_Plugin_Reference)**: UI components and API hooks.
+10. **[SDK Summary](09_SDK_Summary)**: Concise reference for the BioPro SDK.
+11. **[API Reference](16_API_Reference)**: Formal function specifications (inputs/outputs).
+
+### 🏛 Architecture Deep Dives (Core)
+12. **[Security & Trust Model](10_Security_and_Trust)**: The cryptographic Hierarchical Trust Tree.
+13. **[Architecture: Nervous System](11_Core_Nervous_System)**: The Event Bus and communication.
+14. **[Architecture: Project Management](12_LifeCycle_Project_Management)**: Persistence and asset tracking.
+15. **[Architecture: History Engine](13_The_Time_Machine_Engine)**: Undo/Redo and memory optimization.
+16. **[Architecture: High-Performance Scaling](14_High_Performance_Scaling)**: Task scheduling and resources.
+17. **[Architecture: Plugin Internals](15_Dynamic_Plugin_Internals)**: Discovery and loader pipeline.
 
 ---
 

@@ -41,8 +41,8 @@ class PluginStoreDialog(QDialog):
         super().closeEvent(event)
 
     def _setup_ui(self):
-        self.setMinimumSize(850, 600)
-        self.resize(950, 700) 
+        self.setMinimumSize(1000, 650)
+        self.resize(1100, 750) 
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -50,12 +50,13 @@ class PluginStoreDialog(QDialog):
         
         # --- Top Search & Header Bar ---
         header_banner = QWidget()
-        header_banner.setStyleSheet(f"background-color: {Colors.BG_MEDIUM}; border-bottom: 2px solid {Colors.BORDER};") # Slab style border
+        header_banner.setFixedHeight(50) # SLIMMER HEADER
+        header_banner.setStyleSheet(f"background-color: {Colors.BG_MEDIUM}; border-bottom: 1px solid {Colors.BORDER};") 
         header_layout = QHBoxLayout(header_banner)
-        header_layout.setContentsMargins(20, 8, 20, 8) # Tighter vertical padding
+        header_layout.setContentsMargins(20, 0, 20, 0) 
         
         header_title = QLabel("☁️ Marketplace")
-        header_title.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {Colors.FG_PRIMARY};")
+        header_title.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {Colors.FG_PRIMARY};")
         header_layout.addWidget(header_title)
         
         header_layout.addStretch()
@@ -87,17 +88,22 @@ class PluginStoreDialog(QDialog):
         
         # 1. Sidebar
         self.sidebar = QWidget()
-        self.sidebar.setFixedWidth(230) # Wider to prevent "Utilities" clipping
+        self.sidebar.setFixedWidth(210) 
         self.sidebar.setStyleSheet(f"background: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};")
         sidebar_layout = QVBoxLayout(self.sidebar)
-        sidebar_layout.setContentsMargins(8, 20, 8, 20)
-        sidebar_layout.setSpacing(6)
+        sidebar_layout.setContentsMargins(10, 15, 10, 15)
+        sidebar_layout.setSpacing(2)
         
-        sidebar_label = QLabel("DISCOVER")
-        sidebar_label.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {Colors.FG_DISABLED}; margin-left: 5px;")
-        sidebar_layout.addWidget(sidebar_label)
+        def add_section_label(text):
+            lbl = QLabel(text)
+            lbl.setStyleSheet(f"font-size: 10px; font-weight: 800; color: {Colors.FG_DISABLED}; margin-top: 10px; margin-bottom: 5px; margin-left: 5px;")
+            sidebar_layout.addWidget(lbl)
+
+        add_section_label("COLLECTIONS")
         
         self.filter_list = QListWidget()
+        self.filter_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.filter_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.filter_list.setStyleSheet(f"""
             QListWidget {{ 
                 background: transparent; 
@@ -105,10 +111,10 @@ class PluginStoreDialog(QDialog):
                 outline: none;
             }}
             QListWidget::item {{ 
-                padding: 10px 14px; 
+                padding: 8px 12px; 
                 border-radius: 6px; 
                 color: {Colors.FG_PRIMARY};
-                margin-bottom: 4px;
+                font-size: 12px;
             }}
             QListWidget::item:selected {{ 
                 background: {Colors.ACCENT_PRIMARY}; 
@@ -120,23 +126,42 @@ class PluginStoreDialog(QDialog):
             }}
         """)
         
-        filters = [
-            ("All Plugins", "all"),
+        collections = [
+            ("All Modules", "all"),
             ("Available Updates", "updates"),
             ("Installed", "installed"),
-            ("Verified Only", "verified"),
-            ("Analysis Tools", "cat_analysis"),
-            ("Utilities", "cat_utility")
+            ("Verified Roots", "verified")
         ]
         
-        for label, data in filters:
+        for label, data in collections:
             item = QListWidgetItem(label)
             item.setData(Qt.ItemDataRole.UserRole, data)
             self.filter_list.addItem(item)
             
         self.filter_list.setCurrentRow(0)
+        self.filter_list.setFixedHeight(140) # Fixed height to avoid inner scrollbar
         self.filter_list.currentRowChanged.connect(self._on_filter_changed)
         sidebar_layout.addWidget(self.filter_list)
+        
+        add_section_label("CATEGORIES")
+        self.category_list = QListWidget()
+        self.category_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.category_list.setStyleSheet(self.filter_list.styleSheet())
+        
+        categories = [
+            ("Analysis Tools", "cat_analysis"),
+            ("Utility Hub", "cat_utility"),
+            ("Visualizers", "cat_visual")
+        ]
+        
+        for label, data in categories:
+            item = QListWidgetItem(label)
+            item.setData(Qt.ItemDataRole.UserRole, data)
+            self.category_list.addItem(item)
+        
+        self.category_list.setFixedHeight(110)
+        self.category_list.currentRowChanged.connect(self._on_category_changed)
+        sidebar_layout.addWidget(self.category_list)
         
         sidebar_layout.addStretch()
         self.splitter.addWidget(self.sidebar)
@@ -174,6 +199,15 @@ class PluginStoreDialog(QDialog):
         self._load_store_data()
 
     def _on_filter_changed(self, row: int):
+        # Deselect categories if a collection is picked
+        if row >= 0:
+            self.category_list.setCurrentRow(-1)
+        self._load_store_data()
+
+    def _on_category_changed(self, row: int):
+        # Deselect collections if a category is picked
+        if row >= 0:
+            self.filter_list.setCurrentRow(-1)
         self._load_store_data()
 
     def _load_store_data(self):
@@ -191,8 +225,13 @@ class PluginStoreDialog(QDialog):
 
         # 3. Apply Filters
         search_text = self.search_input.text().lower()
-        filter_item = self.filter_list.currentItem()
-        filter_type = filter_item.data(Qt.ItemDataRole.UserRole) if filter_item else "all"
+        
+        # Get filter from either list
+        filter_type = "all"
+        if self.filter_list.currentRow() >= 0:
+            filter_type = self.filter_list.currentItem().data(Qt.ItemDataRole.UserRole)
+        elif self.category_list.currentRow() >= 0:
+            filter_type = self.category_list.currentItem().data(Qt.ItemDataRole.UserRole)
 
         filtered_items = []
         for plugin_id, data in inventory.items():

@@ -13,8 +13,50 @@ on:
   workflow_dispatch:
 
 jobs:
+  check-version:
+    name: Check if version was updated
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.version-check.outputs.changed }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Version Check
+        id: version-check
+        run: |
+          # Get the current version
+          NEW_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
+          echo "Current Version: $NEW_VERSION"
+          
+          # Check if this is the first commit in the repo
+          if [ $(git rev-list --count HEAD) -eq 1 ]; then
+            echo "First commit detected. Forcing build."
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            # Get the version from the previous commit
+            git checkout HEAD^ -- pyproject.toml
+            OLD_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
+            echo "Previous Version: $OLD_VERSION"
+            
+            # Reset the file
+            git checkout HEAD -- pyproject.toml
+            
+            if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+              echo "Version changed. Triggering build."
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "Version unchanged. Skipping build."
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
   build:
     name: Build on ${{ matrix.os }}
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

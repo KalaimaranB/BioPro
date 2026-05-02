@@ -51,4 +51,4 @@ To become part of the trust tree, you must:
 2.  **Request Delegation**: Send your `public.pub` hex to an authority (like the BioPro team or your PI) to get a `delegation.json`.
 3.  **Sign**: Run `biopro-sign sign <folder>` before distribution.
 
-For technical details on the CLI, see the [Developer Handbook](03_Developer_Handbook.md).
+For technical details on the CLI, see the [Developer Handbook](06_Developer_Handbook.md).

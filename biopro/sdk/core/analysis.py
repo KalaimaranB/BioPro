@@ -141,16 +141,32 @@ class AnalysisWorker(QObject):
         """
         try:
             results = self.analyzer.run(self.state)
-            if self.analyzer.is_cancelled():
-                self.cancelled.emit()
-            else:
-                self.finished.emit(results)
+            
+            # Safety check: Has the underlying C++ object been deleted?
+            try:
+                if self.analyzer.is_cancelled():
+                    self.cancelled.emit()
+                else:
+                    self.finished.emit(results)
+            except RuntimeError as e:
+                if "deleted" in str(e):
+                    logger.debug("AnalysisWorker: Cannot emit finished/cancelled; object already deleted.")
+                else:
+                    raise
+                    
         except Exception as e:
-            if self.analyzer.is_cancelled():
-                self.cancelled.emit()
-            else:
-                self.error.emit(str(e))
-                logger.exception("Analysis failed in background worker")
+            # Safety check for error emission
+            try:
+                if self.analyzer.is_cancelled():
+                    self.cancelled.emit()
+                else:
+                    self.error.emit(str(e))
+                    logger.exception("Analysis failed in background worker")
+            except RuntimeError as re:
+                if "deleted" in str(re):
+                    logger.debug("AnalysisWorker: Cannot emit error; object already deleted.")
+                else:
+                    logger.exception("Analysis failed and error emission crashed")
 
 
 class AnalysisRunnable(QRunnable):
@@ -171,6 +187,12 @@ class AnalysisRunnable(QRunnable):
         try:
             # AnalysisWorker.run() handles error catching and signal emission
             self.worker.run()
+        except RuntimeError as e:
+            # Common during shutdown: the worker's C++ object was deleted
+            if "deleted" in str(e):
+                logger.debug(f"Background runnable aborted: worker object was deleted.")
+            else:
+                logger.exception(f"Runtime error in background runnable: {e}")
         except Exception as e:
             # Fallback for truly catastrophic failures inside the worker itself
             logger.exception(f"Critical failure in background runnable: {e}")

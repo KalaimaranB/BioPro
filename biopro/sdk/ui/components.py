@@ -31,6 +31,7 @@ class PrimaryButton(QPushButton):
         """
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._glow_effect = None
         _connect_theme_signal(self._apply_theme_styles)
 
     def _apply_theme_styles(self) -> None:
@@ -43,10 +44,28 @@ class PrimaryButton(QPushButton):
                 padding: 10px 20px;
                 font-size: 13px;
                 font-weight: bold;
+                font-family: {Fonts.FAMILY_UI};
             }}
             QPushButton:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}
             QPushButton:disabled {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_SECONDARY}; }}
         """)
+
+        # Add "Lightsaber" glow if enabled in theme
+        if Colors.GLOW_COLOR != "transparent":
+            from PyQt6.QtWidgets import QGraphicsDropShadowEffect
+            from PyQt6.QtGui import QColor
+            
+            if self._glow_effect is None:
+                self._glow_effect = QGraphicsDropShadowEffect(self)
+                self.setGraphicsEffect(self._glow_effect)
+            
+            self._glow_effect.setBlurRadius(15)
+            self._glow_effect.setOffset(0, 0)
+            self._glow_effect.setColor(QColor(Colors.GLOW_COLOR))
+        else:
+            if self._glow_effect:
+                self.setGraphicsEffect(None)
+                self._glow_effect = None
 
 
 class SecondaryButton(QPushButton):
@@ -76,8 +95,9 @@ class SecondaryButton(QPushButton):
                 border-radius: 6px;
                 padding: 10px 20px;
                 font-size: 13px;
+                font-family: {Fonts.FAMILY_UI};
             }}
-            QPushButton:hover {{ background-color: {Colors.BG_LIGHT}; }}
+            QPushButton:hover {{ background-color: {Colors.BG_LIGHT}; border-color: {Colors.FG_SECONDARY}; }}
         """)
 
 
@@ -129,15 +149,21 @@ class ModuleCard(QFrame):
         _connect_theme_signal(self._apply_theme_styles)
 
     def _apply_theme_styles(self) -> None:
+        glow_css = ""
+        if Colors.GLOW_COLOR != "transparent":
+            glow_css = f"border: 1px solid {Colors.ACCENT_PRIMARY};"
+            
         self.setStyleSheet(f"""
             QFrame#BioCard {{
                 background-color: {Colors.BG_DARK}; 
                 border: 1px solid {Colors.BORDER}; 
                 border-radius: 10px;
+                font-family: {Fonts.FAMILY_UI};
             }}
             QFrame#BioCard:hover {{
                 border: 1px solid {Colors.ACCENT_PRIMARY};
                 background-color: {Colors.BG_MEDIUM};
+                {glow_css}
             }}
         """)
 
@@ -162,6 +188,7 @@ class HeaderLabel(QLabel):
         self.setStyleSheet(
             f"font-size: {Fonts.SIZE_LARGE}px; "
             f"font-weight: bold; "
+            f"font-family: {Fonts.FAMILY_HEADINGS}; "
             f"color: {Colors.FG_PRIMARY};"
         )
 

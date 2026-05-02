@@ -25,7 +25,7 @@ import biopro.plugins.my_cool_module
 When you click an Analysis Module in the Hub, BioPro triggers the **Loader Pipeline**:
 
 1.  **Manifest Verification**: The `ModuleManager` reads the `manifest.json` and ensures it satisfies the core version requirements.
-2.  **Security Handover**: The `TrustManager` verifies the plugin's signature and file integrity (see [Security & Trust](02_Security_and_Trust.md)).
+2.  **Security Handover**: The `TrustManager` verifies the plugin's signature and file integrity (see [Security & Trust](10_Security_and_Trust.md)).
 3.  **Dynamic Import**: The `importlib` library loads the package into Python's memory.
 4.  **Contract Enforcement**: BioPro checks if the module satisfies the **BioProPlugin Interface Contract** (i.e., it has `__version__`, `__plugin_id__`, and `get_panel_class()`).
 5.  **UI Injection**: The main widget class is returned to the `WorkspaceWindow` and parented into the layout.

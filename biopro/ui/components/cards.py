@@ -54,7 +54,7 @@ class ModuleCard(QFrame):
         layout.addLayout(top_row)
 
         self.title_lbl = QLabel(title)
-        self.title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {'#e6edf3' if enabled else Colors.FG_DISABLED}; background: transparent;")
+        self.title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY if enabled else Colors.FG_DISABLED}; background: transparent;")
         layout.addWidget(self.title_lbl)
 
         self.desc_lbl = QLabel(description)
@@ -161,7 +161,7 @@ class DashboardWorkflowCard(QFrame):
         layout.addLayout(top_row)
 
         self.title_lbl = QLabel(title)
-        self.title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: #e6edf3; background: transparent;")
+        self.title_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY}; background: transparent;")
         layout.addWidget(self.title_lbl)
 
         self.date_lbl = QLabel(f"Saved: {date_str}")

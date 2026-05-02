@@ -43,66 +43,70 @@ class AIServerManager:
         atexit.register(self.stop_server)
         
     def start_server(self) -> None:
-        """Attempt to start the AI server. Prompts download if model is missing."""
+        """Attempt to start the AI server in a background thread."""
         if not os.path.exists(self.model_path):
             self.signals.prompt_download.emit()
             return
             
         if self._is_running:
+            self.signals.server_started.emit()
             return
             
-        # Aggressively check port 8080
+        # Run the actual startup logic in a thread to keep UI alive
+        threading.Thread(target=self._start_server_internal, daemon=True).start()
+
+    def _start_server_internal(self) -> None:
+        """The actual blocking startup and polling logic."""
         import socket
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(('127.0.0.1', 8080)) == 0:
-                # Port taken. Check health.
-                try:
+        import requests
+        
+        # 1. Quick check for existing server
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex(('127.0.0.1', 8080)) == 0:
                     res = requests.get("http://localhost:8080/v1/models", timeout=2)
                     if res.status_code == 200:
                         self.logger.info("Healthy AI Server already running on 8080. Reusing.")
                         self._is_running = True
                         self.signals.server_started.emit()
                         return
-                except:
-                    pass
-                
-                # Unhealthy or non-AI process. Clear it.
-                self.logger.warning("Port 8080 blocked by unresponsive process. Clearing...")
-                if sys.platform != "win32":
-                    subprocess.run(["pkill", "-f", "llama_cpp.server"], capture_output=True)
-                    time.sleep(1)
+        except:
+            pass
+
+        # 2. Cleanup port if needed
+        if sys.platform != "win32":
+            subprocess.run(["pkill", "-f", "llama_cpp.server"], capture_output=True)
+            time.sleep(1)
 
         try:
-            # Ensure model path is absolute for subprocess calls
             abs_model_path = str(Path(self.model_path).absolute())
-            
-            # Launch the AI server as a subprocess of BioPro.
-            # We use 'ai-server' as the first argument, which is handled in biopro/__main__.py
-            # to launch the actual llama_cpp.server logic.
             cmd = [
-                sys.executable, "ai-server",
+                sys.executable, "-m", "biopro", "ai-server",
                 "--model", abs_model_path,
                 "--host", "127.0.0.1",
                 "--port", "8080",
-                "--n_ctx", "8192", # Increased for full doc support
+                "--n_ctx", "8192",
                 "--verbose", "False"
             ]
             
-            self.logger.info(f"Starting AI Server on port 8080 with model: {abs_model_path}")
+            self.logger.info(f"Starting AI Server: {abs_model_path}")
+            
+            self.ai_log_path = Path.home() / ".biopro" / "ai_server.log"
+            self.ai_log_file = open(self.ai_log_path, "w")
+            
             self._process = subprocess.Popen(
                 cmd, 
-                stdout=subprocess.DEVNULL, # Suppress the heavy C++ logs
-                stderr=subprocess.DEVNULL,
+                stdout=self.ai_log_file, 
+                stderr=self.ai_log_file,
                 text=True
             )
             
-            # Polling loop: Wait up to 15 seconds for server to bind, checking every 0.5s
+            # Polling loop
             for _ in range(30):
                 if self._process.poll() is not None:
-                    break # Process crashed
+                    break
                     
                 try:
-                    # Check if port is open and responding
                     res = requests.get("http://localhost:8080/v1/models", timeout=1)
                     if res.status_code == 200:
                         self._is_running = True
@@ -111,23 +115,22 @@ class AIServerManager:
                         return
                 except:
                     pass
-                
                 time.sleep(0.5)
 
-            if self._process.poll() is not None:
-                # Process died - try to capture some error info if possible
-                error_msg = "AI Server crashed on startup. Verify that llama-cpp-python is installed."
-                self.logger.error(error_msg)
-                self.signals.server_error.emit(error_msg)
-                self._is_running = False
-                return
+            # Fail state
+            error_msg = "AI Server failed to respond after 15 seconds."
+            if self._process and self._process.poll() is not None:
+                self.ai_log_file.close()
+                log_text = self.ai_log_path.read_text()
+                error_msg = f"AI Server crashed: {log_text[:500]}"
 
-            self.logger.warning("AI Server taking longer than expected to respond.")
-            self._is_running = True
-            self.signals.server_started.emit()
+            self.logger.error(error_msg)
+            self.signals.server_error.emit(error_msg)
+            self._is_running = False
+
         except Exception as e:
             self.logger.error(f"Failed to start AI server: {e}")
-            self.signals.server_error.emit(f"Failed to start server: {e}")
+            self.signals.server_error.emit(str(e))
             
     def stop_server(self) -> None:
         """Stop the standalone AI server."""
@@ -148,31 +151,18 @@ class AIAssistant:
         self.logger = logging.getLogger("biopro.ai")
         self.history = [] # Keep track of conversation
         
-    def ask_question(self, prompt: str, plugin_id: str = None, include_core: bool = False) -> str:
-        """Send a prompt to the AI and return the response."""
+    def ask_question(self, prompt: str, plugin_id: str = None, include_core: bool = False, selected_files: list = None, stream: bool = False, callback = None) -> dict:
+        """Send a prompt to the AI and return the response with metadata."""
         self.logger.debug(f"AI Query: {prompt} (plugin: {plugin_id}, core: {include_core})")
-        context = self._gather_context(prompt, plugin_id, include_core)
-        self.logger.debug(f"Gathered {len(context)} bytes of context.")
+        
+        # Gather context and tracking sources
+        context, sources = self._gather_context(prompt, plugin_id, include_core, selected_files)
+        self.logger.debug(f"Gathered {len(context)} bytes of context from {len(sources)} sources.")
         
         # 1. Load the "Soul" (User customization)
         soul_content = ""
         soul_path = Path.home() / ".biopro" / "soul.md"
         
-        # Create default soul if missing
-        if not soul_path.exists():
-            try:
-                soul_path.parent.mkdir(parents=True, exist_ok=True)
-                default_soul = (
-                    "# BioPro AI Soul 🧠\n\n"
-                    "Delete everything below and write your own personality instructions!\n\n"
-                    "## My Custom Persona\n"
-                    "- You take on the personality of Darth Vader. Be intimidating but efficient.\n"
-                    "- Refer to the user as 'Apprentice'.\n"
-                    "- Use the Force (metaphorically) to explain biological concepts.\n"
-                )
-                soul_path.write_text(default_soul)
-            except: pass
-
         if soul_path.exists():
             try:
                 # Read only lines that aren't headers or comments to get the raw instructions
@@ -184,8 +174,12 @@ class AIAssistant:
         # 2. Define the base persona (Technical backbone)
         persona = (
             f"{soul_content}"
-            "TECHNICAL ROLE: You are the BioPro Technical Specialist. Use the provided context for facts. "
-            "BioPro is a modular DESKTOP suite. No web accounts. No phone app.\n\n"
+            "TECHNICAL ROLE: You are the BioPro Technical Specialist. Use the provided context for facts.\n"
+            "STRICT GUIDELINES:\n"
+            "1. BioPro is a modular DESKTOP suite. No web accounts. No phone app.\n"
+            "2. DO NOT mention or link to any external community forums, GitHub repositories, or websites unless they are explicitly provided in the context.\n"
+            "3. If the context does not contain the answer, say you don't know rather than making up external resources.\n"
+            "4. Maintain a professional, technical tone.\n\n"
         )
         
         # 3. Prepend context to the CURRENT prompt for the server call
@@ -200,71 +194,131 @@ class AIAssistant:
                 f"{self.server_url}/v1/chat/completions",
                 json={
                     "messages": messages,
-                    "temperature": 0.2, # Lower temperature for more factual responses
-                    "max_tokens": 2048
+                    "temperature": 0.2, 
+                    "max_tokens": 2048,
+                    "stream": stream
                 },
-                timeout=60
+                timeout=120, # Increased timeout for slow local models
+                stream=stream
             )
             
             if response.status_code == 200:
-                data = response.json()
-                reply = data["choices"][0]["message"]["content"]
+                if stream:
+                    import json
+                    full_reply = ""
+                    for line in response.iter_lines():
+                        if line:
+                            line_text = line.decode('utf-8').strip()
+                            if line_text.startswith("data: "):
+                                if line_text == "data: [DONE]":
+                                    break
+                                try:
+                                    chunk = json.loads(line_text[6:])
+                                    delta = chunk['choices'][0]['delta']
+                                    if 'content' in delta:
+                                        content = delta['content']
+                                        full_reply += content
+                                        if callback:
+                                            callback(content)
+                                except:
+                                    continue
+                    
+                    reply = full_reply
+                else:
+                    data = response.json()
+                    reply = data["choices"][0]["message"]["content"]
                 
-                # Update history
+                # Update history (keep it clean)
                 self.history.append({"role": "user", "content": prompt})
                 self.history.append({"role": "assistant", "content": reply})
                 
-                return reply
+                # Prune history if it gets too long (keeping last 10 exchanges)
+                if len(self.history) > 20:
+                    self.history = self.history[-20:]
+                
+                return {"result": reply, "sources": sources}
             else:
-                return f"Error: AI Server returned {response.status_code}: {response.text}"
+                return {"result": f"Error: AI Server returned {response.status_code}: {response.text}", "sources": []}
                 
         except requests.exceptions.ConnectionError:
-            return "Error: Could not connect to AI Server. Please ensure the model is downloaded and the server is running."
+            return {"result": "Error: Could not connect to AI Server.", "sources": []}
         except Exception as e:
-            return f"Error communicating with AI: {str(e)}"
+            return {"result": f"Error communicating with AI: {str(e)}", "sources": []}
         
-    def _gather_context(self, prompt: str, plugin_id: str, include_core: bool) -> str:
-        """Optimized context gatherer that picks the most relevant docs based on keywords."""
+    def _gather_context(self, prompt: str, plugin_id: str, include_core: bool, selected_files: list = None, discover_only: bool = False) -> tuple:
+        """Optimized context gatherer with keyword ranking and increased budget."""
         context_parts = []
+        sources = []
         base_dir = Path(__file__).parent.parent.parent.parent
-        prompt_lower = prompt.lower()
+        prompt_keywords = [w.lower() for w in prompt.split() if len(w) > 3]
         
-        def scan_dir(directory: Path, prefix: str):
+        limit_chars = 20000 # Calculated for 8k token window
+        pinned_filenames = ["01_User_Guide.md", "02_Getting_Started.md"]
+        
+        discovered_files = [] # List of (Path, type)
+        
+        def find_docs(directory: Path, doc_type: str):
             if not directory.exists(): return
-            
-            # 1. Read all markdown files (Priority 1)
-            md_count = 0
             for filepath in directory.rglob("*.md"):
-                if md_count >= 10: break
-                try:
-                    content = filepath.read_text(errors='ignore')[:3000]
-                    context_parts.append(f"--- DOC: {filepath.name} ---\n{content}\n")
-                    md_count += 1
-                except: pass
-
-            # 2. Read manifests and configs
-            for cf in ["manifest.json", "pyproject.toml", "README.md"]:
-                p = directory / cf
-                if p.exists():
-                    try:
-                        context_parts.append(f"--- CONFIG: {cf} ---\n{p.read_text()[:1000]}\n")
-                    except: pass
+                if not any(f[0] == filepath for f in discovered_files):
+                    discovered_files.append((filepath, doc_type))
 
         if include_core:
-            scan_dir(base_dir / "docs", "CoreDocs")
+            find_docs(base_dir / "docs", "core")
             
         if plugin_id:
-            # 1. Check in the source tree (developer mode)
-            local_path = base_dir / "biopro" / "plugins" / plugin_id
-            if local_path.exists():
-                scan_dir(local_path, "Plugin")
+            find_docs(base_dir / "biopro" / "plugins" / plugin_id, "plugin")
+            find_docs(Path.home() / ".biopro" / "plugins" / plugin_id, "plugin")
+        
+        if discover_only:
+            metadata = []
+            for f, t in discovered_files:
+                metadata.append({
+                    "name": f.name,
+                    "type": t,
+                    "size": f.stat().st_size if f.exists() else 0
+                })
+            return None, metadata
+
+        # Filter by selection if provided
+        active_files = []
+        if selected_files is not None:
+            active_files = [f for f, t in discovered_files if f.name in selected_files]
+        else:
+            active_files = [f for f, t in discovered_files]
+
+        # Ranking: Score files based on keyword matches
+        scored_files = []
+        for f in active_files:
+            score = 0
+            # Pinned files get a baseline score boost if prompt is empty or short
+            if not prompt_keywords and f.name in pinned_filenames:
+                score += 5
             
-            # 2. Check in the user's home directory (installed mode)
-            user_path = Path.home() / ".biopro" / "plugins" / plugin_id
-            if user_path.exists():
-                scan_dir(user_path, "Plugin")
+            try:
+                # Read start of file for scoring
+                head = f.read_text(errors='ignore')[:2000].lower()
+                for kw in prompt_keywords:
+                    if kw in head: score += 1
+            except: pass
+            scored_files.append((score, f))
+            
+        # Sort by score (highest first)
+        scored_files.sort(key=lambda x: x[0], reverse=True)
+        
+        current_len = 0
+        for score, f in scored_files:
+            if current_len >= limit_chars: break
+            try:
+                content = f.read_text(errors='ignore')
+                # Take as much as fits
+                chunk = content[:limit_chars - current_len]
+                context_parts.append(f"--- SOURCE: {f.name} ---\n{chunk}\n")
+                sources.append(f.name)
+                current_len += len(chunk)
+            except: pass
                 
-        return "\n".join(context_parts)[:8000] # Safe limit for 2k/8k context
+        return "\n".join(context_parts), sources
         
     def query_docs(self, plugin_id: str, question: str) -> str:
         """Ask the AI a question about a specific plugin's documentation.

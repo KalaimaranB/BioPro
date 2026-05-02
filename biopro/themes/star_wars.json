@@ -14,7 +14,15 @@
     "ACCENT_PRIMARY": "#e60000",
     "ACCENT_PRIMARY_HOVER": "#ff3333",
     "ACCENT_PRIMARY_PRESSED": "#990000",
-    "SUCCESS": "#d29922",
+    "ACCENT_SUCCESS": "#d29922",
     "ACCENT_WARNING": "#ffeb3b",
-    "ACCENT_DANGER": "#ff0000"
+    "ACCENT_DANGER": "#ff0000",
+    "GLOW_COLOR": "#ff000044",
+    "SCANLINE_OPACITY": 0,
+    "FAMILY_HEADINGS": "monospace",
+    "FAMILY_UI": "sans-serif",
+    "FAMILY_MONO": "monospace",
+    "TAGLINE": "Galactic Empire — Bio-Data Retrieval System",
+    "APP_TITLE": "BioPro — Imperial Intelligence",
+    "GREETING": "Awaiting commands, Commander"
 }

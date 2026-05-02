@@ -1,6 +1,6 @@
-"""BioPro — Bio-Image Analysis Made Simple.
+"""BioPro — Bio Analysis Made Simple.
 
-An open-source, intuitive alternative to ImageJ for lab students
+An open-source, intuitive platform for lab students
 and professionals. Automates tedious bio-image analysis workflows
 through a modern desktop interface.
 
@@ -11,37 +11,28 @@ Modules:
 
 def _get_version():
     """Extract version from package metadata or pyproject.toml fallback."""
-    import sys
     from pathlib import Path
-
+    version_str = "1.0.3"
+    
     # 1. Try standard metadata (for installed packages)
-    if sys.version_info >= (3, 8):
+    try:
         from importlib.metadata import version, PackageNotFoundError
-    else:
-        try:
-            from importlib_metadata import version, PackageNotFoundError
-        except ImportError:
-            version = None
-
-    if version:
-        try:
-            return version("biopro")
-        except (PackageNotFoundError, Exception):
-            pass
+        version_str = version("biopro")
+    except (PackageNotFoundError, ImportError, Exception):
+        pass
 
     # 2. Fallback: Parse pyproject.toml directly (for dev/source environments)
     try:
-        # Python 3.11+ has tomllib built-in
         import tomllib
         pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
         if pyproject_path.exists():
             with open(pyproject_path, "rb") as f:
                 data = tomllib.load(f)
-                return data.get("project", {}).get("version", "unknown")
+                version_str = data.get("project", {}).get("version", version_str)
     except Exception:
         pass
 
-    return "1.0.3" # Absolute fallback
+    return version_str
 
 __version__ = _get_version()
 __author__ = "BioPro Contributors"

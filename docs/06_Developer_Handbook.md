@@ -83,6 +83,15 @@ self.btn = PrimaryButton("Run My Analysis")
 self.lbl = HeaderLabel("Results Checklist")
 ```
 
+### 4. AI Assistant Integration (`biopro.sdk.core.ai`)
+Plugins can expose their documentation to the AI Assistant by including `.md` files in a `docs/` subdirectory.
+
+```python
+# Grogu automatically discovers documentation in your plugin bundle.
+# No code is required to enable context-aware reasoning for your module!
+```
+To programmatically interact with the assistant (e.g., triggering a suggestion based on data trends), use the `AIAssistant` interface.
+
 ---
 
 ## 🔒 Security & Trust (Hierarchical Trust)
@@ -143,4 +152,4 @@ Once your ID is in the registry:
 ---
 
 > [!TIP]
-> Need help? Check the [MODULE_AUTHOR_GUIDE.md](MODULE_AUTHOR_GUIDE.md) for deep-dive technical API references.
+> Need help? Check the [07_Module_Author_Guide.md](07_Module_Author_Guide.md) for deep-dive technical API references.

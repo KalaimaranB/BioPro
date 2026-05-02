@@ -104,7 +104,7 @@ class WorkspaceDashboard(QWidget):
         hero_layout.addWidget(self.lbl_greeting)
 
         # 3. Tagline Row
-        self.lbl_tagline = QLabel("Bio-Image Analysis Made Simple — open-source alternative to ImageJ")
+        self.lbl_tagline = QLabel("Bio Analysis Made Simple — designed for modern lab workflows")
         self.lbl_tagline.setStyleSheet(f"font-size: {Fonts.SIZE_NORMAL}px; color: {Colors.FG_SECONDARY}; background: transparent;")
         hero_layout.addWidget(self.lbl_tagline)
         
@@ -240,19 +240,17 @@ class WorkspaceDashboard(QWidget):
 
     def _update_dashboard_text(self):
         import datetime
+        from biopro.ui.theme import Strings, theme_manager
         hour = datetime.datetime.now().hour
         
-        # The logic to detect Star Wars mode
-        is_dark_side = getattr(Colors, "DNA_PRIMARY", "").lower() == "#e60000"
+        is_sw = "Star Wars" in theme_manager.current_theme_name
         
-        if is_dark_side:
-            greeting = "Awaiting commands, Commander"
-            tagline = "Imperial Analysis Mainframe — Unlimited Power."
+        if is_sw:
+            greeting = Strings.GREETING
             self.lbl_greeting.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 900; color: {Colors.ACCENT_PRIMARY}; text-transform: uppercase;")
         else:
             greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
-            tagline = "Bio-Image Analysis Made Simple — open-source alternative to ImageJ"
             self.lbl_greeting.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};")
 
         self.lbl_greeting.setText(f"{greeting}.")
-        self.lbl_tagline.setText(tagline)
+        self.lbl_tagline.setText(Strings.TAGLINE)

@@ -92,6 +92,14 @@ class TaskScheduler(QObject):
         self.pool.clear()
         logger.warning("Task pool cleared. Pending tasks cancelled.")
 
+    def shutdown(self) -> None:
+        """Gracefully shutdown the scheduler, waiting for active tasks."""
+        logger.info("TaskScheduler shutting down...")
+        self.pool.clear()
+        # Wait up to 2 seconds for active threads to finish or abort safely
+        self.pool.waitForDone(2000)
+        self._active_workers.clear()
+
     @pyqtSlot(str, dict)
     def _on_task_finished(self, task_id: str, results: dict):
         self.task_finished.emit(task_id, results)

@@ -341,6 +341,17 @@ class WizardPanel(QWidget):
             f"QPushButton:hover {{ background: {Colors.ACCENT_PRIMARY_HOVER}; }}"
         )
         self._indicator.set_current(self._idx)
+
+        # Force recursion into child widgets that might have custom styling
+        for widget in self.findChildren(QWidget):
+            if hasattr(widget, "_apply_theme_styles") and widget is not self:
+                widget._apply_theme_styles()
+            elif hasattr(widget, "refresh_styles"):
+                widget.refresh_styles()
+            
+            # Explicitly refresh any labels or frames that might be using cached theme colors
+            if isinstance(widget, (QLabel, QFrame)):
+                widget.update()
     
     def go_back(self) -> None:
         """Go to previous step."""

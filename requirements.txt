@@ -21,4 +21,5 @@ cryptography
 markdown
 PyQt6-WebEngine
 pygments
-llama-cpp-python
+certifi
+llama-cpp-python[server]

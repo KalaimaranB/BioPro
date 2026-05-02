@@ -50,4 +50,4 @@ Every result saved in a BioPro project is hashed. If the raw data files are modi
 ---
 
 ## 🏁 Final Step
-You are now ready to perform your first analysis! If you have questions, visit the [**FAQ & Troubleshooting**](14_FAQ_Troubleshooting.md).
+You are now ready to perform your first analysis! If you have questions, visit the [**FAQ & Troubleshooting**](05_FAQ_Troubleshooting.md).

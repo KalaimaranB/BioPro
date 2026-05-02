@@ -147,7 +147,11 @@ class NetworkUpdater:
     def fetch_remote_registry(self, registry_url):
         """Pulls the master JSON from your GitHub repository using requests with certifi."""
         try:
-            headers = {'User-Agent': 'BioPro-App'}
+            import time
+            # Cache-busting: force GitHub to bypass their CDN cache
+            registry_url = f"{registry_url}?t={int(time.time())}"
+            
+            headers = {'User-Agent': 'BioPro-App', 'Cache-Control': 'no-cache'}
             response = requests.get(registry_url, timeout=5, headers=headers, verify=certifi.where())
             response.raise_for_status()
             return response.json()
@@ -155,28 +159,48 @@ class NetworkUpdater:
             logger.error(f"Network error fetching registry: {e}")
             return {}
 
+    def _parse_version(self, v_str: str) -> tuple:
+        """Converts a version string like '1.0.4' into a comparable tuple (1, 0, 4)."""
+        try:
+            # Handle empty or non-string inputs
+            if not v_str or not isinstance(v_str, str):
+                return (0, 0, 0)
+            # Remove any non-numeric suffixes (like -alpha, -beta) for comparison
+            clean_v = v_str.split('-')[0]
+            return tuple(map(int, clean_v.split('.')))
+        except (ValueError, AttributeError):
+            return (0, 0, 0)
+
     def evaluate_store_state(self): 
         remote_data = self.fetch_remote_registry(self.registry_url) 
         local_data = self.get_local_state()
-        
         store_inventory = {}
         plugins_data = remote_data.get("plugins", {})
+        app_v = self._parse_version(self.core_version)
+        
+        logger.info(f"Checking Store State. App Version: {self.core_version} (Parsed: {app_v})")
         
         for plugin_id, remote_info in plugins_data.items():
             state = "INSTALL" 
+            min_core_str = remote_info.get("min_core_version", "0.0.0")
+            min_core_v = self._parse_version(min_core_str)
             
-            if self.core_version < remote_info.get("min_core_version", "0.0.0"):
+            logger.info(f"Plugin {plugin_id}: MinCoreReq={min_core_str} ({min_core_v}), AppVersion={self.core_version} ({app_v})")
+            
+            if app_v < min_core_v:
                 state = "INCOMPATIBLE"
+                logger.warning(f"MARKING {plugin_id} AS INCOMPATIBLE: {app_v} < {min_core_v}")
             elif plugin_id in local_data:
-                local_version = local_data[plugin_id].get("version", "0.0.0")
-                if local_version < remote_info["version"]:
+                local_v = self._parse_version(local_data[plugin_id].get("version", "0.0.0"))
+                remote_v = self._parse_version(remote_info.get("version", "0.0.0"))
+                
+                if local_v < remote_v:
                     state = "UPDATE"
                 else:
                     state = "UP_TO_DATE"
                     
             # 4. Check if the developer is Verified
             is_verified = False
-            # If the plugin has an author, see if that author is in our trusted list
             author_id = remote_info.get("author_id", remote_info.get("author"))
             if author_id:
                 roots_dir = Path.home() / ".biopro" / "trusted_roots"
@@ -191,7 +215,7 @@ class NetworkUpdater:
             }
             
         self.sync_trusted_developers(remote_data.get("trusted_developers", []))
-        self.fetch_and_sync_authorities() # New separate authorities pull
+        self.fetch_and_sync_authorities() 
         return store_inventory
     
     def fetch_and_sync_authorities(self):
@@ -199,12 +223,24 @@ class NetworkUpdater:
         if not self.authority_url:
             return
             
-        logger.info("Fetching central authority registry...")
-        remote_data = self.fetch_remote_registry(self.authority_url)
-        authorities = remote_data.get("authorities", [])
-        
-        if authorities:
-            self._sync_keys(authorities, prefix="auth_")
+        try:
+            headers = {'User-Agent': 'BioPro-App'}
+            response = requests.get(self.authority_url, timeout=5, headers=headers, verify=certifi.where())
+            
+            # If the authority registry is missing (404), just skip it silently.
+            # This prevents noisy logs in environments where the authority repo hasn't been set up yet.
+            if response.status_code == 404:
+                return
+                
+            response.raise_for_status()
+            remote_data = response.json()
+            authorities = remote_data.get("authorities", [])
+            
+            if authorities:
+                self._sync_keys(authorities, prefix="auth_")
+        except Exception as e:
+            # Only log actual network failures, not 404s
+            logger.debug(f"Optional authority registry not available: {e}")
 
     def _sync_keys(self, trusted_list: list, prefix: str = "network_"):
         """Generic key syncing logic used by both plugins and authority registries."""
