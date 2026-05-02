@@ -68,6 +68,7 @@ hidden_imports = [
     'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore',
     'pygments',
+]
 
 a = Analysis(
     ['biopro/__main__.py'],
