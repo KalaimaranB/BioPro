@@ -63,6 +63,25 @@ def install_plugin(id):
 
 ---
 
+## ⏺️ The Diagnostic Engine (The Black Box)
+
+BioPro's "Nervous System" includes a specialized **Diagnostic Engine** (`biopro.core.diagnostics`). It functions like a flight recorder (Black Box) for the application.
+
+### 1. In-Memory History
+The engine maintains a memory-resident buffer of the last 100 system events (logs, network requests, UI transitions). This history is **always** captured, even if logging to disk is disabled.
+
+### 2. Global Exception Hook
+The core installs a global `sys.excepthook`. When an unhandled crash occurs:
+1. The **Black Box** stops recording.
+2. The crash state + 100 pre-crash events are bundled into a structured JSON report.
+3. The `ERROR_OCCURRED` event is emitted.
+4. The **Premium Error UI** is triggered to show the user exactly what happened.
+
+### 3. Integrated Plugin Logging
+All plugins using `self.logger` (via `biopro.sdk.utils.logging`) are automatically piped into the Black Box. This means developers can see the exact sequence of plugin-level actions that led to a system failure.
+
+---
+
 ## 🔍 Technical Deep Dive: Thread-Safe Dispatch
 
 The `EventManager` uses a special internal `pyqtSignal`. 

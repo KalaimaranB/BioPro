@@ -42,7 +42,7 @@ dependencies = [
     "flowkit>=0.9",
     "flowio>=1.1",
     "fast-histogram>=0.12",
-    # Image utilities
+]
 
 [project.optional-dependencies]
 dev = [

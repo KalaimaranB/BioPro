@@ -5,21 +5,66 @@ from pathlib import Path
 # --- STABILIZATION: Bootstrap Logging ---
 # This MUST happen before any wasm/biopro imports
 def setup_logging():
+    import logging.config
     log_dir = Path.home() / ".biopro"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "biopro.log"
     
-    # Configure logging to both file and console
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-        handlers=[
-            logging.FileHandler(log_file, encoding='utf-8', mode='w'), # Overwrite per session
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
+    LOGGING_CONFIG = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'standard': {
+                'format': '%(asctime)s [%(name)s] %(levelname)s: %(message)s'
+            },
+            'detailed': {
+                'format': '%(asctime)s [%(levelname)s] %(name)s.%(funcName)s:%(lineno)d - %(message)s'
+            },
+        },
+        'handlers': {
+            'console': {
+                'level': 'DEBUG',
+                'class': 'logging.StreamHandler',
+                'formatter': 'standard',
+                'stream': 'ext://sys.stdout',
+            },
+            'file': {
+                'level': 'INFO',
+                'class': 'logging.FileHandler',
+                'formatter': 'detailed',
+                'filename': str(log_file),
+                'mode': 'w',
+                'encoding': 'utf-8',
+            },
+        },
+        'root': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+        },
+    }
+    
+    logging.config.dictConfig(LOGGING_CONFIG)
     logging.info("--- BIOPRO BOOTLOADER INITIALIZED ---")
     return log_file
+
+def install_exception_hook():
+    """Catch unhandled exceptions and route them through the diagnostic engine."""
+    import sys
+    from biopro.core.diagnostics import diagnostics
+    
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+
+        # Log it officially through our diagnostics engine
+        diagnostics.report_error(
+            message=f"Unhandled Exception: {exc_value}",
+            exception=exc_value,
+            fatal=True
+        )
+
+    sys.excepthook = handle_exception
 
 class BioProApp:
     def __init__(self, module_manager, updater):
@@ -103,6 +148,20 @@ def main():
         
         module_manager = ModuleManager()
         updater = NetworkUpdater()
+        
+        # Initialize diagnostics and connect UI listener
+        from biopro.core.diagnostics import diagnostics
+        from biopro.core.event_bus import event_bus, BioProEvent
+        from biopro.ui.dialogs.error_report import ErrorReportDialog
+        
+        def on_error(error_data):
+            # Only show dialog for fatal errors or if UI is ready
+            if error_data.get('fatal') or QApplication.instance():
+                dialog = ErrorReportDialog(error_data)
+                dialog.exec()
+        
+        event_bus.subscribe(BioProEvent.ERROR_OCCURRED, on_error)
+        install_exception_hook()
         
         app = BioProApp(module_manager, updater)
         app.run()

@@ -31,8 +31,15 @@ We recommend the following format:
 ### The "Next" button is disabled in the Wizard.
 - This usually means a required field is missing or invalid. Check for red highlights in the "Input" or "Parameters" screen.
 
+### An "Unexpected Error" dialog appeared.
+Don't panic! BioPro has a built-in **Diagnostic Engine** that captures errors as they happen.
+- **View Logs**: Click this in the error dialog to open your local log folder.
+- **Copy Details**: Click this to copy a full technical report (including the "Black Box" history) to your clipboard.
+- **Contact Developer**: Reach out to the project maintainers with the copied details for support.
+
 ---
 
 ## 🆘 Still Need Help?
 - **GitHub Issues**: Report bugs on our [GitHub Repository](https://github.com/KalaimaranB/BioPro/issues).
-- **Log Files**: If requested by a developer, you can find internal logs at `~/.biopro/logs/`.
+- **Log Files**: You can find internal logs at `~/.biopro/biopro.log`.
+- **Diagnostic Reports**: When reporting a bug, please use the "Copy Details" button in the error dialog to provide developers with the necessary context.

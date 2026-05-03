@@ -23,6 +23,8 @@ class BioProEvent(Enum):
     
     # System Events
     THEME_CHANGED = auto()    # args: (theme_name: str)
+    ERROR_OCCURRED = auto()   # args: (error_data: dict)
+    SYSTEM_WARNING = auto()   # args: (message: str)
 
 class EventManager(QObject):
     """Central event coordinator.

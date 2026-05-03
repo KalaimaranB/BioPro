@@ -235,6 +235,23 @@ class MyPlugin(PluginBase):
         """When user makes destructive changes, capture state for undo."""
         self.push_state()  # Inherited from PluginBase
         # BioPro automatically captures the state for undo/redo
+
+#### Logging & Diagnostics (`self.logger`)
+Every `PluginBase` subclass automatically has access to a pre-configured `self.logger`. This is a context-aware logger that automatically injects your `plugin_id` into every log message.
+
+```python
+def _on_load_image(self):
+    self.logger.info(f"User selected image: {path}")
+    try:
+        # ... processing ...
+    except Exception as e:
+        self.logger.error(f"Failed to load image: {e}", exc_info=True)
+```
+
+**Why use `self.logger`?**
+- **Automatic Metadata**: Your plugin ID is automatically added to the logs.
+- **Diagnostic Engine Integration**: Messages logged via `self.logger` are automatically captured by the BioPro **Black Box recorder**, allowing them to appear in system diagnostic reports if a crash occurs.
+- **Traceback Support**: Use `exc_info=True` in error logs to capture full tracebacks for debugging.
 ```
 
 ### 2.2 UI Module (`biopro.sdk.ui`)

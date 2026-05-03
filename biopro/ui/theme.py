@@ -26,6 +26,12 @@ class Colors:
     ACCENT_SUCCESS = "#238636"
     ACCENT_WARNING = "#d29922"
     ACCENT_DANGER = "#f85149"
+    ACCENT_CRITICAL = "#f85149" # Aliased to Danger for now
+    BORDER = "#30363d"
+    BORDER_DARK = "#21262d" # Aliased to Medium
+    BORDER_LIGHT = "#484f58"
+    BORDER_FOCUS = "#58a6ff"
+    BG_DARKER = "#0d1117" # Aliased to Darkest
     CHART_COLORS = ["#58a6ff", "#3fb950", "#d29922", "#f85149", "#a371f7", "#f778ba"]
     
     # --- NEW: Enhanced Theme Properties ---
@@ -42,10 +48,38 @@ class Fonts:
     SIZE_XLARGE = 24
 
     # --- NEW: Font Families ---
-    FAMILY_HEADINGS = "sans-serif"
-    FAMILY_UI = "sans-serif"
+    FAMILY_HEADINGS = "Arial, sans-serif"
+    FAMILY_UI = "Arial, sans-serif"
     FAMILY_MONO = "Monaco, 'Courier New', monospace"
     # ---------------------------
+
+    # Standardized QFont Objects (initialized on first access or manually)
+    @property
+    def H1(self):
+        from PyQt6.QtGui import QFont
+        f = QFont(self.FAMILY_HEADINGS, self.SIZE_XLARGE, QFont.Weight.Bold)
+        return f
+
+    @property
+    def H2(self):
+        from PyQt6.QtGui import QFont
+        f = QFont(self.FAMILY_HEADINGS, self.SIZE_LARGE, QFont.Weight.Bold)
+        return f
+
+    @property
+    def BODY(self):
+        from PyQt6.QtGui import QFont
+        f = QFont(self.FAMILY_UI, self.SIZE_NORMAL)
+        return f
+
+    @property
+    def CAPTION(self):
+        from PyQt6.QtGui import QFont
+        f = QFont(self.FAMILY_UI, self.SIZE_SMALL)
+        return f
+
+# Create singleton instances for static-like access
+Fonts = Fonts()
 
 class Strings:
     """Theme-dependent text values."""

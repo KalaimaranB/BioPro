@@ -64,6 +64,12 @@ To prevent memory leaks with large scientific datasets, `PluginBase` implements 
 2. Closes dangling file handles.
 3. Releases GPU memory if applicable.
 
+### ⏺️ Context-Aware Logging & Diagnostics
+Every plugin now features a built-in `self.logger`. Messages logged here are:
+1. **Scoped**: Automatically tagged with the `plugin_id`.
+2. **Recorded**: Piped into the system-wide **Black Box** diagnostic recorder.
+3. **Actionable**: Captured in detailed crash reports, allowing developers to see the exact state of a plugin before a system failure.
+
 ---
 
 ## Benefits

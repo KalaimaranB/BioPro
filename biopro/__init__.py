@@ -10,29 +10,35 @@ Modules:
 """
 
 def _get_version():
-    """Extract version from package metadata or pyproject.toml fallback."""
+    """Extract version from pyproject.toml (dev) or package metadata (installed)."""
     from pathlib import Path
-    version_str = "1.0.3"
+    import importlib.metadata
     
-    # 1. Try standard metadata (for installed packages)
-    try:
-        from importlib.metadata import version, PackageNotFoundError
-        version_str = version("biopro")
-    except (PackageNotFoundError, ImportError, Exception):
-        pass
-
-    # 2. Fallback: Parse pyproject.toml directly (for dev/source environments)
-    try:
-        import tomllib
-        pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
-        if pyproject_path.exists():
+    # 1. Parse pyproject.toml directly (Primary for dev/source environments)
+    # This ensures that local changes are reflected immediately.
+    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
+    if pyproject_path.exists():
+        try:
+            import tomllib
             with open(pyproject_path, "rb") as f:
                 data = tomllib.load(f)
-                version_str = data.get("project", {}).get("version", version_str)
-    except Exception:
+                version = data.get("project", {}).get("version")
+                if version:
+                    return version
+        except Exception as e:
+            # Raise a clear error if the TOML exists but is broken
+            raise RuntimeError(f"Malformed pyproject.toml: {e}") from e
+
+    # 2. Fallback: Try standard metadata (for installed packages)
+    try:
+        return importlib.metadata.version("biopro")
+    except importlib.metadata.PackageNotFoundError:
         pass
 
-    return version_str
+    raise RuntimeError(
+        "Could not determine BioPro version. "
+        "Ensure pyproject.toml exists and is valid, or that the package is installed."
+    )
 
 __version__ = _get_version()
 __author__ = "BioPro Contributors"

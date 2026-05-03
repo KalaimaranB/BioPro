@@ -60,6 +60,11 @@ class PluginBase(QWidget):
         self.signals = PluginSignals()
         
         self.plugin_id = plugin_id
+        
+        # Initialize context-aware logger
+        from biopro.sdk.utils.logging import get_logger
+        self.logger = get_logger(f"plugin.{plugin_id}", plugin_id)
+        
         self.history = HistoryManager()
         self._current_state = None
         
