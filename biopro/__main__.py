@@ -155,10 +155,14 @@ def main():
         from biopro.ui.dialogs.error_report import ErrorReportDialog
         
         def on_error(error_data):
-            # Only show dialog for fatal errors or if UI is ready
-            if error_data.get('fatal') or QApplication.instance():
-                dialog = ErrorReportDialog(error_data)
-                dialog.exec()
+            # CRITICAL: We cannot show a QDialog if QApplication hasn't been created.
+            # If it's a fatal error, we'll let the global exception handler in main() catch it
+            # and show a native message box there.
+            if not QApplication.instance():
+                return
+
+            dialog = ErrorReportDialog(error_data)
+            dialog.exec()
         
         event_bus.subscribe(BioProEvent.ERROR_OCCURRED, on_error)
         install_exception_hook()
@@ -171,10 +175,19 @@ def main():
         print(error_msg)
         logging.critical(error_msg)
         
-        from PyQt6.QtWidgets import QApplication
-        if QApplication.instance():
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.critical(None, "BioPro Crash", f"BioPro failed to start.\n\nCheck the log at:\n{log_file}\n\nError: {str(e)}")
+        from PyQt6.QtWidgets import QApplication, QMessageBox
+        
+        # Ensure we have a QApplication instance to show the message box
+        _app = QApplication.instance()
+        if not _app:
+            # Create a dummy app just for the dialog
+            _app = QApplication(sys.argv)
+        
+        QMessageBox.critical(
+            None, 
+            "BioPro Crash", 
+            f"BioPro failed to start.\n\nError: {str(e)}\n\nCheck the log for details:\n{log_file}"
+        )
         
         sys.exit(1)
 

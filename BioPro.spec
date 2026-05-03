@@ -79,9 +79,10 @@ a = Analysis(
         ('biopro/shared', 'biopro/shared'),
         ('biopro/plugins', 'biopro/plugins'),
         ('docs', 'docs'),
-        ('icon.icns', '.')
+        ('icon.icns', '.'),
+        ('pyproject.toml', '.')
     ] + all_datas, 
-    hiddenimports=hidden_imports,
+    hiddenimports=hidden_imports + all_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

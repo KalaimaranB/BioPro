@@ -10,24 +10,33 @@ Modules:
 """
 
 def _get_version():
-    """Extract version from pyproject.toml (dev) or package metadata (installed)."""
+    """Extract version from pyproject.toml (dev/frozen) or package metadata (installed)."""
+    import sys
     from pathlib import Path
     import importlib.metadata
     
-    # 1. Parse pyproject.toml directly (Primary for dev/source environments)
-    # This ensures that local changes are reflected immediately.
-    pyproject_path = Path(__file__).parent.parent / "pyproject.toml"
-    if pyproject_path.exists():
-        try:
-            import tomllib
-            with open(pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-                version = data.get("project", {}).get("version")
-                if version:
-                    return version
-        except Exception as e:
-            # Raise a clear error if the TOML exists but is broken
-            raise RuntimeError(f"Malformed pyproject.toml: {e}") from e
+    # 1. Parse pyproject.toml
+    # Check both the source directory and the PyInstaller bundle directory
+    search_paths = [
+        Path(__file__).parent.parent / "pyproject.toml",
+    ]
+    
+    # If running in a PyInstaller bundle, check the bundle root
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        search_paths.append(Path(sys._MEIPASS) / "pyproject.toml")
+
+    for pyproject_path in search_paths:
+        if pyproject_path.exists():
+            try:
+                import tomllib
+                with open(pyproject_path, "rb") as f:
+                    data = tomllib.load(f)
+                    version = data.get("project", {}).get("version")
+                    if version:
+                        return version
+            except Exception:
+                # Silently continue to fallback if one path fails
+                continue
 
     # 2. Fallback: Try standard metadata (for installed packages)
     try:
@@ -35,10 +44,8 @@ def _get_version():
     except importlib.metadata.PackageNotFoundError:
         pass
 
-    raise RuntimeError(
-        "Could not determine BioPro version. "
-        "Ensure pyproject.toml exists and is valid, or that the package is installed."
-    )
+    # 3. Final Fallback: Return a placeholder instead of crashing
+    return "0.0.0-unknown"
 
 __version__ = _get_version()
 __author__ = "BioPro Contributors"
