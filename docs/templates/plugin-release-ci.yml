@@ -34,17 +34,45 @@ jobs:
         run: |
           pytest
 
-      - name: Configure Cryptographic Signing Key
+      - name: Configure Cryptographic Signing Key and Delegation
         env:
-          BIOPRO_PRIVATE_KEY: ${{ secrets.BIOPRO_PRIVATE_KEY }}
+          BIOPRO_DEV_PRIVATE_KEY: ${{ secrets.BIOPRO_DEV_PRIVATE_KEY }}
+          BIOPRO_DEV_DELEGATION: ${{ secrets.BIOPRO_DEV_DELEGATION }}
         run: |
-          if [ -z "$BIOPRO_PRIVATE_KEY" ]; then
-            echo "ERROR: BIOPRO_PRIVATE_KEY GitHub Secret is missing!"
+          if [ -z "$BIOPRO_DEV_PRIVATE_KEY" ]; then
+            echo "ERROR: BIOPRO_DEV_PRIVATE_KEY GitHub Secret is missing!"
             exit 1
           fi
-          mkdir -p ~/.biopro
-          echo "$BIOPRO_PRIVATE_KEY" > ~/.biopro/dev_private_key.pem
-          chmod 600 ~/.biopro/dev_private_key.pem
+          if [ -z "$BIOPRO_DEV_DELEGATION" ]; then
+            echo "ERROR: BIOPRO_DEV_DELEGATION GitHub Secret is missing!"
+            exit 1
+          fi
+          mkdir -p ~/.biopro/dev_keys
+
+          # Restore private key in both locations for compatibility
+          echo "$BIOPRO_DEV_PRIVATE_KEY" > ~/.biopro/dev_private_key.pem
+          echo "$BIOPRO_DEV_PRIVATE_KEY" > ~/.biopro/dev_keys/private.key
+          chmod 600 ~/.biopro/dev_private_key.pem ~/.biopro/dev_keys/private.key
+
+          # Restore delegation JSON
+          echo "$BIOPRO_DEV_DELEGATION" > ~/.biopro/dev_keys/delegation.json
+          chmod 600 ~/.biopro/dev_keys/delegation.json
+
+          # Generate legacy dev_cert.bin from delegation JSON
+          python3 -c "
+          import json, os
+          try:
+              with open(os.path.expanduser('~/.biopro/dev_keys/delegation.json')) as f:
+                  data = json.load(f)
+                  link = data[0] if isinstance(data, list) else data
+              subject_pub = bytes.fromhex(link['subject_pub'])
+              signature = bytes.fromhex(link['signature'])
+              with open(os.path.expanduser('~/.biopro/dev_cert.bin'), 'wb') as outf:
+                  outf.write(subject_pub + signature)
+              print('Successfully generated ~/.biopro/dev_cert.bin from delegation!')
+          except Exception as e:
+              print('Warning: Failed to generate dev_cert.bin: ' + str(e))
+          "
 
       - name: Sign Plugin Manifest
         run: |

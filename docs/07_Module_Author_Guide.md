@@ -759,10 +759,10 @@ ln -s ~/GitHub\ Projects/MyPlugin ~/.biopro/plugins/my_plugin
 BioPro will load your live code directly from your Git repo. When the App Store later updates the plugin, it simply replaces the symlink with the downloaded folder—your Git repo remains untouched!
 
 #### 2. Configure GitHub Actions
-To enable auto-releases, you must provide your repository with your developer signing key so it can sign releases on your behalf:
-1. Open your `~/.biopro/dev_private_key.pem` and copy its contents.
-2. In your plugin's GitHub repository, go to **Settings > Secrets and variables > Actions**.
-3. Create a new repository secret called `BIOPRO_DEV_PRIVATE_KEY` and paste your key.
+To enable auto-releases, you must provide your repository with your developer signing key and delegation certificate so it can construct a valid trust chain and sign releases on your behalf:
+1. In your plugin's GitHub repository, go to **Settings > Secrets and variables > Actions**.
+2. **Add Private Key:** Create a new repository secret called `BIOPRO_DEV_PRIVATE_KEY` and paste the contents of your local private key (located at `~/.biopro/dev_keys/private.key` or `~/.biopro/dev_private_key.pem`).
+3. **Add Delegation Certificate:** Create a new repository secret called `BIOPRO_DEV_DELEGATION` and paste the contents of your delegation certificate (located at `~/.biopro/dev_keys/delegation.json`).
 
 #### 3. Simply Push to Release
 Whenever you are ready to publish an update to the BioPro App Store, simply commit your code and push to the `main` branch.

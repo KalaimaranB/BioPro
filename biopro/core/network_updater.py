@@ -420,7 +420,19 @@ class NetworkUpdater:
                 shutil.rmtree(plugin_folder)
 
             with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-                _safe_extract(z, self.plugin_dir)
+                # Smart isolation: Check if the zip already has a top-level folder for the plugin
+                has_nested_folder = False
+                namelist = z.namelist()
+                if namelist:
+                    first_member = namelist[0]
+                    if first_member.startswith(plugin_id + "/") or first_member.startswith(
+                        plugin_id + os.sep
+                    ):
+                        has_nested_folder = True
+
+                extract_target = self.plugin_dir if has_nested_folder else plugin_folder
+                extract_target.mkdir(parents=True, exist_ok=True)
+                _safe_extract(z, extract_target)
 
             local_data = self.get_local_state()
             local_data[plugin_id] = {"version": remote_info["version"], "name": remote_info["name"]}

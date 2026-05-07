@@ -297,7 +297,7 @@ Each plugin repo has a **`release.yml`** GitHub Action that triggers automatical
 
 - [x] **Check Version Bump** — reads `manifest.json`, gracefully skips build if version is unchanged
 - [x] **Run `biopro sdk evaluate .`** — runs structural validation
-- [x] **Sign the plugin** using a private signing key stored as a GitHub Repository Secret (`BIOPRO_DEV_PRIVATE_KEY`)
+- [x] **Sign the plugin** using a private signing key and delegation certificate stored as GitHub Repository Secrets (`BIOPRO_DEV_PRIVATE_KEY` and `BIOPRO_DEV_DELEGATION`)
 - [x] **Package into `.zip`**
 - [x] **Publish as GitHub Release asset** (auto-injects developer `release_notes` from manifest)
 - [x] **Open a PR** against `biopro-distribution` to automatically update `registry.json`

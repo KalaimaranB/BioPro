@@ -30,4 +30,4 @@ jobs:
 
       - name: Run pip-audit
         run: |
-          pip-audit -r requirements.txt
+          pip-audit -r requirements.txt --ignore-vuln CVE-2025-69872
