@@ -16,45 +16,6 @@ if os.environ.get("QT_QPA_PLATFORM") is None:
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-# Dynamic backward-compatibility shims for older tests importing legacy namespaces
-import types
-
-try:
-    import biopro_sdk  # noqa: F401
-    import biopro_sdk.host as sdk_host  # noqa: F401
-    import biopro_sdk.plugin as sdk_plugin
-
-    sys.modules["biopro.sdk"] = sdk_plugin
-
-    # Shim biopro.sdk.core and its attributes (PluginBase, FunctionalTask, etc.)
-    import biopro_sdk.plugin.analysis as analysis
-    import biopro_sdk.plugin.base as base
-    import biopro_sdk.plugin.managed_task as mt
-    import biopro_sdk.plugin.state as state
-
-    sdk_core_shim = types.ModuleType("biopro.sdk.core")
-    for mod in [base, analysis, state, mt]:
-        for attr in dir(mod):
-            if not attr.startswith("__"):
-                setattr(sdk_core_shim, attr, getattr(mod, attr))
-    sys.modules["biopro.sdk.core"] = sdk_core_shim
-    sys.modules["biopro.sdk.core.base"] = base
-    sys.modules["biopro.sdk.core.analysis"] = analysis
-    sys.modules["biopro.sdk.core.state"] = state
-    import biopro_sdk.plugin.interfaces as interfaces
-
-    sys.modules["biopro.sdk.core.interfaces"] = interfaces
-
-    # Shim biopro.core.trust_manager, trust_path, and trust_overrides
-    import biopro_sdk.host.trust_manager as tm
-    import biopro_sdk.host.trust_overrides as to
-    import biopro_sdk.host.trust_path as tp
-
-    sys.modules["biopro.core.trust_manager"] = tm
-    sys.modules["biopro.core.trust_path"] = tp
-    sys.modules["biopro.core.trust_overrides"] = to
-except ImportError:
-    pass
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s")

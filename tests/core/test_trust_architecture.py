@@ -11,12 +11,12 @@ import time
 from pathlib import Path
 
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ed25519
 
 # We expect these to exist after implementation
-from biopro.core.trust_manager import TrustManager
-from biopro.core.trust_path import TrustChain, TrustLink
+from biopro_sdk.host.trust_manager import TrustManager
+from biopro_sdk.host.trust_path import TrustChain, TrustLink
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 
 class PluginSigner:

@@ -3,7 +3,8 @@
 import json
 from pathlib import Path
 
-from biopro.core.trust_manager import TrustManager
+from biopro_sdk.host.trust_manager import TrustManager
+
 from tests.core.test_trust_architecture import PluginSigner
 
 

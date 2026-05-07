@@ -6,9 +6,10 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
+from biopro_sdk.host.trust_manager import TrustManager
+
 from biopro.core.config import AppConfig
 from biopro.core.module_manager import ModuleManager
-from biopro.core.trust_manager import TrustManager
 
 
 class TestBioProBoot(unittest.TestCase):

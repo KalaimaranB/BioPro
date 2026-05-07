@@ -4,9 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
+from biopro_sdk.host.trust_manager import VerificationResult
 
 from biopro.core.module_manager import ModuleManager
-from biopro.core.trust_manager import VerificationResult
 
 
 class PermissiveTrustManager:

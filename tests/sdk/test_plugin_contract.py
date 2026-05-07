@@ -3,11 +3,10 @@
 from unittest.mock import patch
 
 import pytest
+from biopro_sdk.plugin import BioProPlugin, PluginBase
 from PyQt6.QtWidgets import QWidget
 
 from biopro.core.module_manager import ModuleManager
-from biopro.sdk.core.base import PluginBase
-from biopro.sdk.core.interfaces import BioProPlugin
 
 
 class MockValidPlugin:

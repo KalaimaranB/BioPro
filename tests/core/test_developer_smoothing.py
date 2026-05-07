@@ -2,9 +2,10 @@
 
 import json
 
+from biopro_sdk.host.trust_manager import TrustManager
+from biopro_sdk.plugin.managed_task import FunctionalTask
+
 from biopro.core.task_scheduler import TaskScheduler
-from biopro.core.trust_manager import TrustManager
-from biopro.sdk.core import FunctionalTask
 
 from .test_trust_architecture import PluginSigner
 
