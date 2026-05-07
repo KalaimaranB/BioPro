@@ -1,10 +1,10 @@
 """Tests for the ProgrammaticLoader (DNA Helix) widget."""
 
-import math
 import pytest
-from PyQt6.QtCore import Qt
-from biopro.ui.widgets.dna_loader import ProgrammaticLoader
+
 from biopro.ui.theme import Colors
+from biopro.ui.widgets.dna_loader import ProgrammaticLoader
+
 
 @pytest.fixture
 def loader(qtbot):
@@ -12,6 +12,7 @@ def loader(qtbot):
     widget = ProgrammaticLoader()
     qtbot.addWidget(widget)
     return widget
+
 
 class TestDNALoader:
     """Test suite for the DNA helix animation widget."""
@@ -28,7 +29,7 @@ class TestDNALoader:
         # 1. Test Default Theme (cyan)
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#00f2ff")
         assert loader._glyph_pool == ["0", "1"]
-        
+
         # 2. Test 'Dark Side' Theme (imperial red #E60000)
         # Note: We use .upper() in the code logic
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#E60000")
@@ -43,7 +44,7 @@ class TestDNALoader:
         assert "y" in bit
         assert "chars" in bit
         assert len(bit["chars"]) >= 2
-        assert 0.0 <= bit["x"] <= 1.5 # Path can be slightly offscreen
+        assert 0.0 <= bit["x"] <= 1.5  # Path can be slightly offscreen
 
     def test_update_animation_cycle(self, loader):
         """Verifies that calling update_animation advances the state."""
@@ -57,15 +58,15 @@ class TestDNALoader:
         """Tests the logic that automatically refreshes bit glyphs on theme change."""
         # Force a known state
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#00f2ff")
-        loader.binary_bits[0]['chars'] = ["0"]
-        
+        loader.binary_bits[0]["chars"] = ["0"]
+
         # Swap to Sith theme
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#E60000")
-        
+
         # The animation loop should detect that "0" is not in the new pool and swap it
         loader._update_animation()
-        
-        new_char = loader.binary_bits[0]['chars'][0]
+
+        new_char = loader.binary_bits[0]["chars"][0]
         assert new_char in loader._glyph_pool
         assert new_char != "0"
 
@@ -73,10 +74,10 @@ class TestDNALoader:
         """Verifies dust particles have variations."""
         assert len(loader.dust) == 25
         d = loader.dust[0]
-        assert 0 <= d['x'] <= 1
-        assert 0 <= d['y'] <= 1
-        assert 'size_mult' in d
-        assert 'flicker' in d
+        assert 0 <= d["x"] <= 1
+        assert 0 <= d["y"] <= 1
+        assert "size_mult" in d
+        assert "flicker" in d
 
     def test_resize_event_smoke(self, loader):
         """Ensures resizing the widget doesn't cause math errors in paint metrics."""

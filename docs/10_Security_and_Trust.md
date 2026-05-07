@@ -14,7 +14,7 @@ graph TD
     Uni -->|Signs| Lab[🧪 Research Lab]
     Lab -->|Signs| Dev[👤 Developer Key]
     Dev -->|Signs| Plugin[📦 Analysis Plugin]
-    
+
     subgraph "Local Trust Circle"
         User[👤 End User] -->|Manually Trusts| Indie[👤 Independent Dev]
     end

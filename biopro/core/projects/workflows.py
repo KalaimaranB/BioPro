@@ -1,14 +1,14 @@
 import json
-import os
 import logging
+import os
 from pathlib import Path
-from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
+
 class WorkflowManager:
     """Manages scientific workflows stored as JSON in the project workspace."""
-    
+
     def __init__(self, project_dir: Path):
         self.project_dir = project_dir
         self.wf_dir = self.project_dir / "workflows"
@@ -17,7 +17,7 @@ class WorkflowManager:
         """Saves an aggregated module payload as a JSON workflow."""
         self.wf_dir.mkdir(exist_ok=True)
 
-        safe_name = "".join([c for c in metadata["name"] if c.isalnum() or c == ' '])
+        safe_name = "".join([c for c in metadata["name"] if c.isalnum() or c == " "])
         safe_name = safe_name.replace(" ", "_").lower() or "untitled_workflow"
 
         filepath = self.wf_dir / f"{safe_name}.json"
@@ -29,38 +29,40 @@ class WorkflowManager:
         metadata["module"] = module_id
         workflow_data = {"metadata": metadata, "payload": payload}
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(workflow_data, f, indent=4)
-            
+
         return str(filepath.name)
 
-    def list_all(self) -> List[dict]:
+    def list_all(self) -> list[dict]:
         """Scans the workflows directory and returns metadata."""
         if not self.wf_dir.exists():
             return []
-            
+
         workflows = []
         for file in self.wf_dir.glob("*.json"):
             try:
-                with open(file, 'r') as f:
+                with open(file) as f:
                     data = json.load(f)
                     meta = data.get("metadata", {})
                     meta["filename"] = file.name
                     workflows.append(meta)
-            except: pass
-                
+            except:
+                pass
+
         workflows.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return workflows
 
     def load_payload(self, filename: str) -> dict:
         """Extracts the exact scientific payload."""
         filepath = self.wf_dir / filename
-        if not filepath.exists(): return {}
-            
-        with open(filepath, 'r') as f:
+        if not filepath.exists():
+            return {}
+
+        with open(filepath) as f:
             data = json.load(f)
             return data.get("payload", {})
-        
+
     def delete(self, filename: str) -> bool:
         """Deletes a saved workflow JSON file."""
         file_path = self.wf_dir / os.path.basename(filename)

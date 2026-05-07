@@ -34,10 +34,10 @@ class MyPluginPanel(PluginBase):
         super().__init__(plugin_id, parent)
         self.state = MyPluginState()
         self.analyzer = MyAnalyzer(plugin_id)
-    
+
     def get_state(self) -> PluginState:
         return self.state
-        
+
     def set_state(self, state: PluginState) -> None:
         self.state = state
         self.update_ui()
@@ -51,7 +51,7 @@ def _on_run_clicked(self):
     # Submit analysis to the global thread pool
     self.status_message.emit("Analyzing...")
     task_id = task_scheduler.submit(self.analyzer, self.state)
-    
+
     # Connect to the scheduler
     task_scheduler.task_finished.connect(self._on_done)
 
@@ -90,7 +90,7 @@ class SetupStep(WizardStep):
     label = "Configuration"
     def build_page(self, panel: WizardPanel):
         return QWidget() # Your UI here
-    
+
     def on_next(self, panel: WizardPanel) -> bool:
         # Return False to block navigation if validation fails
         return True
@@ -110,11 +110,11 @@ from biopro.sdk.ui import ModuleCard
 class MyWorkspace(PluginBase):
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        
+
         # 1. Ribbon Stack for context switching
         self.ribbon = QStackedWidget()
         layout.addWidget(self.ribbon)
-        
+
         # 2. Main Splitter for Sidebars and Canvas
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.addWidget(MySidebar())

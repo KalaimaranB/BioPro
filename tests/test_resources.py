@@ -1,12 +1,13 @@
+import sys
 import unittest
 from pathlib import Path
-import sys
 
 # Add project root to sys.path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from biopro.core.resource_manager import resource_path
+
 
 class TestBioProResources(unittest.TestCase):
     """Verifies that all critical assets and themes are present and solvable."""
@@ -19,7 +20,7 @@ class TestBioProResources(unittest.TestCase):
 
     def test_themes_exist(self):
         """Verify that the default and supplemental themes are present."""
-        themes = ["themes/default.json", "themes/star_wars.json"]
+        themes = ["themes/default.json", "themes/galactic_dark.json"]
         for t in themes:
             path = resource_path(t)
             self.assertTrue(path.exists(), f"CRITICAL: Theme file missing: {t}")
@@ -29,6 +30,7 @@ class TestBioProResources(unittest.TestCase):
         # Test a known internal file
         path = resource_path("biopro/core/config.py")
         self.assertTrue(path.exists(), "resource_path failed to resolve an internal core module")
+
 
 if __name__ == "__main__":
     unittest.main()

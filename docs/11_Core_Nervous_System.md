@@ -84,14 +84,14 @@ All plugins using `self.logger` (via `biopro.sdk.utils.logging`) are automatical
 
 ## 🔍 Technical Deep Dive: Thread-Safe Dispatch
 
-The `EventManager` uses a special internal `pyqtSignal`. 
+The `EventManager` uses a special internal `pyqtSignal`.
 
 When you call `emit()` from a background worker thread, the signal is **queued** by the Qt Event Loop. It is only dispatched once the Main Thread is free. This prevents "Access Violation" crashes that happen if a background thread tries to update a UI widget directly.
 
 ```python
 class EventManager(QObject):
     _internal_bus = pyqtSignal(BioProEvent, tuple, dict)
-    
+
     def emit(self, event_type, *args, **kwargs):
         # Queues the work for the UI thread automatically
         self._internal_bus.emit(event_type, args, kwargs)

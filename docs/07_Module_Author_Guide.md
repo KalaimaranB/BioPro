@@ -37,10 +37,10 @@ class MyPlugin(PluginBase):
         self.state = MyState()
         self.analyzer = MyAnalyzer(plugin_id)
         # Build UI with PrimaryButton, WizardPanel, etc.
-    
+
     def get_state(self) -> PluginState:
         return self.state
-    
+
     def set_state(self, state: PluginState) -> None:
         self.state = state
         # Update UI from state
@@ -89,7 +89,7 @@ __plugin_id__ = "my_awesome_plugin"  # MUST match manifest.json
 
 def get_panel_class():
     """Returns the main QWidget class to inject into the UI."""
-    from .ui.main_panel import MyMainPanel 
+    from .ui.main_panel import MyMainPanel
     return MyMainPanel
 ```
 
@@ -131,7 +131,7 @@ class MyAnalysisState(PluginState):
     image_path: str = ""
     threshold: float = 0.5
     results: list = None
-    
+
     # to_dict() and from_dict() are auto-implemented by PluginState
     # This enables automatic undo/redo and workflow persistence
 ```
@@ -146,26 +146,26 @@ from biopro.sdk.core import AnalysisBase, PluginState
 
 class MyAnalyzer(AnalysisBase):
     """Your analysis logic goes here. NO UI code!"""
-    
+
     def __init__(self, plugin_id: str):
         super().__init__(plugin_id)
-    
+
     def run(self, state: PluginState) -> dict:
         """Implement your analysis algorithm.
-        
+
         Args:
             state: Your PluginState subclass with parameters
-            
+
         Returns:
             Dict with results to merge back into state
         """
         # Your algorithm here
         results = process_image(state.image_path)
         return {"results": results, "error_count": 0}
-    
+
     def validate(self, state: PluginState) -> tuple[bool, str]:
         """Optional: Validate state before running analysis.
-        
+
         Returns:
             (is_valid, error_message)
         """
@@ -215,22 +215,22 @@ from biopro.sdk.core import PluginBase, PluginState
 
 class MyPlugin(PluginBase):
     """Your main plugin panel."""
-    
+
     def __init__(self, plugin_id: str, parent=None):
         super().__init__(plugin_id, parent)
         self.state = MyAnalysisState()
         self.analyzer = MyAnalyzer(plugin_id)
         # Build your UI here
-    
+
     def get_state(self) -> PluginState:
         """MUST IMPLEMENT: Return your current state."""
         return self.state
-    
+
     def set_state(self, state: PluginState) -> None:
         """MUST IMPLEMENT: Restore UI from state during undo/redo."""
         self.state = state
         self._update_ui()
-    
+
     def _on_user_edits_something(self):
         """When user makes destructive changes, capture state for undo."""
         self.push_state()  # Inherited from PluginBase
@@ -287,14 +287,14 @@ from biopro.sdk.ui import WizardStep, WizardPanel
 
 class InputStep(WizardStep):
     label = "Input Parameters"
-    
+
     def build_page(self, panel: WizardPanel):
         """Build the UI for this step."""
         page = QWidget()
         layout = QVBoxLayout(page)
         # Add your controls here
         return page
-    
+
     def on_next(self, panel: WizardPanel) -> bool:
         """Validate and advance. Return False to block navigation."""
         # Validate user input
@@ -306,10 +306,10 @@ class InputStep(WizardStep):
 class AnalysisStep(WizardStep):
     label = "Running Analysis"
     is_terminal = True  # Final step
-    
+
     def build_page(self, panel: WizardPanel):
         return QLabel("Processing...")
-    
+
     def on_next(self, panel: WizardPanel) -> bool:
         # Run analysis
         panel.analyzer.run(panel.state)
@@ -422,24 +422,24 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout
 
 class MyPlugin(PluginBase):
     """Entry point for your plugin."""
-    
+
     def __init__(self, plugin_id: str, parent=None):
         super().__init__(plugin_id, parent)
         self.state = MyState()
         self.analyzer = MyAnalyzer(plugin_id)
         self._build_ui()
-    
+
     def _build_ui(self):
         """Build your user interface."""
         layout = QVBoxLayout(self)
         # Add your widgets here
-    
+
     def get_state(self) -> PluginState:
         """Return current state for undo/redo."""
         # Sync UI values into state
         self.state.threshold = self.threshold_spinbox.value()
         return self.state
-    
+
     def set_state(self, state: PluginState) -> None:
         """Restore state during undo/redo."""
         self.state = state
@@ -457,22 +457,22 @@ import numpy as np
 
 class MyAnalyzer(AnalysisBase):
     """Your domain-specific analysis logic."""
-    
+
     def run(self, state: PluginState) -> dict:
         """Implement your algorithm. NO UI CODE HERE!"""
         # Load data from paths in state
         image = np.load(state.image_path)
-        
+
         # Run your analysis
         results = my_algorithm(image, state.threshold)
-        
+
         # Return results to merge back into state
         return {
             "results": results,
             "num_peaks": len(results),
             "processing_time_ms": 1234,
         }
-    
+
     def validate(self, state: PluginState) -> tuple[bool, str]:
         """Optional: Validate state before analysis."""
         if not state.image_path:
@@ -496,7 +496,7 @@ class MyState(PluginState):
     image_path: str = ""
     threshold: float = 0.5
     results: list = None
-    
+
     # PluginState provides:
     # - to_dict() → serializable dict
     # - from_dict(dict) → reconstruct instance
@@ -634,7 +634,7 @@ class MyPlugin(PluginBase):
         super().__init__(plugin_id, parent)
         btn_load = PrimaryButton("Load Image")
         btn_load.clicked.connect(self._on_load_image)
-    
+
     def _on_load_image(self):
         path = get_image_path(self, "Select Image")
         if path:
@@ -659,13 +659,13 @@ def _on_run_analysis(self):
     if not is_valid:
         show_error(self, "Invalid Input", error)
         return
-    
+
     # 2. Submit to central scheduler
     self.status_message.emit("Analyzing...")
-    
+
     # The scheduler handles thread creation and lifecycle
     self.current_task_id = task_scheduler.submit(self.analyzer, self.state)
-    
+
     # 3. Connect to scheduler signals (filtered by task_id if needed)
     task_scheduler.task_finished.connect(self._on_analysis_done)
     task_scheduler.task_error.connect(self._on_analysis_error)
@@ -722,32 +722,66 @@ If your plugin needs to generate data in a non-standard directory, you must decl
 > [!WARNING]
 > Never exclude directories containing executable code (`.py` files). Exclusions are intended for scientific data, logs, and temporary caches only.
 
-### 8.3 Signing Your Plugin
+### 8.3 Signing & Evaluating Your Plugin
 
-BioPro provides a standalone CLI tool, `biopro-sign`, to handle all security operations.
+BioPro provides a built-in developer CLI inside the main loader package to handle all compliance, security, and verification operations.
 
 **1. Initialize your developer identity**
 ```bash
-# This creates your private/public key pair in ~/.biopro/dev_keys/
-biopro-sign init
+# This creates your private/public key pair in ~/.biopro/
+python3 -m biopro sdk setup-identity
 ```
 
-**2. Obtain a Delegation (The "Chain of Trust")**
-If you want to be "Verified" by BioPro or an institution:
-1. Copy your public key hex (printed during `init`).
-2. Send it to your authority (e.g., the BioPro team or your Lab PI).
-3. They will provide a `delegation.json` file.
-4. Place this file in `~/.biopro/dev_keys/`.
-
-**3. Sign your plugin folder**
+**2. Sign your plugin folder**
 ```bash
-# This hashes your files and creates 'trust_chain.json' in the plugin folder
-biopro-sign sign path/to/your_plugin
+# This hashes your files and creates 'signature.bin' and 'dev_cert.bin' in the plugin folder
+python3 -m biopro sdk sign path/to/your_plugin
+```
+
+**3. Evaluate your plugin against QA & Compliance standards**
+To verify your plugin manifest, structure, and cryptographic signatures locally before release, use the unified SDK evaluator:
+```bash
+python3 -m biopro sdk evaluate path/to/your_plugin
 ```
 
 > [!IMPORTANT]
-> **Keep your Private Key safe!** Never commit your `~/.biopro/dev_keys/` directory to GitHub. Anyone with your private key can impersonate your developer identity.
+> **Keep your Private Key safe!** Never commit your `~/.biopro/dev_private_key.pem` to GitHub. Anyone with your private key can impersonate your developer identity.
 
+### 8.4 Developer Journey & Automated Release
+
+BioPro provides a frictionless **"Push-to-Release"** CI/CD pipeline. You do not need to manually manage tags or zip files.
+
+#### 1. Local Development via Symlinks
+When developing your plugin, you want to see changes instantly in BioPro without repackaging. The best way is to keep your Git repository anywhere on your machine (e.g., `~/GitHub Projects/`) and create a **symlink** to it in the BioPro plugins directory:
+```bash
+ln -s ~/GitHub\ Projects/MyPlugin ~/.biopro/plugins/my_plugin
+```
+BioPro will load your live code directly from your Git repo. When the App Store later updates the plugin, it simply replaces the symlink with the downloaded folder—your Git repo remains untouched!
+
+#### 2. Configure GitHub Actions
+To enable auto-releases, you must provide your repository with your developer signing key so it can sign releases on your behalf:
+1. Open your `~/.biopro/dev_private_key.pem` and copy its contents.
+2. In your plugin's GitHub repository, go to **Settings > Secrets and variables > Actions**.
+3. Create a new repository secret called `BIOPRO_DEV_PRIVATE_KEY` and paste your key.
+
+#### 3. Simply Push to Release
+Whenever you are ready to publish an update to the BioPro App Store, simply commit your code and push to the `main` branch.
+
+**Auto-Versioning System:**
+The CI/CD pipeline reads your commit message to determine how to bump your `manifest.json` version automatically:
+- **Default (Patch)**: `git commit -m "fixed typo"` -> Bumps `1.0.0` to `1.0.1`
+- **Minor Bump**: `git commit -m "added new feature #minor"` -> Bumps `1.0.0` to `1.1.0`
+- **Major Bump**: `git commit -m "breaking changes #major"` -> Bumps `1.0.0` to `2.0.0`
+
+**What happens behind the scenes?**
+When you push to `main`:
+1. The GitHub Action wakes up and evaluates your code (`biopro sdk evaluate`).
+2. It auto-increments your version, modifies `manifest.json`, and commits it back to your repository automatically.
+3. It creates a `vX.Y.Z` Git tag.
+4. It natively signs your code (`biopro sdk sign`), extracts the runtime files into a clean `.zip`, and creates a GitHub Release.
+5. It automatically opens a Pull Request on the central `BioPro-Distribution` repository to bump the global registry!
+
+You never have to run `git tag` or manually update version numbers again.
 ---
 
 ## 10. Memory Management & RAII
@@ -770,8 +804,8 @@ class MyPlugin(PluginBase):
     def cleanup(self) -> None:
         """Called when this specific tab is closed."""
         # 1. Core-led cleanup (automatic)
-        super().cleanup() 
-        
+        super().cleanup()
+
         # 2. Your custom cleanup
         self.my_local_cache.clear()
 

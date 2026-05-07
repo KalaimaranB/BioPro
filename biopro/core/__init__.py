@@ -1,9 +1,9 @@
 """BioPro Core — Configuration, history, module management, and plugin SDK."""
 
 # Core manager exports
+from .event_bus import BioProEvent, event_bus
 from .history_manager import HistoryManager, ModuleHistory
-from .event_bus import event_bus, BioProEvent
-from .task_scheduler import task_scheduler, TaskScheduler
+from .task_scheduler import TaskScheduler, task_scheduler
 
 __all__ = [
     "HistoryManager",
@@ -13,4 +13,3 @@ __all__ = [
     "task_scheduler",
     "TaskScheduler",
 ]
-

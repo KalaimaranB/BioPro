@@ -9,26 +9,28 @@ Modules:
     ui: PyQt6 desktop interface components.
 """
 
+
 def _get_version():
     """Extract version from pyproject.toml (dev/frozen) or package metadata (installed)."""
+    import importlib.metadata
     import sys
     from pathlib import Path
-    import importlib.metadata
-    
+
     # 1. Parse pyproject.toml
     # Check both the source directory and the PyInstaller bundle directory
     search_paths = [
         Path(__file__).parent.parent / "pyproject.toml",
     ]
-    
+
     # If running in a PyInstaller bundle, check the bundle root
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         search_paths.append(Path(sys._MEIPASS) / "pyproject.toml")
 
     for pyproject_path in search_paths:
         if pyproject_path.exists():
             try:
                 import tomllib
+
                 with open(pyproject_path, "rb") as f:
                     data = tomllib.load(f)
                     version = data.get("project", {}).get("version")
@@ -46,6 +48,7 @@ def _get_version():
 
     # 3. Final Fallback: Return a placeholder instead of crashing
     return "0.0.0-unknown"
+
 
 __version__ = _get_version()
 __author__ = "BioPro Contributors"

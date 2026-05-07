@@ -7,19 +7,18 @@ This file maintains backward compatibility by re-exporting from the new location
 """
 
 # For backward compatibility, re-export everything from the new SDK location
-from biopro.sdk.core import (
-    PluginSignals,
-    PluginState,
+from biopro_sdk.core import (
     AnalysisBase,
     AnalysisWorker,
+    BioProPlugin,
     PluginBase,
-    BioProPlugin
+    PluginSignals,
+    PluginState,
 )
-
-from biopro.sdk.ui import (
+from biopro_sdk.ui import (
     StepIndicator,
-    WizardStep,
     WizardPanel,
+    WizardStep,
 )
 
 __all__ = [
@@ -31,5 +30,5 @@ __all__ = [
     "StepIndicator",
     "WizardStep",
     "WizardPanel",
-    "BioProPlugin"
+    "BioProPlugin",
 ]

@@ -1,15 +1,18 @@
 {
+  "version": "1",
+  "signed_by": "biopro_core",
+  "signature": "66eb459b640f7b08912e82c88eb50c261700b570d2f8e1383ae614f6fd1194158ded4154000895826c931d66f29e3f4cc145a56d26b850b40f757c545a9d8004",
   "authorities": [
     {
       "id": "biopro_core",
       "name": "BioPro Core Authority",
-      "public_key": "10715dbf53aefc8f971fa1e9b7b3d3444a5360222db5e5709e51430c8a77e886"
+      "public_key": "08f4319b6f979057b36b0db2b8faaee6eff8782f3aafd5e924ba79b04d4c8366"
     },
     {
       "id": "ubc",
       "name": "University of British Columbia",
-      "public_key": "ef70051b8c0a876798e98675402599763d15fad9548aad8325f27708cd0b9a68" 
+      "public_key": "ef70051b8c0a876798e98675402599763d15fad9548aad8325f27708cd0b9a68"
     }
   ],
-  "last_updated": "2026-04-21T05:17:00Z"
+  "last_updated": "2026-05-06T15:46:24Z"
 }

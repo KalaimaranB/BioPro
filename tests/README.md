@@ -159,12 +159,12 @@ from biopro.core import PluginBase
 
 class TestNewFeature:
     """Test the new feature."""
-    
+
     def test_feature_works(self):
         """Test that feature works correctly."""
         result = new_feature()
         assert result is not None
-    
+
     @pytest.mark.slow
     def test_feature_performance(self):
         """Test feature performance."""

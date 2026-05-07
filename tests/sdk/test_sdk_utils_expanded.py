@@ -1,20 +1,33 @@
 """Comprehensive tests for biopro.plugins.sdk_utils."""
 
-import pytest
-import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from PyQt6.QtWidgets import QMessageBox, QInputDialog
+from unittest.mock import MagicMock, patch
+
+from PyQt6.QtWidgets import QMessageBox
 
 from biopro.plugins.sdk_utils import (
-    get_image_path, get_image_paths, import_assets_workflow,
-    get_save_path, get_directory,
-    show_info, show_warning, show_error, ask_yes_no, ask_ok_cancel,
-    get_text, get_number, get_double,
-    load_json, save_json, PluginConfig,
-    validate_file_exists, validate_directory_exists, validate_value_range,
-    get_plugin_logger, ProgressDialog
+    PluginConfig,
+    ProgressDialog,
+    ask_ok_cancel,
+    ask_yes_no,
+    get_directory,
+    get_double,
+    get_image_path,
+    get_image_paths,
+    get_number,
+    get_plugin_logger,
+    get_save_path,
+    get_text,
+    import_assets_workflow,
+    load_json,
+    save_json,
+    show_error,
+    show_info,
+    show_warning,
+    validate_file_exists,
+    validate_value_range,
 )
+
 
 class TestSDKFileDialogs:
     """Tests for file and directory selection dialogs."""
@@ -23,7 +36,7 @@ class TestSDKFileDialogs:
     def test_get_image_path(self, mock_dialog):
         mock_dialog.return_value = ("/path/to/img.png", "filter")
         assert get_image_path() == "/path/to/img.png"
-        
+
         mock_dialog.return_value = ("", "")
         assert get_image_path() is None
 
@@ -65,7 +78,7 @@ class TestSDKMessaging:
     def test_ask_yes_no(self, mock_quest):
         mock_quest.return_value = QMessageBox.StandardButton.Yes
         assert ask_yes_no() is True
-        
+
         mock_quest.return_value = QMessageBox.StandardButton.No
         assert ask_yes_no() is False
 
@@ -103,10 +116,10 @@ class TestSDKWorkflowIntegration:
         pm = MagicMock()
         mock_ask.side_effect = [True, True]
         mock_get_text.return_value = "batch_v1"
-        
+
         files = ["/tmp/a.png", "/tmp/b.png"]
         import_assets_workflow(None, pm, files)
-        
+
         pm.batch_add_images.assert_called_once()
 
     def test_import_assets_workflow_empty(self):
@@ -128,7 +141,7 @@ class TestSDKJsonHelpers:
         config = PluginConfig("test_plugin")
         config.set("threshold", 0.75)
         config.save()
-        
+
         config2 = PluginConfig("test_plugin")
         assert config2.get("threshold") == 0.75
 
@@ -142,7 +155,7 @@ class TestSDKValidation:
         f.write_text("content")
         ok, _ = validate_file_exists(str(f))
         assert ok is True
-        
+
         # Range
         ok, msg = validate_value_range(5, 0, 10)
         assert ok is True
@@ -156,11 +169,11 @@ class TestSDKProgressUI:
     def test_progress_dialog_behavior(self, qtbot):
         dialog = ProgressDialog(None, "Running", "Scaling...")
         qtbot.addWidget(dialog)
-        
+
         dialog.setValue(25)
         assert dialog.value == 25
         assert dialog.label.text() == "25%"
-        
+
         # Clamp behavior
         dialog.setValue(150)
         assert dialog.value == 100

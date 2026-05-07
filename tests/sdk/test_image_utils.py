@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 
 from biopro.shared.analysis.image_utils import (
-    auto_detect_inversion,
     auto_crop_to_bands,
+    auto_detect_inversion,
     crop_to_content,
     invert_image,
     load_and_convert,
@@ -32,7 +32,7 @@ class TestLoadAndConvert:
         result = load_and_convert(path)
         assert result.dtype == np.float64
         assert result.ndim == 2
-        assert 0.0 <= result.min()
+        assert result.min() >= 0.0
         assert result.max() <= 1.0
 
     def test_load_rgb_as_grayscale(self, tmp_path: Path) -> None:
@@ -94,9 +94,7 @@ class TestInvertImage:
         """Inverting should flip pixel values (1 - x)."""
         image = np.array([[0.0, 0.5], [1.0, 0.25]])
         result = invert_image(image)
-        np.testing.assert_array_almost_equal(
-            result, np.array([[1.0, 0.5], [0.0, 0.75]])
-        )
+        np.testing.assert_array_almost_equal(result, np.array([[1.0, 0.5], [0.0, 0.75]]))
 
     def test_double_inversion(self) -> None:
         """Inverting twice should return the original."""
@@ -126,7 +124,6 @@ class TestRotateImage:
 class TestCropToContent:
     """Tests for crop_to_content."""
 
-
     def test_crop_all_white(self) -> None:
         """Cropping an all-white image should return the original."""
         image = np.ones((100, 100), dtype=np.float64)
@@ -149,7 +146,7 @@ class TestCropToContent:
         # Stark dark box in the center
         image[100:200, 100:200] = np.random.normal(0.1, 0.01, (100, 100))
         image = np.clip(image, 0.0, 1.0)
-        
+
         result = crop_to_content(image, padding=0)
         # Ensure the 300-height image was successfully cropped down
         # With noise, the exact boundaries might be slightly off due to min_content_fraction,
@@ -163,15 +160,14 @@ class TestCropToContent:
         np.random.seed(42)
         image = np.random.normal(0.9, 0.01, (300, 300))
         image = np.clip(image, 0.0, 1.0)
-        
+
         # A perfectly shaped biological band (wide and short)
         image[140:160, 50:250] = np.random.normal(0.1, 0.01, (20, 200))
         image = np.clip(image, 0.0, 1.0)
-        
+
         cropped = auto_crop_to_bands(image, vertical_padding_frac=0, horizontal_padding_frac=0)
         # It should be much shorter than 300
-        assert 10 < cropped.shape[0] < 100 
-
+        assert 10 < cropped.shape[0] < 100
 
     def test_auto_crop_to_bands_no_band_returns_original(self) -> None:
         """If no band rows exist, auto_crop_to_bands should return original."""

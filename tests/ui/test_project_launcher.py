@@ -1,10 +1,12 @@
 """Tests for ProjectLauncherWindow (BioPro Hub)."""
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from PyQt6.QtCore import Qt
+
+import pytest
+
 from biopro.ui.windows.project_launcher import ProjectLauncherWindow
+
 
 class TestProjectLauncher:
     @pytest.fixture
@@ -14,7 +16,7 @@ class TestProjectLauncher:
         mock_updater = MagicMock()
         mock_store_cb = MagicMock()
         mock_hub_cb = MagicMock()
-        
+
         # Prevent perform_startup_check from blocking during init (it uses timers)
         with patch("biopro.ui.windows.project_launcher.QTimer.singleShot"):
             win = ProjectLauncherWindow(mock_mm, mock_updater, mock_store_cb, mock_hub_cb)
@@ -33,7 +35,7 @@ class TestProjectLauncher:
         mock_config = mock_config_class.return_value
         temp_proj = Path("fake_project.biopro")
         mock_config.get_recent_projects.return_value = [str(temp_proj.parent)]
-        
+
         with patch.object(Path, "exists", return_value=True):
             launcher._load_recent_projects()
             assert launcher.list_recent.count() == 1

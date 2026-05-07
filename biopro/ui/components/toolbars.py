@@ -1,8 +1,10 @@
 """Analysis toolbars."""
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QFrame
-from biopro.sdk.ui import SecondaryButton
+from biopro_sdk.ui import SecondaryButton
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget
+
 from biopro.ui.theme import Colors, Fonts, theme_manager
+
 
 class AnalysisToolBar(QWidget):
     """Slim contextual toolbar shown above the analysis splitter."""
@@ -27,7 +29,7 @@ class AnalysisToolBar(QWidget):
 
         self.btn_home = SecondaryButton("← Home")
         layout.addWidget(self.btn_home)
-        
+
         self.btn_ai = SecondaryButton("🧠 AI Chat")
         layout.addWidget(self.btn_ai)
 
@@ -45,7 +47,7 @@ class AnalysisToolBar(QWidget):
         layout.addStretch()
 
         theme_manager.theme_changed.connect(self._apply_theme_styles)
-        self.lbl_hint = QLabel("Ctrl+O to open image")
+        self.lbl_hint = QLabel("Ctrl+O to open file")
         self.lbl_hint.setStyleSheet(
             f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_DISABLED};"
             f" background: transparent;"

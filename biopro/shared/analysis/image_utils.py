@@ -14,54 +14,47 @@ Design Notes:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Union
-from typing import Optional
-import numpy as np
-from numpy.typing import NDArray
-from skimage.filters import threshold_otsu
-from scipy.ndimage import uniform_filter1d
 
 import numpy as np
-from typing import Optional
-import numpy as np
 from numpy.typing import NDArray
-from skimage.filters import threshold_otsu
-from skimage.measure import label, regionprops
-from scipy.ndimage import uniform_filter1d
-from numpy.typing import NDArray
+from scipy.ndimage import (
+    gaussian_filter,
+    median_filter,
+    uniform_filter1d,
+)
+from skimage import exposure
 from skimage import io as skio
 from skimage.color import rgb2gray
-from skimage import exposure
-from skimage.transform import rotate
-from scipy.ndimage import binary_erosion, uniform_filter1d
-from skimage.util import img_as_float64
-from scipy.ndimage import grey_opening, uniform_filter1d
-from scipy.ndimage import gaussian_filter, median_filter, uniform_filter1d
 from skimage.filters import threshold_otsu
+from skimage.measure import label, regionprops
+from skimage.transform import rotate
+from skimage.util import img_as_float64
 
 
-def adjust_contrast(image: NDArray[np.float64], alpha: float = 1.0, beta: float = 0.0) -> NDArray[np.float64]:
+def adjust_contrast(
+    image: NDArray[np.float64], alpha: float = 1.0, beta: float = 0.0
+) -> NDArray[np.float64]:
     """Adjust contrast and brightness of a float64 image.
-    
+
     Formula: output = alpha * image + beta
-    
+
     Args:
         image: Float64 image in [0.0, 1.0].
         alpha: Contrast control (1.0 = original, >1.0 = more contrast, <1.0 = less contrast).
         beta: Brightness control (0.0 = original, >0.0 = brighter, <0.0 = darker).
-        
+
     Returns:
         Adjusted float64 image clipped to [0.0, 1.0].
     """
     if abs(alpha - 1.0) < 0.001 and abs(beta) < 0.001:
         return image.copy()
-        
+
     adjusted = image * alpha + beta
     return np.clip(adjusted, 0.0, 1.0)
 
 
 def load_and_convert(
-    path: Union[str, Path],
+    path: str | Path,
     as_grayscale: bool = True,
 ) -> NDArray[np.float64]:
     """Load an image from disk and convert to normalized float64.
@@ -306,7 +299,6 @@ def rotate_image(
     )
 
 
-
 def auto_contrast_stretch(
     image: NDArray[np.float64],
     low_pct: float = 1.0,
@@ -372,8 +364,10 @@ def auto_detect_rotation(
     scale = min(1.0, 400.0 / max(h, w))
     if scale < 1.0:
         from skimage.transform import resize as sk_resize
-        small = sk_resize(image, (int(h * scale), int(w * scale)),
-                          anti_aliasing=True, preserve_range=True)
+
+        small = sk_resize(
+            image, (int(h * scale), int(w * scale)), anti_aliasing=True, preserve_range=True
+        )
     else:
         small = image.copy()
 
@@ -391,8 +385,9 @@ def auto_detect_rotation(
         if abs(angle) < 1e-3:
             rotated = edges
         else:
-            rotated = sk_rotate(edges, angle, resize=False,
-                                mode="constant", cval=0.0, preserve_range=True)
+            rotated = sk_rotate(
+                edges, angle, resize=False, mode="constant", cval=0.0, preserve_range=True
+            )
         proj = rotated.sum(axis=1)
         var = float(np.var(proj))
         if var > best_var:
@@ -406,13 +401,13 @@ def auto_detect_rotation(
 
 def calculate_band_crop_region(
     image: NDArray[np.float64],
-    dark_threshold: Optional[float] = None,
+    dark_threshold: float | None = None,
     min_band_width_frac: float = 0.025,
     min_band_height_frac: float = 0.01,
     vertical_padding_frac: float = 0.15,
     horizontal_padding_frac: float = 0.10,
     smoothing_window: int = 7,
-) -> Optional[tuple[int, int, int, int]]:
+) -> tuple[int, int, int, int] | None:
     """Compute the 2D bounding box crop region containing the bands."""
     h, w = image.shape[:2]
     if h < 2 or w < 2:
@@ -421,21 +416,21 @@ def calculate_band_crop_region(
     # 1. Ignore rotation padding (pure white pixels)
     valid_mask = image < 0.99
     valid_pixels = image[valid_mask]
-    
+
     if len(valid_pixels) < 100:
         return None
 
     # 2. Dynamic Threshold (Otsu) for Vertical Rows
     try:
-        thresh_v = threshold_otsu(valid_pixels) * 0.95 
+        thresh_v = threshold_otsu(valid_pixels) * 0.95
     except Exception:
         thresh_v = float(np.percentile(valid_pixels, 25))
 
     dark_pixels = (image < thresh_v) & valid_mask
-    
+
     # --- 3. Vertical (Row) Calculation ---
     dark_frac_rows = np.mean(dark_pixels, axis=1)
-    
+
     if smoothing_window > 1:
         dark_frac_rows = uniform_filter1d(dark_frac_rows, size=smoothing_window, mode="nearest")
 
@@ -447,7 +442,7 @@ def calculate_band_crop_region(
     start = 0
     best_r_region = (0, 0)
     best_size = 0
-    
+
     for i, val in enumerate(row_mask):
         if val and not in_region:
             in_region = True
@@ -458,7 +453,7 @@ def calculate_band_crop_region(
             if size > best_size:
                 best_size = size
                 best_r_region = (start, i)
-                
+
     if in_region:
         size = h - start
         if size > best_size:
@@ -471,17 +466,16 @@ def calculate_band_crop_region(
     r_min, r_max = best_r_region
 
     # --- 4. Horizontal (Column) Calculation: Adaptive Geometry ---
-    from skimage.measure import label, regionprops
-    
+
     band_strip = image[r_min:r_max, :]
     h_strip, w_strip = band_strip.shape
-    
+
     if h_strip < 2 or w_strip < 2:
         return None
 
     valid_strip_mask = band_strip < 0.99
     valid_strip_pixels = band_strip[valid_strip_mask]
-    
+
     if len(valid_strip_pixels) < 100:
         c_min, c_max = 0, w_strip
     else:
@@ -490,26 +484,27 @@ def calculate_band_crop_region(
             thresh_h = threshold_otsu(valid_strip_pixels) * 0.95
         except Exception:
             thresh_h = float(np.percentile(valid_strip_pixels, 20))
-            
+
         binary_strip = (band_strip < thresh_h) & valid_strip_mask
 
         labeled_strip = label(binary_strip)
         props = regionprops(labeled_strip)
-        
+
         accepted_bboxes = []
         core_widths = []
-        
-        min_band_w = max(5, int(w_strip * 0.015)) 
-        
+
+        min_band_w = max(5, int(w_strip * 0.015))
+
         # A. Collect all legitimate band cores
         for p in props:
             min_row, min_col, max_row, max_col = p.bbox
             bw = max_col - min_col
             bh = max_row - min_row
-            
-            if bh == 0: continue
+
+            if bh == 0:
+                continue
             aspect_ratio = bw / float(bh)
-            
+
             # Rule: Must be wider than it is tall, and ignore tiny dust/giant background blocks
             if aspect_ratio > 1.25 and bw >= min_band_w and bw < (w_strip * 0.9):
                 accepted_bboxes.append(p.bbox)
@@ -522,14 +517,14 @@ def calculate_band_crop_region(
             # Find the absolute left/right extremes of the dense cores
             core_c_min = min([bbox[1] for bbox in accepted_bboxes])
             core_c_max = max([bbox[3] for bbox in accepted_bboxes])
-            
+
             # Calculate the median physical width of the bands in THIS specific image
             median_core_width = float(np.median(core_widths))
-            
+
             # The physical lane fade out is usually ~50% of the core width.
             # This scales perfectly whether the bands are 20px wide or 200px wide!
             lane_expansion = int(median_core_width * 0.50)
-            
+
             # Expand the bounds outward to the true fade-out edge
             c_min = max(0, core_c_min - lane_expansion)
             c_max = min(w_strip, core_c_max + lane_expansion)
@@ -537,26 +532,27 @@ def calculate_band_crop_region(
     # --- 5. Apply Proportional Buffering ---
     band_height = max(r_max - r_min, 1)
     band_width = max(c_max - c_min, 1)
-    
+
     # We now purely rely on the fractional padding (default 10%) for breathing room,
     # because the physical edges have already been adaptively calculated.
     v_pad = int(band_height * vertical_padding_frac)
     h_pad = int(band_width * horizontal_padding_frac)
-    
+
     # Safe minimums just so the box never touches the absolute pixel edge on tight crops
     v_pad = max(v_pad, 20)
     h_pad = max(h_pad, 10)
-    
+
     final_r_min = max(0, r_min - v_pad)
     final_r_max = min(h, r_max + v_pad)
     final_c_min = max(0, c_min - h_pad)
     final_c_max = min(w, c_max + h_pad)
-    
+
     return (int(final_r_min), int(final_r_max), int(final_c_min), int(final_c_max))
+
 
 def auto_crop_to_bands(
     image: NDArray[np.float64],
-    dark_threshold: Optional[float] = None,
+    dark_threshold: float | None = None,
     min_band_width_frac: float = 0.025,
     min_band_height_frac: float = 0.01,
     vertical_padding_frac: float = 0.15,
@@ -572,31 +568,32 @@ def auto_crop_to_bands(
         horizontal_padding_frac=horizontal_padding_frac,
         smoothing_window=smoothing_window,
     )
-    
+
     if region is None:
         return image
-        
+
     r_min, r_max, c_min, c_max = region
-    
+
     # Perform the 2D crop!
     return image[r_min:r_max, c_min:c_max]
+
 
 def calculate_autocrop_region(
     image: NDArray[np.float64],
     padding: int = 10,
     min_content_fraction: float = 0.005,
-) -> Optional[tuple[int, int, int, int]]:
+) -> tuple[int, int, int, int] | None:
     """Calculate a robust autocrop region for bands without applying it.
-    
-    Uses dynamic thresholding (Otsu's method) to separate dark bands from 
+
+    Uses dynamic thresholding (Otsu's method) to separate dark bands from
     the blot background, completely ignoring white rotation padding.
-    
+
     Args:
         image: Grayscale float64 image in [0.0, 1.0].
         padding: Number of pixels to keep around the detected content.
         min_content_fraction: Minimum fraction of dark pixels in a row/col
             to consider it actual band content (filters out noise).
-            
+
     Returns:
         Tuple of (x, y, width, height) defining the crop region,
         or None if no content is detected.
@@ -605,51 +602,51 @@ def calculate_autocrop_region(
     # Rotation padding is usually exactly 1.0. We look at pixels < 0.99.
     valid_mask = image < 0.99
     valid_pixels = image[valid_mask]
-    
+
     if len(valid_pixels) < 100:  # Failsafe for entirely blank images
         return None
-        
+
     # 2. Determine a dynamic threshold to separate bands from the blot background.
     try:
         # Otsu finds the optimal threshold splitting the bimodal distribution
         thresh = threshold_otsu(valid_pixels)
         # Make it slightly stricter (5% darker) to avoid capturing background gradients
-        thresh = thresh * 0.95 
+        thresh = thresh * 0.95
     except Exception:
         # Fallback if the image is incredibly flat and Otsu fails
         thresh = np.median(valid_pixels) * 0.8
-        
+
     # 3. Create a mask of just the bands
     content_mask = image < thresh
-    
+
     # 4. Clean up noise by requiring a minimum density of dark pixels per row/column
     min_row_pixels = max(1, int(image.shape[1] * min_content_fraction))
     min_col_pixels = max(1, int(image.shape[0] * min_content_fraction))
-    
+
     rows_with_content = np.sum(content_mask, axis=1) >= min_row_pixels
     cols_with_content = np.sum(content_mask, axis=0) >= min_col_pixels
-    
+
     if not np.any(rows_with_content) or not np.any(cols_with_content):
         return None  # No valid bands detected
-        
+
     row_indices = np.where(rows_with_content)[0]
     col_indices = np.where(cols_with_content)[0]
-    
+
     # 5. Calculate bounds with padding
     r_min = max(0, row_indices[0] - padding)
     r_max = min(image.shape[0], row_indices[-1] + padding + 1)
     c_min = max(0, col_indices[0] - padding)
     c_max = min(image.shape[1], col_indices[-1] + padding + 1)
-    
+
     # Guard against degenerate cases where padding pushes bounds too far
     if r_max <= r_min or c_max <= c_min:
         return None
-        
+
     return (
-        int(c_min),           # x
-        int(r_min),           # y
-        int(c_max - c_min),   # width
-        int(r_max - r_min),   # height
+        int(c_min),  # x
+        int(r_min),  # y
+        int(c_max - c_min),  # width
+        int(r_max - r_min),  # height
     )
 
 
@@ -665,7 +662,7 @@ def crop_to_content(
     Args:
         image: Grayscale float64 image in [0.0, 1.0].
         padding: Number of pixels to keep around the detected content.
-        min_content_fraction: Minimum fraction of dark pixels in a row/column 
+        min_content_fraction: Minimum fraction of dark pixels in a row/column
             to consider it part of the content region.
 
     Returns:
@@ -675,13 +672,11 @@ def crop_to_content(
         raise ValueError("crop_to_content expects a 2D grayscale image")
 
     region = calculate_autocrop_region(
-        image, 
-        padding=padding, 
-        min_content_fraction=min_content_fraction
+        image, padding=padding, min_content_fraction=min_content_fraction
     )
-    
+
     if region is None:
         return image  # No content detected, return original safely
-        
+
     x, y, w, h = region
-    return image[y:y+h, x:x+w]
+    return image[y : y + h, x : x + w]

@@ -1,5 +1,4 @@
-"""
-Developer Utility for Signing BioPro Plugins.
+"""Developer Utility for Signing BioPro Plugins.
 
 Commands:
     init:       Generate a new Ed25519 developer key pair.
@@ -7,56 +6,61 @@ Commands:
     registry:   Export the JSON snippet for the central registry.
 """
 
-import sys
-import os
-import json
 import hashlib
+import json
 import logging
-from pathlib import Path
+import os
 from dataclasses import dataclass
-from cryptography.hazmat.primitives.asymmetric import ed25519
+from pathlib import Path
+from typing import Optional
+
 from cryptography.hazmat.primitives import serialization
-from typing import List, Optional
+from cryptography.hazmat.primitives.asymmetric import ed25519
+
 
 @dataclass
 class TrustLink:
     """A single link in the trust chain (Issuer -> Subject)."""
+
     subject_name: str
-    subject_pub: str # Hex encoded Ed25519 public key
+    subject_pub: str  # Hex encoded Ed25519 public key
     issuer_name: str
-    signature: str   # Hex encoded signature
-    
+    signature: str  # Hex encoded signature
+
     def to_dict(self) -> dict:
         return {
             "subject_name": self.subject_name,
             "subject_pub": self.subject_pub,
             "issuer_name": self.issuer_name,
-            "signature": self.signature
+            "signature": self.signature,
         }
+
 
 @dataclass
 class TrustChain:
     """The full chain of trust for a plugin."""
-    links: List[TrustLink]
-    
+
+    links: list[TrustLink]
+
     def to_json(self) -> str:
         return json.dumps([link.to_dict() for link in self.links], indent=4)
-    
+
     @classmethod
-    def from_json(cls, json_str: str) -> 'TrustChain':
+    def from_json(cls, json_str: str) -> "TrustChain":
         data = json.loads(json_str)
         links = [TrustLink(**item) for item in data]
         return cls(links=links)
-    
+
     @classmethod
-    def from_file(cls, path: Path) -> Optional['TrustChain']:
+    def from_file(cls, path: Path) -> Optional["TrustChain"]:
         if not path.exists():
             return None
         try:
-            with open(path, "r") as f:
+            with open(path) as f:
                 return cls.from_json(f.read())
         except Exception:
             return None
+
 
 # Configure basic logging for CLI
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -64,18 +68,34 @@ logger = logging.getLogger("biopro-signer")
 
 MANDATORY_EXTENSIONS = {".py", ".pyw", ".json", ".yml", ".yaml", ".fcs"}
 IGNORE_LIST = {
-    ".DS_Store", "Thumbs.db", "__pycache__", 
-    ".git", ".github", ".vscode", ".idea", ".pytest_cache",
-    "cache", "results", "temp", "logs", "output", "dist", "build",
-    "signature.bin", "trust_chain.json", "manifest.json", "dev_cert.bin"
+    ".DS_Store",
+    "Thumbs.db",
+    "__pycache__",
+    ".git",
+    ".github",
+    ".vscode",
+    ".idea",
+    ".pytest_cache",
+    "cache",
+    "results",
+    "temp",
+    "logs",
+    "output",
+    "dist",
+    "build",
+    "signature.bin",
+    "trust_chain.json",
+    "manifest.json",
+    "dev_cert.bin",
 }
+
 
 class PluginSigner:
     def __init__(self):
         self.dev_dir = Path.home() / ".biopro" / "dev_keys"
         self.private_key_path = self.dev_dir / "private.key"
         self.public_key_path = self.dev_dir / "public.pub"
-        self.delegation_path = self.dev_dir / "delegation.json" # Your credentials from authority
+        self.delegation_path = self.dev_dir / "delegation.json"  # Your credentials from authority
 
     def init_identity(self):
         """Generates a new Ed25519 identity."""
@@ -89,20 +109,23 @@ class PluginSigner:
 
         # Save Private Key (PKCS8)
         with open(self.private_key_path, "wb") as f:
-            f.write(private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()
-            ))
+            f.write(
+                private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.PKCS8,
+                    encryption_algorithm=serialization.NoEncryption(),
+                )
+            )
 
         # Save Public Key (Raw Bytes for the Registry)
         with open(self.public_key_path, "wb") as f:
-            f.write(public_key.public_bytes(
-                encoding=serialization.Encoding.Raw,
-                format=serialization.PublicFormat.Raw
-            ))
+            f.write(
+                public_key.public_bytes(
+                    encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+                )
+            )
 
-        logger.info(f"Identity generated successfully.")
+        logger.info("Identity generated successfully.")
         logger.info(f"Private Key: {self.private_key_path}")
         logger.info(f"Public Key:  {self.public_key_path}")
         logger.warning("Keep your private.key SAFE and SECRET!")
@@ -117,13 +140,13 @@ class PluginSigner:
         """Updates manifest.json with hashes and creates signature.bin & dev_cert.bin."""
         private_key = self.load_private_key()
         public_key = private_key.public_key()
-        
+
         manifest_file = plugin_path / "manifest.json"
         if not manifest_file.exists():
             logger.error(f"manifest.json not found in {plugin_path}")
             return
 
-        with open(manifest_file, "r") as f:
+        with open(manifest_file) as f:
             manifest = json.load(f)
 
         plugin_id = manifest.get("id")
@@ -136,13 +159,13 @@ class PluginSigner:
         for root, dirs, files in os.walk(plugin_path):
             # Skip ignored directories
             dirs[:] = [d for d in dirs if d not in IGNORE_LIST]
-            
+
             for file in sorted(files):
                 if file in IGNORE_LIST:
                     continue
-                
+
                 rel_path = os.path.relpath(os.path.join(root, file), plugin_path)
-                
+
                 # Check extension (Simplified version of TrustManager logic)
                 if any(file.endswith(ext) for ext in MANDATORY_EXTENSIONS):
                     hashes[rel_path] = self._hash_file(Path(root) / file)
@@ -151,7 +174,7 @@ class PluginSigner:
         if "integrity" not in manifest:
             manifest["integrity"] = {}
         manifest["integrity"]["hashes"] = hashes
-        
+
         with open(manifest_file, "w") as f:
             json.dump(manifest, f, indent=4)
 
@@ -166,20 +189,19 @@ class PluginSigner:
         # Write trust_chain.json (New Format)
         # 1. Assemble the chain starting with this developer
         pub_bytes = public_key.public_bytes(
-            encoding=serialization.Encoding.Raw,
-            format=serialization.PublicFormat.Raw
+            encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
         )
-        
+
         # Bottom link: Developer (Leaf of the chain)
         dev_link = TrustLink(
             subject_name=manifest.get("author", "Unknown Developer"),
             subject_pub=pub_bytes.hex(),
-            issuer_name="Unknown", # Will be filled if delegation exists
-            signature="0" * 128    # Placeholder for developer link
+            issuer_name="Unknown",  # Will be filled if delegation exists
+            signature="0" * 128,  # Placeholder for developer link
         )
-        
+
         links = [dev_link]
-        
+
         # 2. Add Parent Delegations if they exist
         if self.delegation_path.exists():
             try:
@@ -198,20 +220,31 @@ class PluginSigner:
             f.write(chain.to_json())
 
         logger.info(f"Successfully signed {plugin_id}")
-        logger.info(f"Generated: signature.bin, trust_chain.json")
+        logger.info("Generated: signature.bin, trust_chain.json")
 
-    def delegate_identity(self, subject_pub_file: Path, subject_name: str, authority_key_path: Optional[Path] = None):
+    def delegate_identity(
+        self, subject_pub_file: Path, subject_name: str, authority_key_path: Path | None = None
+    ):
         """Signs another developer's public key using an Authority key.
-        
+
         If authority_key_path is None, it uses the local developer key (Lab trusting Researcher).
         If authority_key_path is provided, it uses that (e.g. BioPro Core Root).
         """
         if authority_key_path:
             with open(authority_key_path, "rb") as f:
                 private_key = serialization.load_pem_private_key(f.read(), password=None)
-            with open(authority_key_path.with_suffix(".pub") if authority_key_path.with_suffix(".pub").exists() else self.public_key_path, "rb") as f:
+            with open(
+                authority_key_path.with_suffix(".pub")
+                if authority_key_path.with_suffix(".pub").exists()
+                else self.public_key_path,
+                "rb",
+            ) as f:
                 # We need the authority's name/ID
-                auth_name = "BioPro Core Authority" if "root" in str(authority_key_path).lower() else "Authority"
+                auth_name = (
+                    "BioPro Core Authority"
+                    if "root" in str(authority_key_path).lower()
+                    else "Authority"
+                )
         else:
             private_key = self.load_private_key()
             auth_name = "Me"
@@ -225,23 +258,25 @@ class PluginSigner:
             if len(sub_pub_bytes) != 32:
                 try:
                     pub = serialization.load_pem_public_key(sub_pub_bytes)
-                    sub_pub_bytes = pub.public_bytes(encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw)
+                    sub_pub_bytes = pub.public_bytes(
+                        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw
+                    )
                 except Exception:
                     logger.error("Invalid public key format.")
                     return
 
         signature = private_key.sign(sub_pub_bytes)
-        
+
         # Create a TrustLink for the subject (e.g. Researcher signed by Lab)
         new_link = TrustLink(
             subject_name=subject_name,
             subject_pub=sub_pub_bytes.hex(),
             issuer_name=auth_name,
-            signature=signature.hex()
+            signature=signature.hex(),
         )
-        
+
         links = [new_link]
-        
+
         # If I have my own delegation (e.g. I am a Lab and Uni trusts me), I must include it
         if not authority_key_path and self.delegation_path.exists():
             parent_chain = TrustChain.from_file(self.delegation_path)
@@ -253,9 +288,9 @@ class PluginSigner:
         output_file = Path(f"delegation_{subject_name.lower().replace(' ', '_')}.json")
         with open(output_file, "w") as f:
             f.write(chain.to_json())
-            
+
         logger.info(f"Delegation file created: {output_file}")
-        logger.info(f"Move this to the developer's keys folder as delegation.json")
+        logger.info("Move this to the developer's keys folder as delegation.json")
 
     def _hash_file(self, path: Path) -> str:
         hasher = hashlib.sha256()
@@ -273,21 +308,20 @@ class PluginSigner:
         with open(self.public_key_path, "rb") as f:
             pub_hex = f.read().hex()
 
-        entry = {
-            "developer_id": "Your-GitHub-Username",
-            "public_key": pub_hex
-        }
+        entry = {"developer_id": "Your-GitHub-Username", "public_key": pub_hex}
         print("\n--- COPY THIS TO YOUR registry.json ---")
         print(json.dumps(entry, indent=4))
         print("---------------------------------------")
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="BioPro Plugin Signer")
     subparsers = parser.add_subparsers(dest="command")
 
     subparsers.add_parser("init")
-    
+
     sign_parser = subparsers.add_parser("sign")
     sign_parser.add_argument("path", help="Path to plugin folder")
 
@@ -306,11 +340,14 @@ def main():
     elif args.command == "sign":
         signer.sign_plugin(Path(args.path))
     elif args.command == "delegate":
-        signer.delegate_identity(Path(args.pub_path), args.name, Path(args.authority) if args.authority else None)
+        signer.delegate_identity(
+            Path(args.pub_path), args.name, Path(args.authority) if args.authority else None
+        )
     elif args.command == "registry":
         signer.print_registry_entry()
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()

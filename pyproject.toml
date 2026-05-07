@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biopro"
-version = "1.0.5"
+version = "1.0.7"
 description = "An open-source, intuitive bio analysis tool — Open Source, Free and Accessible to all."
 readme = "README.md"
 license = "MIT"
@@ -24,6 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
+    "biopro-sdk>=1.0.0",
     "PyQt6>=6.6",
     "numpy>=1.26",
     "scipy>=1.12",
@@ -49,6 +50,8 @@ dev = [
     "pytest>=8.0",
     "pytest-qt>=4.3",
     "ruff>=0.3",
+    "pre-commit>=3.6",
+    "mypy>=1.9",
 ]
 
 [project.scripts]
@@ -71,9 +74,18 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "D", "UP", "B", "SIM"]
-ignore = ["D100", "D104"]
+ignore = [
+    "D100", "D101", "D102", "D103", "D104", "D105", "D107", "D205",
+    "E501", "E722", "B024", "B027", "UP038"
+]
 
-[tool.ruff.lint.pydocstring-convention]
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "E501", "E402"]
+"tests/**/*.py" = ["D", "E501", "E402"]
+"biopro/ui/**/*.py" = ["D", "E501"]
+"biopro/plugins/**/*.py" = ["D", "E501"]
+
+[tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.pytest.ini_options]
@@ -87,3 +99,36 @@ markers = [
     "integration: integration tests",
     "slow: slow running tests",
 ]
+
+[tool.mypy]
+explicit_package_bases = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = [
+    "PyQt6.*",
+    "numpy.*",
+    "scipy.*",
+    "cv2.*",
+    "skimage.*",
+    "pandas.*",
+    "torch.*",
+    "torchvision.*",
+    "matplotlib.*",
+    "openpyxl.*",
+    "cellpose.*",
+    "llama_cpp.*",
+    "flowkit.*",
+    "pytest.*",
+    "certifi.*",
+    "cryptography.*",
+    "biopro_sdk.*",
+    "biopro_sdk",
+    "biopro.sdk.*",
+    "biopro.sdk",
+    "biopro.core.trust_manager.*",
+    "biopro.core.trust_manager",
+    "biopro.core.trust_path.*",
+    "biopro.core.trust_path"
+]
+ignore_missing_imports = true

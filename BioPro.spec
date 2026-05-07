@@ -73,7 +73,7 @@ hidden_imports = [
 a = Analysis(
     ['biopro/__main__.py'],
     pathex=[],
-    binaries=all_bins, 
+    binaries=all_bins,
     datas=[
         ('biopro/themes', 'themes'),
         ('biopro/shared', 'biopro/shared'),
@@ -81,7 +81,7 @@ a = Analysis(
         ('docs', 'docs'),
         ('icon.icns', '.'),
         ('pyproject.toml', '.')
-    ] + all_datas, 
+    ] + all_datas,
     hiddenimports=hidden_imports + all_hidden,
     hookspath=[],
     hooksconfig={},

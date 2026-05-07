@@ -1,9 +1,12 @@
 """Tests for BioPro theme engine."""
 
-import pytest
 import json
 from pathlib import Path
-from biopro.ui.theme import ThemeManager, Colors
+
+import pytest
+
+from biopro.ui.theme import Colors, ThemeManager
+
 
 class TestThemeEngine:
     @pytest.fixture
@@ -17,20 +20,16 @@ class TestThemeEngine:
 
     def test_load_valid_theme(self, manager, tmp_path):
         """Test loading a valid theme.json file."""
-        theme_data = {
-            "name": "Ocean Blue",
-            "BG_DARKEST": "#000033",
-            "ACCENT_PRIMARY": "#00ffff"
-        }
+        theme_data = {"name": "Ocean Blue", "BG_DARKEST": "#000033", "ACCENT_PRIMARY": "#00ffff"}
         theme_file = tmp_path / "ocean.json"
         theme_file.write_text(json.dumps(theme_data))
-        
+
         # Track signal
         signal_received = []
         manager.theme_changed.connect(lambda: signal_received.append(True))
-        
+
         success = manager.load_theme(theme_file)
-        
+
         assert success is True
         assert manager.current_theme_name == "Ocean Blue"
         assert Colors.BG_DARKEST == "#000033"
@@ -41,7 +40,7 @@ class TestThemeEngine:
         """Test loading a corrupted JSON file."""
         theme_file = tmp_path / "bad.json"
         theme_file.write_text("{ broken json ...")
-        
+
         success = manager.load_theme(theme_file)
         assert success is False
 
@@ -54,11 +53,11 @@ class TestThemeEngine:
         """Test loading a theme with only some keys defined."""
         # Reset defaults for test consistency
         Colors.BG_DARKEST = "#0d1117"
-        
+
         theme_data = {"BG_DARKEST": "#990000"}
         theme_file = tmp_path / "partial.json"
         theme_file.write_text(json.dumps(theme_data))
-        
+
         manager.load_theme(theme_file)
         assert Colors.BG_DARKEST == "#990000"
         # Other colors should remain unchanged (e.g. DNA_PRIMARY which we didn't touch)

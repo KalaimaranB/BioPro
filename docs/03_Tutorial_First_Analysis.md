@@ -10,7 +10,7 @@ Many modules, such as **Western Blot Pro**, use a guided 4-step pipeline to ensu
 ### Step 1: Input (Data Loading)
 The first screen is where you provide your raw data.
 1.  **Select Your Files**: Click the **Browse** button or drag-and-drop your images (TIFF, PNG) or data files into the drop zone.
-2.  **Validation**: BioPro automatically scans the files for corruption or incompatible formats. 
+2.  **Validation**: BioPro automatically scans the files for corruption or incompatible formats.
 
 ### Step 2: Parameters (The "Scientific" Phase)
 This is where you apply your domain knowledge.

@@ -18,10 +18,10 @@ BioPro solves this using **Structural Sharing**:
 graph TD
     S1[State 1] --> Image((🖼 Raw Data))
     S1 --> P1[Params: v1.0]
-    
+
     S2[State 2] --> Image
     S2 --> P2[Params: v1.1]
-    
+
     S3[State 3] --> Image
     S3 --> P3[Params: v1.2]
 ```

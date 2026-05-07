@@ -1,5 +1,8 @@
 name: Sync Wiki
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
@@ -21,7 +24,7 @@ jobs:
           path: main
 
       - name: Checkout Wiki Repo
-        # NOTE: If this step fails with "Repository not found", you MUST initialize the Wiki 
+        # NOTE: If this step fails with "Repository not found", you MUST initialize the Wiki
         # by creating at least one page manually in the GitHub UI first.
         uses: actions/checkout@v4
         with:
@@ -34,10 +37,10 @@ jobs:
         run: |
           # Clean existing wiki files except .git
           find wiki/ -mindepth 1 -maxdepth 1 -not -name '.git' -exec rm -rf {} +
-          
+
           # Copy docs to wiki root
           cp -R main/docs/* wiki/
-          
+
           # GitHub Wiki expects "Home.md" instead of "01_Introduction.md" for the landing page
           cd wiki
           if [ -f "01_Introduction.md" ]; then

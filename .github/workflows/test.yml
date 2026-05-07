@@ -1,0 +1,54 @@
+name: Test Suite
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  test:
+    name: Run Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install git+https://github.com/KalaimaranB/BioPro-SDK.git
+          pip install -r requirements.txt
+          pip install pytest pytest-qt pytest-cov
+
+      - name: Run Core & SDK Tests
+        # continue-on-error: true — tests are INFORMATIONAL until suite is green.
+        # Remove this line to enforce the gate once all failures are fixed.
+        continue-on-error: true
+        run: |
+          python -m pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
+            tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
+            --tb=short -q \
+            --cov=biopro --cov-report=xml --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
+          DISPLAY: ":99"
+
+      - name: Upload Coverage Report
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false  # Also informational until we enforce coverage

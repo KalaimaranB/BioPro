@@ -1,14 +1,20 @@
 # biopro/core/ui/dialogs.py
 
-from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLineEdit, 
-    QTextEdit, QDialogButtonBox, QLabel
-)
 from datetime import datetime
+
+from PyQt6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QLineEdit,
+    QTextEdit,
+    QVBoxLayout,
+)
+
 
 class SaveWorkflowDialog(QDialog):
     """Dialog to capture metadata before saving a workflow."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Save Workflow")
@@ -16,14 +22,14 @@ class SaveWorkflowDialog(QDialog):
         self.layout = QVBoxLayout(self)
 
         form = QFormLayout()
-        
+
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("e.g., WT vs KO Replicate 1")
-        
+
         self.desc_input = QTextEdit()
         self.desc_input.setPlaceholderText("Briefly describe the analysis...")
         self.desc_input.setMaximumHeight(80)
-        
+
         self.tags_input = QLineEdit()
         self.tags_input.setPlaceholderText("e.g., ponceau, ko_mice, week_4")
 
@@ -39,11 +45,13 @@ class SaveWorkflowDialog(QDialog):
         )
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
-        
+
         # Disable save if name is empty
         self.buttons.button(QDialogButtonBox.StandardButton.Save).setEnabled(False)
         self.name_input.textChanged.connect(
-            lambda text: self.buttons.button(QDialogButtonBox.StandardButton.Save).setEnabled(bool(text.strip()))
+            lambda text: self.buttons.button(QDialogButtonBox.StandardButton.Save).setEnabled(
+                bool(text.strip())
+            )
         )
 
         self.layout.addWidget(self.buttons)
@@ -55,5 +63,5 @@ class SaveWorkflowDialog(QDialog):
             "name": self.name_input.text().strip(),
             "description": self.desc_input.toPlainText().strip(),
             "tags": tags,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }

@@ -1,17 +1,20 @@
 # biopro/ui/workflows_tab.py
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QScrollArea
+from PyQt6.QtWidgets import QLineEdit, QScrollArea, QVBoxLayout, QWidget
+
 from biopro.ui.components.cards import DetailedWorkflowCard as WorkflowCard
+
 
 class WorkflowsTab(QWidget):
     """Searchable list of saved work sessions."""
+
     def __init__(self, project_manager, on_workflow_selected):
         super().__init__()
         self.pm = project_manager
         self.on_workflow_selected = on_workflow_selected
         self.all_workflows = []
-        
+
         layout = QVBoxLayout(self)
-        
+
         # ── Search Bar ──────────────────────────────────────────────
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search by name or #tag...")
@@ -22,16 +25,16 @@ class WorkflowsTab(QWidget):
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-        
+
         self.container = QWidget()
         # Use a standard QVBoxLayout instead of the missing QFlowLayout
-        self.card_layout = QVBoxLayout(self.container) 
+        self.card_layout = QVBoxLayout(self.container)
         self.card_layout.setContentsMargins(0, 10, 0, 10)
         self.card_layout.setSpacing(10)
-        
+
         # This stretch at the bottom keeps cards pushed to the top
-        self.card_layout.addStretch() 
-        
+        self.card_layout.addStretch()
+
         self.scroll.setWidget(self.container)
         layout.addWidget(self.scroll)
 
@@ -46,7 +49,7 @@ class WorkflowsTab(QWidget):
         # 2. Get fresh list from ProjectManager
         if not self.pm:
             return
-            
+
         self.all_workflows = self.pm.list_workflows()
         query = self.search_bar.text().lower().strip()
 
@@ -54,12 +57,12 @@ class WorkflowsTab(QWidget):
         for meta in self.all_workflows:
             # Simple search logic
             match = (
-                not query or 
-                query in meta.get('name', '').lower() or 
-                query in meta.get('description', '').lower() or 
-                any(query.lstrip("#") in t.lower() for t in meta.get('tags', []))
+                not query
+                or query in meta.get("name", "").lower()
+                or query in meta.get("description", "").lower()
+                or any(query.lstrip("#") in t.lower() for t in meta.get("tags", []))
             )
-            
+
             if match:
                 card = WorkflowCard(meta, self.on_workflow_selected)
                 # Insert at index 0 so newest ones appear at the top

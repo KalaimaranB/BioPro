@@ -70,8 +70,8 @@ If you are contributing to the core application itself, familiarizing yourself w
   - `dashboards/`: Full screen panels living inside windows (e.g., the `WorkspaceDashboard`).
   - `components/`: Granular, reusable, mathematically distinct QWidgets (`Cards`, `Toolbars`, `Overlays`) isolated to prevent God classes.
   - `dialogs/` & `tabs/`: Specialized modal windows like the Plugin Store and contextual workflows.
-- **`tests/`**: Contains all unit and integration coverage for the application logic. 
-- **`biopro/themes/`**: JSON payloads mapped to the `theme.py` engine defining global application colors (e.g. `default.json`, `star_wars.json`).
+- **`tests/`**: Contains all unit and integration coverage for the application logic.
+- **`biopro/themes/`**: JSON payloads mapped to the `theme.py` engine defining global application colors (e.g. `default.json`, `galactic_dark.json`).
 
 ---
 

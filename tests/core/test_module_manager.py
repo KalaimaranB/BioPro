@@ -1,16 +1,20 @@
 """Tests for biopro.core.module_manager plugin discovery."""
 
-import os
 import json
-import pytest
 from pathlib import Path
+
+import pytest
+
 from biopro.core.module_manager import ModuleManager
 from biopro.core.trust_manager import VerificationResult
 
+
 class PermissiveTrustManager:
     """Mock security engine that trusts everything for discovery tests."""
+
     def verify_plugin(self, path):
         return VerificationResult(success=True, trust_level="verified_mock")
+
 
 @pytest.fixture
 def mock_plugin_environment(tmp_path, monkeypatch):
@@ -20,24 +24,20 @@ def mock_plugin_environment(tmp_path, monkeypatch):
     fake_home = tmp_path / "home"
     user_plugins = fake_home / ".biopro" / "plugins"
     user_plugins.mkdir(parents=True)
-    
+
     # 2. Add a dummy plugin
     plugin_dir = user_plugins / "test_module_a"
     plugin_dir.mkdir()
-    
-    manifest = {
-        "id": "test_module_a",
-        "name": "Test Module A",
-        "version": "1.0.0",
-        "icon": "🧪"
-    }
+
+    manifest = {"id": "test_module_a", "name": "Test Module A", "version": "1.0.0", "icon": "🧪"}
     with open(plugin_dir / "manifest.json", "w") as f:
         json.dump(manifest, f)
-        
+
     # 3. Mock Path.home to return our fake home
     monkeypatch.setattr(Path, "home", lambda: fake_home)
-    
+
     return user_plugins
+
 
 class TestModuleManager:
     """Test suite for ModuleManager."""
@@ -45,7 +45,7 @@ class TestModuleManager:
     def test_module_discovery(self, mock_plugin_environment):
         """Verifies that the manager finds modules in the user plugins directory."""
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
-        
+
         # Should have found 'test_module_a'
         assert "test_module_a" in mm.modules
         info = mm.modules["test_module_a"]
@@ -56,7 +56,7 @@ class TestModuleManager:
         """Verifies that get_available_modules returns a list of manifest dicts."""
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
         modules = mm.get_available_modules()
-        
+
         assert len(modules) >= 1
         # Check if our mock manifest is in the list
         matches = [m for m in modules if m["id"] == "test_module_a"]
@@ -67,16 +67,16 @@ class TestModuleManager:
         """Tests the hot-reload capability when plugins are added or removed."""
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
         assert "test_module_a" in mm.modules
-        
+
         # 1. Add a second plugin manually
         new_plugin = mock_plugin_environment / "test_module_b"
         new_plugin.mkdir()
         with open(new_plugin / "manifest.json", "w") as f:
             json.dump({"id": "test_module_b", "name": "B"}, f)
-            
+
         # 2. Reload
         mm.reload_modules()
-        
+
         # 3. Verify both are now present
         assert "test_module_a" in mm.modules
         assert "test_module_b" in mm.modules
@@ -88,9 +88,56 @@ class TestModuleManager:
         bad_plugin.mkdir()
         with open(bad_plugin / "manifest.json", "w") as f:
             f.write("{ invalid json... }")
-            
+
         # Should not raise exception
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
         assert "broken_plugin" not in mm.modules
         # Other plugins should still work
         assert "test_module_a" in mm.modules
+
+    def test_sys_path_injection(self, mock_plugin_environment):
+        """Verifies that the manager successfully injects plugin virtual environment site-packages to sys.path."""
+        import sys
+
+        mm = ModuleManager(trust_manager=PermissiveTrustManager())
+        plugin_path = mock_plugin_environment / "test_module_a"
+
+        # Create mock virtual environment site-packages
+        py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        site_packages = plugin_path / ".venv" / "lib" / py_ver / "site-packages"
+        site_packages.mkdir(parents=True)
+
+        mm._inject_plugin_path(plugin_path)
+
+        # Assert that the path was prepended to sys.path
+        assert str(site_packages) in sys.path
+        assert sys.path[0] == str(site_packages)
+
+        # Cleanup for test safety
+        if str(site_packages) in sys.path:
+            sys.path.remove(str(site_packages))
+
+    def test_sys_path_cleanup(self, mock_plugin_environment):
+        """Verifies that the manager successfully cleans up any dynamic plugin venv paths from sys.path."""
+        import sys
+
+        mm = ModuleManager(trust_manager=PermissiveTrustManager())
+
+        # Pre-populate sys.path with dynamic mock path
+        py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        fake_site_packages = (
+            Path.home()
+            / ".biopro"
+            / "plugins"
+            / "test_module_a"
+            / ".venv"
+            / "lib"
+            / py_ver
+            / "site-packages"
+        )
+        sys.path.insert(0, str(fake_site_packages))
+
+        mm._cleanup_plugin_paths()
+
+        # Assert that the fake site-packages path was completely cleaned up
+        assert str(fake_site_packages) not in sys.path

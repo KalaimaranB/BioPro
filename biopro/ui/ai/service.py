@@ -1,13 +1,22 @@
+from biopro_sdk.core.ai import AIAssistant
 from PyQt6.QtCore import QThread, pyqtSignal
-from biopro.sdk.core.ai import AIAssistant, ai_manager
+
 
 class StreamingAIThread(QThread):
     """Worker thread for streaming AI responses."""
+
     chunk_received = pyqtSignal(str)
     finished = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, assistant: AIAssistant, prompt: str, plugin_id: str, include_core: bool, selected_files: list):
+    def __init__(
+        self,
+        assistant: AIAssistant,
+        prompt: str,
+        plugin_id: str,
+        include_core: bool,
+        selected_files: list,
+    ):
         super().__init__()
         self.assistant = assistant
         self.prompt = prompt
@@ -23,16 +32,17 @@ class StreamingAIThread(QThread):
                 include_core=self.include_core,
                 selected_files=self.selected_files,
                 stream=True,
-                callback=self.chunk_received.emit
+                callback=self.chunk_received.emit,
             )
             self.finished.emit(result)
         except Exception as e:
             self.error.emit(str(e))
 
+
 class AIService:
     """Orchestrates AI interactions and session state."""
-    
-    def __init__(self, assistant: AIAssistant = None):
+
+    def __init__(self, assistant: AIAssistant | None = None):
         self.assistant = assistant or AIAssistant()
         self.full_chat_md = ""
         self.selected_context_files = None
@@ -43,9 +53,5 @@ class AIService:
 
     def get_streaming_thread(self, prompt, plugin_id, include_core):
         return StreamingAIThread(
-            self.assistant,
-            prompt,
-            plugin_id,
-            include_core,
-            self.selected_context_files
+            self.assistant, prompt, plugin_id, include_core, self.selected_context_files
         )

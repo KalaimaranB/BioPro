@@ -4,32 +4,41 @@ Utilities for identifying 'Heavy' resources (large arrays, tensors, figures)
 within arbitrary object trees. Enables automatic memory management.
 """
 
-import logging
-import sys
 import io
-from typing import Any, List, Set, Dict, Tuple, Optional
+import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class ResourceInspector:
     """Detects and categorizes heavy resources for memory management."""
-    
+
     # Threshold for considering an array/object as 'Heavy' (in bytes)
     # Default: 1MB
-    HEAVY_THRESHOLD_BYTES = 1024 * 1024 
+    HEAVY_THRESHOLD_BYTES = 1024 * 1024
+
+    _custom_checkers: list[Any] = []
 
     @classmethod
-    def get_heavy_resources(cls, obj: Any) -> List[Tuple[str, Any]]:
+    def register_heavy_checker(cls, checker_func):
+        """Registers a custom function for evaluating if an object is heavy."""
+        if checker_func not in cls._custom_checkers:
+            cls._custom_checkers.append(checker_func)
+            logger.debug(f"Registered custom heavy checker: {checker_func}")
+
+    @classmethod
+    def get_heavy_resources(cls, obj: Any) -> list[tuple[str, Any]]:
         """Scans the attributes of an object for heavy resources.
-        
+
         Args:
             obj: The object to inspect (typically a PluginBase or PluginState instance)
-            
+
         Returns:
             List of (attribute_name, resource_object) tuples.
         """
         heavy = []
-        
+
         # We check both the __dict__ and any public properties
         try:
             items = []
@@ -43,7 +52,7 @@ class ResourceInspector:
                     heavy.append((name, value))
         except Exception as e:
             logger.debug(f"Failed to inspect object {type(obj)}: {e}")
-            
+
         return heavy
 
     @classmethod
@@ -51,10 +60,19 @@ class ResourceInspector:
         """Determines if a single object is considered a heavy resource."""
         if obj is None:
             return False
-            
+
+        # 0. Custom registered checkers
+        for checker in cls._custom_checkers:
+            try:
+                if checker(obj):
+                    return True
+            except Exception as e:
+                logger.debug(f"Custom heavy checker failed: {e}")
+
         # 1. Numpy Arrays
         try:
             import numpy as np
+
             if isinstance(obj, np.ndarray):
                 return obj.nbytes >= cls.HEAVY_THRESHOLD_BYTES
         except ImportError:
@@ -63,6 +81,7 @@ class ResourceInspector:
         # 2. Torch Tensors
         try:
             import torch
+
             if isinstance(obj, torch.Tensor):
                 # Tensors on GPU are ALWAYS considered heavy/critical to release
                 if obj.is_cuda:
@@ -75,21 +94,19 @@ class ResourceInspector:
         # 3. Matplotlib Figures
         try:
             import matplotlib.figure
+
             if isinstance(obj, matplotlib.figure.Figure):
-                return True # Figures are light in bytes but leak easily in memory
+                return True  # Figures are light in bytes but leak easily in memory
         except ImportError:
             pass
 
         # 4. Open File Handles
-        if isinstance(obj, io.IOBase):
-            return True
-
-        return False
+        return bool(isinstance(obj, io.IOBase))
 
     @classmethod
-    def get_object_hash(cls, obj: Any) -> Optional[str]:
+    def get_object_hash(cls, obj: Any) -> str | None:
         """Generates a pseudo-hash for identifying identical heavy resources.
-        
+
         This is used for structural sharing in the HistoryManager.
         Note: We prioritize speed over cryptographic perfection.
         """
@@ -99,14 +116,16 @@ class ResourceInspector:
         try:
             # For Numpy
             import numpy as np
+
             if isinstance(obj, np.ndarray):
                 # Use data pointer and metadata for extremely fast identification
-                # if the array is modified in place, this hash might be stale, 
+                # if the array is modified in place, this hash might be stale,
                 # but BioPro discourages in-place state mutation.
                 return f"np:{id(obj)}:{obj.shape}:{obj.dtype}"
-                
+
             # For Torch
             import torch
+
             if isinstance(obj, torch.Tensor):
                 return f"torch:{id(obj)}:{obj.shape}:{obj.device}"
         except ImportError:

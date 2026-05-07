@@ -21,7 +21,7 @@ To ensure high-fidelity reasoning, BioPro uses a **mathematically grounded conte
 By default, Grogu has access to the BioPro core manuals. You can toggle specific files like `User Guide` or `Troubleshooting` to optimize the context window for your current task.
 
 ### 🔌 Plugin Documentation
-When you are working within a specific module (like Flow Cytometry), the Context Panel automatically discovers and displays documentation unique to that plugin. 
+When you are working within a specific module (like Flow Cytometry), the Context Panel automatically discovers and displays documentation unique to that plugin.
 
 > [!TIP]
 > **Optimize Your Queries**: If Grogu seems confused, try unchecking irrelevant core docs and ensuring the specific Plugin documentation is selected.
@@ -30,7 +30,7 @@ When you are working within a specific module (like Flow Cytometry), the Context
 
 ## ⚡ Droid Mode & Themes
 
-BioPro's AI is deeply integrated with the [**Global Theme Engine**](11_Core_Nervous_System.md). 
+BioPro's AI is deeply integrated with the [**Global Theme Engine**](11_Core_Nervous_System.md).
 
 | Theme | AI Personality | Visual Accents |
 | :--- | :--- | :--- |
