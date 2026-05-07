@@ -1,6 +1,6 @@
+from biopro_sdk.host import AIAssistant, AIServerManager
 from PyQt6.QtCore import Qt
 
-from biopro.sdk.core.ai import AIAssistant, AIServerManager
 from biopro.ui.components.ai_panel import AIChatWindow
 
 # --- Backend Tests ---
@@ -16,7 +16,7 @@ def test_ai_assistant_history(monkeypatch):
         def json(self):
             return {"choices": [{"message": {"content": "I am Gemma 4"}}]}
 
-    monkeypatch.setattr("biopro.sdk.core.ai.requests.post", lambda *args, **kwargs: MockResponse())
+    monkeypatch.setattr("biopro_sdk.host.ai.requests.post", lambda *args, **kwargs: MockResponse())
 
     assistant = AIAssistant()
     assert len(assistant.history) == 0
@@ -48,7 +48,18 @@ def test_ai_server_manager_port_check(monkeypatch):
         def connect_ex(self, addr):
             return 0  # Simulate port taken
 
+        def settimeout(self, timeout):
+            pass
+
     monkeypatch.setattr("socket.socket", lambda *args: MockSocket())
+
+    class MockResponse:
+        status_code = 200
+
+        def json(self):
+            return {}
+
+    monkeypatch.setattr("requests.get", lambda *args, **kwargs: MockResponse())
 
     # Mock model existence
     monkeypatch.setattr("os.path.exists", lambda path: True)
@@ -97,31 +108,24 @@ def test_ai_chat_window_send_logic(qtbot, monkeypatch):
     """Ensure the send button triggers the background task correctly."""
     window = AIChatWindow()
     qtbot.addWidget(window)
+    window.show()
 
-    submitted_task = None
+    # Mock the thread so it doesn't actually run
+    from PyQt6.QtCore import QObject, pyqtSignal
 
-    def mock_submit(task, state=None):
-        nonlocal submitted_task
-        submitted_task = task
+    class MockThread(QObject):
+        chunk_received = pyqtSignal(str)
+        finished = pyqtSignal(dict)
+        error = pyqtSignal(str)
 
-        # Return a mock worker
-        class MockWorker:
-            class MockSignal:
-                def connect(self, slot):
-                    pass
+        def start(self):
+            pass
 
-            finished = MockSignal()
-            error = MockSignal()
-
-        return MockWorker()
-
-    from biopro.core.task_scheduler import task_scheduler
-
-    monkeypatch.setattr(task_scheduler, "submit", mock_submit)
+    monkeypatch.setattr(window.service, "get_streaming_thread", lambda *args: MockThread())
 
     window.input_field.setText("Tell me about the event bus")
     qtbot.mouseClick(window.btn_send, Qt.MouseButton.LeftButton)
 
-    assert submitted_task is not None
+    assert window.ai_thread is not None
     assert window.thinking_indicator.isVisible()
     assert window.btn_send.isEnabled() is False

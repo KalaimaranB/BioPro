@@ -1,9 +1,7 @@
 """Tests for AnalysisWorker and background analysis execution."""
 
+from biopro_sdk.plugin import AnalysisBase, AnalysisWorker, PluginState
 from PyQt6.QtCore import QObject, QThread
-
-from biopro.sdk.core.analysis import AnalysisBase, AnalysisWorker
-from biopro.sdk.core.state import PluginState
 
 
 class MockState(PluginState):

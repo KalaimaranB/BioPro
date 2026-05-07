@@ -1,10 +1,9 @@
 """Tests for TaskScheduler and centralized concurrency management."""
 
 import pytest
+from biopro_sdk.plugin import AnalysisBase, PluginState
 
 from biopro.core.task_scheduler import TaskScheduler
-from biopro.sdk.core.analysis import AnalysisBase
-from biopro.sdk.core.state import PluginState
 
 
 class MockState(PluginState):

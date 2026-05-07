@@ -256,7 +256,7 @@ class NetworkUpdater:
 
             if authorities:
                 # Cryptographic verification against the hardcoded root public key
-                from biopro_sdk.core.trust_manager import BIOPRO_ROOT_PUBLIC_KEY_HEX
+                from biopro_sdk.host import BIOPRO_ROOT_PUBLIC_KEY_HEX
                 from cryptography.hazmat.primitives.asymmetric import ed25519
 
                 sig_hex = remote_data.get("signature")

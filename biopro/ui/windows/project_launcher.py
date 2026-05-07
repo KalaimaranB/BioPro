@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from biopro_sdk.ui import PrimaryButton, SecondaryButton
+from biopro_sdk.plugin import PrimaryButton, SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QAction,

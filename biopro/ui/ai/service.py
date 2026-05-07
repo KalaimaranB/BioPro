@@ -1,4 +1,4 @@
-from biopro_sdk.core.ai import AIAssistant
+from biopro_sdk.host.ai import AIAssistant
 from PyQt6.QtCore import QThread, pyqtSignal
 
 

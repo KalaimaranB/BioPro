@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from biopro.sdk.utils import (
+from biopro.plugins.sdk_utils import (
     PluginConfig,
     get_plugin_logger,
     load_json,
@@ -282,11 +282,11 @@ class TestAssetWorkflow:
         """Verifies workflow asks for subfolder and copy permission."""
         from unittest.mock import patch
 
-        from biopro.sdk.utils.dialogs import import_assets_workflow
+        from biopro.plugins.sdk_utils import import_assets_workflow
 
         with (
-            patch("biopro.sdk.utils.dialogs.ask_yes_no") as mock_ask,
-            patch("biopro.sdk.utils.dialogs.get_text") as mock_text,
+            patch("biopro.plugins.sdk_utils.ask_yes_no") as mock_ask,
+            patch("biopro.plugins.sdk_utils.get_text") as mock_text,
         ):
             # Setup user choices: Yes to group, Yes to copy
             mock_ask.side_effect = [True, True]
@@ -307,9 +307,9 @@ class TestAssetWorkflow:
         """Verifies workflow when user declines subfolder grouping."""
         from unittest.mock import patch
 
-        from biopro.sdk.utils.dialogs import import_assets_workflow
+        from biopro.plugins.sdk_utils import import_assets_workflow
 
-        with patch("biopro.sdk.utils.dialogs.ask_yes_no") as mock_ask:
+        with patch("biopro.plugins.sdk_utils.ask_yes_no") as mock_ask:
             # Setup user choices: No to group, Yes to copy
             mock_ask.side_effect = [False, True]
 

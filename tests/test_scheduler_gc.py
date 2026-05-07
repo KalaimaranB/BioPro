@@ -1,11 +1,10 @@
 import gc
 import weakref
 
+from biopro_sdk.plugin import AnalysisBase, PluginState
 from PyQt6.QtCore import QCoreApplication
 
 from biopro.core.task_scheduler import task_scheduler
-from biopro.sdk.core.analysis import AnalysisBase
-from biopro.sdk.core.state import PluginState
 
 
 class MockState(PluginState):

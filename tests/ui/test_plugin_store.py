@@ -3,10 +3,10 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton
 from PyQt6.QtWidgets import QPushButton
 
 from biopro.core.event_bus import BioProEvent, event_bus
-from biopro.sdk.ui import DangerButton, ModuleCard, PrimaryButton
 from biopro.ui.dialogs.plugin_store import PluginStoreDialog
 
 
@@ -54,7 +54,7 @@ class TestPluginStore:
 
             # Check p1 button (INSTALL state)
             p1_btn = cards[0].findChild(PrimaryButton)
-            assert p1_btn.text() == "Download"
+            assert p1_btn.text() == "Install"
 
             # Check p2 status (UP_TO_DATE state)
             # Find the "Remove" button
@@ -101,5 +101,6 @@ class TestPluginStore:
             store._load_store_data()
             card = store.findChild(ModuleCard)
             btn = card.findChild(QPushButton)
-            assert "Requires Core v2.0" in btn.text()
+            assert btn.text() == "Incompatible"
+            assert "v2.0" in btn.toolTip()
             assert btn.isEnabled() is False

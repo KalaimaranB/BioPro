@@ -1,9 +1,8 @@
 import os
 from typing import Any
 
+from biopro_sdk.host.ai import AIAssistant, AIServerManager
 from PyQt6.QtCore import QCoreApplication
-
-from biopro.sdk.core.ai import AIAssistant, AIServerManager
 
 
 class MockAIAssistant(AIAssistant):
@@ -65,6 +64,20 @@ def test_start_server_absolute_path(monkeypatch):
     """Verify that start_server uses absolute paths for the model command."""
     manager = AIServerManager(model_path="relative/path/to/model.gguf")
 
+    # Mock threading.Thread to run synchronously
+    class MockThread:
+        def __init__(self, target, *args, **kwargs):
+            self.target = target
+            self.args = args
+
+        def start(self):
+            self.target(*self.args)
+
+    monkeypatch.setattr("threading.Thread", MockThread)
+
+    # Mock time.sleep to run instantly
+    monkeypatch.setattr("biopro_sdk.host.ai.time.sleep", lambda x: None)
+
     # Mock os.path.exists to return True for our fake model
     monkeypatch.setattr("os.path.exists", lambda x: True)
 
@@ -89,13 +102,28 @@ def test_start_server_absolute_path(monkeypatch):
 
         # Return a mock process that is "running"
         class MockProcess:
+            def __init__(self, cmd):
+                self.args = cmd
+
             def poll(self):
                 return None
 
             def terminate(self):
                 pass
 
-        return MockProcess()
+            def communicate(self, *args, **kwargs):
+                return b"", b""
+
+            def kill(self):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+        return MockProcess(cmd)
 
     monkeypatch.setattr("subprocess.Popen", mock_popen)
 
@@ -109,7 +137,9 @@ def test_start_server_absolute_path(monkeypatch):
 
     # Verify that the model path in the command was made absolute
     assert len(popen_args) > 0
-    cmd = popen_args[0]
+    cmd = next((c for c in popen_args if "--model" in c), None)
+    assert cmd is not None, f"No command containing '--model' was found in: {popen_args}"
+
     model_arg_idx = cmd.index("--model") + 1
     assert os.path.isabs(cmd[model_arg_idx])
     assert "relative/path/to/model.gguf" in cmd[model_arg_idx]

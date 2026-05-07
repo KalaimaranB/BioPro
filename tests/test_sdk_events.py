@@ -1,6 +1,5 @@
+from biopro_sdk.plugin import CentralEventBus
 from PyQt6.QtCore import QCoreApplication, QObject
-
-from biopro.sdk.core.events import CentralEventBus
 
 
 class MockSubscriber(QObject):

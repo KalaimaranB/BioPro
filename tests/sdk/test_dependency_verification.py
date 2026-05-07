@@ -3,7 +3,7 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-from biopro_sdk.core.trust_manager import TrustManager
+from biopro_sdk.host import TrustManager
 from biopro_sdk.sdk_cli import SDKCLI
 
 

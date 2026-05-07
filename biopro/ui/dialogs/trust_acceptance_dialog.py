@@ -104,7 +104,7 @@ class TrustAcceptanceDialog(QDialog):
     def _on_trust_clicked(self):
         """Perform the trust save flow."""
         try:
-            from biopro_sdk.core.trust_manager import TrustManager
+            from biopro_sdk.host import TrustManager
 
             manager = TrustManager()
             if manager.trust_developer(self.developer_name, self.pub_key_hex):

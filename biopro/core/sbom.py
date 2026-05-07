@@ -83,7 +83,7 @@ class SBOMGenerator:
 
         # 2. Gather Active Plugins Profile
         try:
-            from biopro_sdk.core.trust_manager import TrustManager
+            from biopro_sdk.host import TrustManager
 
             from biopro.core.module_manager import ModuleManager
 

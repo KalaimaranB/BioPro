@@ -60,8 +60,10 @@ class PluginUIWorker(QObject):
             # This is the 'Rainbow Wheel' culprit (the imports inside load_module_ui)
             PanelClass = self.module_manager.load_module_ui(self.module_id)
             self.finished.emit(PanelClass)
-        except Exception as e:
-            self.error.emit(str(e))
+        except Exception:
+            import traceback
+
+            self.error.emit(traceback.format_exc())
 
 
 class WorkspaceWindow(QMainWindow):
@@ -117,6 +119,7 @@ class WorkspaceWindow(QMainWindow):
         self._ai_window = None
         self._module_thread = None
         self._module_worker = None
+        self._pending_workflow_payload: dict | None = None
 
         self._show_home()
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -416,19 +419,42 @@ class WorkspaceWindow(QMainWindow):
             if hasattr(self.wizard_panel, "state_changed"):
                 self.wizard_panel.state_changed.connect(self._push_history)
 
+            # Inject any pending workflow payload that was waiting for the module to load
+            if (
+                hasattr(self, "_pending_workflow_payload")
+                and self._pending_workflow_payload is not None
+            ):
+                if hasattr(self.wizard_panel, "load_workflow"):
+                    self.wizard_panel.load_workflow(self._pending_workflow_payload)
+                    self.status_bar.showMessage("Successfully loaded workflow payload.")
+                self._pending_workflow_payload = None
+
             # Jump from Hyperspace to the Analysis view!
             self._transition_to_page(_PAGE_ANALYSIS)
             self.status_bar.showMessage(f"{manifest.get('name')} — open a file to begin (Ctrl+O)")
 
-        except Exception as e:
-            self._on_module_load_error(module_id, str(e))
+        except Exception:
+            import traceback
+
+            self._on_module_load_error(module_id, traceback.format_exc())
 
     def _on_module_load_error(self, module_id: str, error_msg: str) -> None:
         """Handles loading failures gracefully."""
         self._transition_to_page(_PAGE_HOME)
-        QMessageBox.critical(
-            self, "Module Error", f"Failed to load module {module_id}:\n{error_msg}"
-        )
+
+        from biopro.ui.dialogs.error_report import ErrorReportDialog
+
+        # Extract the exact exception message from the last line of the traceback if possible
+        lines = [line.strip() for line in error_msg.strip().split("\n") if line.strip()]
+        exc_msg = lines[-1] if lines else error_msg
+
+        error_data = {
+            "plugin_id": module_id,
+            "message": f"Failed to load module '{module_id}': {exc_msg}",
+            "traceback": error_msg,
+        }
+        dialog = ErrorReportDialog(error_data, parent=self)
+        dialog.exec()
         logger.error(f"Failed to load module {module_id}: {error_msg}")
 
     def _on_open_file(self) -> None:
@@ -771,13 +797,11 @@ class WorkspaceWindow(QMainWindow):
                 )
                 return
 
-            # 3. Open the module
-            self._open_module(manifest)
+            # 3. Store the pending payload for when the module is fully loaded
+            self._pending_workflow_payload = payload
 
-            # 4. Inject the payload
-            if self.wizard_panel and hasattr(self.wizard_panel, "load_workflow"):
-                self.wizard_panel.load_workflow(payload)
-                self.status_bar.showMessage(f"Successfully loaded workflow: {filename}")
+            # 4. Open the module asynchronously
+            self._open_module(manifest)
 
         except Exception as e:
             logger.exception("Failed to load workflow")

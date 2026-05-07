@@ -1,6 +1,6 @@
 """Module Store and Update Dialog."""
 
-from biopro_sdk.ui import DangerButton, ModuleCard, PrimaryButton, SecondaryButton
+from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton, SecondaryButton
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
@@ -197,6 +197,7 @@ class PluginStoreDialog(QDialog):
         self.store_grid_widget = QWidget()
         self.store_grid_widget.setStyleSheet("background: transparent;")
         self.store_grid = QGridLayout(self.store_grid_widget)
+        self.store_grid.setSizeConstraint(QGridLayout.SizeConstraint.SetMinAndMaxSize)
         self.store_grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self.store_grid.setContentsMargins(20, 20, 20, 20)
         self.store_grid.setSpacing(20)
@@ -233,9 +234,11 @@ class PluginStoreDialog(QDialog):
     def _load_store_data(self):
         # 1. Clear grid
         for i in reversed(range(self.store_grid.count())):
-            widget = self.store_grid.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
+            item = self.store_grid.itemAt(i)
+            if item:
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
 
         # 2. Get inventory
         inventory = self.updater.evaluate_store_state()
@@ -257,7 +260,7 @@ class PluginStoreDialog(QDialog):
         for plugin_id, data in inventory.items():
             mod_data = data["info"]
             state = data["state"]
-            is_verified = data["is_verified"]
+            is_verified = data.get("is_verified", False)
 
             # Search Filter
             match_search = (
@@ -288,6 +291,7 @@ class PluginStoreDialog(QDialog):
             row, col = i // 2, i % 2
             card = self._create_store_card(plugin_id, data)
             self.store_grid.addWidget(card, row, col)
+        self.store_grid_widget.adjustSize()
 
     def _create_store_card(self, plugin_id: str, data: dict):
         mod_data = data["info"]

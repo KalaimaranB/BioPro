@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from biopro_sdk.core.ai import ai_manager
+from biopro_sdk.host.ai import ai_manager
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -51,6 +51,11 @@ class AIChatWindow(QDialog):
         self.poll_timer = QTimer(self)
         self.poll_timer.timeout.connect(self._poll_server_status)
         self.poll_timer.start(3000)
+
+    @property
+    def assistant(self):
+        """Delegated property to access assistant via service for backward compatibility."""
+        return self.service.assistant
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -228,6 +233,22 @@ class AIChatWindow(QDialog):
         self.btn_soul.clicked.connect(self._edit_soul)
         self.btn_power.clicked.connect(self._toggle_server)
 
+    def closeEvent(self, event):
+        """Cleanup subscriptions to global singletons on close to prevent memory leaks."""
+        try:
+            ai_manager.signals.prompt_download.disconnect(self._show_download_ui)
+            ai_manager.signals.server_started.disconnect(self._show_chat_ui)
+            ai_manager.signals.download_progress.disconnect(self.progress_bar.setValue)
+            ai_manager.signals.server_error.disconnect(self._on_server_error)
+        except (TypeError, RuntimeError):
+            pass  # Already disconnected or never connected
+        super().closeEvent(event)
+
+    def _append_chat(self, text: str):
+        """Compatibility helper for unit tests to directly append chat content."""
+        self.service.full_chat_md += text
+        self._render_chat()
+
     def _toggle_context_sidebar(self):
         show = self.btn_ctx_toggle.isChecked()
         self.context_sidebar.setVisible(show)
@@ -347,11 +368,18 @@ class AIChatWindow(QDialog):
         self.context_widget.show()
         self.update_module_context(self.current_module_id)
 
-    def update_module_context(self, module_id: str):
+    def update_module_context(self, module_id: str | None):
         self.current_module_id = module_id
         if module_id:
+            self.chk_module.setChecked(True)
             self.chk_module.setEnabled(True)
             self.chk_module.setText(f"Module ({module_id})")
+            self.chk_core.setChecked(False)
+        else:
+            self.chk_module.setChecked(False)
+            self.chk_module.setEnabled(False)
+            self.chk_module.setText("Module (None)")
+            self.chk_core.setChecked(True)
         self.context_sidebar.refresh(module_id, self.chk_core.isChecked())
 
     def _start_download(self):

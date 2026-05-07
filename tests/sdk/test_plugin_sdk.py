@@ -3,20 +3,17 @@
 from dataclasses import dataclass
 from typing import Any
 
-from PyQt6.QtWidgets import QLabel, QWidget
-
-from biopro.sdk.core import (
+from biopro_sdk.plugin import (
     AnalysisBase,
     AnalysisWorker,
     PluginBase,
     PluginSignals,
     PluginState,
-)
-from biopro.sdk.ui import (
     StepIndicator,
     WizardPanel,
     WizardStep,
 )
+from PyQt6.QtWidgets import QLabel, QWidget
 
 # Tests for PluginState
 

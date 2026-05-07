@@ -9,8 +9,7 @@ import uuid
 from functools import partial
 from typing import Optional
 
-from biopro_sdk.core.analysis import AnalysisBase, AnalysisRunnable, AnalysisWorker
-from biopro_sdk.core.state import PluginState
+from biopro_sdk.plugin import AnalysisBase, AnalysisRunnable, AnalysisWorker, PluginState
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal, pyqtSlot
 
 logger = logging.getLogger(__name__)

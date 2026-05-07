@@ -1,4 +1,4 @@
-from biopro_sdk.core.ai import AIAssistant
+from biopro_sdk.host.ai import AIAssistant
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QCheckBox, QLabel, QLineEdit, QScrollArea, QVBoxLayout, QWidget
 
@@ -45,6 +45,7 @@ class ContextPanel(QWidget):
 
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
+        self.container_layout.setSizeConstraint(QVBoxLayout.SizeConstraint.SetMinAndMaxSize)
         self.container_layout.setContentsMargins(0, 0, 0, 0)
         self.container_layout.setSpacing(2)
         self.scroll.setWidget(self.container)
@@ -68,8 +69,10 @@ class ContextPanel(QWidget):
         # Clear current
         for i in reversed(range(self.container_layout.count())):
             item = self.container_layout.takeAt(i)
-            if item.widget():
-                item.widget().deleteLater()
+            if item:
+                w = item.widget()
+                if w:
+                    w.deleteLater()
 
         # Discover all
         _, docs = self.assistant._gather_context("", plugin_id, include_core, discover_only=True)
@@ -93,7 +96,7 @@ class ContextPanel(QWidget):
                 cb = QCheckBox(f"{name} ({size_kb:.1f} KB)")
                 cb.setProperty("filename", name)
                 cb.setProperty("file_size", d["size"])
-                cb.setChecked(name in pinned)
+                cb.setChecked(name.lower() in [p.lower() for p in pinned])
                 cb.setStyleSheet(
                     f"QCheckBox {{ color: {Colors.FG_PRIMARY}; font-size: 11px; padding: 1px; }}"
                 )
@@ -105,22 +108,33 @@ class ContextPanel(QWidget):
 
         self.container_layout.addStretch()
         self._on_selection_changed()
+        self.container.adjustSize()
 
     def _filter_files(self, text):
         text = text.lower()
         for i in range(self.container_layout.count()):
-            widget = self.container_layout.itemAt(i).widget()
-            if isinstance(widget, QCheckBox):
-                widget.setVisible(text in widget.property("filename").lower())
+            item = self.container_layout.itemAt(i)
+            if item:
+                widget = item.widget()
+                if isinstance(widget, QCheckBox):
+                    fn = widget.property("filename")
+                    if fn:
+                        widget.setVisible(text in fn.lower())
 
     def _on_selection_changed(self):
         selected_filenames = []
         total_bytes = 0
         for i in range(self.container_layout.count()):
-            widget = self.container_layout.itemAt(i).widget()
-            if isinstance(widget, QCheckBox) and widget.isChecked():
-                selected_filenames.append(widget.property("filename"))
-                total_bytes += widget.property("file_size")
+            item = self.container_layout.itemAt(i)
+            if item:
+                widget = item.widget()
+                if isinstance(widget, QCheckBox) and widget.isChecked():
+                    fn = widget.property("filename")
+                    fs = widget.property("file_size")
+                    if fn:
+                        selected_filenames.append(fn)
+                    if fs:
+                        total_bytes += fs
 
         kb_used = total_bytes / 1024
         percent = min(100, (total_bytes / 20000) * 100)
@@ -138,7 +152,11 @@ class ContextPanel(QWidget):
         """
         selected = []
         for i in range(self.container_layout.count()):
-            widget = self.container_layout.itemAt(i).widget()
-            if isinstance(widget, QCheckBox) and widget.isChecked():
-                selected.append(widget.property("filename"))
+            item = self.container_layout.itemAt(i)
+            if item:
+                widget = item.widget()
+                if isinstance(widget, QCheckBox) and widget.isChecked():
+                    fn = widget.property("filename")
+                    if fn:
+                        selected.append(fn)
         return selected

@@ -134,7 +134,7 @@ def bootstrap_sdk():
     sdk_dir = Path.home() / ".biopro" / "sdk"
     if sdk_dir.exists():
         try:
-            from biopro_sdk.core.trust_manager import TrustManager
+            from biopro_sdk.host import TrustManager
 
             trust_mgr = TrustManager()
             result = trust_mgr.verify_plugin(sdk_dir)
@@ -164,14 +164,6 @@ def bootstrap_sdk():
 def main():
     log_file = setup_logging()
     bootstrap_sdk()
-
-    # Dynamic backward-compatibility shim for older plugins importing 'biopro.sdk'
-    try:
-        import biopro_sdk
-
-        sys.modules["biopro.sdk"] = biopro_sdk
-    except ImportError:
-        pass
 
     # Handle SDK CLI commands if detected
     if len(sys.argv) > 1 and sys.argv[1] == "sdk":

@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from biopro_sdk.core.interfaces import BioProPlugin
-from biopro_sdk.core.trust_manager import TrustManager
+from biopro_sdk.host import TrustManager
+from biopro_sdk.plugin import BioProPlugin
 from PyQt6.QtWidgets import QWidget
 
 # HACK: Import the base plugins namespace so we can expand it

@@ -1,6 +1,6 @@
 import logging
 
-from biopro.sdk.utils.logging import PluginLoggerAdapter, get_logger
+from biopro_sdk.plugin.logging import PluginLoggerAdapter, get_logger
 
 
 def test_get_logger_standard():

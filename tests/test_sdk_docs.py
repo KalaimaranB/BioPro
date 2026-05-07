@@ -1,4 +1,4 @@
-from biopro.sdk.core.docs import PluginDocumentation
+from biopro_sdk.host.docs import PluginDocumentation
 
 
 def test_plugin_documentation_registration():

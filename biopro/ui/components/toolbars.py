@@ -1,6 +1,6 @@
 """Analysis toolbars."""
 
-from biopro_sdk.ui import SecondaryButton
+from biopro_sdk.plugin import SecondaryButton
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QWidget
 
 from biopro.ui.theme import Colors, Fonts, theme_manager
