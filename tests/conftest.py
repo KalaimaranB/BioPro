@@ -16,6 +16,14 @@ if os.environ.get("QT_QPA_PLATFORM") is None:
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Dynamic backward-compatibility shim for older tests importing 'biopro.sdk'
+try:
+    import biopro_sdk
+
+    sys.modules["biopro.sdk"] = biopro_sdk
+except ImportError:
+    pass
+
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s")
 

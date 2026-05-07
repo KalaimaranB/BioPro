@@ -3,8 +3,8 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-from biopro.core.trust_manager import TrustManager
-from biopro.sdk.sdk_cli import SDKCLI
+from biopro_sdk.core.trust_manager import TrustManager
+from biopro_sdk.sdk_cli import SDKCLI
 
 
 def test_trust_manager_ignore_list():
