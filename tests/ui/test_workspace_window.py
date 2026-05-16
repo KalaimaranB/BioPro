@@ -52,19 +52,25 @@ class TestWorkspaceWindow:
 
         window._open_module(manifest)
 
+        # Wait for async worker to finish
+        qtbot.waitUntil(lambda: window.current_module_id == "plugin_a", timeout=5000)
+
         assert window.current_module_id == "plugin_a"
         assert isinstance(window.wizard_panel, MockPanel)
         # Verify title change in toolbar
         assert "Plugin A" in window.analysis_toolbar.title_lbl.text()
         mock_err.assert_not_called()
 
-    @patch("biopro.ui.windows.workspace_window.QMessageBox.critical")
-    def test_open_module_failure(self, mock_err, window):
+    @patch("biopro.ui.dialogs.error_report.ErrorReportDialog.exec")
+    def test_open_module_failure(self, mock_exec, window, qtbot):
         manifest = {"id": "broken", "name": "Broken"}
         window.module_manager.load_module_ui.side_effect = Exception("Load Failed")
 
         window._open_module(manifest)
-        mock_err.assert_called_once()
+
+        # Wait for error dialog
+        qtbot.waitUntil(lambda: mock_exec.called, timeout=5000)
+        mock_exec.assert_called_once()
 
     def test_history_integration(self, window, qtbot):
         """Verify that UI triggers push/undo/redo on HistoryManager."""

@@ -36,9 +36,8 @@ def pytest_sessionfinish(session, exitstatus):
     PyQt6 on macOS can segfault during cleanup when destroying the QApplication.
     This hook lets pytest exit before C++ destructors run.
     """
-    import os
-
-    os._exit(exitstatus)
+    # os._exit(exitstatus)
+    pass
 
 
 # Fixtures for common test setup

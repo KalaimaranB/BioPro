@@ -11,11 +11,15 @@ from biopro.core.network_updater import NetworkUpdater, PluginInstallerWorker
 
 # Mock PyQt6 to avoid QThread errors during testing if needed
 class MockQThread:
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         pass
 
     def start(self):
         self.run()
+
+    def run(self):
+        """Should be overridden by subclasses."""
+        pass
 
 
 @pytest.fixture(autouse=True)
@@ -239,3 +243,104 @@ class TestNetworkUpdaterExpanded:
         assert success is True
         assert not plugin_dir.exists()
         assert "to_delete" not in updater.get_local_state()
+
+    def test_fetch_remote_registry_error(self, updater):
+        """Ensures that network errors during registry fetch return an empty dict."""
+        with patch("requests.get", side_effect=Exception("Timeout")):
+            res = updater.fetch_remote_registry("http://bad.url")
+            assert res == {}
+
+    def test_get_local_state_corrupted_manifest(self, updater):
+        """Verifies that corrupted manifest.json files are skipped but others are loaded."""
+        plugin_dir = updater.plugin_dir / "bad_plugin"
+        plugin_dir.mkdir()
+        (plugin_dir / "manifest.json").write_text("{ invalid }")
+
+        good_dir = updater.plugin_dir / "good_plugin"
+        good_dir.mkdir()
+        (good_dir / "manifest.json").write_text('{"id": "good", "version": "1.0.0"}')
+
+        state = updater.get_local_state()
+        assert "good" in state
+        assert "bad_plugin" not in state
+
+    def test_install_plugin_failure_path(self, updater):
+        """Ensures that installation failures are caught and reported."""
+        with patch("requests.get", side_effect=Exception("IO Error")):
+            success, msg = updater.install_plugin("fail", {"download_url": "..."})
+            assert success is False
+            assert "Failed to install" in msg
+
+    def test_sync_keys_cleanup(self, updater):
+        """Verifies that keys no longer in the trusted list are removed from disk."""
+        roots_dir = Path.home() / ".biopro" / "trusted_roots"
+        roots_dir.mkdir(parents=True, exist_ok=True)
+        old_key = roots_dir / "network_old.pub"
+        old_key.write_bytes(b"data")
+
+        # Sync with an empty list should remove the old key
+        updater._sync_keys([], prefix="network_")
+        assert not old_key.exists()
+
+    def test_authority_sync_404_ignored(self, updater):
+        """Ensures that a 404 on the authority registry is handled silently."""
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 404
+            # Should not raise
+            updater.fetch_and_sync_authorities()
+
+    @patch("biopro_sdk.host.BIOPRO_ROOT_PUBLIC_KEY_HEX", "0" * 64)
+    def test_authority_sync_signature_verification_failure(self, updater):
+        """Verifies that authority sync aborts if signature verification fails."""
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+
+        # Generate a real key pair but use the wrong one for verification
+        private_key = ed25519.Ed25519PrivateKey.generate()
+        authorities = [{"id": "a", "public_key": "00"}]
+        canonical_bytes = json.dumps(authorities, sort_keys=True).encode()
+        sig = private_key.sign(canonical_bytes).hex()
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = {"authorities": authorities, "signature": sig}
+            # This should fail because the root public key hex was patched to 00...
+            with patch.object(updater, "_sync_keys") as mock_sync:
+                updater.fetch_and_sync_authorities()
+                mock_sync.assert_not_called()
+
+    def test_sync_system_assets_logic(self, updater):
+        """Tests the automatic update logic for system assets (SDK, docs)."""
+        remote_data = {"sdk": {"version": "2.0.0", "download_url": "http://sdk.zip"}, "plugins": {}}
+        local_assets = {"sdk": {"version": "1.0.0"}}
+
+        assets_json = updater.plugin_dir / "system_assets.json"
+        assets_json.write_text(json.dumps(local_assets))
+
+        with (
+            patch.object(updater, "fetch_remote_registry", return_value=remote_data),
+            patch("requests.get") as mock_get,
+            patch("shutil.rmtree"),
+            patch("zipfile.ZipFile"),
+            patch("biopro.core.network_updater._safe_extract"),
+        ):
+            mock_get.return_value.raise_for_status.return_value = None
+            mock_get.return_value.content = b"zipdata"
+
+            updater.sync_system_assets()
+
+            # Verify it tried to download the new SDK
+            mock_get.assert_called()
+            # Verify it updated the local tracking file
+            updated_assets = json.loads(assets_json.read_text())
+            assert updated_assets["sdk"]["version"] == "2.0.0"
+
+    def test_plugin_installer_worker_exceptions(self):
+        """Verify exception handling in the PluginInstallerWorker thread."""
+        from biopro.core.network_updater import PluginInstallerWorker
+
+        # Patch the signal on the class before instantiation
+        with patch.object(PluginInstallerWorker, "finished") as mock_finished:
+            worker = PluginInstallerWorker("test", "url", Path("/tmp"))
+            with patch("requests.get", side_effect=Exception("Crash")):
+                worker.run()
+                mock_finished.emit.assert_called_with(False, "Installation error: Crash")

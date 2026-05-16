@@ -72,13 +72,34 @@ class PluginInstallerWorker(QThread):
             self.finished.emit(True, f"Successfully installed {self.plugin_id}")
 
         except requests.RequestException as e:
-            logger.error(f"Network error downloading plugin: {e}")
+            msg = f"Network error downloading plugin: {e}"
+            logger.error(msg)
+            try:
+                from biopro.core.diagnostics import diagnostics
+
+                diagnostics.report_error(msg, exception=e)
+            except Exception:
+                pass
             self.finished.emit(False, "Download failed: Check your internet connection.")
-        except zipfile.BadZipFile:
-            logger.error("Downloaded file is not a valid zip archive.")
+        except zipfile.BadZipFile as e:
+            msg = "Downloaded file is not a valid zip archive."
+            logger.error(msg)
+            try:
+                from biopro.core.diagnostics import diagnostics
+
+                diagnostics.report_error(msg, exception=e)
+            except Exception:
+                pass
             self.finished.emit(False, "Installation failed: Corrupted zip file.")
         except Exception as e:
-            logger.exception(f"Unexpected error installing plugin {self.plugin_id}")
+            msg = f"Unexpected error installing plugin {self.plugin_id}"
+            logger.exception(msg)
+            try:
+                from biopro.core.diagnostics import diagnostics
+
+                diagnostics.report_error(msg, exception=e)
+            except Exception:
+                pass
             self.finished.emit(False, f"Installation error: {str(e)}")
 
 
@@ -146,7 +167,14 @@ class NetworkUpdater:
             with open(self.local_registry_path, "w") as f:
                 json.dump(local_state, f, indent=4)
         except Exception as e:
-            logger.error(f"Failed to sync local registry: {e}")
+            msg = f"Failed to sync local registry: {e}"
+            logger.error(msg)
+            try:
+                from biopro.core.diagnostics import diagnostics
+
+                diagnostics.report_error(msg, exception=e)
+            except Exception:
+                pass
 
         return local_state
 
@@ -168,7 +196,14 @@ class NetworkUpdater:
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            logger.error(f"Network error fetching registry: {e}")
+            msg = f"Network error fetching registry: {e}"
+            logger.error(msg)
+            try:
+                from biopro.core.diagnostics import diagnostics
+
+                diagnostics.report_error(msg, exception=e)
+            except Exception:
+                pass
             return {}
 
     def _parse_version(self, v_str: str) -> tuple:

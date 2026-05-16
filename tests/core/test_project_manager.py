@@ -1,4 +1,4 @@
-"""Tests for biopro.core.project_manager functionality."""
+from unittest.mock import patch
 
 import pytest
 
@@ -144,20 +144,148 @@ class TestProjectManager:
         # Verify it didn't crash and returns the name through the property
         assert pm.project_name == proj_dir.name
 
-    def test_save_to_readonly_failure_caught(self, open_project):
-        """Verifies behavior when the filesystem prevents saving (PermissionError)."""
+    def test_add_image_missing_file(self, open_project):
+        """Verify FileNotFoundError when adding a non-existent file."""
+        with pytest.raises(FileNotFoundError):
+            open_project.add_image("non_existent.png", copy_to_workspace=True)
+
+    def test_add_image_already_exists(self, open_project, tmp_path):
+        """Verify that adding an identical file returns the same hash and doesn't duplicate."""
+        p = tmp_path / "img.png"
+        p.write_text("data")
+        h1 = open_project.add_image(p, copy_to_workspace=True)
+        h2 = open_project.add_image(p, copy_to_workspace=True)
+        assert h1 == h2
+        # Should log info and return existing
+
+    def test_get_asset_path_resolution(self, open_project, tmp_path):
+        """Verify best-path resolution for assets (local vs original)."""
         pm = open_project
-        from unittest.mock import patch
+        orig = tmp_path / "orig.png"
+        orig.write_text("orig")
+        h = pm.add_image(orig, copy_to_workspace=True)
 
-        # Mock built-in open to raise PermissionError specifically for the project file
-        original_open = open
+        # 1. Local exists
+        assert pm.get_asset_path(h).exists()
 
-        def side_effect(file, *args, **kwargs):
-            if "project.biopro" in str(file):
-                raise PermissionError("Access Denied")
-            return original_open(file, *args, **kwargs)
+        # 2. Local missing, fallback to original
+        asset = pm.data["assets"][h]
+        (pm.project_dir / asset["local_path"]).unlink()
+        assert pm.get_asset_path(h) == orig.absolute()
 
-        with patch("biopro.core.project_manager.open", side_effect=side_effect):
-            # This should log a warning but NOT raise an exception that crashes the UI
+        # 3. Both missing
+        orig.unlink()
+        assert pm.get_asset_path(h) is None
+
+        # 4. Unknown hash
+        assert pm.get_asset_path("unknown") is None
+
+    def test_validate_assets_edge_cases(self, open_project):
+        """Verify validate_assets handles empty/missing data."""
+        # Missing assets key
+        data = {"other": 1}
+        assert open_project.assets.validate_assets(data) is False
+
+    def test_ingest_image_diagnostics_fallback(self, open_project, tmp_path):
+        """Verify diagnostics reporting on ingestion failure."""
+        p = tmp_path / "fail.png"
+        p.write_text("data")
+
+        # Mock compute_hash to fail
+        with (
+            patch.object(
+                open_project.assets, "compute_hash", side_effect=RuntimeError("Hash fail")
+            ),
+            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+            pytest.raises(RuntimeError),
+        ):
+            open_project.add_image(p, copy_to_workspace=True)
+            mock_diag.assert_called()
+
+    def test_save_workflow_collision(self, open_project):
+        """Verify that multiple workflows with the same name are handled by incrementing filenames."""
+        pm = open_project
+        pm.save_workflow("mod", {"p": 1}, {"name": "Test"})
+        pm.save_workflow("mod", {"p": 2}, {"name": "Test"})
+        workflows = pm.list_workflows()
+        assert len(workflows) == 2
+
+    def test_list_workflows_missing_dir(self, open_project):
+        """Verify listing workflows when the directory hasn't been created yet."""
+        # Workflows dir only created on first save
+        assert open_project.list_workflows() == []
+
+    def test_load_workflow_payload_missing(self, open_project):
+        """Verify loading a non-existent workflow returns an empty payload."""
+        assert open_project.load_workflow_payload("missing.json") == {}
+
+    def test_delete_workflow_success(self, open_project):
+        """Verify successful deletion of a workflow file."""
+        pm = open_project
+        fname = pm.save_workflow("mod", {"p": 1}, {"name": "ToDel"})
+        assert pm.delete_workflow("mod", fname) is True
+        assert len(pm.list_workflows()) == 0
+
+    def test_delete_workflow_fail(self, open_project):
+        """Verify that deleting a non-existent workflow returns False."""
+        assert open_project.delete_workflow("mod", "non_existent.json") is False
+
+    def test_list_workflows_corrupted_json(self, open_project):
+        """Verify that corrupted workflow JSON files are skipped during listing."""
+        pm = open_project
+        pm.save_workflow("mod", {"p": 1}, {"name": "Good"})
+
+        # Create corrupted one
+        wf_dir = pm.project_dir / "workflows"
+        wf_dir.mkdir(exist_ok=True)
+        (wf_dir / "bad.json").write_text("invalid json {")
+
+        workflows = pm.list_workflows()
+        assert len(workflows) == 1
+        assert workflows[0]["name"] == "Good"
+
+    def test_create_new_already_exists(self, empty_project_dir):
+        """Verify that create_new fails if the directory already exists."""
+        empty_project_dir.mkdir()
+        pm = ProjectManager(empty_project_dir)
+        with pytest.raises(FileExistsError):
+            pm.create_new("Duplicate")
+
+    def test_open_project_missing_file(self, tmp_path):
+        """Verify that open_project fails if the biopro file is missing."""
+        pm = ProjectManager(tmp_path / "not_a_project")
+        with pytest.raises(FileNotFoundError):
+            pm.open_project()
+
+    def test_open_project_corrupted_history(self, open_project):
+        """Verify that project loading continues even if the history file is corrupted."""
+        pm = open_project
+        pm.close()  # Release lock from fixture
+        pm.history_file.write_text("corrupted history data")
+        # Should not crash, just log a warning and proceed
+        pm.open_project()
+
+    def test_save_history_failure_diagnostics(self, open_project):
+        """Verify that history save failures are reported to the diagnostics engine."""
+        pm = open_project
+        # Mock serialize_all to fail
+        with (
+            patch.object(
+                pm.history_manager, "serialize_all", side_effect=RuntimeError("Serialization fail")
+            ),
+            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+        ):
             pm.save()
-            # Success reach here means no crash
+            mock_diag.assert_called()
+
+    def test_project_save_fatal_failure(self, open_project):
+        """Verify that fatal save failures are reported to the diagnostics engine."""
+        pm = open_project
+        # Mock os.replace to fail
+        with (
+            patch("os.replace", side_effect=RuntimeError("Fatal FS error")),
+            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+            pytest.raises(RuntimeError),
+        ):
+            pm.save()
+            mock_diag.assert_called()

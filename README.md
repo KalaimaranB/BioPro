@@ -5,8 +5,9 @@
 ---
 
 ### 📖 Documentation
-- [**User Guide**](docs/01_User_Guide.md) - For researchers and lab technicians.
-- [**Developer Handbook**](docs/06_Developer_Handbook.md) - For building your own analysis modules.
+- [**User Guide**](docs/user/01_User_Guide.md) - For researchers and lab technicians.
+- [**Getting Started**](docs/user/02_Getting_Started.md) - Fast-track to your first analysis.
+- [**Internal Architecture**](docs/internal/11_EventBus.md) - For contributors to the BioPro core.
 
 
 ---
@@ -58,7 +59,7 @@ BioPro uses a split-update architecture to ensure your tools are always cutting-
 ---
 
 ## 🛠 For Developers
-BioPro is designed to be extensible. You can build your own analysis modules using our `ModuleManager` API. Simply create a Python package with a `manifest.json` and drop it into the `plugins/` directory. For a highly detailed walkthrough of the module creation process, see [**Module Author Guide**](docs/07_Module_Author_Guide.md).
+BioPro is designed to be extensible. You can build your own analysis modules using the [**BioPro SDK**](https://github.com/KalaimaranB/BioPro-SDK). The SDK provides a powerful CLI and a suite of UI/analysis base classes to help you build verified plugins quickly. For a highly detailed walkthrough of the module creation process, see the [**Module Author Guide**](https://github.com/KalaimaranB/BioPro-SDK/blob/main/docs/Author_Guide.md).
 
 ### Repository Architecture
 

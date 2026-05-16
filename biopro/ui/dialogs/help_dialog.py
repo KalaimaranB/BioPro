@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from biopro.core.config import AppConfig
 from biopro.ui.theme import Colors
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ class HelpCenterDialog(QDialog):
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
 
         self.module_manager = module_manager
-        self.docs_dir = Path(__file__).parents[3] / "docs"
+        self.docs_dir = AppConfig.get_docs_dir()
         self.lookup_table = {}
         self.render_cache = {}
         self._setup_ui()
@@ -114,10 +115,17 @@ class HelpCenterDialog(QDialog):
 
         # Optmization: Speed up WebEngine
         settings = self.viewer.settings()
-        settings.setAttribute(settings.WebAttribute.LocalContentCanAccessFileUrls, True)
-        settings.setAttribute(settings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
-        settings.setAttribute(settings.WebAttribute.ScrollAnimatorEnabled, True)
-        settings.setAttribute(settings.WebAttribute.ErrorPageEnabled, False)
+        if settings:
+            from PyQt6.QtWebEngineCore import QWebEngineSettings
+
+            settings.setAttribute(
+                QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True
+            )
+            settings.setAttribute(
+                QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True
+            )
+            settings.setAttribute(QWebEngineSettings.WebAttribute.ScrollAnimatorEnabled, True)
+            settings.setAttribute(QWebEngineSettings.WebAttribute.ErrorPageEnabled, False)
 
         self.viewer.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
         splitter.addWidget(self.viewer)
@@ -159,50 +167,37 @@ class HelpCenterDialog(QDialog):
                     parent_item.removeChild(sub_item)
 
     def _load_topics(self):
-        """Build hierarchical categories."""
-        categories = {
-            "Getting Started": ["01", "02", "12", "13", "14"],
-            "How It Works": ["07", "08", "09", "10", "11"],
-            "For Developers": ["03", "04", "05", "06"],
-        }
-
+        """Build hierarchical categories from folder structure."""
         font = self.tree.font()
         font.setBold(True)
         font.setPointSize(11)
 
-        self.groups = {}
-        for cat in categories:
-            group = QTreeWidgetItem(self.tree, [cat])
-            group.setFlags(group.flags() & ~Qt.ItemFlag.ItemIsSelectable)
-            group.setForeground(0, Qt.GlobalColor.gray)
-            group.setFont(0, font)
-            self.groups[cat] = group
-            group.setExpanded(True)
+        # 1. Core User Docs
+        self.user_group = QTreeWidgetItem(self.tree, ["📖 User Manuals"])
+        self.user_group.setFlags(self.user_group.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+        self.user_group.setForeground(0, Qt.GlobalColor.gray)
+        self.user_group.setFont(0, font)
+        self.user_group.setExpanded(True)
 
-        self.plugin_group = QTreeWidgetItem(self.tree, ["Plugin Manuals"])
+        user_path = self.docs_dir / "user"
+        if user_path.exists():
+            self._populate_tree_from_dir(user_path, self.user_group)
+
+        # 2. Core Internal Docs
+        self.internal_group = QTreeWidgetItem(self.tree, ["🏗 Internal Architecture"])
+        self.internal_group.setFlags(self.internal_group.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+        self.internal_group.setForeground(0, Qt.GlobalColor.gray)
+        self.internal_group.setFont(0, font)
+
+        internal_path = self.docs_dir / "internal"
+        if internal_path.exists():
+            self._populate_tree_from_dir(internal_path, self.internal_group)
+
+        # 3. Plugin Docs
+        self.plugin_group = QTreeWidgetItem(self.tree, ["🔌 Plugin Manuals"])
         self.plugin_group.setFlags(self.plugin_group.flags() & ~Qt.ItemFlag.ItemIsSelectable)
         self.plugin_group.setForeground(0, Qt.GlobalColor.gray)
         self.plugin_group.setFont(0, font)
-
-        if self.docs_dir.exists():
-            # For core docs, we still want to categorize by prefix at the top level
-            for f in sorted(list(self.docs_dir.glob("*.md"))):
-                name = f.stem
-                prefix = name[:2]
-                target_group = self.groups["Getting Started"]
-                for cat, prefixes in categories.items():
-                    if prefix in prefixes:
-                        target_group = self.groups[cat]
-                        break
-
-                display_name = (
-                    name.split("_", 1)[1].replace("_", " ")
-                    if "_" in name and name[:2].isdigit()
-                    else name.replace("_", " ")
-                )
-                item = QTreeWidgetItem(target_group, [f"• {display_name}"])
-                item.setData(0, Qt.ItemDataRole.UserRole, str(f))
-                self.lookup_table[f.name] = item
 
         if self.module_manager:
             found_plugins = False
@@ -229,13 +224,13 @@ class HelpCenterDialog(QDialog):
     def _select_initial_topic(self):
         for i in range(self.tree.topLevelItemCount()):
             group = self.tree.topLevelItem(i)
-            if group.childCount() > 0:
+            if group and group.childCount() > 0:
                 # Find the first item that actually has data (not a category/folder)
                 item = group.child(0)
-                while item.childCount() > 0 and not item.data(0, Qt.ItemDataRole.UserRole):
+                while item and item.childCount() > 0 and not item.data(0, Qt.ItemDataRole.UserRole):
                     item = item.child(0)
 
-                if item.data(0, Qt.ItemDataRole.UserRole):
+                if item and item.data(0, Qt.ItemDataRole.UserRole):
                     self.tree.setCurrentItem(item)
                     self._on_item_clicked(item)
                     break

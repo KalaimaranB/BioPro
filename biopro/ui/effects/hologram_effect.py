@@ -47,30 +47,9 @@ class HologramEffect(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setOpacity(self._flicker)
 
-        w, h = self.width(), self.height()
-        opacity = int(255 * Colors.SCANLINE_OPACITY)
+        h = self.height()
 
-        # 1. Draw Horizontal Scanlines
-        painter.setPen(Qt.PenStyle.NoPen)
-        line_color = QColor(Colors.ACCENT_PRIMARY)
-        line_color.setAlpha(opacity)
-
-        for y in range(self._offset, h, 8):
-            painter.fillRect(0, y, w, 1, line_color)
-
-        # 2. Draw Vertical Scan Beam (the "Tactical Scanner")
-        if self._beam_x >= 0:
-            beam_grad = QLinearGradient(self._beam_x, 0, self._beam_x + 50, 0)
-            beam_color = QColor(Colors.ACCENT_PRIMARY)
-            beam_color.setAlpha(int(opacity * 2.5))  # Brighter beam
-
-            beam_grad.setColorAt(0, QColor(0, 0, 0, 0))
-            beam_grad.setColorAt(0.5, beam_color)
-            beam_grad.setColorAt(1, QColor(0, 0, 0, 0))
-
-            painter.fillRect(self._beam_x, 0, 50, h, beam_grad)
-
-        # 3. Add a soft vertical gradient for depth
+        # 1. Add a soft vertical gradient for depth
         gradient = QLinearGradient(0, 0, 0, h)
         gradient.setColorAt(0, QColor(0, 0, 0, 30))
         gradient.setColorAt(0.5, QColor(0, 0, 0, 0))

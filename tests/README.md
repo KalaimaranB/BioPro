@@ -86,8 +86,10 @@ def test_something(temp_config_dir):
 
 ## Test Coverage
 
-Current test coverage:
+For a detailed breakdown of coverage metrics, testing layers (Unit/Integration/Security), and our TDD philosophy, see:
+**[Testing Philosophy & Coverage](file:///Users/kalaimaranbalasothy/GitHub Projects/BioPro/docs/internal/18_Testing_Philosophy.md)**
 
+Current areas of high focus:
 - **plugin_sdk.py** - PluginState, PluginSignals, AnalysisBase, WizardStep, WizardPanel, PluginBase, AnalysisWorker
 - **history_manager.py** - ModuleHistory, HistoryManager, undo/redo workflows
 - **sdk_utils.py** - File I/O, configuration management, validation functions

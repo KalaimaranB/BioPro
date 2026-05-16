@@ -86,11 +86,12 @@ class BioProApp:
 
         from biopro.core.resource_manager import resource_path
 
-        icon_path = resource_path("icon.icns")
-        if icon_path.exists():
-            self.app.setWindowIcon(QIcon(str(icon_path)))
-        else:
-            print(f"Warning: Icon not found at {icon_path}")
+        # On macOS, the Dock icon is natively and perfectly managed by the .app bundle's Info.plist.
+        # Setting a window icon with .icns can overwrite and reset the native round icon to a generic square if Qt's icns plugin is not loaded.
+        if sys.platform != "darwin":
+            icon_path = resource_path("icon.icns")
+            if icon_path.exists():
+                self.app.setWindowIcon(QIcon(str(icon_path)))
 
         self.module_manager = module_manager
         self.updater = updater

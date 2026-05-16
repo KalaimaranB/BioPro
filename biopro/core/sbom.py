@@ -19,6 +19,32 @@ class SBOMGenerator:
         self.project_root = project_root or Path(__file__).parent.parent.parent
         self.biopro_dir = Path.home() / ".biopro"
 
+    def get_metadata(self) -> dict[str, Any]:
+        """Returns application and environment metadata."""
+        return {
+            "timestamp": importlib.metadata.version("biopro")
+            if "biopro" in sys.modules
+            else "2026-05-15T21:30:00Z",
+            "tools": [
+                {
+                    "vendor": "BioPro Authority",
+                    "name": "BioPro SBOM Generator",
+                    "version": "1.1.0",
+                }
+            ],
+            "component": {
+                "type": "application",
+                "name": "BioPro Core",
+                "version": self._get_core_version(),
+                "description": "Sleek, high-performance modular desktop scientific suite.",
+                "properties": [
+                    {"name": "os_name", "value": platform.system()},
+                    {"name": "os_release", "value": platform.release()},
+                    {"name": "python_version", "value": platform.python_version()},
+                ],
+            },
+        }
+
     def compile_sbom(self) -> dict[str, Any]:
         """Gathers system, core python library, and active plugin metadata."""
         components_list: list[dict[str, Any]] = []
@@ -26,32 +52,10 @@ class SBOMGenerator:
 
         sbom: dict[str, Any] = {
             "bomFormat": "CycloneDX",
-            "specVersion": "1.4",
+            "specVersion": "1.5",
             "serialNumber": f"urn:uuid:{hashlib.sha256(str(platform.node()).encode()).hexdigest()[:32]}",
             "version": 1,
-            "metadata": {
-                "timestamp": importlib.metadata.version("biopro")
-                if "biopro" in sys.modules
-                else "2026-05-06T16:40:00Z",
-                "tools": [
-                    {
-                        "vendor": "BioPro Authority",
-                        "name": "BioPro SBOM Generator",
-                        "version": "1.0.0",
-                    }
-                ],
-                "component": {
-                    "type": "application",
-                    "name": "BioPro Core",
-                    "version": self._get_core_version(),
-                    "description": "Sleek, high-performance modular desktop scientific suite.",
-                    "properties": [
-                        {"name": "os_name", "value": platform.system()},
-                        {"name": "os_release", "value": platform.release()},
-                        {"name": "python_version", "value": platform.python_version()},
-                    ],
-                },
-            },
+            "metadata": self.get_metadata(),
             "components": components_list,
             "plugins": plugins_list,
         }

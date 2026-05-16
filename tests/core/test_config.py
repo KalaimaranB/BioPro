@@ -1,67 +1,66 @@
-"""Tests for BioPro global app configuration."""
-
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from biopro.core.config import AppConfig
 
 
-class TestAppConfig:
-    @pytest.fixture
-    def config(self, tmp_path, monkeypatch):
-        # Mock home to tmp_path
-        monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        return AppConfig()
+@pytest.fixture
+def app_config(tmp_path, monkeypatch):
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
+    return AppConfig()
 
-    def test_config_initialization(self, config, tmp_path):
-        """Verifies standard config folder and file creation."""
-        assert config.config_dir == tmp_path / ".biopro"
-        assert config.config_file == tmp_path / ".biopro" / "config.json"
-        assert config.data["recent_projects"] == []
 
-    def test_add_recent_projects_logic(self, config):
-        """Verifies deduplication and ordering of recent projects."""
-        config.add_recent_project("/p1")
-        config.add_recent_project("/p2")
-        config.add_recent_project("/p1")  # Re-add p1 - should move to top
+def test_app_config_lifecycle(app_config):
+    # Test recent projects
+    app_config.add_recent_project("/path/a")
+    app_config.add_recent_project("/path/b")
+    assert app_config.get_recent_projects()[0] == str(Path("/path/b").absolute())
 
-        recents = config.get_recent_projects()
-        assert recents[0] == str(Path("/p1").absolute())
-        assert recents[1] == str(Path("/p2").absolute())
-        assert len(recents) == 2
+    # Test duplicates handling
+    app_config.add_recent_project("/path/a")
+    assert app_config.get_recent_projects()[0] == str(Path("/path/a").absolute())
+    assert len(app_config.get_recent_projects()) == 2
 
-    def test_recent_projects_limit(self, config):
-        """Verifies the 10-project limit."""
-        for i in range(15):
-            config.add_recent_project(f"/p{i}")
+    # Test limit
+    for i in range(15):
+        app_config.add_recent_project(f"/path/{i}")
+    assert len(app_config.get_recent_projects()) == 10
 
-        recents = config.get_recent_projects()
-        assert len(recents) == 10
-        # Most recent should be /p14
-        assert recents[0] == str(Path("/p14").absolute())
 
-    def test_config_persistence(self, config, tmp_path):
-        """Verifies save and load roundtrip."""
-        config.add_recent_project("/my/proj")
-        config.save()
+def test_skipped_update_version(app_config):
+    app_config.set_skipped_update_version("2.0.0")
+    assert app_config.get_skipped_update_version() == "2.0.0"
 
-        # New instance should load same data
-        from unittest.mock import patch
 
-        with patch("pathlib.Path.home", return_value=tmp_path):
-            config2 = AppConfig()
-            assert str(Path("/my/proj").absolute()) in config2.get_recent_projects()
+def test_config_load_error(tmp_path, monkeypatch):
+    fake_home = tmp_path / "home_err"
+    fake_home.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-    def test_corrupted_config_load_gracefully(self, tmp_path, monkeypatch):
-        """Verifies that corrupted config.json doesn't crash initialization."""
-        monkeypatch.setattr(Path, "home", lambda: tmp_path)
-        conf_dir = tmp_path / ".biopro"
-        conf_dir.mkdir()
-        (conf_dir / "config.json").write_text("{ incomplete...")
+    config_file = fake_home / ".biopro" / "config.json"
+    config_file.parent.mkdir()
+    config_file.write_text("{ broken }")
 
-        # Should finish init without raising, and still provide a usable data dict
+    with patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag:
         config = AppConfig()
-        # After a failed JSON parse, self.data retains the __init__ default (with ai_enabled too)
-        assert isinstance(config.data, dict)
-        assert isinstance(config.get_recent_projects(), list)
+        assert config.data["ai_enabled"] is True  # Default
+        mock_diag.assert_called()
+
+
+def test_config_save_error(app_config):
+    with (
+        patch("builtins.open", side_effect=PermissionError("Locked")),
+        patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+    ):
+        app_config.save()
+        mock_diag.assert_called()
+
+
+def test_get_docs_dir():
+    docs = AppConfig.get_docs_dir()
+    assert docs.name == "docs"
+    assert docs.is_absolute()

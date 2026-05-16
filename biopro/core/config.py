@@ -23,6 +23,11 @@ class AppConfig:
         self.data = {"recent_projects": [], "ai_enabled": True}
         self._load()
 
+    @staticmethod
+    def get_docs_dir() -> Path:
+        """Returns the absolute path to the core docs directory."""
+        return Path(__file__).parents[2] / "docs"
+
     def _load(self) -> None:
         if self.config_file.exists():
             try:
@@ -68,7 +73,9 @@ class AppConfig:
 
     def get_recent_projects(self) -> list[str]:
         """Return a list of absolute paths to recent projects."""
-        return self.data.get("recent_projects", [])
+        from typing import cast
+
+        return cast(list[str], self.data.get("recent_projects", []))
 
     def get_skipped_update_version(self) -> str | None:
         """Return the version string the user last chose to skip, or None."""

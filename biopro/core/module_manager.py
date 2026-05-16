@@ -1,7 +1,6 @@
 """Dynamic Plugin/Module Loader for BioPro."""
 
 import importlib
-import json
 import logging
 import sys
 from pathlib import Path
@@ -14,7 +13,9 @@ from PyQt6.QtWidgets import QWidget
 # HACK: Import the base plugins namespace so we can expand it
 import biopro.plugins
 from biopro.core.event_bus import BioProEvent, event_bus
+from biopro.core.manifest_parser import ManifestParser, ManifestValidationError
 from biopro.core.resource_manager import resource_path
+from biopro.core.trust.strategies import TrustStrategyFactory
 
 logger = logging.getLogger(__name__)
 
@@ -58,21 +59,32 @@ class ModuleManager:
 
             for plugin_path in directory.iterdir():
                 if plugin_path.is_dir():
-                    # SECURITY: Check trust but DON'T skip if failed (unless critical infrastructure fail)
-                    # We want to show "Untrusted/Modified" modules so the user can 'Lock' them.
-                    trust_result = self.trust_manager.verify_plugin(plugin_path)
-
                     manifest_file = plugin_path / "manifest.json"
                     if not manifest_file.exists():
                         continue
 
                     try:
-                        with open(manifest_file) as f:
-                            manifest = json.load(f)
+                        parser = ManifestParser()
+                        try:
+                            manifest = parser.parse_file(str(manifest_file))
+                        except ManifestValidationError as e:
+                            msg = f"Plugin {plugin_path.name} failed manifest validation: {e}"
+                            logger.error(msg)
+                            try:
+                                from biopro.core.diagnostics import diagnostics
+
+                                diagnostics.report_error(msg, exception=e)
+                            except Exception:
+                                pass
+                            continue
 
                         mod_id = manifest.get("id")
                         if not mod_id:
                             continue
+
+                        # SOLID: Dispatch to the correct trust strategy based on the manifest entity type
+                        strategy = TrustStrategyFactory.get_strategy(manifest)
+                        trust_result = strategy.verify(manifest, str(plugin_path))
 
                         self.modules[mod_id] = {
                             "manifest": manifest,
@@ -83,10 +95,10 @@ class ModuleManager:
                             "trust_level": trust_result.trust_level,
                             "trust_error": trust_result.error_message,
                             "trust_path": trust_result.trust_path,
-                            "calculated_hashes": trust_result.calculated_hashes,  # For snapshotting
+                            "calculated_hashes": trust_result.calculated_hashes,
                         }
 
-                        # Add trust level and developer metadata for UI logic
+                        # Add trust level and entity metadata for UI logic
                         manifest["trust_level"] = trust_result.trust_level
                         manifest["trust_path"] = trust_result.trust_path
                         manifest["developer_name"] = trust_result.developer_name
@@ -146,10 +158,16 @@ class ModuleManager:
             plugin_module = importlib.import_module(package_name)
 
             # Perform strict contract validation (Track 1 solidification)
-            if not isinstance(plugin_module, BioProPlugin):
-                logger.error(
-                    f"Module {module_id} failed interface validation. Missing required hooks."
-                )
+            # Use type: ignore because some IDEs squiggle when checking protocols against modules
+            if not isinstance(plugin_module, BioProPlugin):  # type: ignore
+                msg = f"Module {module_id} failed interface validation. Missing required hooks."
+                logger.error(msg)
+                try:
+                    from biopro.core.diagnostics import diagnostics
+
+                    diagnostics.report_error(msg)
+                except Exception:
+                    pass
                 raise TypeError(f"Module {module_id} does not satisfy BioProPlugin protocol.")
 
             mod_info["plugin_ref"] = plugin_module

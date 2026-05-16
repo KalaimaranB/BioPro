@@ -1,5 +1,7 @@
 """Tests for Phase 5: Resource Lifecycle & RAII."""
 
+from unittest.mock import patch
+
 import numpy as np
 
 from biopro.core.history_manager import ModuleHistory
@@ -27,6 +29,89 @@ class TestResourceInspector:
 
         assert len(heavy_resources) == 1
         assert heavy_resources[0][0] == "image"
+
+    def test_custom_checker(self):
+        def my_checker(obj):
+            return hasattr(obj, "is_special")
+
+        ResourceInspector.register_heavy_checker(my_checker)
+
+        class Special:
+            is_special = True
+
+        assert ResourceInspector.is_heavy(Special()) is True
+        assert ResourceInspector.is_heavy(123) is False
+
+    def test_torch_tensors(self):
+        import torch
+
+        # Large CPU tensor (Default threshold 1MB, float32 is 4 bytes/elem)
+        t_cpu = torch.zeros(1024 * 1024 // 4 * 2)
+        assert ResourceInspector.is_heavy(t_cpu) is True
+
+        # Small CPU tensor
+        t_small = torch.zeros(10)
+        assert ResourceInspector.is_heavy(t_small) is False
+
+        # Mock GPU tensor check if no GPU
+        t_mock_gpu = torch.zeros(10)
+        with patch.object(torch.Tensor, "is_cuda", True):
+            assert ResourceInspector.is_heavy(t_mock_gpu) is True
+
+    def test_matplotlib_figures(self):
+        import matplotlib.pyplot as plt
+
+        fig = plt.figure()
+        assert ResourceInspector.is_heavy(fig) is True
+        plt.close(fig)
+
+    def test_io_base(self):
+        import io
+
+        f = io.BytesIO(b"data")
+        assert ResourceInspector.is_heavy(f) is True
+
+    def test_get_object_hash(self):
+        arr = np.zeros((10, 10))
+        h = ResourceInspector.get_object_hash(arr)
+        assert h is not None
+        assert h.startswith("np:")
+
+        import torch
+
+        t = torch.zeros(5)
+        h2 = ResourceInspector.get_object_hash(t)
+        assert h2 is not None
+        assert h2.startswith("torch:")
+
+        assert ResourceInspector.get_object_hash(None) is None
+        assert ResourceInspector.get_object_hash("string") is None
+
+    def test_get_heavy_resources_dict_and_fallback(self):
+        # Test dict inspection
+        data = {"big": np.zeros(1024 * 1024), "small": 1}
+        heavy = ResourceInspector.get_heavy_resources(data)
+        assert len(heavy) == 1
+        assert heavy[0][0] == "big"
+
+        # Test fallback/exception path
+        class Uninspectable:
+            def __getattr__(self, name):
+                if name == "__dict__":
+                    raise Exception("Cannot touch this")
+                raise AttributeError(name)
+
+        # Should return empty list and not crash
+        assert ResourceInspector.get_heavy_resources(Uninspectable()) == []
+
+    def test_checker_exception_handling(self):
+        def bad_checker(obj):
+            raise Exception("Boom")
+
+        ResourceInspector.register_heavy_checker(bad_checker)
+        # Should not raise, just move on to next checks
+        assert ResourceInspector.is_heavy(None) is False
+        assert ResourceInspector.is_heavy("test") is False
 
 
 class TestHistoryDeduplication:
@@ -68,7 +153,7 @@ class TestHistoryDeduplication:
 
         # Step back
         restored = history.undo()
-
+        assert restored is not None
         assert restored["val"] == 1
         assert restored["img"] is image_data
         assert isinstance(restored["img"], np.ndarray)

@@ -353,3 +353,25 @@ Each plugin repo has a **`release.yml`** GitHub Action that triggers automatical
 | **Test Suite** | ~10 failing tests | 0 failures ✅, 75%+ coverage enforced (Deferred) |
 | **CI/CD** | Manual builds | Fully automated sign, package, release, and registry update pipeline ✅ |
 | **Dependency Isolation** | None for plugins | Pinned symlinked `.venv` per plugin |
+
+---
+
+## 🤝 Phase 8: Collaborative & Multi-Author Scaling (SOLID & TDD Approach)
+
+Transitioning from solo-developer plugins to team-based projects requires a systematic architectural shift in the cryptographic trust system, guided strictly by SOLID principles and TDD.
+
+### 1. Refactoring the Trust Architecture (SOLID Focus)
+- [ ] **Entity-Based Certificates**: Abstract the rigid `Developer` identity into a flexible `Entity` (Project, Team, or Person). Introduce an `ITrustStrategy` interface to adhere to the Open/Closed Principle.
+- [ ] **TDD Strategy for TrustManager**: Write red-tests for `ProjectTrustStrategy` (e.g., `test_project_trust_chain_validates_successfully()`) before splitting the monolithic `TrustManager` into `CertificateReader`, `ChainValidator`, and `SignatureVerifier` (Single Responsibility Principle).
+
+### 2. Multi-Author Manifest Schema Update
+- [ ] **Hard Migration to New Schema**: Since the ecosystem is in beta, perform a full migration. Drop support for the legacy single-author format and update `ManifestParser` directly to enforce the new multi-author structure.
+- [ ] **Update `manifest.json` Schema**: Add a `signed_by` object and an `authors` array to support granular credits and roles tied back to cryptographic identity fingerprints. Remove legacy `author_id` fields entirely.
+
+### 3. Local Development & CI/CD Tooling
+- [x] **Local `dev_cert` Flow**: Implement `biopro sdk init-identity` so new developers can quickly generate a local development certificate for TDD cycles without needing access to production Project Keys.
+- [x] **Standardized Environments**: Define a `.devcontainer` and `uv.lock` workspace template so new hires can spin up identical, guaranteed-working local environments instantly.
+- [x] **CI/CD Project Keys**: Provision "Project Keys" stored exclusively in GitHub Secrets. CI uses these to sign the final `manifest.json` on release, ensuring production signatures are never exposed to individual workstations.
+
+### 4. Contributor Surfacing
+- [x] **Attribution UI in Core**: Update the Core `PluginStoreWorker` to parse the V2 Manifest and display the multi-author team, roles, and avatars in the Hub UI.

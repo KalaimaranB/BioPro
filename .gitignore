@@ -24,6 +24,8 @@ Thumbs.db
 
 # Testing
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 
@@ -66,3 +68,8 @@ tests/core/trust_debug.log
 
 # AI Models (Heavy)
 models/
+
+# Scratch & Temporary
+dist_saved/
+scratch/
+*.bak

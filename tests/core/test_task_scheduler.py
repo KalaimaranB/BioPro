@@ -1,5 +1,7 @@
 """Tests for TaskScheduler and centralized concurrency management."""
 
+from typing import Any
+
 import pytest
 from biopro_sdk.plugin import AnalysisBase, PluginState
 
@@ -19,8 +21,8 @@ class MockState(PluginState):
 
 
 class MockAnalyzer(AnalysisBase):
-    def run(self, state):
-        if state.value == -1:
+    def run(self, state: PluginState | None = None) -> dict[str, Any]:
+        if state is None or not isinstance(state, MockState) or state.value == -1:
             raise ValueError("Intentional Error")
         return {"result": state.value * 2}
 
@@ -106,3 +108,47 @@ class TestTaskScheduler:
 
         assert tid1 in finished_ids
         assert tid2 in finished_ids
+
+    def test_cancel_all(self, scheduler):
+        """Verify cancel_all clears the thread pool."""
+        scheduler.cancel_all()
+        # Just ensure no crash, verifying QThreadPool.clear()
+
+    def test_shutdown(self, scheduler):
+        """Verify graceful shutdown clears workers and waits for pool."""
+        scheduler.shutdown()
+        assert len(scheduler._active_workers) == 0
+
+    def test_submit_exception_diagnostics(self, scheduler):
+        """Verify that submission failures report errors to diagnostics."""
+        from unittest.mock import patch
+
+        with (
+            patch(
+                "biopro.core.task_scheduler.AnalysisWorker", side_effect=RuntimeError("Submit fail")
+            ),
+            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+            pytest.raises(RuntimeError),
+        ):
+            scheduler.submit(MockAnalyzer("fail"), MockState())
+            mock_diag.assert_called()
+
+    def test_on_task_error_diagnostics(self, scheduler):
+        """Verify that background task errors report to diagnostics."""
+        from unittest.mock import patch
+
+        with patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag:
+            scheduler._on_task_error("tid", "Internal Failure")
+            mock_diag.assert_called()
+
+    def test_cleanup_signal_disconnect_resilience(self, scheduler):
+        """Verify that cleanup handles workers already partially deleted or disconnected."""
+        from unittest.mock import MagicMock
+
+        mock_worker = MagicMock()
+        scheduler._active_workers["ghost"] = mock_worker
+        # Mock disconnect to raise a common PyQt runtime error
+        mock_worker.finished.disconnect.side_effect = RuntimeError("Signal not connected")
+
+        scheduler._cleanup("ghost")
+        assert "ghost" not in scheduler._active_workers

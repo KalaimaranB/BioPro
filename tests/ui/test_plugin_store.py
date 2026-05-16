@@ -104,3 +104,25 @@ class TestPluginStore:
             assert btn.text() == "Incompatible"
             assert "v2.0" in btn.toolTip()
             assert btn.isEnabled() is False
+
+    def test_store_multi_author_display(self, store):
+        """Verifies that an array of authors is joined correctly."""
+        mock_inventory = {
+            "p_multi": {
+                "info": {
+                    "name": "Team Plugin",
+                    "version": "1.0",
+                    "authors": [{"name": "Alice"}, {"name": "Bob"}],
+                },
+                "state": "INSTALL",
+                "local_version": None,
+            }
+        }
+        with patch.object(store.updater, "evaluate_store_state", return_value=mock_inventory):
+            store._load_store_data()
+            card = store.findChild(ModuleCard)
+            from PyQt6.QtWidgets import QLabel
+
+            labels = card.findChildren(QLabel)
+            author_text = [lbl.text() for lbl in labels if "by Alice, Bob" in lbl.text()]
+            assert len(author_text) == 1

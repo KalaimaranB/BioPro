@@ -28,9 +28,9 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins + llm_bins + sdk_bins)
-all_datas = filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas + llm_datas + sdk_datas)
-all_hidden = sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden
+all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins + llm_bins + sdk_bins))
+all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas + llm_datas + sdk_datas))
+all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden)))
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
 # Explicitly exclude test modules and development dependencies

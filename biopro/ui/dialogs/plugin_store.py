@@ -317,7 +317,15 @@ class PluginStoreDialog(QDialog):
         name_lbl.setStyleSheet("font-size: 15px; font-weight: 800; border: none;")
         name_layout.addWidget(name_lbl)
 
-        author_lbl = QLabel(f"by {mod_data.get('author', 'Community')}")
+        authors_data = mod_data.get("authors", [])
+        if authors_data and isinstance(authors_data, list):
+            names = [a.get("name", "Unknown") for a in authors_data]
+            author_text = f"by {', '.join(names)}"
+        else:
+            # Fallback to single author for robust transition if any legacy cache remains
+            author_text = f"by {mod_data.get('author', 'Community')}"
+
+        author_lbl = QLabel(author_text)
         author_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
         name_layout.addWidget(author_lbl)
         header.addLayout(name_layout)

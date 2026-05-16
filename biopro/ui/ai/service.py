@@ -42,10 +42,12 @@ class StreamingAIThread(QThread):
 class AIService:
     """Orchestrates AI interactions and session state."""
 
+    from biopro.core.config import AppConfig
+
     def __init__(self, assistant: AIAssistant | None = None):
         self.assistant = assistant or AIAssistant()
         self.full_chat_md = ""
-        self.selected_context_files = None
+        self.selected_context_files: list[str] = []
 
     def clear_history(self):
         self.assistant.history = []

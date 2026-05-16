@@ -1,0 +1,41 @@
+# BioPro Core Dependencies (Logical)
+# Run 'pip-compile --generate-hashes requirements.in' to update requirements.txt
+
+# UI & Framework
+biopro-sdk
+PyQt6
+PyQt6-WebEngine
+cryptography
+psutil
+requests
+markdown
+pygments
+
+# Scientific Core
+numpy
+pandas
+scipy
+matplotlib
+scikit-image
+opencv-python-headless
+tifffile
+openpyxl
+
+# AI & Analysis
+torch
+torchvision
+cellpose
+flowkit
+flowio
+fast-histogram
+llama-cpp-python[server]
+
+# Build & Packaging
+pyinstaller
+certifi
+
+# Dev & Test
+pytest
+pytest-qt
+ruff
+mypy
