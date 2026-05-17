@@ -30,7 +30,7 @@ jobs:
 
       - name: Install Linting & Security Tools
         run: |
-          uv pip install --system ruff mypy pip-audit -r requirements.txt
+          uv pip install --system ruff mypy pip-audit types-requests types-Markdown types-Pygments types-psutil -r requirements.txt
 
       - name: Run Ruff Linter
         run: ruff check .
@@ -47,6 +47,7 @@ jobs:
   # Job 2: Cross-platform tests
   test:
     name: Run Tests (${{ matrix.os }})
+    needs: [audit-and-lint]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
