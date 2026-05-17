@@ -75,6 +75,7 @@ jobs:
           uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install --system -r requirements.txt
           uv pip install --system pytest pytest-qt pytest-cov
+          uv pip install --system --no-deps -e .
 
       # Using shell: bash guarantees multi-line backslash continuation works perfectly on Windows!
       - name: Run Core & SDK Tests
