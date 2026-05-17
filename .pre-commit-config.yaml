@@ -23,7 +23,7 @@ repos:
 
       - id: pip-audit
         name: Dependency Security Audit
-        entry: uv run pip-audit --ignore-vuln CVE-2025-69872
+        entry: uv run pip-audit -r requirements.txt --no-deps --ignore-vuln CVE-2025-69872
         language: system
         pass_filenames: false
 
