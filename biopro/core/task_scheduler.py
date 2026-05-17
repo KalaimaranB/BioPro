@@ -143,5 +143,24 @@ class TaskScheduler(QObject):
             del self._active_workers[task_id]
 
 
-# Singleton instance for application-wide use
-task_scheduler = TaskScheduler()
+class TaskSchedulerProxy:
+    """Lazy proxy wrapper to defer C++ QObject creation until first access.
+
+    Prevents PyQt6 crashes on Windows when imported before a QCoreApplication
+    instance is fully initialized.
+    """
+
+    def __init__(self):
+        self._instance: TaskScheduler | None = None
+
+    def _get_instance(self) -> TaskScheduler:
+        if self._instance is None:
+            self._instance = TaskScheduler()
+        return self._instance
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._get_instance(), name)
+
+
+# Singleton proxy instance for application-wide use
+task_scheduler: Any = TaskSchedulerProxy()
