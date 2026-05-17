@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from biopro_sdk.plugin import AnalysisBase, PluginState
 
-from biopro.core.task_scheduler import TaskScheduler
+from biopro.core.task_scheduler import task_scheduler
 
 
 class MockState(PluginState):
@@ -29,19 +29,17 @@ class MockAnalyzer(AnalysisBase):
 
 @pytest.fixture
 def scheduler():
-    """Returns a fresh-ish TaskScheduler instance."""
-    # Since it's a singleton, we clear it between tests if possible
-    # or just trust the isolation.
-    return TaskScheduler()
+    """Returns the global task_scheduler proxy instance."""
+    return task_scheduler
 
 
 class TestTaskScheduler:
     """Test suite for the centralized TaskScheduler."""
 
     def test_singleton_nature(self):
-        """Verifies that TaskScheduler follows the singleton pattern."""
-        s1 = TaskScheduler()
-        s2 = TaskScheduler()
+        """Verifies that task_scheduler follows the singleton pattern."""
+        s1 = task_scheduler._get_instance()
+        s2 = task_scheduler._get_instance()
         assert s1 is s2
 
     def test_task_submission_and_success(self, qtbot, scheduler):

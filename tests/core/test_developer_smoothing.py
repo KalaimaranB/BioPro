@@ -5,14 +5,14 @@ import json
 from biopro_sdk.host.trust_manager import TrustManager
 from biopro_sdk.plugin.managed_task import FunctionalTask
 
-from biopro.core.task_scheduler import TaskScheduler
+from biopro.core.task_scheduler import task_scheduler
 
 from .test_trust_architecture import PluginSigner
 
 
 def test_functional_task_execution(qtbot):
     """Verify that FunctionalTask can run arbitrary callables on the scheduler."""
-    scheduler = TaskScheduler()
+    scheduler = task_scheduler
 
     def my_func():
         return {"foo": "bar"}

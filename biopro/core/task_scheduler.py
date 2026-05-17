@@ -7,7 +7,7 @@ preventing thread exhaustion and ensuring UI responsiveness.
 import logging
 import uuid
 from functools import partial
-from typing import Any, Optional
+from typing import Any
 
 from biopro_sdk.plugin import AnalysisBase, AnalysisRunnable, AnalysisWorker, PluginState
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal, pyqtSlot
@@ -29,18 +29,7 @@ class TaskScheduler(QObject):
     task_error = pyqtSignal(str, str)  # task_id, error_message
     task_progress = pyqtSignal(str, int)  # task_id, progress (0-100)
 
-    _instance: Optional["TaskScheduler"] = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
     def __init__(self):
-        if getattr(self, "_initialized", False):
-            return
-
         super().__init__()
         self.pool: Any = QThreadPool.globalInstance()
         assert self.pool is not None
@@ -49,7 +38,6 @@ class TaskScheduler(QObject):
         # from reclaiming them while the C++ thread is still running.
         self._active_workers: dict[str, AnalysisWorker] = {}
 
-        self._initialized = True
         logger.info(f"TaskScheduler initialized. Thread pool limit: {self.pool.maxThreadCount()}")
 
     def submit(self, analyzer: AnalysisBase, state: PluginState | None = None) -> AnalysisWorker:
