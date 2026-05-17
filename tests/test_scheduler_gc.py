@@ -11,12 +11,12 @@ class MockState(PluginState):
     def to_dict(self) -> dict:
         return {}
 
-    def from_dict(self, data: dict) -> None:
+    def from_dict(self, data: dict) -> None:  # type: ignore[override]
         pass
 
 
 class MockAnalyzer(AnalysisBase):
-    def run(self, state) -> dict:
+    def run(self, state) -> dict:  # type: ignore[override]
         return {"status": "success"}
 
 
@@ -27,7 +27,7 @@ def test_task_scheduler_worker_gc(qapp):
 
     # 1. Submit task to task scheduler
     worker = task_scheduler.submit(analyzer, state)
-    task_id = worker.task_id
+    task_id = worker.task_id  # type: ignore[attr-defined]
 
     # Create a weak reference to the worker to track its lifecycle
     worker_ref = weakref.ref(worker)

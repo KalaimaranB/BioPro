@@ -7,7 +7,7 @@ preventing thread exhaustion and ensuring UI responsiveness.
 import logging
 import uuid
 from functools import partial
-from typing import Optional
+from typing import Any, Optional
 
 from biopro_sdk.plugin import AnalysisBase, AnalysisRunnable, AnalysisWorker, PluginState
 from PyQt6.QtCore import QObject, QThreadPool, pyqtSignal, pyqtSlot
@@ -42,7 +42,8 @@ class TaskScheduler(QObject):
             return
 
         super().__init__()
-        self.pool = QThreadPool.globalInstance()
+        self.pool: Any = QThreadPool.globalInstance()
+        assert self.pool is not None
 
         # Retain references to active workers to prevent Python's GC
         # from reclaiming them while the C++ thread is still running.
@@ -66,7 +67,7 @@ class TaskScheduler(QObject):
 
             # 1. Create the worker (The QObject that does the work and talks to the UI)
             worker = AnalysisWorker(analyzer, state, parent=self)
-            worker.task_id = task_id  # Attach ID for tracking
+            worker.task_id = task_id  # type: ignore[attr-defined]  # Attach ID for tracking
 
             # 2. Bridge worker signals to the global scheduler signals
             worker.finished.connect(partial(self._on_task_finished, task_id))

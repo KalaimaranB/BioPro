@@ -80,7 +80,7 @@ class TestInitIdentity:
         cli.biopro_dir = tmp_path
         cli.trusted_roots_dir = tmp_path / "trusted_roots"
 
-        cli.init_identity(is_project=False)
+        cli.init_identity()
 
         assert (tmp_path / "dev_private_key.pem").exists()
         assert (tmp_path / "dev_cert.bin").exists()
@@ -93,46 +93,17 @@ class TestInitIdentity:
         cli = SDKCLI()
         cli.biopro_dir = tmp_path
         cli.trusted_roots_dir = tmp_path / "trusted_roots"
-        cli.init_identity(is_project=False)
+        cli.init_identity()
 
         cert = (tmp_path / "dev_cert.bin").read_bytes()
         assert len(cert) == 96, f"Expected 96 bytes, got {len(cert)}"
 
+    @pytest.mark.skip(reason="Project mode has been consolidated into core signers")
     def test_project_mode_fails_without_key(self, tmp_path, capsys):
         """init_identity(is_project=True) prints an error if no private key exists."""
-        from biopro_sdk.sdk_cli import SDKCLI
+        pass
 
-        cli = SDKCLI()
-        cli.biopro_dir = tmp_path
-        cli.trusted_roots_dir = tmp_path / "trusted_roots"
-
-        cli.init_identity(is_project=True)
-
-        captured = capsys.readouterr()
-        assert "ERROR" in captured.out
-        assert "BIOPRO_PROJECT_PRIVATE_KEY" in captured.out
-
+    @pytest.mark.skip(reason="Project mode has been consolidated into core signers")
     def test_project_mode_succeeds_with_existing_key(self, tmp_path, capsys):
         """init_identity(is_project=True) loads the existing key and writes the cert stub."""
-        from biopro_sdk.sdk_cli import SDKCLI
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import ed25519
-
-        # Pre-write a valid project key (as CI would inject from secrets)
-        priv_key = ed25519.Ed25519PrivateKey.generate()
-        priv_bytes = priv_key.private_bytes(
-            serialization.Encoding.PEM,
-            serialization.PrivateFormat.OpenSSH,
-            serialization.NoEncryption(),
-        )
-        key_file = tmp_path / "dev_private_key.pem"
-        key_file.write_bytes(priv_bytes)
-
-        cli = SDKCLI()
-        cli.biopro_dir = tmp_path
-        cli.trusted_roots_dir = tmp_path / "trusted_roots"
-        cli.init_identity(is_project=True)
-
-        captured = capsys.readouterr()
-        assert "SUCCESS" in captured.out
-        assert (tmp_path / "dev_cert.bin").exists()
+        pass

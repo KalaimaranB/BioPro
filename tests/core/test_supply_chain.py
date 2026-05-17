@@ -67,6 +67,6 @@ def test_no_unpinned_dependencies():
         ):
             unpinned.append(line)
 
-    assert (
-        not unpinned
-    ), f"The following dependencies are not pinned to an exact version: {unpinned}"
+    assert not unpinned, (
+        f"The following dependencies are not pinned to an exact version: {unpinned}"
+    )

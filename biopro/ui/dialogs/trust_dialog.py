@@ -98,7 +98,7 @@ class TrustTimelineDialog(QDialog):
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setFixedSize(32, 32)
         icon_lbl.setStyleSheet(f"""
-            background: {self._get_color_for_status(node['status'])};
+            background: {self._get_color_for_status(node["status"])};
             border-radius: 16px;
             font-size: 16px;
             color: {Colors.BG_DARKEST};

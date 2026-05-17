@@ -134,7 +134,10 @@ class PluginSigner:
         if not self.private_key_path.exists():
             raise FileNotFoundError("Developer identity not found. Run 'init' first.")
         with open(self.private_key_path, "rb") as f:
-            return serialization.load_pem_private_key(f.read(), password=None)
+            key = serialization.load_pem_private_key(f.read(), password=None)
+            if not isinstance(key, ed25519.Ed25519PrivateKey):
+                raise TypeError("Key is not a valid Ed25519PrivateKey")
+            return key
 
     def sign_plugin(self, plugin_path: Path):
         """Updates manifest.json with hashes and creates signature.bin & dev_cert.bin."""
@@ -232,7 +235,10 @@ class PluginSigner:
         """
         if authority_key_path:
             with open(authority_key_path, "rb") as f:
-                private_key = serialization.load_pem_private_key(f.read(), password=None)
+                key = serialization.load_pem_private_key(f.read(), password=None)
+                if not isinstance(key, ed25519.Ed25519PrivateKey):
+                    raise TypeError("Authority key is not a valid Ed25519PrivateKey")
+                private_key = key
             with open(
                 authority_key_path.with_suffix(".pub")
                 if authority_key_path.with_suffix(".pub").exists()

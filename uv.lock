@@ -56,7 +56,7 @@ wheels = [
 
 [[package]]
 name = "biopro"
-version = "1.1.2"
+version = "1.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "biopro-sdk" },
@@ -116,15 +116,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "biopro-sdk"
-version = "1.0.1"
+version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyqt6" },
+    { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8a/7f/003045805ed2ba9a97d4469a3af16c83c7174a7fcbd70418498811637a2a/biopro_sdk-1.0.1.tar.gz", hash = "sha256:ca53d750b35b7f539786ff42fe7fa4404fbd8d0a12bd088f366e79dc43f811db", size = 40140, upload-time = "2026-05-07T21:00:49.999Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/28/8d0c9cccbf65521409060e3ced739fbedb4f33ed065244eb7b609aa905ac/biopro_sdk-1.1.1.tar.gz", hash = "sha256:110e639a0c76a65692bf2b1e7b7c6562ebf5db76716e65ce1103112c73d00410", size = 57533, upload-time = "2026-05-17T02:50:09.181Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/f1/d17396f859fbdb120e90d0858ea544f2d4e8a63aa4c8d7d05679bbc7dff0/biopro_sdk-1.0.1-py3-none-any.whl", hash = "sha256:ac79618c5a73292db2eb336fd8c60619ad6c33596701594278db933a16c4726d", size = 47906, upload-time = "2026-05-07T21:00:48.841Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/30/9d12bb613fb95ac7852c1c884c70f1605b01bd5792c2cd1e5de667d79cc5/biopro_sdk-1.1.1-py3-none-any.whl", hash = "sha256:6fdb89849b6099f126ba4859a53ad10b8d35ad4a1c64fd3766515649b4855272", size = 50711, upload-time = "2026-05-17T02:50:07.627Z" },
 ]
 
 [[package]]

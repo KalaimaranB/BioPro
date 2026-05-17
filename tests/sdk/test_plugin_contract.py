@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from biopro_sdk.host.trust_manager import TrustManager
 from biopro_sdk.plugin import BioProPlugin, PluginBase
 from PyQt6.QtWidgets import QWidget
 
@@ -33,11 +34,34 @@ class MockInvalidPlugin:
     __plugin_id__ = "bad_mod"
 
 
+class MockOverrides:
+    def trust_current_state(self, module_id, hashes):
+        pass
+
+
+class PermissiveTrustManager(TrustManager):
+    """A trust manager for tests that allows everything."""
+
+    def __init__(self) -> None:
+        self.overrides = MockOverrides()  # type: ignore[assignment]
+
+    def verify_plugin(self, path):
+        class FakeResult:
+            success = True
+            trust_level = "verified_mock"
+            calculated_hashes = {}
+
+        return FakeResult()
+
+    def _get_cache(self):
+        return None
+
+
 class TestPluginContract:
     def test_protocol_runtime_check(self):
         """Verifies that runtime_checkable protocol works on modules and classes."""
-        assert isinstance(MockValidPlugin, BioProPlugin)
-        assert not isinstance(MockInvalidPlugin, BioProPlugin)
+        assert isinstance(MockValidPlugin, BioProPlugin)  # type: ignore[arg-type]
+        assert not isinstance(MockInvalidPlugin, BioProPlugin)  # type: ignore[arg-type]
 
     def test_plugin_base_satisfies_contract(self):
         """Verifies that the SDK's PluginBase satisfies the protocol."""
@@ -56,14 +80,12 @@ class TestPluginContract:
                 pass
 
         # The class itself should satisfy it (via get_panel_class classmethod)
-        assert isinstance(MyPlugin, BioProPlugin)
+        assert isinstance(MyPlugin, BioProPlugin)  # type: ignore[arg-type]
 
     @patch("biopro.core.module_manager.importlib.import_module")
     def test_module_manager_validation_pass(self, mock_import):
         """Verifies that ModuleManager allows loading valid plugins."""
         from pathlib import Path
-
-        from tests.core.test_module_manager import PermissiveTrustManager
 
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
         mm.modules["mod_a"] = {
@@ -84,8 +106,6 @@ class TestPluginContract:
     def test_module_manager_validation_fail(self, mock_import):
         """Verifies that ModuleManager rejects invalid plugins."""
         from pathlib import Path
-
-        from tests.core.test_module_manager import PermissiveTrustManager
 
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
         mm.modules["bad_mod"] = {

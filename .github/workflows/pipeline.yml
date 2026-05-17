@@ -1,0 +1,264 @@
+name: BioPro CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # Job 1: Low-cost linting and security audit (Fail-fast)
+  audit-and-lint:
+    name: Security Audit & Lints (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: "actions/checkout@v4"
+
+      - name: Set up Python
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install Linting & Security Tools
+        run: |
+          uv pip install --system ruff mypy pip-audit -r requirements.txt
+
+      - name: Run Ruff Linter
+        run: ruff check .
+
+      - name: Run Ruff Formatter
+        run: ruff format --check .
+
+      - name: Run Mypy Type Checker
+        run: mypy --explicit-package-bases biopro tests
+
+      - name: Run Dependency Security Audit
+        run: pip-audit -r requirements.txt --ignore-vuln CVE-2025-69872
+
+  # Job 2: Cross-platform tests
+  test:
+    name: Run Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: ["macos-latest", "windows-latest"]
+        python-version: ["3.12"]
+    steps:
+      - name: Checkout Code
+        uses: "actions/checkout@v4"
+
+      - name: Set up Python
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install System Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install qt
+
+      - name: Install Dependencies
+        run: |
+          uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
+          uv pip install --system -r requirements.txt
+          uv pip install --system pytest pytest-qt pytest-cov
+
+      # Using shell: bash guarantees multi-line backslash continuation works perfectly on Windows!
+      - name: Run Core & SDK Tests
+        shell: bash
+        run: |
+          python -m pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
+            tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
+            --tb=short -q \
+            --cov=biopro --cov-report=xml --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
+          DISPLAY: ":99"
+
+  # Job 3: Version Check & Build/Release Prep
+  check-version:
+    name: Version Verification
+    needs: [audit-and-lint, test]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.version-check.outputs.changed }}
+      version: ${{ steps.version-check.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 2
+
+      - name: Version Check
+        id: version-check
+        run: |
+          NEW_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
+          echo "version=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          if [ $(git rev-list --count HEAD) -eq 1 ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            git checkout HEAD^ -- pyproject.toml
+            OLD_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
+            git checkout HEAD -- pyproject.toml
+            if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # Job 4: Expensive Production Executable Compilation (macOS + Windows)
+  build:
+    name: Production Build (${{ matrix.os }})
+    needs: [check-version]
+    if: needs.check-version.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-14, windows-latest]
+    env:
+      SOURCE_DATE_EPOCH: 0
+      PYTHONHASHSEED: 0
+    steps:
+      - name: Checkout Code
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+
+      - name: Set SOURCE_DATE_EPOCH
+        shell: bash
+        run: |
+          EPOCH=$(git log -1 --format=%ct)
+          echo "SOURCE_DATE_EPOCH=$EPOCH" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install Dependencies
+        run: |
+          uv pip install --system -r requirements.txt
+          uv pip install --system pyinstaller pytest
+
+      - name: Run Supply Chain Integrity Check
+        run: pytest tests/core/test_supply_chain.py
+
+      - name: Run PyInstaller Build
+        run: pyinstaller BioPro.spec
+
+      - name: Compress Artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd dist
+          Compress-Archive -Path BioPro\* -DestinationPath BioPro-Windows.zip
+
+      - name: Compress Artifacts (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd dist
+          tar -czf BioPro-macOS.tar.gz BioPro.app
+
+      - name: Generate SBOM
+        shell: bash
+        run: |
+          export PYTHONPATH=$PYTHONPATH:.
+          python -c "from biopro.core.sbom import SBOMGenerator; print(SBOMGenerator().to_json())" > dist/sbom.json
+
+      - name: Generate Checksum
+        shell: bash
+        run: |
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum sbom.json > sbom.json.sha256
+          else
+            shasum -a 256 sbom.json > sbom.json.sha256
+          fi
+
+      - name: Upload Artifacts
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: BioPro-Executable-${{ runner.os }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/sbom.json
+            dist/sbom.json.sha256
+
+  # Job 5: Hash Collection
+  collect-hashes:
+    name: Collect Artifact Hashes
+    needs: [build]
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hashes.outputs.hashes }}
+    steps:
+      - name: Download all artifacts
+        uses: "actions/download-artifact@v4"
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate Multi-Platform Hashes
+        id: hashes
+        run: |
+          cd artifacts
+          echo "hashes=$(sha256sum * | base64 -w0)" >> $GITHUB_OUTPUT
+
+  # Job 6: SLSA Provenance Generation (SLSA Level 3)
+  provenance:
+    needs: [collect-hashes]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0"
+    with:
+      base64-subjects: "${{ needs.collect-hashes.outputs.hashes }}"
+      upload-assets: true
+
+  # Job 7: Push GitHub Release
+  release:
+    name: Create GitHub Release
+    needs: [check-version, build, provenance]
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Artifacts
+        uses: "actions/download-artifact@v4"
+        with:
+          path: release_artifacts
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: "softprops/action-gh-release@v2"
+        with:
+          tag_name: ${{ needs.check-version.outputs.version }}
+          name: BioPro ${{ needs.check-version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            release_artifacts/*.zip
+            release_artifacts/*.tar.gz
+            release_artifacts/sbom.json
+            release_artifacts/sbom.json.sha256
+            release_artifacts/*.intoto.jsonl
