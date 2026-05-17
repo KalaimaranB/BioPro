@@ -10,7 +10,7 @@ from biopro.core.task_scheduler import TaskScheduler
 from .test_trust_architecture import PluginSigner
 
 
-def test_functional_task_execution():
+def test_functional_task_execution(qtbot):
     """Verify that FunctionalTask can run arbitrary callables on the scheduler."""
     scheduler = TaskScheduler()
 
