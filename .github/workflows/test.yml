@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["macos-latest", "windows-latest"]
-        python-version: ["3.11"]
+        python-version: ["3.12"]
 
     steps:
       - name: Checkout Code
@@ -40,7 +40,7 @@ jobs:
           pip install uv
           uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install --system -r requirements.txt
-          uv pip install --system pytest pytest-qt pytest-cov PyQt6-headless
+          uv pip install --system pytest pytest-qt pytest-cov
 
       - name: Run Core & SDK Tests
         run: |
