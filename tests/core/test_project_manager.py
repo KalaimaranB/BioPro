@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -84,7 +85,8 @@ class TestProjectManager:
         for h in hashes:
             asset = pm.data["assets"][h]
             # Verify paths are relative and correct
-            assert "assets/cohort_a" in asset["local_path"]
+            local_path_posix = Path(asset["local_path"]).as_posix()
+            assert "assets/cohort_a" in local_path_posix
             assert (pm.project_dir / asset["local_path"]).exists()
 
     def test_validate_assets_pruning(self, open_project, tmp_path):

@@ -250,7 +250,9 @@ class ModuleManager:
 
     def _cleanup_plugin_paths(self):
         """Remove any plugin .venv paths from sys.path."""
+        target_marker = str(Path(".biopro") / "plugins")
         for path in list(sys.path):
-            if ".biopro/plugins" in path and ".venv" in path and "site-packages" in path:
+            norm_path = str(Path(path))
+            if target_marker in norm_path and ".venv" in norm_path and "site-packages" in norm_path:
                 sys.path.remove(path)
                 logger.info(f"Cleaned up dynamic plugin path from sys.path: {path}")

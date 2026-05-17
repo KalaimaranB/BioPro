@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""BioPro: Local Windows Parity & Singleton Verification Script.
+"""BioPro: Local Windows Parity & Path-Separator Verification Script.
 
 Emulates the strict C++ initialization constraints of Windows on local macOS
-environments by forcing faulthandlers, tracing early QObject instantiation,
-and verifying the integrity of the Lazy Proxy Singleton pattern.
+environments, and runs a static analyzer to find hardcoded Unix-style path assertions
+that would fail on Windows' backslash separator system.
 """
 
 import faulthandler
@@ -42,12 +42,8 @@ from PyQt6.QtCore import QCoreApplication
 if QCoreApplication.instance() is None:
     print(" -> Confirmed: No active QApplication instance exists yet.")
     # On Windows, instantiating TaskScheduler here would crash the process with a stack overflow.
-    # Let's verify that the proxy prevents any accidental C++ construction.
     try:
         repr(task_scheduler)
-        # Accessing proxy properties calls __getattr__ which instantiates the class.
-        # But since no QApplication exists, we verify that we prevent early initialization
-        # or catch it cleanly.
         print(" -> WARNING: Accessed proxy before QCoreApplication initialization.")
     except Exception as e:
         print(f" -> Caught expected early initialization block/warning: {e}")
@@ -80,6 +76,39 @@ except AssertionError as ae:
 except Exception as e:
     print(f" -> FAIL: Unexpected exception during resolution: {e}")
     sys.exit(1)
+
+# 5. Static Check: Scan tests for hardcoded forward-slash asserts on system/local paths
+print("\n[Step 4] Running Static Path-Separator Analyzer on test suites...")
+tests_dir = project_root / "tests"
+warnings_found = 0
+
+for py_file in tests_dir.rglob("*.py"):
+    # Skip this script
+    if py_file.name == "verify_windows_parity.py":
+        continue
+
+    content = py_file.read_text(encoding="utf-8")
+    for line_num, line in enumerate(content.splitlines(), 1):
+        # Scan for asserts checking Unix-style paths (containing forward slashes) against variables
+        if (
+            "assert" in line
+            and "/" in line
+            and any(x in line for x in ["path", "dir", "file", "local"])
+            and "as_posix()" not in line
+            and "Path(" not in line
+        ):
+            print(
+                f" -> WARNING: Potentially fragile Unix path assertion in {py_file.relative_to(project_root)}:{line_num}"
+            )
+            print(f"    Code: {line.strip()}")
+            warnings_found += 1
+
+if warnings_found == 0:
+    print(" -> PASS: Zero fragile Unix path assertions detected! Excellent cross-platform health.")
+else:
+    print(
+        f" -> Flagged {warnings_found} path assertions. Review them to ensure Windows compatibility."
+    )
 
 print("\n=== WINDOWS PARITY & SINGLETON VERIFICATION PASSED ===")
 print("Your code is 100% architecturally compliant with Windows PyQt6. Safe to commit!")
