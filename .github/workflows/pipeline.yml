@@ -45,7 +45,7 @@ jobs:
         run: mypy --explicit-package-bases biopro tests
 
       - name: Run Dependency Security Audit
-        run: pip-audit -r requirements.txt --no-deps --ignore-vuln CVE-2025-69872
+        run: pip-audit -r requirements.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
   # Job 2: Cross-platform tests
   test:
