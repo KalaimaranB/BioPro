@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Linting & Security Tools
         run: |
-          uv pip install --system ruff mypy pip-audit types-requests types-Markdown types-Pygments types-psutil -r requirements.txt
+          uv pip install --system ruff mypy pip-audit types-requests types-Markdown types-Pygments types-psutil requests markdown Pygments psutil
 
       - name: Run Ruff Linter
         run: ruff check .
@@ -45,7 +45,7 @@ jobs:
         run: mypy --explicit-package-bases biopro tests
 
       - name: Run Dependency Security Audit
-        run: pip-audit --ignore-vuln CVE-2025-69872
+        run: pip-audit -r requirements.txt --ignore-vuln CVE-2025-69872
 
   # Job 2: Cross-platform tests
   test:
@@ -69,10 +69,6 @@ jobs:
 
       - name: Install uv
         run: pip install uv
-
-      - name: Install System Dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: brew install qt
 
       - name: Install Dependencies
         run: |
