@@ -78,6 +78,11 @@ def compare_dirs(dir1, dir2):
 
 
 def test_determinism():
+    import pytest
+
+    if shutil.which("pyinstaller") is None:
+        pytest.skip("PyInstaller is not installed in this environment.")
+
     epoch = 1715800000
 
     if Path("dist_saved").exists():

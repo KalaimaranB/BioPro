@@ -20,8 +20,7 @@ def make_v2_manifest(plugin_id: str, name: str, icon: str = "🧪") -> dict:
         "name": name,
         "version": "1.0.0",
         "description": f"{name} plugin",
-        "signed_by": {"entity_type": "developer", "entity_id": "test_dev"},
-        "authors": [{"name": "Test Dev"}],
+        "authors": [{"name": "Test Dev", "role": "Developer"}],
         "icon": icon,
     }
 

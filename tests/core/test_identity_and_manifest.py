@@ -1,8 +1,10 @@
 """TDD tests for the init-identity CLI command (developer and project modes)."""
 
-import pytest
+import json
+from pathlib import Path
 
-from biopro.core.manifest_parser import ManifestParser, ManifestValidationError
+import pytest
+from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
 
 
 class TestManifestParserIntegration:
@@ -16,10 +18,11 @@ class TestManifestParserIntegration:
             "name": "Test Plugin",
             "version": "1.0.0",
             "description": "Integration test plugin",
-            "signed_by": {"entity_type": "project", "entity_id": "test_ci_bot"},
-            "authors": [{"name": "Alice"}, {"name": "Bob"}],
+            "authors": [
+                {"name": "Alice", "role": "Developer"},
+                {"name": "Bob", "role": "Developer"},
+            ],
         }
-        import json
 
         manifest_file = tmp_path / "manifest.json"
         manifest_file.write_text(json.dumps(manifest))
@@ -31,7 +34,6 @@ class TestManifestParserIntegration:
 
     def test_legacy_manifest_file_is_rejected(self, tmp_path):
         """A manifest using the old 'author' string field raises ManifestValidationError."""
-        import json
 
         manifest = {
             "id": "old_plugin",
@@ -50,7 +52,6 @@ class TestManifestParserIntegration:
 
     def test_missing_required_field_rejected(self, tmp_path):
         """Missing 'authors' key raises ManifestValidationError."""
-        import json
 
         manifest = {
             "manifest_version": 2,
@@ -58,7 +59,6 @@ class TestManifestParserIntegration:
             "name": "Bad Plugin",
             "version": "1.0.0",
             "description": "Missing authors",
-            "signed_by": {"entity_type": "developer", "entity_id": "alice"},
         }
         manifest_file = tmp_path / "manifest.json"
         manifest_file.write_text(json.dumps(manifest))
@@ -72,38 +72,32 @@ class TestManifestParserIntegration:
 class TestInitIdentity:
     """TDD tests for biopro sdk init-identity (developer and project modes)."""
 
-    def test_developer_mode_creates_expected_files(self, tmp_path):
-        """init_identity() creates dev_private_key.pem, dev_cert.bin, and onboarding_root.pub."""
+    def test_developer_mode_creates_expected_files(self, tmp_path, monkeypatch):
+        """init_identity() creates V2 developer key files in ~/.biopro/dev_keys/."""
         from biopro_sdk.sdk_cli import SDKCLI
 
-        cli = SDKCLI()
-        cli.biopro_dir = tmp_path
-        cli.trusted_roots_dir = tmp_path / "trusted_roots"
+        fake_home = tmp_path / "home"
+        fake_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
 
+        cli = SDKCLI()
         cli.init_identity()
 
-        assert (tmp_path / "dev_private_key.pem").exists()
-        assert (tmp_path / "dev_cert.bin").exists()
-        assert (tmp_path / "trusted_roots" / "onboarding_root.pub").exists()
+        dev_keys_dir = fake_home / ".biopro" / "dev_keys"
+        assert (dev_keys_dir / "private.key").exists()
+        assert (dev_keys_dir / "public.pub").exists()
 
-    def test_developer_mode_cert_is_96_bytes(self, tmp_path):
-        """dev_cert.bin must be exactly 96 bytes: 32 bytes pub key + 64 bytes signature."""
+    def test_developer_mode_cert_is_96_bytes(self, tmp_path, monkeypatch):
+        """public.pub must be exactly 32 bytes (raw Ed25519 public key)."""
         from biopro_sdk.sdk_cli import SDKCLI
 
+        fake_home = tmp_path / "home"
+        fake_home.mkdir()
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
+
         cli = SDKCLI()
-        cli.biopro_dir = tmp_path
-        cli.trusted_roots_dir = tmp_path / "trusted_roots"
         cli.init_identity()
 
-        cert = (tmp_path / "dev_cert.bin").read_bytes()
-        assert len(cert) == 96, f"Expected 96 bytes, got {len(cert)}"
-
-    @pytest.mark.skip(reason="Project mode has been consolidated into core signers")
-    def test_project_mode_fails_without_key(self, tmp_path, capsys):
-        """init_identity(is_project=True) prints an error if no private key exists."""
-        pass
-
-    @pytest.mark.skip(reason="Project mode has been consolidated into core signers")
-    def test_project_mode_succeeds_with_existing_key(self, tmp_path, capsys):
-        """init_identity(is_project=True) loads the existing key and writes the cert stub."""
-        pass
+        dev_keys_dir = fake_home / ".biopro" / "dev_keys"
+        pub_key = (dev_keys_dir / "public.pub").read_bytes()
+        assert len(pub_key) == 32, f"Expected 32 bytes, got {len(pub_key)}"

@@ -23,5 +23,5 @@ def test_help_center_initialization(qtbot):
     qtbot.addWidget(dialog)
 
     assert dialog.windowTitle() == "BioPro Help Center"
-    assert dialog.topic_list.count() >= 0
+    assert dialog.tree.topLevelItemCount() >= 0
     assert dialog.viewer is not None

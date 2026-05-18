@@ -1,73 +1,149 @@
-# 🚀 BioPro Developer Onboarding Guide
+# 🚀 BioPro Collaboration, Onboarding, & Contribution Manual
 
-Welcome to the BioPro team! We are building a professional platform for scientific workflows. As we are currently in Beta, we use a modern, fast, and test-driven stack.
-
-This guide will get you from zero to executing your first test suite in minutes.
+Welcome to the BioPro contributor network! Whether you are a **QA Tester** validating pipelines, a **Core Developer** publishing computational plugins, or a **Partner University** serving as an institutional authority, this manual guides you through your onboarding process and cryptographic configurations.
 
 ---
 
-## 🛠️ 1. Prerequisites
-Before you start, make sure you have the following installed on your machine:
-- **Python 3.10+**
-- **[uv](https://docs.astral.sh/uv/)**: Our ultra-fast Python package manager. (Install via `curl -LsSf https://astral.sh/uv/install.sh | sh` or `brew install uv`)
-- **Git**
+## 🏛️ The BioPro Security Philosophy
+BioPro relies on a **verifiable, decentralized chain of trust**. We guarantee data integrity and run-safety by ensuring that every line of computational code is auditable and cryptographically signed. 
 
-## 📥 2. Workspace Setup
-All our plugin and core repositories use standardized `uv` environments.
+Because different contributors have different levels of access, we separate onboarding into **three progressive tiers**:
 
-```bash
-# Clone the repository you are assigned to (e.g., cytometrics plugin)
-git clone https://github.com/KalaimaranB/BioPro-cytometrics.git
-cd BioPro-cytometrics
+```mermaid
+graph TD
+    classDef tester fill:#0284c7,stroke:#0369a1,color:#fff
+    classDef dev fill:#16a34a,stroke:#15803d,color:#fff
+    classDef auth fill:#7c3aed,stroke:#6d28d9,color:#fff
 
-# Sync the environment instantly with uv
-uv sync
+    Tester["👤 Tier 1: Tester / Contributor<br>(Non-Cryptographic Credit)"]:::tester
+    Developer["💻 Tier 2: Developer / Publisher<br>(Ed25519 Code Signing)"]:::dev
+    Authority["🏛️ Tier 3: Institutional Authority<br>(UBC / Core Delegations)"]:::auth
+
+    Tester -->|Manual Validation| Developer
+    Developer -->|Credential Verification| Authority
 ```
-This automatically sets up a sandboxed `.venv` with the BioPro SDK and all testing tools.
 
-## 🔐 3. Local Cryptographic Identity
-BioPro relies on a strict Trust System. You do not need access to the production "Project Keys" to do your work. Instead, you will generate a local development identity.
+---
 
-Activate your environment and run the SDK initializer:
-```bash
-uv run biopro sdk init-identity
-```
-This generates a personal `dev_cert.bin` in your `~/.biopro/` directory. You will use this to sign your local builds for testing.
+## 👤 Tier 1: Onboarding a QA Tester (Non-Cryptographic)
 
-## 🧪 4. The TDD Workflow (Test-Driven Development)
-We adhere strictly to SOLID principles and TDD.
-1. **Write the Test First**: Open the `tests/` directory and write a failing test for your new feature.
-2. **Run Tests**:
-   ```bash
-   uv run pytest
-   ```
-3. **Implement**: Write the minimal code to pass the test.
-4. **Evaluate SDK Compliance**: Before committing, ensure your plugin meets all structural requirements:
-   ```bash
-   uv run biopro sdk evaluate .
-   ```
+**Who this is for**: Testers, QA engineers, scientific writers, and project managers who do not directly author core plugin source code but deserve credit and validation.
 
-## 🤝 5. Collaboration & Code Review
-We use a **Project Identity Model** for production releases. This means:
-- You will NEVER sign a production release locally.
-- When your feature is done, push your branch and **open a Pull Request (PR)** against `main`.
-- **Pre-flight Checks**: Our GitHub Actions will automatically run `pytest` and `biopro sdk evaluate .`.
-- **Code Review**: At least one other core team member must approve your PR.
-- **Merge & Release**: Upon merge, the CI/CD pipeline uses the secured Project Key to cryptographically sign the plugin and publish it to the registry.
+### 📝 Step 1: Getting Credited in the Manifest
+To credit a tester, the plugin developer simply adds an entry inside the plugin's `manifest.json` under the `authors` array.
+*   **Crucial Rule**: Because testers do **not** write code or sign binaries, they do **not** carry the `"sign_code"` permission. This allows BioPro's cryptographic engine to verify the plugin without requiring their signatures.
 
-## 👥 6. Credits & Manifest Updates
-When you contribute to a plugin, make sure your name is in the `manifest.json`! We do not use legacy single-author IDs.
-Add yourself to the `authors` array:
+#### Example `manifest.json` Entry:
 ```json
-"authors": [
-  {
-    "name": "Your Name",
-    "role": "Software Engineer",
-    "github": "@yourusername"
-  }
-]
+{
+  "manifest_version": 2,
+  "id": "flow_cytometry",
+  "version": "1.0.8",
+  "authors": [
+    {
+      "name": "Dr. Kalaimaran Balasothy",
+      "role": "Founder & Lead Architect",
+      "permissions": ["sign_code"]
+    },
+    {
+      "name": "Jane Doe",
+      "role": "Beta Tester",
+      "details": "Conducted high-throughput testing with 10k+ cell samples.",
+      "permissions": ["run_tests"]
+    }
+  ]
+}
 ```
-The BioPro Hub UI parses this array and will display your GitHub avatar on the Plugin Store page.
+
+### 👁️ How it Renders in the UI:
+*   **Details Dialog**: Testers appear beautifully under the **Credits** panel inside the module details window.
+*   **Visual Status**: The plugin remains fully **Green (Verified)** because only authors with the `"sign_code"` permission are audited for signatures!
 
 ---
-**Happy coding! If you run into issues, ping the maintainers in the team channel.**
+
+## 💻 Tier 2: Onboarding a Developer (Active Code Publisher)
+
+**Who this is for**: Software engineers and bioinformaticians who write python scripts, compile modules, or maintain analytical calculations inside plugins.
+
+As a developer, you must cryptographically sign your plugin code so the host application knows it hasn't been tampered with.
+
+### 🔑 Step 1: Initialize Your Cryptographic Keypair
+To start, you need a personal Ed25519 key pair. Run the unified CLI utility:
+```bash
+biopro-sign init
+```
+This command generates:
+*   `~/.biopro/dev_keys/private.key` (Keep this secret and secure!)
+*   `~/.biopro/dev_keys/public.pub` (Your raw 32-byte public key)
+
+### ✉️ Step 2: Register Your Profile on the Registry
+To be recognized as a verified publisher in the BioPro Cloud Store:
+1. Export your public key block to the console:
+   ```bash
+   biopro-sign registry
+   ```
+2. Send this JSON snippet, along with your biography card details and profile picture (avatar) URL, to the BioPro registry administrator:
+   ```json
+   "your_username": {
+     "name": "Your Full Name",
+     "role": "Plugin Contributor",
+     "bio": "Bioinformatics engineer developing cellular membrane segmenters.",
+     "avatar_url": "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/avatars/your_username.png",
+     "public_key": "your_raw_public_key_hex_goes_here"
+   }
+   ```
+3. Once the registry administrator adds your profile to the centralized `developers.json` and pushes it to GitHub, all client machines will instantly sync your public key!
+
+### ✍️ Step 3: Sign Your Plugin Prior to Release
+Before pushing your plugin code to repository channels:
+1. Navigate to your plugin folder and run:
+   ```bash
+   biopro-sign sign .
+   ```
+2. This parses your plugin structure, validates your `manifest.json`, and writes:
+   *   `security.json`: A canonicalized directory of all file hashes.
+   *   `signature.bin`: Your Ed25519 signature certifying the security ledger.
+   *   `trust_chain.json`: The cryptographic tree showing who signed the developer key.
+
+---
+
+## 🏛️ Tier 3: Onboarding an Institutional Authority (e.g. UBC)
+
+**Who this is for**: University labs, corporate research centers, or centralized pipeline managers who authorize a group of developers.
+
+Institutional authorities are cryptographically linked directly to the BioPro Root CA, allowing them to issue "Delegated Trust Certificates" to their researchers.
+
+### 📜 Step 1: Request Authority Registration
+1. Generate an Ed25519 authority key pair.
+2. Send your public key hex to the BioPro core administrator.
+3. The administrator will append your details to the central `authorities.json` registry file:
+   ```json
+   {
+     "id": "ubc",
+     "name": "University of British Columbia",
+     "public_key": "ef70051b8c0a876798e98675402599763d15fad9548aad8325f27708cd0b9a68"
+   }
+   ```
+4. The administrator signs the list using the Root Private Key and publishes it to the remote distribution repo.
+
+### 🎓 Step 2: Sign a Developer's Key (Issuing Delegation Certificates)
+When a researcher joins your university lab, you sign their developer key using your institutional key. This builds the trust delegation link:
+```bash
+biopro-sign delegate <path_to_researcher_public.pub> "Researcher Name" --authority <path_to_your_authority_private.pem>
+```
+*   This outputs `delegation_researcher_name.json`.
+*   Give this file to the researcher. They rename it to `delegation.json` and place it in their `~/.biopro/dev_keys/` folder.
+*   **The Magic**: The next time they sign a plugin, their co-signed trust chain will automatically resolve:
+    `Root CA` ➡️ `University of British Columbia (Authority)` ➡️ `Researcher (Developer)`
+    And the plugin card will glow **Green / Verified via UBC** on all machines!
+
+---
+
+## 🚨 Troubleshooting Common Security Alerts
+
+*   **Yellow Warning: Unverified Self-Signed Identity**
+    *   *Cause*: The plugin has a valid developer signature, but the developer's public key has not been added to `developers.json` in the central cloud repository, or the client hasn't synced with the network.
+    *   *Fix*: Contact the administrator to submit your profile + public key, or manually approve the developer as a local override.
+*   **Red Alert: Security Critical**
+    *   *Cause*: A file hash inside the plugin does not match the signed hash inside `security.json` (meaning code was tampered with or modified after signing).
+    *   *Fix*: The developer must run `biopro-sign sign .` again to re-sign the updated plugin directory.

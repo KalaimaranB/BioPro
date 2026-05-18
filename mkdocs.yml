@@ -1,0 +1,76 @@
+site_name: BioPro Documentation
+site_url: https://kalaimaranb.github.io/BioPro
+site_description: An open-source, intuitive bio analysis tool — cryptographically secure and accessible to all.
+site_author: BioPro Contributors
+
+repo_name: BioPro
+repo_url: https://github.com/KalaimaranB/BioPro
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.tabs
+    - navigation.indexes
+    - content.code.annotate
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+
+nav:
+  - "Welcome": index.md
+  - "📖 User Manuals":
+    - "User Guide Hub": user/01_User_Guide.md
+    - "Getting Started": user/02_Getting_Started.md
+    - "Tutorial: First Analysis": user/03_Tutorial_First_Analysis.md
+    - "Project Management": user/04_Project_Management.md
+    - "Security Settings & Trust": user/security_settings.md
+    - "Security and Trust Architecture": user/10_Security_and_Trust.md
+    - "FAQ & Troubleshooting": user/05_FAQ_Troubleshooting.md
+  - "🏗️ Internal Architecture":
+    - "Core Nervous System": internal/11_Core_Nervous_System.md
+    - "LifeCycle Project Management": internal/12_LifeCycle_Project_Management.md
+    - "The Time Machine Engine": internal/13_The_Time_Machine_Engine.md
+    - "High Performance Scaling": internal/14_High_Performance_Scaling.md
+    - "Dynamic Plugin Internals": internal/15_Dynamic_Plugin_Internals.md
+    - "API Reference": internal/16_API_Reference_Core.md
+    - "AI Assistant (Grogu)": internal/17_AI_Assistant_Grogu.md
+    - "Testing Philosophy": internal/18_Testing_Philosophy.md
+    - "Developer Onboarding Guide": internal/19_Developer_Onboarding.md
+    - "Security and Signing Guide": internal/20_Security_and_Signing.md
+    - "Supply Chain Security Spec": internal/21_Supply_Chain_Security.md

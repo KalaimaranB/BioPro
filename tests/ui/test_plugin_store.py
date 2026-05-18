@@ -100,8 +100,12 @@ class TestPluginStore:
         with patch.object(store.updater, "evaluate_store_state", return_value=mock_inventory):
             store._load_store_data()
             card = store.findChild(ModuleCard)
-            btn = card.findChild(QPushButton)
-            assert btn.text() == "Incompatible"
+            buttons = card.findChildren(QPushButton)
+
+            # Assert both 'Details' and 'Incompatible' buttons exist
+            assert any(b.text() == "Details" for b in buttons)
+
+            btn = next(b for b in buttons if b.text() == "Incompatible")
             assert "v2.0" in btn.toolTip()
             assert btn.isEnabled() is False
 

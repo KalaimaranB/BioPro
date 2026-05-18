@@ -73,3 +73,6 @@ models/
 dist_saved/
 scratch/
 *.bak
+
+# MkDocs Static Site
+site/

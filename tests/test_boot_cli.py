@@ -55,7 +55,7 @@ def test_sdk_cli_mode(monkeypatch):
             nonlocal mock_sdk_main_called
             mock_sdk_main_called = True
 
-    monkeypatch.setitem(sys.modules, "biopro.sdk.sdk_cli", MockSDKModule)
+    monkeypatch.setitem(sys.modules, "biopro_sdk.sdk_cli", MockSDKModule)
 
     original_argv = sys.argv
     sys.argv = ["biopro", "sdk", "test"]

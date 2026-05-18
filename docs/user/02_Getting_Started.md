@@ -22,7 +22,7 @@ If you use a third-party plugin, BioPro will verify its signature. You can manag
 ## 📖 Recommended Tutorials
 *   [**Tutorial: Navigating Your First Analysis**](03_Tutorial_First_Analysis.md) — Mastering the Wizard and Workspace workflows.
 *   [**Guide: Project Management**](04_Project_Management.md) — How BioPro stores and shares your data.
-*   [**Developer Handbook**](06_Developer_Handbook.md) — Ready to build your own analysis tools?
+*   [**Developer Onboarding Guide**](../internal/19_Developer_Onboarding.md) — Ready to build your own analysis tools?
 
 ---
 

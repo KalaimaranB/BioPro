@@ -8,12 +8,12 @@ from typing import Any
 
 from biopro_sdk.host import TrustManager
 from biopro_sdk.plugin import BioProPlugin
+from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
 from PyQt6.QtWidgets import QWidget
 
 # HACK: Import the base plugins namespace so we can expand it
 import biopro.plugins
 from biopro.core.event_bus import BioProEvent, event_bus
-from biopro.core.manifest_parser import ManifestParser, ManifestValidationError
 from biopro.core.resource_manager import resource_path
 from biopro.core.trust.strategies import TrustStrategyFactory
 
@@ -83,7 +83,7 @@ class ModuleManager:
                             continue
 
                         # SOLID: Dispatch to the correct trust strategy based on the manifest entity type
-                        strategy = TrustStrategyFactory.get_strategy(manifest)
+                        strategy = TrustStrategyFactory.get_strategy(manifest, str(plugin_path))
                         trust_result = strategy.verify(manifest, str(plugin_path))
 
                         self.modules[mod_id] = {

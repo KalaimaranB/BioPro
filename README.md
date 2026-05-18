@@ -4,10 +4,14 @@
 
 ---
 
-### 📖 Documentation
-- [**User Guide**](docs/user/01_User_Guide.md) - For researchers and lab technicians.
-- [**Getting Started**](docs/user/02_Getting_Started.md) - Fast-track to your first analysis.
-- [**Internal Architecture**](docs/internal/11_EventBus.md) - For contributors to the BioPro core.
+### 📖 Documentation Portal
+Explore the full, beautifully compiled documentation portal online:
+👉 **[BioPro Documentation Portal](https://kalaimaranb.github.io/BioPro/)**
+
+Or read the raw Markdown guides directly in this repository:
+*   [**User Guide Hub**](docs/user/01_User_Guide.md) - For researchers and lab technicians.
+*   [**Getting Started Guide**](docs/user/02_Getting_Started.md) - Fast-track to your first analysis.
+*   [**Internal Architecture Hub**](docs/internal/11_Core_Nervous_System.md) - For core developers and architects.
 
 
 ---
@@ -59,7 +63,9 @@ BioPro uses a split-update architecture to ensure your tools are always cutting-
 ---
 
 ## 🛠 For Developers
-BioPro is designed to be extensible. You can build your own analysis modules using the [**BioPro SDK**](https://github.com/KalaimaranB/BioPro-SDK). The SDK provides a powerful CLI and a suite of UI/analysis base classes to help you build verified plugins quickly. For a highly detailed walkthrough of the module creation process, see the [**Module Author Guide**](https://github.com/KalaimaranB/BioPro-SDK/blob/main/docs/Author_Guide.md).
+BioPro is designed to be extensible. You can build your own analysis modules using the [**BioPro SDK**](https://github.com/KalaimaranB/BioPro-SDK). The SDK provides a powerful CLI and a suite of UI/analysis base classes to help you build verified plugins quickly. 
+
+For detailed instructions on setting up your environment, authoring plugins, and cryptographically signing them, see the [**Developer Onboarding & Contribution Manual**](https://kalaimaranb.github.io/BioPro/internal/19_Developer_Onboarding/) on our documentation portal!
 
 ### Repository Architecture
 

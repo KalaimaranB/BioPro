@@ -26,7 +26,7 @@ Check the common issues and answers to frequently asked questions.
 
 ### 🤖 Path 5: I want help with my analysis
 Learn how to use the BioPro AI Research Assistant to get insights into your data.
-- [**Grogu AI: Your Research Assistant**](17_AI_Assistant_Grogu.md)
+- [**Grogu AI: Your Research Assistant**](../internal/17_AI_Assistant_Grogu.md)
 
 ---
 
@@ -45,4 +45,4 @@ BioPro is a lightweight hub. You can install specialized tools for **Western Blo
 ---
 
 > [!TIP]
-> **Are you a developer?** If you want to build your own analysis modules or contribute to the core, check out the [**Developer Handbook**](06_Developer_Handbook.md).
+> **Are you a developer?** If you want to build your own analysis modules or contribute to the core, check out the [**Developer Onboarding & Contribution Manual**](../internal/19_Developer_Onboarding.md).

@@ -15,7 +15,18 @@ def test_manual_lock_workflow(tmp_path, monkeypatch):
 
     plugin_dir = tmp_path / "custom_plugin"
     plugin_dir.mkdir()
-    (plugin_dir / "manifest.json").write_text(json.dumps({"id": "custom_plugin"}))
+    (plugin_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "manifest_version": 2,
+                "id": "custom_plugin",
+                "name": "Custom Plugin",
+                "version": "1.0.0",
+                "description": "Custom Plugin desc",
+                "authors": [{"name": "Developer Alice", "role": "Developer"}],
+            }
+        )
+    )
     (plugin_dir / "__init__.py").write_text("orig = 1")
 
     # 1. Sign it officially

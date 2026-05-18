@@ -34,7 +34,17 @@ def test_integrity_exclusions(tmp_path):
     plugin_dir = tmp_path / "excluded_plugin"
     plugin_dir.mkdir()
     (plugin_dir / "manifest.json").write_text(
-        json.dumps({"id": "excluded_plugin", "integrity": {"exclusions": ["custom_output/"]}})
+        json.dumps(
+            {
+                "manifest_version": 2,
+                "id": "excluded_plugin",
+                "name": "Excluded Plugin",
+                "version": "1.0.0",
+                "description": "Excluded Plugin desc",
+                "authors": [{"name": "Developer Alice", "role": "Developer"}],
+                "custom_exclusions": ["custom_output/"],
+            }
+        )
     )
     (plugin_dir / "__init__.py").write_text("pass")
 

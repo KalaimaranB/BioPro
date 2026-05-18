@@ -34,7 +34,7 @@ def test_mermaid_svg_generation(help_view, qtbot):
     import re
     from pathlib import Path
 
-    import markdown
+    import markdown  # type: ignore
 
     mermaid_pattern = re.compile(r"```mermaid\s+(.*?)```", re.DOTALL)
     md_content = mermaid_pattern.sub(r'<div class="mermaid">\1</div>', test_md)

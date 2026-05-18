@@ -206,6 +206,28 @@ class NetworkUpdater:
                 pass
             return {}
 
+    def fetch_remote_developers(self) -> list:
+        """Fetches developer profiles from separate developers.json or falls back gracefully."""
+        dev_url = self.registry_url.replace("registry.json", "developers.json")
+        try:
+            headers = {"User-Agent": "BioPro-App", "Cache-Control": "no-cache"}
+            response = requests.get(dev_url, timeout=5, headers=headers, verify=certifi.where())
+            if response.status_code == 200:
+                data = response.json()
+                devs_data = data.get("developers", {})
+                if isinstance(devs_data, dict):
+                    dev_list = []
+                    for dev_id, info in devs_data.items():
+                        dev_item = dict(info)
+                        dev_item["developer_id"] = dev_id
+                        dev_list.append(dev_item)
+                    return dev_list
+                elif isinstance(devs_data, list):
+                    return devs_data
+        except Exception as e:
+            logger.debug(f"Could not fetch separate developers.json, falling back: {e}")
+        return []
+
     def _parse_version(self, v_str: str) -> tuple:
         """Converts a version string like '1.0.4' into a comparable tuple (1, 0, 4)."""
         try:
@@ -260,7 +282,11 @@ class NetworkUpdater:
                 "is_verified": is_verified,
             }
 
-        self.sync_trusted_developers(remote_data.get("trusted_developers", []))
+        # Try to pull separate developers.json, otherwise fall back to embedded metadata
+        trusted_devs = self.fetch_remote_developers()
+        if not trusted_devs:
+            trusted_devs = remote_data.get("trusted_developers", [])
+        self.sync_trusted_developers(trusted_devs)
         self.fetch_and_sync_authorities()
         self.sync_system_assets()
         return store_inventory
@@ -356,6 +382,23 @@ class NetworkUpdater:
     def sync_trusted_developers(self, trusted_list: list):
         """Maintained for backward compatibility but routes to generic sync."""
         self._sync_keys(trusted_list, prefix="network_")
+
+        # Integrate centralized profile caching and image download
+        try:
+            from biopro.core.developer_database import AvatarManager, DeveloperProfileDatabase
+
+            db = DeveloperProfileDatabase()
+            db.save_profiles(trusted_list)
+
+            # Asynchronously download/cache avatars in background
+            avatar_mgr = AvatarManager()
+            for dev in trusted_list:
+                dev_id = dev.get("developer_id")
+                avatar_url = dev.get("avatar_url")
+                if dev_id and avatar_url:
+                    avatar_mgr.fetch_and_cache_avatar(dev_id, avatar_url)
+        except Exception as e:
+            logger.warning(f"Could not sync developer profile database/avatars: {e}")
 
     def sync_system_assets(self) -> None:
         """Pulls latest SDK, themes, and docs updates from registry.json and installs them if versions differ."""

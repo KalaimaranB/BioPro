@@ -1,7 +1,10 @@
 """Module Store and Update Dialog."""
 
+from pathlib import Path
+
 from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton, SecondaryButton
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QDialog,
     QGridLayout,
@@ -23,11 +26,455 @@ from biopro.core.network_updater import NetworkUpdater
 from biopro.ui.theme import Colors
 
 
+class TrustPathDialog(QDialog):
+    """Visualizes the exact cryptographic chain of trust for a developer."""
+
+    def __init__(self, dev_id: str, name: str, pub_key: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Trust Path Verification: {name}")
+        self.setMinimumSize(450, 420)
+        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Header Info
+        header_lbl = QLabel(f"Verification Path for {name}")
+        header_lbl.setStyleSheet(
+            f"font-size: 16px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+        )
+        layout.addWidget(header_lbl)
+
+        # Determine path type
+        path_type = "Verified Root Trust Chain"
+        path_desc = "This developer is part of the official co-signing chain distributed directly by BioPro Core."
+        step_color = Colors.DNA_PRIMARY
+        steps = []
+
+        manual_path = Path.home() / ".biopro" / "trusted_roots" / f"manual_{dev_id}.pub"
+        network_path = Path.home() / ".biopro" / "trusted_roots" / f"network_{dev_id}.pub"
+
+        if manual_path.exists():
+            path_type = "Manually Approved Root (Local Override)"
+            path_desc = "You manually approved and pinned this developer's public key as a local trusted authority."
+            step_color = Colors.ACCENT_SUCCESS
+            steps = [
+                ("👤 End User (You)", "Authorized local override exception for this machine."),
+                (
+                    "⚠️ Local Override Anchor",
+                    "Key imported into local trusted_roots storage directory.",
+                ),
+                (
+                    f"👤 {name} (Developer Key)",
+                    "Cryptographically allowed to run custom and local plugins.",
+                ),
+            ]
+        elif network_path.exists():
+            steps = [
+                (
+                    "🏛️ BioPro Root CA Anchor",
+                    "Hardcoded cryptographic root of trust inside the core host.",
+                ),
+                (
+                    "🏫 Authorities Registry",
+                    "Registry signed by the Root CA verifying legitimate developer mappings.",
+                ),
+                (
+                    f"👤 {name} (Developer Key)",
+                    "Valid Ed25519 signature co-signed by the root registry authority.",
+                ),
+            ]
+        else:
+            if pub_key:
+                path_type = "Unverified Self-Signed Identity"
+                path_desc = "This developer has self-signed credentials but no verified signature chain from a root authority is present."
+                step_color = Colors.ACCENT_WARNING
+                steps = [
+                    (
+                        "🏛️ BioPro Root CA Anchor",
+                        "Hardcoded cryptographic root of trust inside the core host.",
+                    ),
+                    (
+                        "❓ Unknown Authority",
+                        "No matching authority path found in local or remote registries.",
+                    ),
+                    (
+                        f"👤 {name} (Developer Key)",
+                        "Identity is unverified. Running plugins from this key is blocked by default.",
+                    ),
+                ]
+            else:
+                path_type = "Legacy / Unsigned Identity"
+                path_desc = "No cryptographic identity was declared for this entry."
+                step_color = Colors.FG_DISABLED
+                steps = [("❓ Unknown Identity", "No public key or signature chain available.")]
+
+        # Path Type Banner
+        banner = QWidget()
+        banner.setStyleSheet(
+            f"background: {step_color}22; border: 1px solid {step_color}44; border-radius: 6px;"
+        )
+        banner_layout = QVBoxLayout(banner)
+        banner_layout.setContentsMargins(12, 12, 12, 12)
+        banner_layout.setSpacing(4)
+
+        banner_title = QLabel(path_type)
+        banner_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {step_color}; border: none;"
+        )
+        banner_desc = QLabel(path_desc)
+        banner_desc.setWordWrap(True)
+        banner_desc.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
+
+        banner_layout.addWidget(banner_title)
+        banner_layout.addWidget(banner_desc)
+        layout.addWidget(banner)
+
+        # Draw visual trust path nodes
+        path_box = QWidget()
+        path_box.setStyleSheet(
+            f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+        )
+        path_layout = QVBoxLayout(path_box)
+        path_layout.setContentsMargins(15, 15, 15, 15)
+        path_layout.setSpacing(10)
+
+        for i, (node_name, node_desc) in enumerate(steps):
+            if i > 0:
+                arrow = QLabel("▼")
+                arrow.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                arrow.setStyleSheet(f"font-size: 12px; color: {step_color}; border: none;")
+                path_layout.addWidget(arrow)
+
+            node_widget = QWidget()
+            node_widget.setStyleSheet("border: none; background: transparent;")
+            node_item = QHBoxLayout(node_widget)
+            node_item.setContentsMargins(0, 0, 0, 0)
+            node_item.setSpacing(10)
+
+            dot = QLabel("●")
+            dot.setStyleSheet(f"font-size: 16px; color: {step_color}; border: none;")
+            node_item.addWidget(dot)
+
+            text_layout = QVBoxLayout()
+            lbl_title = QLabel(node_name)
+            lbl_title.setStyleSheet(
+                f"font-size: 12px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none;"
+            )
+            lbl_desc = QLabel(node_desc)
+            lbl_desc.setStyleSheet(f"font-size: 10px; color: {Colors.FG_SECONDARY}; border: none;")
+            text_layout.addWidget(lbl_title)
+            text_layout.addWidget(lbl_desc)
+            node_item.addLayout(text_layout)
+            node_item.addStretch()
+
+            path_layout.addWidget(node_widget)
+
+        layout.addWidget(path_box)
+
+        # Close button
+        btn_box = QHBoxLayout()
+        btn_box.addStretch()
+        close_btn = PrimaryButton("Close")
+        close_btn.clicked.connect(self.accept)
+        btn_box.addWidget(close_btn)
+        layout.addLayout(btn_box)
+
+
+class PluginDetailsDialog(QDialog):
+    """Inspects detailed plugin credentials, co-signing ledger histories, and contributor teams."""
+
+    def __init__(self, plugin_id: str, data: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f"Plugin Details: {data['info'].get('name', plugin_id)}")
+        self.setMinimumSize(600, 500)
+        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Header: Icon & Title
+        header = QHBoxLayout()
+        icon_lbl = QLabel(data["info"].get("icon", "📦"))
+        icon_lbl.setStyleSheet("font-size: 32px; border: none;")
+        header.addWidget(icon_lbl)
+
+        title_layout = QVBoxLayout()
+        name_lbl = QLabel(data["info"].get("name", plugin_id))
+        name_lbl.setStyleSheet(
+            f"font-size: 18px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+        )
+        title_layout.addWidget(name_lbl)
+
+        ver_lbl = QLabel(
+            f"Version: {data['info'].get('version')}  |  Min Core Required: {data['info'].get('min_core_version', '1.0.0')}"
+        )
+        ver_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_DISABLED}; border: none;")
+        title_layout.addWidget(ver_lbl)
+        header.addLayout(title_layout)
+        header.addStretch()
+
+        # Verified Badge
+        if data.get("is_verified", False):
+            badge = QLabel("🛡️ VERIFIED ROOT")
+            badge.setStyleSheet(
+                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;"
+            )
+            header.addWidget(badge)
+
+        layout.addLayout(header)
+
+        # Divider
+        sep = QWidget()
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background-color: {Colors.BORDER};")
+        layout.addWidget(sep)
+
+        # Details Scroll Area
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: transparent;")
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.setSpacing(15)
+
+        # Description
+        desc_title = QLabel("Description")
+        desc_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none;"
+        )
+        scroll_layout.addWidget(desc_title)
+
+        desc_body = QLabel(data["info"].get("description", "No description available."))
+        desc_body.setWordWrap(True)
+        desc_body.setStyleSheet(
+            f"font-size: 12px; color: {Colors.FG_SECONDARY}; border: none; line-height: 1.4;"
+        )
+        scroll_layout.addWidget(desc_body)
+
+        # Authors
+        authors_title = QLabel("Authors & Contributors")
+        authors_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none; margin-top: 10px;"
+        )
+        scroll_layout.addWidget(authors_title)
+
+        authors_data = data["info"].get("authors", [])
+        if authors_data and isinstance(authors_data, list):
+            for author in authors_data:
+                author_card = QWidget()
+                author_card.setStyleSheet(
+                    f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+                )
+                ac_layout = QHBoxLayout(author_card)
+                ac_layout.setContentsMargins(12, 12, 12, 12)
+                ac_layout.setSpacing(12)
+
+                # Visual avatar fallback circle
+                avatar_lbl = QLabel()
+                avatar_lbl.setFixedSize(36, 36)
+                initials = get_initials(author.get("name", "Unknown"))
+                gradient = get_developer_gradient_css(author.get("name", "Unknown"))
+                avatar_lbl.setText(initials)
+                avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                avatar_lbl.setStyleSheet(f"""
+                    border-radius: 18px;
+                    background: {gradient};
+                    color: #ffffff;
+                    font-size: 11px;
+                    font-weight: 800;
+                    border: 1px solid {Colors.BORDER};
+                """)
+                ac_layout.addWidget(avatar_lbl)
+
+                text_layout = QVBoxLayout()
+                name_role = QHBoxLayout()
+                a_name = QLabel(author.get("name", "Unknown"))
+                a_name.setStyleSheet(
+                    f"font-size: 12px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+                )
+                a_role = QLabel(f"({author.get('role', 'Developer')})")
+                a_role.setStyleSheet(
+                    f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                )
+                name_role.addWidget(a_name)
+                name_role.addWidget(a_role)
+                name_role.addStretch()
+                text_layout.addLayout(name_role)
+
+                if author.get("details"):
+                    a_details = QLabel(author["details"])
+                    a_details.setWordWrap(True)
+                    a_details.setStyleSheet(
+                        f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                    )
+                    text_layout.addWidget(a_details)
+
+                if author.get("github"):
+                    a_git = QLabel(f"GitHub: {author['github']}")
+                    a_git.setStyleSheet(
+                        f"font-size: 11px; color: {Colors.DNA_PRIMARY}; border: none;"
+                    )
+                    text_layout.addWidget(a_git)
+
+                ac_layout.addLayout(text_layout)
+                scroll_layout.addWidget(author_card)
+        else:
+            # Try to lookup author_id in the DeveloperProfileDatabase
+            author_id = data["info"].get("author_id", data["info"].get("author"))
+            dev_profile = None
+            if author_id:
+                try:
+                    from biopro.core.developer_database import DeveloperProfileDatabase
+
+                    db = DeveloperProfileDatabase()
+                    dev_profile = db.get_profile(author_id)
+                except Exception:
+                    pass
+
+            if dev_profile and dev_profile.get("name"):
+                author_card = QWidget()
+                author_card.setStyleSheet(
+                    f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+                )
+                ac_layout = QHBoxLayout(author_card)
+                ac_layout.setContentsMargins(12, 12, 12, 12)
+                ac_layout.setSpacing(12)
+
+                avatar_lbl = QLabel()
+                avatar_lbl.setFixedSize(36, 36)
+
+                cached_avatar = None
+                avatar_dir = Path.home() / ".biopro" / "avatars"
+                if avatar_dir.exists():
+                    for ext in ["png", "jpg", "jpeg", "webp", "JPEG", "PNG", "JPG"]:
+                        candidate = avatar_dir / f"{author_id}.{ext}"
+                        if candidate.exists():
+                            cached_avatar = candidate
+                            break
+
+                if cached_avatar:
+                    pixmap = QPixmap(str(cached_avatar))
+                    if not pixmap.isNull():
+                        pixmap = pixmap.scaled(
+                            36,
+                            36,
+                            Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                            Qt.TransformationMode.SmoothTransformation,
+                        )
+                        avatar_lbl.setPixmap(pixmap)
+                        avatar_lbl.setStyleSheet(
+                            f"border-radius: 18px; border: 1px solid {Colors.BORDER};"
+                        )
+                    else:
+                        cached_avatar = None
+
+                if not cached_avatar:
+                    initials = get_initials(dev_profile.get("name", author_id))
+                    gradient = get_developer_gradient_css(author_id)
+                    avatar_lbl.setText(initials)
+                    avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    avatar_lbl.setStyleSheet(f"""
+                        border-radius: 18px;
+                        background: {gradient};
+                        color: #ffffff;
+                        font-size: 11px;
+                        font-weight: 800;
+                        border: 1px solid {Colors.BORDER};
+                    """)
+
+                ac_layout.addWidget(avatar_lbl)
+
+                text_layout = QVBoxLayout()
+                name_role = QHBoxLayout()
+                a_name = QLabel(dev_profile.get("name", author_id))
+                a_name.setStyleSheet(
+                    f"font-size: 12px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+                )
+                a_role = QLabel(f"({dev_profile.get('role', 'Developer')})")
+                a_role.setStyleSheet(
+                    f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                )
+                name_role.addWidget(a_name)
+                name_role.addWidget(a_role)
+                name_role.addStretch()
+                text_layout.addLayout(name_role)
+
+                if dev_profile.get("description"):
+                    a_desc = QLabel(dev_profile["description"])
+                    a_desc.setWordWrap(True)
+                    a_desc.setStyleSheet(
+                        f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                    )
+                    text_layout.addWidget(a_desc)
+
+                ac_layout.addLayout(text_layout)
+                scroll_layout.addWidget(author_card)
+            else:
+                legacy_name = author_id if author_id else "Community Contributor"
+                lbl = QLabel(f"👤 {legacy_name}")
+                lbl.setStyleSheet(f"font-size: 12px; color: {Colors.FG_SECONDARY}; border: none;")
+                scroll_layout.addWidget(lbl)
+
+        # Security Status Panel
+        sec_title = QLabel("Security & Gating Verification")
+        sec_title.setStyleSheet(
+            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none; margin-top: 10px;"
+        )
+        scroll_layout.addWidget(sec_title)
+
+        status_card = QWidget()
+        status_card.setStyleSheet(
+            f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+        )
+        sc_layout = QVBoxLayout(status_card)
+        sc_layout.setContentsMargins(12, 12, 12, 12)
+        sc_layout.setSpacing(6)
+
+        if data.get("is_verified", False):
+            sc_layout.addWidget(QLabel("🛡️ Verification: Cryptographically Verified"))
+            sc_layout.addWidget(QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}"))
+            sc_layout.addWidget(
+                QLabel("Consensus Validation: Green (Fully trusted co-signing chain present)")
+            )
+        else:
+            sc_layout.addWidget(QLabel("⚠️ Verification: Self-Signed / Local Registry Key Only"))
+            sc_layout.addWidget(
+                QLabel("Consensus Validation: Yellow (Developer key verified, not signed by root)")
+            )
+
+        for i in range(sc_layout.count()):
+            item = sc_layout.itemAt(i)
+            if item is not None:
+                w = item.widget()
+                if w is not None:
+                    w.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
+
+        scroll_layout.addWidget(status_card)
+        scroll.setWidget(scroll_content)
+        layout.addWidget(scroll)
+
+        # Bottom Actions Row
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        close_btn = SecondaryButton("Close")
+        close_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+
+
 class PluginStoreDialog(QDialog):
     def __init__(self, module_manager: ModuleManager, updater: NetworkUpdater, parent=None):
         super().__init__(parent)
         self.module_manager = module_manager
         self.updater = updater
+        self.filter_list = None
+        self.scroll_area = None
 
         self.setWindowTitle("BioPro Module Store")
         self.setMinimumSize(600, 450)
@@ -148,7 +595,7 @@ class PluginStoreDialog(QDialog):
             ("All Modules", "all"),
             ("Available Updates", "updates"),
             ("Installed", "installed"),
-            ("Verified Roots", "verified"),
+            ("Trusted Developers", "developers"),
         ]
 
         for label, data in collections:
@@ -157,29 +604,9 @@ class PluginStoreDialog(QDialog):
             self.filter_list.addItem(item)
 
         self.filter_list.setCurrentRow(0)
-        self.filter_list.setFixedHeight(140)  # Fixed height to avoid inner scrollbar
+        self.filter_list.setFixedHeight(140)  # Adjusted height for 4 options
         self.filter_list.currentRowChanged.connect(self._on_filter_changed)
         sidebar_layout.addWidget(self.filter_list)
-
-        add_section_label("CATEGORIES")
-        self.category_list = QListWidget()
-        self.category_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.category_list.setStyleSheet(self.filter_list.styleSheet())
-
-        categories = [
-            ("Analysis Tools", "cat_analysis"),
-            ("Utility Hub", "cat_utility"),
-            ("Visualizers", "cat_visual"),
-        ]
-
-        for label, data in categories:
-            item = QListWidgetItem(label)
-            item.setData(Qt.ItemDataRole.UserRole, data)
-            self.category_list.addItem(item)
-
-        self.category_list.setFixedHeight(110)
-        self.category_list.currentRowChanged.connect(self._on_category_changed)
-        sidebar_layout.addWidget(self.category_list)
 
         sidebar_layout.addStretch()
         self.splitter.addWidget(self.sidebar)
@@ -190,9 +617,9 @@ class PluginStoreDialog(QDialog):
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(0)
 
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
 
         self.store_grid_widget = QWidget()
         self.store_grid_widget.setStyleSheet("background: transparent;")
@@ -202,8 +629,8 @@ class PluginStoreDialog(QDialog):
         self.store_grid.setContentsMargins(20, 20, 20, 20)
         self.store_grid.setSpacing(20)
 
-        self.scroll.setWidget(self.store_grid_widget)
-        content_layout.addWidget(self.scroll)
+        self.scroll_area.setWidget(self.store_grid_widget)
+        content_layout.addWidget(self.scroll_area)
 
         self.splitter.addWidget(self.content_container)
         layout.addWidget(self.splitter)
@@ -220,15 +647,6 @@ class PluginStoreDialog(QDialog):
         self._load_store_data()
 
     def _on_filter_changed(self, row: int):
-        # Deselect categories if a collection is picked
-        if row >= 0:
-            self.category_list.setCurrentRow(-1)
-        self._load_store_data()
-
-    def _on_category_changed(self, row: int):
-        # Deselect collections if a category is picked
-        if row >= 0:
-            self.filter_list.setCurrentRow(-1)
         self._load_store_data()
 
     def _load_store_data(self):
@@ -240,28 +658,57 @@ class PluginStoreDialog(QDialog):
                 if widget:
                     widget.deleteLater()
 
-        # 2. Get inventory
+        # Get filter from list
+        filter_type = "all"
+        if self.filter_list is not None and self.filter_list.currentRow() >= 0:
+            item = self.filter_list.currentItem()
+            if item is not None:
+                filter_type = item.data(Qt.ItemDataRole.UserRole)
+
+        # 2. If Developer Dashboard is selected
+        if filter_type == "developers":
+            trusted_devs = []
+            try:
+                # Attempt to fetch separate developers.json registry
+                trusted_devs = self.updater.fetch_remote_developers()
+                if not trusted_devs:
+                    # Fallback to legacy nested key in registry.json
+                    remote_data = self.updater.fetch_remote_registry(self.updater.registry_url)
+                    if remote_data:
+                        trusted_devs = remote_data.get("trusted_developers", [])
+            except Exception:
+                pass
+
+            # If offline or remote fetch failed, use cached database profiles
+            if not trusted_devs:
+                try:
+                    from biopro.core.developer_database import DeveloperProfileDatabase
+
+                    db = DeveloperProfileDatabase()
+                    trusted_devs = list(db.profiles.values())
+                except Exception:
+                    pass
+
+            for i, dev in enumerate(trusted_devs):
+                row, col = i // 2, i % 2
+                card = self._create_developer_card(dev)
+                self.store_grid.addWidget(card, row, col)
+            self.store_grid_widget.adjustSize()
+            return
+
+        # 3. Get inventory
         inventory = self.updater.evaluate_store_state()
         if not inventory:
             self.store_grid.addWidget(QLabel("Could not connect to the cloud registry."), 0, 0)
             return
 
-        # 3. Apply Filters
+        # 4. Apply Filters
         search_text = self.search_input.text().lower()
-
-        # Get filter from either list
-        filter_type = "all"
-        if self.filter_list.currentRow() >= 0:
-            filter_type = self.filter_list.currentItem().data(Qt.ItemDataRole.UserRole)
-        elif self.category_list.currentRow() >= 0:
-            filter_type = self.category_list.currentItem().data(Qt.ItemDataRole.UserRole)
 
         filtered_items = []
         for plugin_id, data in inventory.items():
             mod_data = data["info"]
             state = data["state"]
-            is_verified = data.get("is_verified", False)
-
             # Search Filter
             match_search = (
                 search_text in plugin_id.lower()
@@ -277,12 +724,6 @@ class PluginStoreDialog(QDialog):
                 continue
             if filter_type == "installed" and not data.get("local_version"):
                 continue
-            if filter_type == "verified" and not is_verified:
-                continue
-            if filter_type.startswith("cat_"):
-                target_cat = filter_type.split("_")[1]
-                if mod_data.get("category", "").lower() != target_cat:
-                    continue
 
             filtered_items.append((plugin_id, data))
 
@@ -322,8 +763,22 @@ class PluginStoreDialog(QDialog):
             names = [a.get("name", "Unknown") for a in authors_data]
             author_text = f"by {', '.join(names)}"
         else:
-            # Fallback to single author for robust transition if any legacy cache remains
-            author_text = f"by {mod_data.get('author', 'Community')}"
+            # Fallback to single author / author_id lookup in database
+            author_text = None
+            author_id = mod_data.get("author_id")
+            if author_id:
+                try:
+                    from biopro.core.developer_database import DeveloperProfileDatabase
+
+                    db = DeveloperProfileDatabase()
+                    dev_profile = db.get_profile(author_id)
+                    author_text = (
+                        f"by {dev_profile.get('name', dev_profile.get('developer_id', author_id))}"
+                    )
+                except Exception:
+                    author_text = f"by {author_id}"
+            if not author_text:
+                author_text = f"by {mod_data.get('author', 'Community')}"
 
         author_lbl = QLabel(author_text)
         author_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
@@ -359,6 +814,11 @@ class PluginStoreDialog(QDialog):
         ver_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_DISABLED}; border: none;")
         bottom_row.addWidget(ver_lbl)
         bottom_row.addStretch()
+
+        # Add Details button before the dynamic actions
+        details_btn = SecondaryButton("Details")
+        details_btn.clicked.connect(lambda: self._view_plugin_details(plugin_id, data))
+        bottom_row.addWidget(details_btn)
 
         # Dynamic Actions
         if state == "INCOMPATIBLE":
@@ -420,3 +880,199 @@ class PluginStoreDialog(QDialog):
         success, msg = self.updater.remove_plugin(plugin_id)
         if not success:
             QMessageBox.critical(self, "Error", msg)
+
+    def _view_plugin_details(self, plugin_id: str, data: dict):
+        """Displays detailed V2 meta inspection dialog."""
+        dialog = PluginDetailsDialog(plugin_id, data, self)
+        dialog.exec()
+
+    def _create_developer_card(self, dev: dict):
+        """Renders a verified trusted developer card with dynamic JPG/PNG avatars."""
+        dev_id = dev.get("developer_id", "Unknown")
+        pub_key = dev.get("public_key", "")
+
+        # Rich local default cache fallback profiles
+        DEFAULT_DEV_INFO = {
+            "Kalaimaran": {
+                "name": "Kalaimaran Balasothy",
+                "role": "Founder & Lead Architect",
+                "description": "Creator of the BioPro platform. Leading secure high-performance data analytics and pipeline automation.",
+                "avatar": "👨‍💻",
+            }
+        }
+
+        dev_info = DEFAULT_DEV_INFO.get(
+            dev_id,
+            {
+                "name": dev.get("name", f"Developer '{dev_id}'"),
+                "role": dev.get("role", "Verified Contributor"),
+                "description": dev.get(
+                    "description",
+                    "Verified independent developer contributing safe computational plugins to BioPro.",
+                ),
+                "avatar": dev.get("avatar", "👤"),
+            },
+        )
+
+        card = ModuleCard()
+        card.setMinimumWidth(350)
+
+        main_layout = QVBoxLayout(card)
+        main_layout.setContentsMargins(12, 12, 12, 12)
+        main_layout.setSpacing(8)
+
+        # Header: Avatar/Icon and Name
+        header = QHBoxLayout()
+
+        avatar_lbl = QLabel()
+        avatar_lbl.setFixedSize(32, 32)
+
+        # 1. Search for cached JPG/PNG image binaries
+        cached_avatar = None
+        avatar_dir = Path.home() / ".biopro" / "avatars"
+        if avatar_dir.exists():
+            for ext in ["png", "jpg", "jpeg", "webp"]:
+                candidate = avatar_dir / f"{dev_id}.{ext}"
+                if candidate.exists():
+                    cached_avatar = candidate
+                    break
+
+        # 2. Render cached image or fall back to analogous radial gradients
+        if cached_avatar:
+            pixmap = QPixmap(str(cached_avatar))
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(
+                    32,
+                    32,
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                avatar_lbl.setPixmap(pixmap)
+                avatar_lbl.setStyleSheet(f"border-radius: 16px; border: 1px solid {Colors.BORDER};")
+            else:
+                cached_avatar = None
+
+        if not cached_avatar:
+            initials = get_initials(dev_info.get("name", dev_id))
+            gradient = get_developer_gradient_css(dev_id)
+            avatar_lbl.setText(initials)
+            avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            avatar_lbl.setStyleSheet(f"""
+                border-radius: 16px;
+                background: {gradient};
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 800;
+                border: 1px solid {Colors.BORDER};
+            """)
+
+        header.addWidget(avatar_lbl)
+
+        name_layout = QVBoxLayout()
+        name_lbl = QLabel(dev_info.get("name", dev_id))
+        name_lbl.setStyleSheet("font-size: 14px; font-weight: 800; border: none;")
+        name_layout.addWidget(name_lbl)
+
+        role_lbl = QLabel(dev_info.get("role", "Verified Developer"))
+        role_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
+        name_layout.addWidget(role_lbl)
+
+        header.addLayout(name_layout)
+        header.addStretch()
+
+        # Badge for Verified Status
+        badge = QLabel("🛡️ TRUSTED")
+        badge.setStyleSheet(
+            f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;"
+        )
+        header.addWidget(badge)
+
+        main_layout.addLayout(header)
+
+        # Description
+        desc = QLabel(dev_info.get("description", ""))
+        desc.setWordWrap(True)
+        desc.setFixedHeight(40)
+        desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; border: none; font-size: 11px;")
+        main_layout.addWidget(desc)
+
+        # Footer: Public Key Fingerprint
+        bottom_row = QHBoxLayout()
+        fp = pub_key[:8] + "..." + pub_key[-8:] if len(pub_key) > 16 else pub_key
+        key_lbl = QLabel(f"Fingerprint: {fp}")
+        key_lbl.setStyleSheet(f"font-size: 10px; color: {Colors.FG_DISABLED}; border: none;")
+        bottom_row.addWidget(key_lbl)
+        bottom_row.addStretch()
+
+        path_btn = SecondaryButton("Trust Path")
+        path_btn.setStyleSheet("padding: 3px 8px; font-size: 10px; margin-right: 5px;")
+        path_btn.clicked.connect(
+            lambda: self._show_trust_path(dev_id, dev_info.get("name", dev_id), pub_key)
+        )
+        bottom_row.addWidget(path_btn)
+
+        copy_btn = SecondaryButton("Copy Key")
+        copy_btn.setStyleSheet("padding: 3px 8px; font-size: 10px;")
+        copy_btn.clicked.connect(lambda: self._copy_to_clipboard(pub_key))
+        bottom_row.addWidget(copy_btn)
+
+        main_layout.addLayout(bottom_row)
+        return card
+
+    def _show_trust_path(self, dev_id: str, name: str, pub_key: str):
+        """Displays the cryptographic TrustPath Dialog for this developer."""
+        dialog = TrustPathDialog(dev_id, name, pub_key, self)
+        dialog.exec()
+
+    def _copy_to_clipboard(self, text: str):
+        """Helper to copy authority keys to system clipboard."""
+        from PyQt6.QtWidgets import QApplication
+
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(text)
+        self.status_lbl.setText("Copied public key to clipboard! ✅")
+        self.status_lbl.show()
+        QTimer.singleShot(2000, self.status_lbl.hide)
+
+    def _remove_module(self, plugin_id: str):
+        success, msg = self.updater.remove_plugin(plugin_id)
+        if not success:
+            QMessageBox.critical(self, "Error", msg)
+
+
+def get_initials(name: str | None) -> str:
+    """Extracts initials from a developer's full name (e.g. John Doe -> JD)."""
+    if not name:
+        return "?"
+    parts = [p.strip() for p in name.split() if p.strip()]
+    if not parts:
+        return "?"
+    if len(parts) == 1:
+        return parts[0][0].upper()
+    return (parts[0][0] + parts[-1][0]).upper()
+
+
+def get_developer_gradient_css(dev_id: str | None) -> str:
+    """Deterministic, hand-curated premium radial color gradients for circular fallbacks."""
+    if not dev_id:
+        return "qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 #424242, stop:1 #212121)"
+
+    import hashlib
+
+    h = int(hashlib.md5(dev_id.encode()).hexdigest(), 16)
+
+    # Selection of curated analogous deep dark tech gradients
+    gradients = [
+        "stop:0 #00F0FF, stop:1 #00363A",  # Cyber Neon Cyan
+        "stop:0 #D500F9, stop:1 #311B92",  # Purple Aurora
+        "stop:0 #FF6D00, stop:1 #4E1500",  # Solar Ember
+        "stop:0 #AEEA00, stop:1 #1B5E20",  # Acid Lime
+        "stop:0 #2979FF, stop:1 #0D47A1",  # Electric Blue
+        "stop:0 #FF1744, stop:1 #5C0010",  # Crimson Ember
+        "stop:0 #00E676, stop:1 #002D15",  # Deep Emerald
+        "stop:0 #FFD600, stop:1 #3E2723",  # Royal Gold
+    ]
+
+    selected = gradients[h % len(gradients)]
+    return f"qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, {selected})"

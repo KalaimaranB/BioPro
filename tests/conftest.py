@@ -16,6 +16,12 @@ if os.environ.get("QT_QPA_PLATFORM") is None:
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+# Early WebEngine and OpenGL Context setup to avoid QApplication import order errors
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
+
+QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+import PyQt6.QtWebEngineWidgets  # noqa: F401, E402
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG, format="%(name)s - %(levelname)s - %(message)s")
