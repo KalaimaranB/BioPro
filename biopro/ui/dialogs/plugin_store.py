@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton, SecondaryButton
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QDialog,
@@ -468,6 +468,62 @@ class PluginDetailsDialog(QDialog):
         layout.addLayout(btn_layout)
 
 
+class StoreLoaderWorker(QThread):
+    finished = pyqtSignal(dict, list, str)
+
+    def __init__(self, updater, filter_type, parent=None):
+        super().__init__(parent)
+        self.updater = updater
+        self.filter_type = filter_type
+
+    def run(self):
+        inventory = {}
+        trusted_devs = []
+        try:
+            if self.filter_type == "developers":
+                trusted_devs = self.updater.fetch_remote_developers()
+                if not trusted_devs:
+                    remote_data = self.updater.fetch_remote_registry(self.updater.registry_url)
+                    if remote_data:
+                        trusted_devs = remote_data.get("trusted_developers", [])
+                if not trusted_devs:
+                    try:
+                        from biopro.core.developer_database import DeveloperProfileDatabase
+
+                        db = DeveloperProfileDatabase()
+                        trusted_devs = list(db.profiles.values())
+                    except Exception:
+                        pass
+
+                # Scan local manual keys
+                manual_keys_dir = Path.home() / ".biopro" / "trusted_roots"
+                known_dev_ids = {d.get("developer_id") for d in trusted_devs if "developer_id" in d}
+                if manual_keys_dir.exists():
+                    for key_file in manual_keys_dir.glob("manual_*.pub"):
+                        dev_id = key_file.stem.replace("manual_", "")
+                        if dev_id not in known_dev_ids:
+                            try:
+                                with open(key_file) as f:
+                                    pub_key_hex = f.read().strip()
+                                trusted_devs.append(
+                                    {
+                                        "developer_id": dev_id,
+                                        "public_key": pub_key_hex,
+                                        "name": f"Developer '{dev_id}'",
+                                        "role": "Manually Trusted Local Exception",
+                                        "is_manual": True,
+                                    }
+                                )
+                            except Exception:
+                                pass
+            else:
+                inventory = self.updater.evaluate_store_state()
+        except Exception:
+            pass
+
+        self.finished.emit(inventory, trusted_devs, self.filter_type)
+
+
 class PluginStoreDialog(QDialog):
     def __init__(self, module_manager: ModuleManager, updater: NetworkUpdater, parent=None):
         super().__init__(parent)
@@ -665,30 +721,40 @@ class PluginStoreDialog(QDialog):
             if item is not None:
                 filter_type = item.data(Qt.ItemDataRole.UserRole)
 
+        # Show Loading state
+        loading_lbl = QLabel("⏳ Loading Marketplace...")
+        loading_lbl.setStyleSheet(
+            f"color: {Colors.ACCENT_PRIMARY}; font-size: 16px; font-weight: bold;"
+        )
+        loading_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.store_grid.addWidget(loading_lbl, 0, 0, 1, 2, Qt.AlignmentFlag.AlignCenter)
+
+        # Disable inputs
+        if self.filter_list is not None:
+            self.filter_list.setEnabled(False)
+        self.search_input.setEnabled(False)
+
+        # Start background worker
+        self.worker = StoreLoaderWorker(self.updater, filter_type, self)
+        self.worker.finished.connect(self._on_loader_finished)
+        self.worker.start()
+
+    def _on_loader_finished(self, inventory: dict, trusted_devs: list, filter_type: str):
+        # Re-enable inputs
+        if self.filter_list is not None:
+            self.filter_list.setEnabled(True)
+        self.search_input.setEnabled(True)
+
+        # Clear loading label
+        for i in reversed(range(self.store_grid.count())):
+            item = self.store_grid.itemAt(i)
+            if item:
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+
         # 2. If Developer Dashboard is selected
         if filter_type == "developers":
-            trusted_devs = []
-            try:
-                # Attempt to fetch separate developers.json registry
-                trusted_devs = self.updater.fetch_remote_developers()
-                if not trusted_devs:
-                    # Fallback to legacy nested key in registry.json
-                    remote_data = self.updater.fetch_remote_registry(self.updater.registry_url)
-                    if remote_data:
-                        trusted_devs = remote_data.get("trusted_developers", [])
-            except Exception:
-                pass
-
-            # If offline or remote fetch failed, use cached database profiles
-            if not trusted_devs:
-                try:
-                    from biopro.core.developer_database import DeveloperProfileDatabase
-
-                    db = DeveloperProfileDatabase()
-                    trusted_devs = list(db.profiles.values())
-                except Exception:
-                    pass
-
             for i, dev in enumerate(trusted_devs):
                 row, col = i // 2, i % 2
                 card = self._create_developer_card(dev)
@@ -696,8 +762,7 @@ class PluginStoreDialog(QDialog):
             self.store_grid_widget.adjustSize()
             return
 
-        # 3. Get inventory
-        inventory = self.updater.evaluate_store_state()
+        # 3. Handle Normal Inventory
         if not inventory:
             self.store_grid.addWidget(QLabel("Could not connect to the cloud registry."), 0, 0)
             return
@@ -981,10 +1046,17 @@ class PluginStoreDialog(QDialog):
         header.addStretch()
 
         # Badge for Verified Status
-        badge = QLabel("🛡️ TRUSTED")
-        badge.setStyleSheet(
-            f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;"
-        )
+        is_manual = dev.get("is_manual", False)
+        if is_manual:
+            badge = QLabel("⚠️ MANUAL OVERRIDE")
+            badge.setStyleSheet(
+                f"background: {Colors.ACCENT_WARNING}22; color: {Colors.ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_WARNING}44;"
+            )
+        else:
+            badge = QLabel("🛡️ TRUSTED")
+            badge.setStyleSheet(
+                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;"
+            )
         header.addWidget(badge)
 
         main_layout.addLayout(header)
@@ -1016,6 +1088,12 @@ class PluginStoreDialog(QDialog):
         copy_btn.clicked.connect(lambda: self._copy_to_clipboard(pub_key))
         bottom_row.addWidget(copy_btn)
 
+        if is_manual:
+            revoke_btn = DangerButton("Revoke")
+            revoke_btn.setStyleSheet("padding: 3px 8px; font-size: 10px; margin-left: 5px;")
+            revoke_btn.clicked.connect(lambda: self._revoke_manual_trust(dev_id))
+            bottom_row.addWidget(revoke_btn)
+
         main_layout.addLayout(bottom_row)
         return card
 
@@ -1023,6 +1101,25 @@ class PluginStoreDialog(QDialog):
         """Displays the cryptographic TrustPath Dialog for this developer."""
         dialog = TrustPathDialog(dev_id, name, pub_key, self)
         dialog.exec()
+
+    def _revoke_manual_trust(self, dev_id: str):
+        reply = QMessageBox.question(
+            self,
+            "Revoke Trust",
+            f"Are you sure you want to revoke manual trust for {dev_id}?\n\nPlugins signed by this developer will no longer load.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            key_file = Path.home() / ".biopro" / "trusted_roots" / f"manual_{dev_id}.pub"
+            if key_file.exists():
+                try:
+                    key_file.unlink()
+                    self.status_lbl.setText(f"Revoked trust for {dev_id}.")
+                    self.status_lbl.show()
+                    QTimer.singleShot(2000, self.status_lbl.hide)
+                    self._load_store_data()  # Reload the view
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to remove key file: {e}")
 
     def _copy_to_clipboard(self, text: str):
         """Helper to copy authority keys to system clipboard."""

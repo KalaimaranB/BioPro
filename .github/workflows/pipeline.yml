@@ -68,14 +68,11 @@ jobs:
       - name: Checkout Code
         uses: "actions/checkout@v4"
 
-      - name: Set up Python
-        uses: "actions/setup-python@v5"
+      - name: Set up uv and Python
+        uses: "astral-sh/setup-uv@v5"
         with:
           python-version: "3.12"
-          cache: "pip"
-
-      - name: Install uv
-        run: pip install uv
+          enable-cache: true
 
       - name: Install Linting & Security Tools
         run: |
@@ -112,14 +109,11 @@ jobs:
       - name: Checkout Code
         uses: "actions/checkout@v4"
 
-      - name: Set up Python
-        uses: "actions/setup-python@v5"
+      - name: Set up uv and Python
+        uses: "astral-sh/setup-uv@v5"
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-
-      - name: Install uv
-        run: pip install uv
+          enable-cache: true
 
       - name: Install Dependencies
         run: |
@@ -143,12 +137,11 @@ jobs:
   # Job 4: Expensive Production Executable Compilation (macOS + Windows)
   build:
     name: Production Build (${{ matrix.os }})
-    needs: [check-version, audit-and-lint, test]
+    needs: [check-version, audit-and-lint]
     if: |
       always() &&
       (needs.check-version.outputs.changed == 'true' || github.event_name == 'workflow_dispatch') &&
-      (needs.audit-and-lint.result == 'success' || needs.audit-and-lint.result == 'skipped') &&
-      (needs.test.result == 'success' || needs.test.result == 'skipped')
+      (needs.audit-and-lint.result == 'success' || needs.audit-and-lint.result == 'skipped')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -168,14 +161,11 @@ jobs:
           EPOCH=$(git log -1 --format=%ct)
           echo "SOURCE_DATE_EPOCH=$EPOCH" >> $GITHUB_ENV
 
-      - name: Set up Python
-        uses: "actions/setup-python@v5"
+      - name: Set up uv and Python
+        uses: "astral-sh/setup-uv@v5"
         with:
           python-version: "3.12"
-          cache: "pip"
-
-      - name: Install uv
-        run: pip install uv
+          enable-cache: true
 
       - name: Install Dependencies
         run: |
@@ -262,7 +252,7 @@ jobs:
   # Job 7: Push GitHub Release
   release:
     name: Create GitHub Release
-    needs: [check-version, build, provenance]
+    needs: [check-version, build, provenance, test]
     if: needs.check-version.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:

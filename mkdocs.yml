@@ -74,3 +74,4 @@ nav:
     - "Developer Onboarding Guide": internal/19_Developer_Onboarding.md
     - "Security and Signing Guide": internal/20_Security_and_Signing.md
     - "Supply Chain Security": internal/21_Supply_Chain_Security.md
+    - "Plugin Documentation Kit": internal/22_Plugin_Documentation.md
