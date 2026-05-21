@@ -26,7 +26,7 @@ Check the common issues and answers to frequently asked questions.
 
 ### 🤖 Path 5: I want help with my analysis
 Learn how to use the BioPro AI Research Assistant to get insights into your data.
-- [**Grogu AI: Your Research Assistant**](../internal/17_AI_Assistant_Grogu.md)
+- [** AI: Your Research Assistant**](../internal/17_AI_Assistant.md)
 
 ---
 

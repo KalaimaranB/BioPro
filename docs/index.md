@@ -42,7 +42,7 @@ BioPro enforces a **double-signing asymmetric defense-in-depth model**. A distri
 ### 🕰 The "Time Machine" History Engine
 Never worry about losing scientific calculations or gating thresholds. Every single user adjustment is stored as a deterministic state change, letting you step backward or forward through history instantly with full memory efficiency.
 
-### 🤖 Animated Grogu AI assistant
+### 🤖 Animated AI assistant
 An integrated, context-aware AI Research Assistant helps scientists explain complex mathematical transformations, navigate biological pipelines, and manage workflows in real-time.
 
 ---

@@ -69,7 +69,7 @@ nav:
     - "High Performance Scaling": internal/14_High_Performance_Scaling.md
     - "Dynamic Plugin Internals": internal/15_Dynamic_Plugin_Internals.md
     - "API Reference": internal/16_API_Reference_Core.md
-    - "AI Assistant (Grogu)": internal/17_AI_Assistant_Grogu.md
+    - "AI Assistant": internal/17_AI_Assistant.md
     - "Testing Philosophy": internal/18_Testing_Philosophy.md
     - "Developer Onboarding Guide": internal/19_Developer_Onboarding.md
     - "Security and Signing Guide": internal/20_Security_and_Signing.md

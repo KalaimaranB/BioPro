@@ -14,9 +14,55 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  # Job 1: Low-cost linting and security audit (Fail-fast)
+  # Job 1: Version Check & Build/Release Prep (Fast Path Entry Point)
+  check-version:
+    name: Version Verification
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.version-check.outputs.changed }}
+      version: ${{ steps.version-check.outputs.version }}
+    steps:
+      - name: Checkout Code
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 2
+
+      - name: Version Check
+        id: version-check
+        run: |
+          NEW_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
+          echo "version=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
+            if [ $(git rev-list --count HEAD) -eq 1 ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              git checkout HEAD^ -- pyproject.toml
+              OLD_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
+              git checkout HEAD -- pyproject.toml
+              if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
+                echo "changed=true" >> $GITHUB_OUTPUT
+              else
+                echo "changed=false" >> $GITHUB_OUTPUT
+              fi
+            fi
+          else
+            # On PRs or manual dispatch, set appropriate release flags
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # Job 2: Low-cost linting and security audit (Fail-fast)
   audit-and-lint:
     name: Security Audit & Lints (Ubuntu)
+    needs: [check-version]
+    if: |
+      always() &&
+      (github.event_name == 'pull_request' || 
+       github.event_name == 'workflow_dispatch' || 
+       needs.check-version.outputs.changed == 'true')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -47,10 +93,15 @@ jobs:
       - name: Run Dependency Security Audit
         run: pip-audit -r requirements.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
-  # Job 2: Cross-platform tests
+  # Job 3: Cross-platform tests
   test:
     name: Run Tests (${{ matrix.os }})
-    needs: [audit-and-lint]
+    needs: [check-version]
+    if: |
+      always() &&
+      (github.event_name == 'pull_request' || 
+       github.event_name == 'workflow_dispatch' || 
+       needs.check-version.outputs.changed == 'true')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -72,8 +123,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install --system -r requirements.txt
+          uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install --system pytest pytest-qt pytest-cov
           uv pip install --system --no-deps -e .
 
@@ -89,44 +140,15 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           DISPLAY: ":99"
 
-  # Job 3: Version Check & Build/Release Prep
-  check-version:
-    name: Version Verification
-    needs: [audit-and-lint, test]
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
-    outputs:
-      changed: ${{ steps.version-check.outputs.changed }}
-      version: ${{ steps.version-check.outputs.version }}
-    steps:
-      - name: Checkout Code
-        uses: "actions/checkout@v4"
-        with:
-          fetch-depth: 2
-
-      - name: Version Check
-        id: version-check
-        run: |
-          NEW_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
-          echo "version=v$NEW_VERSION" >> $GITHUB_OUTPUT
-          if [ $(git rev-list --count HEAD) -eq 1 ]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            git checkout HEAD^ -- pyproject.toml
-            OLD_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
-            git checkout HEAD -- pyproject.toml
-            if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
   # Job 4: Expensive Production Executable Compilation (macOS + Windows)
   build:
     name: Production Build (${{ matrix.os }})
-    needs: [check-version]
-    if: needs.check-version.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+    needs: [check-version, audit-and-lint, test]
+    if: |
+      always() &&
+      (needs.check-version.outputs.changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      (needs.audit-and-lint.result == 'success' || needs.audit-and-lint.result == 'skipped') &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -158,6 +180,7 @@ jobs:
       - name: Install Dependencies
         run: |
           uv pip install --system -r requirements.txt
+          uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install --system pyinstaller pytest
 
       - name: Run Supply Chain Integrity Check
