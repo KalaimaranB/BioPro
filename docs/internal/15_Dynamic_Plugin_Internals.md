@@ -1,55 +1,54 @@
-# 🔌 architecture: Dynamic Plugin Internals
+# Dynamic Plugin Internals
 
-BioPro's extensibility comes from its ability to discover, verify, and "hot-reload" Python packages at runtime. The `ModuleManager` acts as the gatekeeper for all third-party code.
+BioPro's extensibility relies on runtime discovery, verification, and dynamic loading of Python packages. The `ModuleManager` coordinates the loading of third-party code into the core application.
 
 ---
 
-## 🏗 Plugin Discovery & Namespaces
+## Plugin Discovery and Namespaces
 
-BioPro looks for plugins in two distinct locations:
-1.  **Internal Directory**: Modules bundled with the application (e.g., in `BioPro.app/Contents/Resources/biopro/plugins`).
-2.  **User Directory**: Modules installed by the user (typically in `~/.biopro/plugins`).
+BioPro scans for plugins in two primary locations:
+1.  **Internal Directory**: Bundled core modules (e.g., within the application package `biopro/plugins`).
+2.  **User Directory**: Modules installed manually or via the store (typically `~/.biopro/plugins`).
 
-### The Magic Namespace (`biopro.plugins`)
-To make importing easy, BioPro dynamically merges these two folders into a single virtual Python namespace. This allows a plugin in your home folder to be imported as if it were part of the core package:
+### The Unified Namespace
+BioPro dynamically configures Python's module resolution to merge these distinct directories into a unified `biopro.plugins` virtual namespace. This enables standard import syntax regardless of physical location:
 
 ```python
-# Both internal and user-installed plugins are found here:
-import biopro.plugins.my_cool_module
+import biopro.plugins.custom_module
 ```
 
 ---
 
-## 🧪 The Loader Pipeline
+## The Loader Pipeline
 
-When you click an Analysis Module in the Hub, BioPro triggers the **Loader Pipeline**:
+When a user initiates an Analysis Module, the `ModuleManager` executes the following sequence:
 
-1.  **Manifest Verification**: The `ModuleManager` reads the `manifest.json` and ensures it satisfies the core version requirements.
-2.  **Security Handover**: The `TrustManager` verifies the plugin's signature and file integrity (see [Security & Trust](../user/10_Security_and_Trust.md)).
-3.  **Dynamic Import**: The `importlib` library loads the package into Python's memory.
-4.  **Contract Enforcement**: BioPro checks if the module satisfies the **BioProPlugin Interface Contract** (i.e., it has `__version__`, `__plugin_id__`, and `get_panel_class()`).
-5.  **UI Injection**: The main widget class is returned to the `WorkspaceWindow` and parented into the layout.
-
----
-
-## 🔥 Hot-Reloading
-
-Unlike many legacy tools, BioPro doesn't require a restart when you install or update a plugin.
-
-When the **Nervous System** (Event Bus) emits a `PLUGIN_INSTALLED` event:
-1.  `ModuleManager` clears its internal cache.
-2.  It uses `importlib.reload` logic to purge the old code from Python's `sys.modules`.
-3.  It rescans the disk for the new version.
-4.  The UI is updated instantly to reflect the change.
+1.  **Manifest Verification**: The module's `manifest.json` is parsed to validate API compatibility and version constraints.
+2.  **Security Handover**: The `TrustManager` evaluates the plugin's cryptographic signature and validates file hashes against the manifest.
+3.  **Dynamic Import**: The `importlib` library is utilized to dynamically import the verified package into the active Python interpreter.
+4.  **Interface Validation**: BioPro verifies that the loaded module implements the required `BioProPlugin` interfaces (e.g., `get_panel_class()`).
+5.  **UI Integration**: The plugin's main widget class is instantiated and integrated into the `WorkspaceWindow` layout.
 
 ---
 
-## 🛠 Internal API Reference (`biopro.core.module_manager`)
+## Hot-Reloading Support
+
+BioPro supports dynamic module reloading without requiring a full application restart, facilitating rapid plugin development.
+
+When the Event Bus broadcasts a `PLUGIN_INSTALLED` or `PLUGIN_UPDATED` event:
+1.  The `ModuleManager` invalidates its internal cache for the target plugin.
+2.  It utilizes `importlib.reload` semantics to purge the existing module references from `sys.modules`.
+3.  The disk is rescanned, and the new module version is imported.
+4.  The active UI components are refreshed to reflect the updated plugin state.
+
+---
+
+## API Reference (`biopro.core.module_manager`)
 
 ### `ModuleManager(trust_manager)`
-Initializes the discovery engine and sets up the user-plugins namespace.
+Coordinates plugin discovery and manages the virtual namespace.
 
-- `get_available_modules()`: Returns a list of all verified plugin manifests.
-- `load_module_ui(module_id)`: The "High-Risk" method. Performs security checks and imports the UI class into RAM.
-- `reload_modules()`: Flushes the Python module cache and rescans the disk.
-- `trust_module(module_id)`: Upgrades an "Untrusted" module to "Personally Trusted" by snapshotting its current file hashes.
+- `get_available_modules()`: Returns a parsed list of manifests for all discovered and structurally valid plugins.
+- `load_module_ui(module_id)`: Orchestrates the security verification and dynamic import pipeline to return the plugin's UI class.
+- `reload_modules()`: Invalidates the Python module cache and rescans the plugin directories.
+- `trust_module(module_id)`: Instructs the `TrustManager` to establish a local override for an untrusted or modified plugin by recording its current file hashes.

@@ -1,67 +1,68 @@
-# 🗂 architecture: Project Lifecycle & Data Management
+# Lifecycle and Project Management
 
-The `ProjectManager` is the orchestrator of all data artifacts within BioPro. It ensures that scientific data (images), analysis states (history), and metadata (project settings) are stored safely and remains portable.
+The `ProjectManager` handles the lifecycle of project artifacts, encompassing raw data tracking, state persistence, and metadata management.
 
 ---
 
-## 🏗 The Workspace Anatomy
+## Workspace Directory Structure
 
-Every BioPro project is a folder. The presence of a `project.biopro` file identifies it as a valid workspace.
+A BioPro project is identified by a top-level directory containing a `.biopro` configuration folder.
 
 ```text
 my_experiment/
-├── project.biopro        # Main metadata & asset registry (JSON)
-├── history.json          # Full undo/redo chain for the session
-├── .biopro.lock          # Prevents multi-process corruption
-├── assets/               # Folder for local copies of raw images
-└── workflows/            # Saved analysis configurations
+├── .biopro/
+│   ├── project.json          # Main metadata & asset registry
+│   ├── history.json          # Serialized state chain
+│   └── .lock                 # Process lock
+├── assets/                   # Local copies of image data
+└── workflows/                # Serialized analysis configurations
 ```
 
 ---
 
-## 🔒 Session Safety & Locking
+## Session Locking
 
-Scientific data integrity depends on preventing race conditions. If two people (or two instances of BioPro) try to edit the same project folder simultaneously, the data would likely corrupt.
+To prevent data corruption from concurrent access, BioPro implements a file-based locking mechanism.
 
-### The Lock Mechanism
-1.  **Acquire**: When a project is opened, `ProjectManager` writes the current process ID (PID) to `.biopro.lock`.
-2.  **Verify**: If a lock exists, it checks if that PID is still running. If the PID is dead (e.g., after a crash), it "steals" the lock. If the PID is alive, it raises `ProjectLockedError`.
-3.  **Release**: The lock is deleted only when the project is safely closed (via `close()`).
-
----
-
-## 💾 Asset Handling (Portability vs. Reference)
-
-BioPro supports two ways to handle your raw data (images/tensors).
-
-| Method | Behavior | Pros | Cons |
-| :--- | :--- | :--- | :--- |
-| **Copy to Workspace** | File is copied into `assets/` and hashed. | Portable (can move folder to USB). | Uses more disk space. |
-| **Reference External** | Only the absolute path is stored. | Zero extra disk space. | Breaks if you move the raw data. |
-
-### Merkle-Integrity Hashing
-Every image is hashed using **SHA-256**. This allows BioPro to:
-- Detect if you've already added an image (avoiding duplicates).
-- Verify that a file hasn't been tampered with or corrupted since it was last analyzed.
+### Lock Protocol
+1.  **Acquisition**: Upon opening a project, `ProjectManager` writes its system process ID (PID) to `.biopro/.lock`.
+2.  **Verification**: If a lock file exists, the manager checks the active system processes. If the recorded PID is dead (e.g., from an abrupt termination), the lock is claimed. If the PID is active, a `ProjectLockedError` is raised.
+3.  **Release**: The lock file is deleted during graceful application shutdown or when the project is closed.
 
 ---
 
-## ⚛️ Atomic Saving
+## Asset Management
 
-BioPro never overwrites a `project.biopro` file directly. This prevents "partial saves" if the power goes out or the app crashes.
+BioPro supports two strategies for managing raw input data:
 
-1.  Current state is written to `project.biopro.tmp`.
-2.  The OS `replace()` command moves the temp file over the real one.
-3.  This operation is **atomic** at the filesystem level—it either succeeds entirely or fails without touching the old data.
+| Strategy | Behavior | Trade-offs |
+| :--- | :--- | :--- |
+| **Copy to Workspace** | The file is duplicated into the `assets/` directory. | Ensures project portability at the cost of disk space. |
+| **External Reference** | Only the absolute file path is recorded. | Saves disk space but breaks if files are moved externally. |
+
+### Integrity Hashing
+Loaded images are hashed using SHA-256. This facilitates:
+- Deduplication of assets.
+- Verification of file integrity to detect external modifications since the last analysis run.
 
 ---
 
-## 🛠 Internal API Reference (`biopro.core.project_manager`)
+## Atomic Save Operations
+
+BioPro utilizes atomic writes for critical configuration files (`project.json`, `history.json`) to prevent data loss during unexpected terminations.
+
+1.  The serialized state is written to a temporary file (e.g., `project.json.tmp`).
+2.  An atomic filesystem `replace()` operation swaps the temporary file with the target file.
+3.  This ensures the file is never left in a partially written state.
+
+---
+
+## API Reference (`biopro.core.project_manager`)
 
 ### `ProjectManager(project_dir: Path)`
-Constructor initializes the paths but does not open the files.
+Initializes the manager instance. Does not perform I/O upon instantiation.
 
-- `open_project()`: Reads metadata, history, and acquires the lock.
-- `save()`: Triggers an atomic save of all metadata and history threads.
-- `add_image(path, copy_to_workspace=True)`: Registers a new biological asset.
-- `save_workflow(module_id, payload)`: Persists a specific analysis configuration to the `workflows/` directory.
+- `open_project()`: Reads project metadata, history, and acquires the directory lock.
+- `save()`: Triggers an atomic write of all metadata and state histories.
+- `add_image(path, copy_to_workspace=True)`: Registers a new data asset into the project scope.
+- `save_workflow(module_id, payload)`: Persists an analysis configuration to the `workflows/` subdirectory.

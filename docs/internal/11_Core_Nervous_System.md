@@ -1,41 +1,39 @@
-# 🧠 architecture: The Core Nervous System (Event Bus)
+# Core Architecture Overview (Event Bus)
 
-BioPro is built on an **Event-Driven Architecture (EDA)**. This means the different parts of the app (like the Plugin Store, the Workspace, and the Core Storage) don't need to know about each other's internals. They just "shout" events, and anyone interested "listens."
+BioPro utilizes an Event-Driven Architecture (EDA) to decouple system components. Modules such as the Plugin Store, Workspace, and Core Storage communicate via a central event bus rather than direct method invocations.
 
 ---
 
-## 🏗 Why Decoupled?
+## Architectural Rationale
 
-Imagine if the **Plugin Store** had to manually tell the **Workspace Window** to refresh every time a plugin was installed. If we added a third window (like a Plugin Manager), we'd have to go back and update the Store's code again.
-
-With the **Event Bus**, the Store just says `PLUGIN_INSTALLED`, and any window that exists can choose to react to it.
+Decoupling components prevents tightly coupled dependencies. For instance, the Plugin Store does not require a direct reference to the Workspace Window to trigger a UI refresh after a plugin installation. Instead, it emits a `PLUGIN_INSTALLED` event, and any interested component can subscribe and react independently.
 
 ```mermaid
 graph LR
-    P[📦 Plugin Store] -->|emit: PLUGIN_INSTALLED| EB((🧠 Event Bus))
-    EB -->|notify| W1[🪟 Workspace Window]
-    EB -->|notify| W2[🏠 Hub Window]
-    EB -->|notify| L[📝 Logger]
+    P[Plugin Store] -->|emit: PLUGIN_INSTALLED| EB((Event Bus))
+    EB -->|notify| W1[Workspace Window]
+    EB -->|notify| W2[Hub Window]
+    EB -->|notify| L[Logger]
 ```
 
 ---
 
-## 🛠 Using the Event Bus (`biopro.core.event_bus`)
+## The Event Bus Implementation (`biopro.core.event_bus`)
 
-The system-wide bus is a singleton instance available as `event_bus`.
+The global event bus is instantiated as a singleton `event_bus`.
 
-### 1. The `BioProEvent` Registry
-All events are defined in a central `Enum`. This prevents "Magic String" bugs and allows for autocompletion.
+### 1. The `BioProEvent` Enumeration
+Events are strongly typed using a central `Enum` to prevent string-matching errors and enable static analysis.
 
-| Event | Triggered When... | Typical Payloads |
+| Event | Trigger Condition | Expected Payload |
 | :--- | :--- | :--- |
-| `PLUGIN_INSTALLED` | A new module is successfully added to disk. | `plugin_id: str` |
-| `PLUGIN_REMOVED` | A module is deleted. | `plugin_id: str` |
-| `PROJECT_LOADED` | A `.biopro` file is successfully opened. | `path: str` |
-| `THEME_CHANGED` | The global UI theme is swapped. | `theme_name: str` |
+| `PLUGIN_INSTALLED` | A plugin package is added and verified. | `plugin_id: str` |
+| `PLUGIN_REMOVED` | A plugin package is deleted. | `plugin_id: str` |
+| `PROJECT_LOADED` | A `.biopro` project is opened. | `path: str` |
+| `THEME_CHANGED` | The global UI theme is updated. | `theme_name: str` |
 
 ### 2. Subscribing to Events
-UI components typically subscribe during their `__init__`.
+UI components typically register their callbacks during initialization.
 
 ```python
 from biopro.core.event_bus import event_bus, BioProEvent
@@ -43,59 +41,50 @@ from biopro.core.event_bus import event_bus, BioProEvent
 class MyDashboard(QWidget):
     def __init__(self):
         super().__init__()
-        # Listen for new installs
         event_bus.subscribe(BioProEvent.PLUGIN_INSTALLED, self._on_plugin_added)
 
     def _on_plugin_added(self, plugin_id: str):
-        print(f"I see you added {plugin_id}! Refreshing my UI...")
         self.refresh()
 ```
 
 ### 3. Emitting Events
-Emitting is safe from any thread. BioPro uses PyQt6's signal queuing to ensure callbacks are always executed on the **Main UI Thread**.
+Event emission is thread-safe. BioPro utilizes PyQt6's signal queuing mechanism to ensure callbacks are executed on the Main UI Thread, preventing cross-thread UI updates.
 
 ```python
 def install_plugin(id):
-    # (Perform heavy download and move files...)
-    # Now notify the world:
+    # Perform background tasks...
     event_bus.emit(BioProEvent.PLUGIN_INSTALLED, id)
 ```
 
 ---
 
-## ⏺️ The Diagnostic Engine (The Black Box)
+## Diagnostic Engine
 
-BioPro's "Nervous System" includes a specialized **Diagnostic Engine** (`biopro.core.diagnostics`). It functions like a flight recorder (Black Box) for the application.
+BioPro includes a `biopro.core.diagnostics` module for error tracking and application state logging.
 
-### 1. In-Memory History
-The engine maintains a memory-resident buffer of the last 100 system events (logs, network requests, UI transitions). This history is **always** captured, even if logging to disk is disabled.
+### 1. In-Memory Event Buffer
+The engine maintains a ring buffer of the most recent system events, network requests, and state transitions.
 
 ### 2. Global Exception Hook
-The core installs a global `sys.excepthook`. When an unhandled crash occurs:
-1. The **Black Box** stops recording.
-2. The crash state + 100 pre-crash events are bundled into a structured JSON report.
+The core overrides `sys.excepthook`. Upon an unhandled exception:
+1. The event buffer is frozen.
+2. The stack trace and the buffer contents are serialized into a JSON crash report.
 3. The `ERROR_OCCURRED` event is emitted.
-4. The **Premium Error UI** is triggered to show the user exactly what happened.
 
-### 3. Integrated Plugin Logging
-All plugins using `self.logger` (via `biopro.sdk.utils.logging`) are automatically piped into the Black Box. This means developers can see the exact sequence of plugin-level actions that led to a system failure.
+### 3. Plugin Logging Integration
+Plugins utilizing the standard `biopro.sdk.utils.logging` interface have their logs automatically piped into the diagnostic buffer.
 
 ---
 
-## 🔍 Technical Deep Dive: Thread-Safe Dispatch
+## Thread-Safe Dispatch Details
 
-The `EventManager` uses a special internal `pyqtSignal`.
-
-When you call `emit()` from a background worker thread, the signal is **queued** by the Qt Event Loop. It is only dispatched once the Main Thread is free. This prevents "Access Violation" crashes that happen if a background thread tries to update a UI widget directly.
+The `EventManager` leverages a specialized internal `pyqtSignal`.
+Invoking `emit()` from a background worker thread queues the signal within the Qt Event Loop. It is dispatched sequentially when the Main Thread processes its queue, preventing concurrent access violations on GUI elements.
 
 ```python
 class EventManager(QObject):
     _internal_bus = pyqtSignal(BioProEvent, tuple, dict)
 
     def emit(self, event_type, *args, **kwargs):
-        # Queues the work for the UI thread automatically
         self._internal_bus.emit(event_type, args, kwargs)
 ```
-
-> [!TIP]
-> **Memory Safety**: Always `unsubscribe` if your component is destroyed before the app closes to prevent memory leaks!

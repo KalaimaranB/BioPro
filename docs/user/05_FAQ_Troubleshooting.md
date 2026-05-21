@@ -1,45 +1,42 @@
-# ❓ FAQ & Troubleshooting
+# FAQ & Troubleshooting
 
-Find answers to common questions and solutions to technical issues in BioPro.
+This document addresses common questions and operational issues encountered when using BioPro.
 
 ---
 
-## 🙋 General Questions
+## General Questions
 
-### Is BioPro really free?
-Yes. BioPro Core is open-source. Some specialized high-performance plugins may require separate licensing depending on the author, but the platform itself is free for academic use.
+### Is BioPro open source?
+Yes, the BioPro Core application is open-source. However, specific third-party plugins may carry their own licensing terms.
 
-### Does my data leave my computer?
-**No.** BioPro is a "Privacy-First" local application. Your images, results, and project files never leave your machine unless you explicitly share them or sync them to your own cloud storage.
+### Does BioPro upload my data to the cloud?
+No. BioPro operates locally. Your data, project files, and analysis results remain on your local filesystem unless you intentionally export or sync them.
 
-### How do I cite BioPro in my publication?
+### How do I cite BioPro?
 We recommend the following format:
-> "Analysis was performed using the BioPro Analysis Suite (v1.2.0), incorporating the [Plugin Name] module."
+> "Analysis was performed using the BioPro Analysis Suite, incorporating the [Plugin Name] module."
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting Guide
 
-### I can't open a project.
-- **Check for locks**: Ensure another instance of BioPro isn't already using the folder.
-- **Permissions**: Ensure you have write access to the directory.
+### Cannot open a project
+- **Lock File Issue**: Check if another instance of BioPro is running. If BioPro crashed previously, a stale `.lock` file may remain in the `.biopro/` directory. Delete the `.lock` file manually if no other instances are running.
+- **File Permissions**: Verify that your user account has read/write permissions for the project directory.
 
-### My Mermaid diagrams aren't rendering.
-- **Chrome Compatibility**: BioPro uses a Chromium-based engine. Ensure your system drivers are up to date.
-- **JavaScript Enabled**: If you've modified internal settings, ensure JavaScript execution is not disabled.
+### Diagrams or UI elements are not rendering
+- **Browser Engine**: BioPro utilizes a Chromium-based web engine for UI rendering. Ensure your system drivers are up to date.
 
-### The "Next" button is disabled in the Wizard.
-- This usually means a required field is missing or invalid. Check for red highlights in the "Input" or "Parameters" screen.
+### Wizard execution is blocked
+- **Validation Failure**: The "Next" or "Run" buttons will remain disabled if the current input parameters fail validation. Review the interface for highlighted errors or missing required fields.
 
-### An "Unexpected Error" dialog appeared.
-Don't panic! BioPro has a built-in **Diagnostic Engine** that captures errors as they happen.
-- **View Logs**: Click this in the error dialog to open your local log folder.
-- **Copy Details**: Click this to copy a full technical report (including the "Black Box" history) to your clipboard.
-- **Contact Developer**: Reach out to the project maintainers with the copied details for support.
+### Application Exception (Error Dialog)
+BioPro includes a diagnostic module to handle unexpected exceptions.
+- **Diagnostic Logs**: Click the "View Logs" option in the error dialog to inspect the application logs located at `~/.biopro/biopro.log`.
+- **Bug Reporting**: Click "Copy Details" to copy the stack trace and state information to your clipboard for reporting the issue to developers.
 
 ---
 
-## 🆘 Still Need Help?
-- **GitHub Issues**: Report bugs on our [GitHub Repository](https://github.com/KalaimaranB/BioPro/issues).
-- **Log Files**: You can find internal logs at `~/.biopro/biopro.log`.
-- **Diagnostic Reports**: When reporting a bug, please use the "Copy Details" button in the error dialog to provide developers with the necessary context.
+## Additional Support
+- **Issue Tracker**: Report bugs via the [GitHub Repository](https://github.com/KalaimaranB/BioPro/issues).
+- **Logs Directory**: Routine logs can be found at `~/.biopro/biopro.log`.

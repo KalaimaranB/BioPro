@@ -1,22 +1,22 @@
-# 🕰 architecture: The Time Machine Engine (History Engine)
+# State and History Management
 
-BioPro's **HistoryManager** provides a non-destructive workflow for researchers. Every adjustment to a slider or filter is recorded, allowing you to travel back to any previous state without losing your scientific data.
+BioPro's `HistoryManager` tracks state transitions throughout an analysis session. It records adjustments to parameters and filters, enabling non-destructive workflow iteration via undo/redo stacks.
 
 ---
 
-## 🏗 Structural Sharing (Memory Optimization)
+## Memory Optimization via Structural Sharing
 
-The primary challenge in image analysis is memory. If you have a 100MB image and perform 50 slider adjustments, a naive undo system would store 50 copies of that image, consuming **5GB of RAM**.
+A primary concern in image analysis is memory overhead. Deep-copying a 100MB image array for every parameter adjustment is unfeasible.
 
-BioPro solves this using **Structural Sharing**:
+BioPro mitigates this using structural sharing:
 
-1.  **Identity Tracking**: When a state (snapshot) is saved, the `HistoryManager` uses the `ResourceInspector` to identify "heavy" objects (like Numpy arrays or Torch tensors).
-2.  **Reference Preservation**: Instead of copying the heavy data, the History stack stores a **pointer** to the data already in memory.
-3.  **Parameter Copying**: Only the lightweight parameters (strings, thresholds, booleans) are deep-copied.
+1.  **Identity Tracking**: When a state is snapshotted, the `HistoryManager` leverages the `ResourceInspector` to identify high-memory objects (e.g., NumPy arrays, PyTorch tensors).
+2.  **Reference Preservation**: Instead of duplicating these high-memory objects, the history stack retains a reference to the existing instance in memory.
+3.  **Parameter Copying**: Only lightweight primitive configurations (strings, numerical thresholds, booleans) are deep-copied into the state snapshot.
 
 ```mermaid
 graph TD
-    S1[State 1] --> Image((🖼 Raw Data))
+    S1[State 1] --> Image((Raw Tensor))
     S1 --> P1[Params: v1.0]
 
     S2[State 2] --> Image
@@ -26,44 +26,36 @@ graph TD
     S3 --> P3[Params: v1.2]
 ```
 
-> **Result**: You can have 1,000 undo steps with zero additional RAM cost for the raw image data.
+---
+
+## Module Isolation
+
+The history tracking is partitioned per analysis module. Each module manages its own independent `undo_stack` and `redo_stack`.
+
+This isolation ensures that performing an undo operation in one workspace (e.g., Western Blot) does not revert unrelated changes in another open workspace (e.g., Flow Cytometry).
+The global `HistoryManager` routes keyboard events (e.g., Ctrl+Z) to the currently active module's stack.
 
 ---
 
-## 🛠 Multi-Module Independence
+## State Serialization
 
-History is not a single giant timeline. Every analysis module (Western Blot, Flow Cytometry, etc.) has its own independent **Undo/Redo Stack**.
-
-This allows you to:
-1.  Adjust your Western Blot results.
-2.  Switch to a Flow Cytometry tab and adjust parameters there.
-3.  Undo the Western Blot change **without** affecting your Flow Cytometry progress.
-
-The `HistoryManager` acts as a central registry that routes your global "Undo" command (Ctrl+Z) to the **currently active tab**.
+To support session continuity, state snapshots are serialized to disk (`history.json`) when a project is saved.
+This allows the application to recreate the exact undo/redo stack upon subsequent loading, maintaining deterministic reproducibility.
 
 ---
 
-## 💾 Session Persistence
-
-History is not just for are RAM. When you save your project, BioPro serializes the entire undo/redo chain into `history.json`.
-
-- **Persistence**: You can close the app, come back tomorrow, and still undo that one bad thresholding decision you made today.
-- **Portability**: Because the state uses hashes and relative references, the history remains valid even if you move the project folder to a different computer.
-
----
-
-## 🛠 Internal API Reference (`biopro.core.history_manager`)
+## API Reference (`biopro.core.history_manager`)
 
 ### `ModuleHistory(module_id)`
-Manages the `undo_stack` and `redo_stack` for a specific module.
+Manages the `undo_stack` and `redo_stack` for a localized module context.
 
-- `push(state: dict)`: Captures a new snapshot. Automatically clears the redo stack.
-- `undo()`: Pops the current state and returns the previous one.
-- `redo()`: Restores a popped state if no new changes were made.
+- `push(state: dict)`: Pushes a new state snapshot and clears the active redo stack.
+- `undo()`: Pops the current state, appends it to the redo stack, and returns the previous state.
+- `redo()`: Restores the most recently undone state, provided no divergent pushes have occurred.
 
 ### `HistoryManager`
-The global orchestrator.
+The global orchestrator for all module histories.
 
-- `get_module_history(id)`: Returns the stack for a specific module.
-- `serialize_all()`: Returns a snapshot of every module's history for project saving.
-- `load_all(data)`: Restores every timeline from a file.
+- `get_module_history(id)`: Retrieves the history instance for a specified module.
+- `serialize_all()`: Returns a serialized representation of all active module histories.
+- `load_all(data)`: Deserializes and restores module histories from disk payload.

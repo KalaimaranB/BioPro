@@ -1,56 +1,46 @@
-# 📂 User Trust Directory & Visual Safety Manual
+# Security Settings and Trust Directory
 
-This manual explains how BioPro visually guides you through cryptographic security events, how to manage manual keys in your **Personal Trust Directory**, and how to safely navigate local security overrides.
+This document details how BioPro displays security statuses in the user interface and how to manage cryptographic keys within your local environment.
 
 ---
 
-## 🎨 1. Deciphering Visual Safety Badges
+## 1. Plugin Security Statuses
 
-BioPro evaluates plugins at startup and renders real-time visual statuses in the UI. Understanding these badges helps you guarantee the integrity of your computational research pipelines.
+BioPro evaluates plugins upon startup and assigns a status based on cryptographic verification.
 
-| Visual Badge | Visual Description | Cryptographic Meaning & Action |
+| Status | Description | Cryptographic Result |
 | :--- | :--- | :--- |
-| **🛡️ VERIFIED SECURE** | Green gradient glowing header | The plugin is fully double-signed! Its manifest and file hashes match, and it traces back to a trusted root anchor key. |
-| **⚠️ UNTRUSTED / PENDING KEY** | Orange border & warning tree | The plugin's code integrity is verified, but its developer's key is unrecognized. Add them to your Trust Directory if you trust them. |
-| **🚨 SECURITY CRITICAL** | Solid Red card with alerts | **EXCLUDED payload execution blocked!** An unauthorized executable file (e.g. `.py` or `.exe`) was found inside an ignored folder. Run is locked. |
-| **❌ SPOOFED IMAGE BLOCKED** | Red dashed preview card | A remote screenshot or author portrait failed SHA-256 validation. Display was suppressed to prevent spoofing or buffer-overflow attacks. |
+| **Verified Secure** | The plugin is verified. | The manifest and file hashes match, and the developer's key traces to a trusted root anchor. |
+| **Untrusted** | The plugin integrity is intact, but the key is unknown. | The code has not been modified, but the developer's key is not in your Trust Directory. Execution may require a manual override. |
+| **Security Critical** | Execution is blocked. | An unauthorized or modified file was found within the plugin directory. The hashes do not match the manifest. |
 
 ---
 
-## 📂 2. Managing Your Personal Trust Directory
+## 2. Managing the Local Trust Directory
 
-If you are working with an independent researcher or downloading an academic plugin that isn't signed by a central institutional authority, you can manually trust their key. This registers them locally as a trusted anchor on your computer.
+If you utilize plugins from independent developers not signed by a central authority, you must manually add their public key to your local Trust Directory (`~/.biopro/trusted_roots/`).
 
-### Listing & Searching Anchors
-1. Open the **Personal Trust Directory** tab in the sidebar.
-2. The panel lists all manually trusted anchors currently recognized in `~/.biopro/trusted_roots/`.
-3. Use the search input `🔍 Filter trusted developers...` at the top to filter names instantly.
+### Adding a Trusted Key
+1. Obtain the developer's public key (a hex string).
+2. Open the **Security Center** or **Personal Trust Directory** in the BioPro sidebar.
+3. Enter the developer's name and paste the public key.
+4. Click **Add Anchor Key**. Plugins signed by this key will now be verified.
 
-### Adding a Trusted Developer Key
-To register a new independent developer key:
-1. Obtain the developer's public key (a 32-byte hex string, e.g. `2f81f7...`).
-2. Navigate to the **Add Trusted Developer Anchor** form in the sidebar.
-3. Enter their full name and paste the public key hex.
-4. Click **Add Anchor Key**. They are instantly added to your trusted keys, and any plugin signed by them will now display as **Verified Secure**!
-
-### Revoking Developer Keys
-If a key is compromised, or you no longer trust a developer:
-1. Locate the developer in your **Personal Trust Directory** list.
-2. Click the red **Revoke** button next to their name.
-3. BioPro instantly deletes their key anchor (`.pub`) file and refreshes the trust evaluation tree. Any plugins using their signature are immediately demoted back to untrusted status.
+### Revoking a Key
+1. Locate the developer in the Trust Directory list.
+2. Click **Revoke**.
+3. The public key is removed from your local system. Any plugins relying on this key will immediately be downgraded to an untrusted status.
 
 ---
 
-## 🔒 3. Resolving Safety Locks & Manual Overrides
+## 3. Local Trust Overrides
 
-For advanced research workflows, you might need to make local, temporary modifications to an existing plugin. Since modifying any file breaks the cryptographic signature, BioPro will display an **Integrity Check Failed** warning.
+During active development or debugging, you may need to modify plugin files locally. Doing so breaks the cryptographic signature and causes the integrity check to fail. BioPro allows you to establish a secure local override for these situations.
 
-BioPro provides a secure, background **Local Trust Overrides** registry to authorize safe local changes.
-
-### Local Machine Overrides Flow:
-1. When a plugin integrity check fails, BioPro presents a **Manual Trust Acceptance Dialog**.
-2. If you are confident the changes are safe, click **"Trust and Lock Current State"**.
-3. BioPro records the current hashes of all files in the plugin and saves them in `~/.biopro/trust_overrides.json`.
-4. To prevent offline tampering with your overrides, BioPro cryptographically signs the overrides ledger using a **background Machine Key** (`~/.biopro/machine_private.pem`) generated on first boot.
-5. On subsequent startups, if your local modifications match your signed override snapshot, the plugin is loaded securely under a **"Verified Local Override (🔒 Manual Lock)"** status.
-6. If any files are modified *again*, the override is broken, and you must review the changes before re-signing.
+### Establishing an Override:
+1. When BioPro detects a modified plugin, it presents a **Trust Dialog**.
+2. If the modifications are intentional, select **Trust and Lock Current State**.
+3. BioPro calculates new hashes for the modified files and stores them in `~/.biopro/trust_overrides.json`.
+4. This override file is signed locally using a machine-specific key (`~/.biopro/machine_private.pem`) generated during the application's initial setup.
+5. On subsequent loads, if the plugin files match the local override snapshot, the plugin is loaded under a **Verified Local Override** status.
+6. Further modifications to the plugin will invalidate the override, requiring a new review and lock process.

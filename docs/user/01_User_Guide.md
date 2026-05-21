@@ -1,48 +1,48 @@
-# 🧬 BioPro User Guide
+# BioPro User Guide
 
-Welcome to the **BioPro User Guide**! This document is designed for biological researchers and lab technicians who want to use BioPro to analyze their data without necessarily writing code.
-
----
-
-## 🛤 Choose Your Path
-
-BioPro is organized into a modular workflow. Depending on your needs, follow one of the paths below:
-
-### 🚀 Path 1: I'm new and want to get set up
-If you haven't installed BioPro yet, start here to get the core application running on your machine.
-- [**Installation & First Launch**](02_Getting_Started.md)
-
-### 🔬 Path 2: I want to analyze my first dataset
-Learn the standard workflows in BioPro. Depending on the module you install, you will encounter either a **4-Step Wizard** (e.g., Western Blot) or a **Professional Workspace** (e.g., Flow Cytometry).
-- [**Tutorial: Navigating Your First Analysis**](03_Tutorial_First_Analysis.md)
-
-### 📂 Path 3: I need to manage or share my experiments
-Learn how BioPro stores your data in projects and how you can safely share your work with colleagues.
-- [**Project Management & Data Formats**](04_Project_Management.md)
-
-### 🛠 Path 4: Something isn't working
-Check the common issues and answers to frequently asked questions.
-- [**FAQ & Troubleshooting**](05_FAQ_Troubleshooting.md)
-
-### 🤖 Path 5: I want help with my analysis
-Learn how to use the BioPro AI Research Assistant to get insights into your data.
-- [** AI: Your Research Assistant**](../internal/17_AI_Assistant.md)
+Welcome to the **BioPro User Guide**. This document provides operational instructions for biological researchers and lab technicians using BioPro to analyze their data.
 
 ---
 
-## 🌟 Key Researcher Features
+## Guide Index
 
-### 🛡 Verified Science (Security)
-BioPro uses a "Chain of Trust" to ensure that the analysis tools you download haven't been tampered with. Look for the **🛡 Verified** badge in the Plugin Store.
-- [**Learn more about Security & Trust**](10_Security_and_Trust.md)
+BioPro is organized into a modular workflow. Depending on your current task, select the relevant documentation below:
 
-### 🕰 The "Time Machine" (History)
-Never worry about making a mistake. Every adjustment you make—from a simple crop to a complex gating threshold—is recorded. You can jump back to any point in your analysis history at any time.
+### Initial Setup
+If you are running BioPro for the first time, refer to the installation and initialization instructions.
+- [Getting Started](02_Getting_Started.md)
 
-### 🔌 Extensible Modules
-BioPro is a lightweight hub. You can install specialized tools for **Western Blot**, **Flow Cytometry**, **CytoMetrics**, and more directly from the in-app **Plugin Store**.
+### Running Analysis
+Learn the standard workflows in BioPro. Depending on the loaded module, you will encounter either a step-by-step wizard or a multi-panel workspace.
+- [Tutorial: Navigating Your First Analysis](03_Tutorial_First_Analysis.md)
+
+### Project Data and Sharing
+Understand how BioPro stores your experimental data in projects and the supported data formats for exporting and sharing.
+- [Project Management](04_Project_Management.md)
+
+### Troubleshooting
+Review solutions to common operational issues.
+- [FAQ & Troubleshooting](05_FAQ_Troubleshooting.md)
+
+### AI Assistance
+BioPro includes an integrated AI Assistant that can help explain functionalities and navigate workflows based on the loaded context.
+- [AI Assistant Overview](../internal/17_AI_Assistant.md)
 
 ---
 
-> [!TIP]
-> **Are you a developer?** If you want to build your own analysis modules or contribute to the core, check out the [**Developer Onboarding & Contribution Manual**](../internal/19_Developer_Onboarding.md).
+## Core Operational Features
+
+### Plugin Signature Verification
+BioPro utilizes cryptographic signature checks to verify that installed analysis plugins have not been tampered with.
+- [Security and Trust Overview](10_Security_and_Trust.md)
+
+### State Management
+BioPro records state changes during analysis. You can undo or redo actions securely, ensuring your data manipulation steps are tracked.
+
+### Extensible Modules
+BioPro acts as a host application. Specialized analysis tools are installed as plugins via the Plugin Store.
+
+---
+
+> [!NOTE]
+> **Developer Documentation:** If you want to build your own analysis modules using the SDK, refer to the [Developer Onboarding Guide](../internal/19_Developer_Onboarding.md).

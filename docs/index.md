@@ -1,53 +1,53 @@
-# 🧬 BioPro Documentation Portal
+# BioPro Documentation Portal
 
-Welcome to the official **BioPro Documentation Portal**! BioPro is an open-source, intuitive, and cryptographically secure biological analysis suite designed for modern researchers, software developers, and academic institutions.
+Welcome to the official **BioPro Documentation Portal**. BioPro is an open-source biological analysis suite designed for researchers, software developers, and academic institutions.
 
 ---
 
 <div class="grid cards" markdown>
 
--   **📖 User Manuals**
+-   **User Manuals**
     
-    Get started with the interface, wizards, project managers, and the F1 Help Center.
+    Get started with the interface, wizards, project managers, and the Help Center.
     
-    [:octicons-arrow-right-24: View User Guides](user/01_User_Guide.md)
+    [View User Guides](user/01_User_Guide.md)
 
--   **🏗 Internal Architecture**
+-   **Internal Architecture**
     
-    Deep-dive into the Event Bus, dynamic loaders, mathematical trust models, and the core nervous system.
+    Deep-dive into the Event Bus, dynamic loaders, module managers, and the core system.
     
-    [:octicons-arrow-right-24: View Internal Architecture](internal/11_Core_Nervous_System.md)
+    [View Internal Architecture](internal/11_Core_Nervous_System.md)
 
--   **💻 Developer Onboarding**
+-   **Developer Onboarding**
     
-    Learn how to build plugins, compile analysis pipelines, and sign releases cryptographically.
+    Learn how to build plugins, compile analysis pipelines, and work with the SDK.
     
-    [:octicons-arrow-right-24: Start Onboarding](internal/19_Developer_Onboarding.md)
+    [Start Onboarding](internal/19_Developer_Onboarding.md)
 
--   **🛡️ Cryptographic Trust Spec**
+-   **Security Spec**
     
-    Examine our double-signing verification formulas, sandbox boundaries, and supply-chain isolation constraints.
+    Examine the signature verification implementation and plugin validation policies.
     
-    [:octicons-arrow-right-24: View Cryptographic Spec](internal/21_Supply_Chain_Security.md)
+    [View Security Spec](internal/21_Supply_Chain_Security.md)
 
 </div>
 
 ---
 
-## 🌟 Key Application Pillars
+## Key Application Features
 
-### 🔐 Zero-Trust Plugin Ecosystem
-BioPro enforces a **double-signing asymmetric defense-in-depth model**. A distributed plugin must satisfy both local developer signature checks and project CI co-signatures before it is authorized to run inside the host, protecting laboratory data from supply chain attacks.
+### Plugin Ecosystem
+BioPro enforces strict plugin validation. A distributed plugin must satisfy signature checks before it is authorized to run inside the host, ensuring data integrity.
 
-### 🕰 The "Time Machine" History Engine
-Never worry about losing scientific calculations or gating thresholds. Every single user adjustment is stored as a deterministic state change, letting you step backward or forward through history instantly with full memory efficiency.
+### History Management
+Every user adjustment is stored as a deterministic state change, letting you step backward or forward through history instantly.
 
-### 🤖 Animated AI assistant
-An integrated, context-aware AI Research Assistant helps scientists explain complex mathematical transformations, navigate biological pipelines, and manage workflows in real-time.
+### AI Assistant
+An integrated AI Assistant provides contextual help with biological pipelines, navigating workflows, and managing analysis data based on the provided documentation.
 
 ---
 
-### 📥 Getting Started Instantly
+### Getting Started
 If you are new to the platform, jump straight into the installation guides to configure your environment:
-*   [**Getting Started & Launching**](user/02_Getting_Started.md)
-*   [**Running Your First Analysis Wizard**](user/03_Tutorial_First_Analysis.md)
+*   [Getting Started & Launching](user/02_Getting_Started.md)
+*   [Running Your First Analysis Wizard](user/03_Tutorial_First_Analysis.md)

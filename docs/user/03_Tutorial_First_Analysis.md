@@ -1,53 +1,51 @@
-# 🔬 Tutorial: Navigating Your First Analysis
+# Tutorial: Navigating Your First Analysis
 
-BioPro modules generally fall into two categories: **Wizard-style** (streamlined, step-by-step) and **Workspace-style** (free-form, multi-panel). This tutorial explains both so you can navigate any analysis tool with confidence.
-
----
-
-## 🧙 The 4-Step Wizard (Standard Modules)
-Many modules, such as **Western Blot Pro**, use a guided 4-step pipeline to ensure scientific reproducibility.
-
-### Step 1: Input (Data Loading)
-The first screen is where you provide your raw data.
-1.  **Select Your Files**: Click the **Browse** button or drag-and-drop your images (TIFF, PNG) or data files into the drop zone.
-2.  **Validation**: BioPro automatically scans the files for corruption or incompatible formats.
-
-### Step 2: Parameters (The "Scientific" Phase)
-This is where you apply your domain knowledge.
-1.  **Interactive Sliders**: Move sliders to adjust thresholds or filters. Results update in real-time.
-2.  **Fine-Tuning**: Double-click any slider to type in a precise numerical value.
-
-### Step 3: Analysis (Background Engine)
-When you click **Run Analysis**, the heavy computation begins.
-1.  **Non-Blocking**: Your UI remains responsive. You can open other tabs while the engine computes.
-2.  **Progress**: A progress bar shows real-time status.
-
-### Step 4: Results (Export & Save)
-The final phase is where you review and export your findings.
-1.  **Review**: Use interactive plots or tables to zoom in on specific data points.
-2.  **Export**: Click **Export to CSV** or **Save Image** for publication.
+BioPro plugins utilize two primary interface paradigms: **Wizard-style** (sequential steps) and **Workspace-style** (multi-panel interfaces). This tutorial outlines how to operate both.
 
 ---
 
-## 🖥 The Professional Workspace (Advanced Modules)
-Advanced modules like **Flow Cytometry** use a persistent "Workspace" layout instead of a step-by-step wizard. This is designed for complex, non-linear workflows.
+## The Standard Wizard Pipeline
+Many routine analysis modules use a guided multi-step pipeline.
 
-- **Ribbon Toolbar**: Located at the top. Switches between different contexts (e.g., *Compensation*, *Gating*, *Reports*).
-- **Sidebars**: Provide quick access to your **Sample List**, **Gate Hierarchy**, and **Properties**.
-- **Central Canvas**: The main area where your data visualizations (plots, histograms) live.
-- **Auto-Sync**: Unlike wizards, changes in a Workspace are often applied instantly to all open windows.
+### Step 1: Data Input
+Provide your raw experimental data to the module.
+1.  **Select Files**: Click the **Browse** button or drag-and-drop supported files into the application window.
+2.  **Validation**: The module will parse the input and alert you if the file format is unsupported or corrupted.
+
+### Step 2: Parameter Configuration
+Adjust the mathematical parameters for the analysis.
+1.  **Interactive Controls**: Use sliders or input fields to modify thresholds.
+2.  **Real-Time Preview**: If supported by the plugin, the UI will reflect parameter changes on a sample of the data.
+
+### Step 3: Analysis Execution
+Execute the core computational workload.
+1.  **Asynchronous Execution**: BioPro runs heavy computations in background threads, keeping the UI responsive.
+2.  **Progress Tracking**: A progress indicator will display the current status of the analysis.
+
+### Step 4: Results and Export
+Review the output of the analysis.
+1.  **Data Review**: Inspect the generated plots, tables, or images.
+2.  **Export**: Use the provided export buttons (e.g., CSV, PNG) to save the results to your local filesystem.
 
 ---
 
-## 🕰 The "Time Machine" (Undo/Redo)
-Regardless of the module style, BioPro's **History Engine** is always active.
-- Use **Cmd+Z** (macOS) or **Ctrl+Z** (Windows) to undo any mistake.
-- In Workspace modules, you can also use the **History Tab** to jump back to any specific point in your session.
+## The Professional Workspace
+Advanced exploratory modules use a persistent workspace layout, designed for non-linear workflows.
+
+- **Ribbon Toolbar**: Located at the top of the interface, providing access to major functional contexts (e.g., File, View, Tools).
+- **Sidebars**: Provide quick access to hierarchical data representations, such as sample lists or property inspectors.
+- **Central Canvas**: The primary area for data visualization.
+- **State Synchronization**: Changes made in one panel are immediately reflected across all related views in the workspace.
 
 ---
 
-## 🤝 Next Steps
+## State Management (Undo/Redo)
+BioPro tracks state changes to allow for error recovery during analysis.
+- Use **Cmd+Z** (macOS) or **Ctrl+Z** (Windows) to undo the last action.
+- Depending on the module, you may also have access to a history panel to revert to specific previous states.
 
-Now that you've mastered the basic workflow, learn how BioPro keeps your data safe and portable:
-- [**Project Management & Data Formats**](04_Project_Management.md)
-- [**FAQ & Troubleshooting**](05_FAQ_Troubleshooting.md)
+---
+
+## Next Steps
+- [Project Management & Data Formats](04_Project_Management.md)
+- [FAQ & Troubleshooting](05_FAQ_Troubleshooting.md)

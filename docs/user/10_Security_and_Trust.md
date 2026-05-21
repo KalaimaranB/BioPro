@@ -1,54 +1,51 @@
-# 🛡️ BioPro Security & Trust Model
+# Security and Trust Architecture
 
-BioPro uses a hierarchical **Trust Tree** architecture to ensure that every analysis module you run is authentic, untampered, and verified by a recognized authority.
+BioPro implements a public key infrastructure (PKI) based trust model to verify the integrity and origin of analysis plugins. This prevents the execution of unauthorized or tampered code.
 
 ---
 
-## 🏗️ The Trust Tree Structure
+## The Trust Hierarchy
 
-Unlike a simple "binary" lock, BioPro uses a chain of cryptographic proofs. This allows for institutional delegation (e.g., a University trusting a Lab, which in turn trusts a Researcher).
+BioPro utilizes cryptographic signatures to establish trust.
 
 ```mermaid
 graph TD
-    Root[🏛️ BioPro Core Authority] -->|Signs| Uni[🏫 University Anchor]
-    Uni -->|Signs| Lab[🧪 Research Lab]
-    Lab -->|Signs| Dev[👤 Developer Key]
-    Dev -->|Signs| Plugin[📦 Analysis Plugin]
+    Root[BioPro Core Authority] -->|Signs| Uni[Institutional Anchor]
+    Uni -->|Signs| Lab[Research Lab]
+    Lab -->|Signs| Dev[Developer Key]
+    Dev -->|Signs| Plugin[Analysis Plugin]
 
-    subgraph "Local Trust Circle"
-        User[👤 End User] -->|Manually Trusts| Indie[👤 Independent Dev]
+    subgraph "Local Trust"
+        User[End User] -->|Trusts manually| Indie[Independent Developer]
     end
 ```
 
-### 1. The Root of Trust
-The ultimate anchor is the **BioPro Core Authority**. Its public key is baked into the BioPro application. Every official plugin must eventually trace its heritage back to this root.
+### 1. Root Anchors
+The BioPro application includes hardcoded public keys representing the root authority. Official plugins must be cryptographically traceable to these root keys.
 
-### 2. Verified Developers
-When a developer is "Verified," it means an Authority (like BioPro or a registered University) has cryptographically signed their public key. This signature is stored in a `delegation.json` file on the developer's machine and bundled into every plugin they sign.
+### 2. Delegated Authorities
+Institutions or labs can be issued delegated signing authority. A developer's public key is signed by a higher authority, and this signature (delegation) is bundled with the plugin to prove its authenticity.
 
-### 3. Organic Trust (Personal Anchors)
-BioPro is an open ecosystem. If you want to run code from an independent researcher who isn't signed by a major authority:
-*   The app will show a ⚠️ warning.
-*   You can choose to **"Trust this Developer"** manually.
-*   BioPro saves their ceremony to your local `~/.biopro/trusted_roots/` folder, effectively making them a "Verified Developer" on your machine only.
+### 3. Local Trust
+Users can manually configure trust for independent developers. By adding a developer's public key to the local trusted roots (`~/.biopro/trusted_roots/`), the local BioPro instance will recognize and execute their plugins.
 
 ---
 
-## 🔍 How Verification Works
+## Plugin Verification Process
 
-Whenever you open a plugin, the `TrustManager` performs three strict checks:
+Upon loading a plugin, the `TrustManager` module executes three primary validation steps:
 
-1.  **Integrity Check**: It calculates a SHA-256 hash of every file in the plugin directory and compares it to the signed manifest. If even a single line of code is changed, the check fails.
-2.  **Signature Check**: It verifies the digital signature of the manifest using the developer's public key.
-3.  **Chain Check**: It recursively follows the `trust_chain.json` until it finds an "Anchor" (a key present in your local or hardcoded trusted roots).
+1.  **Hash Verification**: It calculates the SHA-256 hash of every file within the plugin directory and compares them against the hashes listed in the plugin's signed manifest. If there is a mismatch, the plugin is rejected.
+2.  **Signature Verification**: It verifies the digital signature of the manifest using the developer's bundled public key.
+3.  **Chain of Trust Verification**: It traverses the delegation chain to ensure the developer's key is signed by a recognized anchor (either a root authority or a locally trusted key).
 
 ---
 
-## 🛠 For Developers: Signing your Work
+## Developer Signing Process
 
-To become part of the trust tree, you must:
-1.  **Initialize**: Generate your keys using `biopro-sign init`.
-2.  **Request Delegation**: Send your `public.pub` hex to an authority (like the BioPro team or your PI) to get a `delegation.json`.
-3.  **Sign**: Run `biopro-sign sign <folder>` before distribution.
+Developers must sign their plugins prior to distribution:
+1.  **Key Generation**: Use the SDK CLI to generate a key pair (`biopro-sign init`).
+2.  **Delegation (Optional)**: Obtain a signature from an authority to create a delegation chain.
+3.  **Plugin Signing**: Use the SDK CLI to sign the plugin directory (`biopro-sign sign <folder>`). This generates the manifest and signature files.
 
-For technical details on the CLI, see the [Developer Onboarding & Contribution Manual](../internal/19_Developer_Onboarding.md) and the [Security & Code-Signing Guide](../internal/20_Security_and_Signing.md).
+For detailed instructions, refer to the [Security and Signing Guide](../internal/20_Security_and_Signing.md).

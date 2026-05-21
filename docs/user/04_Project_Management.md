@@ -1,53 +1,50 @@
-# 📂 Guide: Project Management & Data Formats
+# Project Management and Data Formats
 
-BioPro organizes all scientific work into **Projects**. A project is more than just a folder; it is a versioned, cryptographically-consistent snapshot of your analysis history.
+BioPro organizes scientific workflows into specific project directories. This structure ensures that raw data, analysis results, and history are kept logically grouped.
 
 ---
 
-## 🏗 The Project Structure
+## The Project Directory Structure
 
-When you create a project named `MyExperiment`, BioPro creates a `.biopro` directory with the following structure:
+When a project is created, BioPro initializes a hidden `.biopro` directory within the chosen workspace to manage metadata.
 
 ```text
-MyExperiment/
-├── project_manifest.json  # Core metadata and system state
-├── analysis_results/      # Processed data, graphs, and csv exports
-├── history_ledger.db      # The "Time Machine" database
-└── .lock                  # Prevents data corruption from multiple apps
+Project_Workspace/
+├── .biopro/
+│   ├── project_manifest.json  # Core metadata and system state
+│   ├── history_ledger.db      # SQLite database tracking state changes
+│   └── .lock                  # Process lock to prevent concurrent writes
+├── raw_data/                  # (User defined) Input files
+└── analysis_results/          # (User defined) Output files
 ```
 
-### 🔐 The Project Lock
-BioPro uses OS-native file locking. If you try to open the same project in two different instances of BioPro, you will receive a security warning. This prevents two different "History Engines" from writing conflicting data to the same ledger.
+### Process Locking
+BioPro implements OS-level file locking (`.lock`). Attempting to open the same project simultaneously in multiple BioPro instances will be blocked. This protects the `history_ledger.db` from concurrent write corruption.
 
 ---
 
-## 📤 Sharing & Portability
+## Project Sharing
 
-BioPro projects are designed to be shared. To send your work to a colleague:
-1.  **Zip the Project Folder**: Zip the entire `MyExperiment` directory.
-2.  **Send**: Your colleague can "Open Project" in their BioPro Hub, and they will see your entire Analysis History, and results exactly as you left them.
-
-> [!NOTE]
-> **Plugin Compatibility**: If your colleague opens a project that uses a plugin they don't have installed, BioPro will offer to download it from the **Plugin Store** automatically.
-
----
-
-## 📊 Supported Data Formats
-
-BioPro is a modular system, but it has first-class support for:
-
-| Format | Category | Common Use |
-| :--- | :--- | :--- |
-| `.fcs` | Flow Cytometry | Standard cell population data |
-| `.tiff / .png` | Imaging | Western Blots, Microscopy |
-| `.csv / .tsv` | Tabular | Raw threshold data |
+BioPro projects can be shared across different machines by transferring the entire project directory.
+1.  **Package**: Compress the entire project directory (including the `.biopro` folder) into an archive (e.g., `.zip`).
+2.  **Transfer**: Send the archive to the recipient.
+3.  **Open**: The recipient can extract the archive and open the directory in their BioPro instance. The application will restore the last saved state and history.
+Note: If a project requires a plugin the recipient has not installed, BioPro will prompt them to install it.
 
 ---
 
-## 🛡 Data Integrity
-Every result saved in a BioPro project is hashed. If the raw data files are modified outside of BioPro, the app will flag the analysis step as **"Stale"** or **"Compromised"**, ensuring the scientific integrity of your final publication.
+## Supported Data Formats
+
+BioPro's core supports common structured formats. Specialized formats are handled by specific plugins.
+
+| Format | Common Usage |
+| :--- | :--- |
+| `.fcs` | Flow Cytometry data |
+| `.tiff / .png / .jpg` | Imaging data (Microscopy, Blots) |
+| `.csv / .tsv` | Tabular data exports |
 
 ---
 
-## 🏁 Final Step
-You are now ready to perform your first analysis! If you have questions, visit the [**FAQ & Troubleshooting**](05_FAQ_Troubleshooting.md).
+## File Integrity
+
+BioPro records the hashes of loaded input files within the project state. If underlying files are modified outside of the application, BioPro may flag associated analysis steps as stale or requiring re-computation.
