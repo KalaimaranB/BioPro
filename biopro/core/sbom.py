@@ -7,7 +7,6 @@ import hashlib
 import importlib.metadata
 import json
 import platform
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -21,10 +20,13 @@ class SBOMGenerator:
 
     def get_metadata(self) -> dict[str, Any]:
         """Returns application and environment metadata."""
+        try:
+            timestamp = importlib.metadata.version("biopro")
+        except importlib.metadata.PackageNotFoundError:
+            timestamp = "2026-05-15T21:30:00Z"
+
         return {
-            "timestamp": importlib.metadata.version("biopro")
-            if "biopro" in sys.modules
-            else "2026-05-15T21:30:00Z",
+            "timestamp": timestamp,
             "tools": [
                 {
                     "vendor": "BioPro Authority",

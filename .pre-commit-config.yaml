@@ -32,3 +32,9 @@ repos:
         entry: env QT_QPA_PLATFORM=offscreen uv run python -m pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py --tb=short -q --cov=biopro --cov-report=term-missing
         language: system
         pass_filenames: false
+
+      - id: sbom-validation
+        name: Validate SBOM Generator
+        entry: env PYTHONPATH=. uv run python -c "from biopro.core.sbom import SBOMGenerator; SBOMGenerator().to_json()"
+        language: system
+        pass_filenames: false
