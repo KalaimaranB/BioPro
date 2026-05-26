@@ -17,9 +17,11 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import (
+    QApplication,
     QGraphicsOpacityEffect,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QStackedWidget,
     QStatusBar,
@@ -125,7 +127,6 @@ class WorkspaceWindow(QMainWindow):
         theme_manager.theme_changed.connect(self._on_theme_changed)
 
     def _apply_supplemental_qss(self) -> None:
-        from PyQt6.QtWidgets import QApplication
 
         extra = (
             "QCheckBox { spacing: 8px; color: #e6edf3; }"
@@ -165,17 +166,20 @@ class WorkspaceWindow(QMainWindow):
             f"}}"
         )
         app = QApplication.instance()
-        if app:
+        if isinstance(app, QApplication):
             app.setStyleSheet("")
             app.setStyleSheet(extra)
 
     def _setup_menu_bar(self) -> None:
         menubar = self.menuBar()
+        assert menubar is not None
 
-        file_menu = menubar.addMenu("&File")
+        file_menu = QMenu("&File", self)
+        menubar.addMenu(file_menu)
 
         # --- Edit Menu for History ---
-        edit_menu = menubar.addMenu("&Edit")
+        edit_menu = QMenu("&Edit", self)
+        menubar.addMenu(edit_menu)
 
         undo_action = QAction("&Undo", self)
         # Magic cross-platform native Undo shortcut
@@ -211,7 +215,8 @@ class WorkspaceWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
-        theme_menu = menubar.addMenu("&Theme")
+        theme_menu = QMenu("&Theme", self)
+        menubar.addMenu(theme_menu)
 
         # DYNAMIC THEME DISCOVERY
         available_themes = theme_manager.discover_themes()
@@ -221,7 +226,8 @@ class WorkspaceWindow(QMainWindow):
             theme_menu.addAction(action)
 
         # Help Menu
-        help_menu = menubar.addMenu("&Help")
+        help_menu = QMenu("&Help", self)
+        menubar.addMenu(help_menu)
 
         docs_action = QAction("📖 BioPro &Help Center", self)
         docs_action.setShortcut(QKeySequence("F1"))
