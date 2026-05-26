@@ -65,4 +65,6 @@ Initializes the manager instance. Does not perform I/O upon instantiation.
 - `open_project()`: Reads project metadata, history, and acquires the directory lock.
 - `save()`: Triggers an atomic write of all metadata and state histories.
 - `add_image(path, copy_to_workspace=True)`: Registers a new data asset into the project scope.
-- `save_workflow(module_id, payload)`: Persists an analysis configuration to the `workflows/` subdirectory.
+- `save_workflow(module_id, payload, metadata, filename=None, attachments=None)`: Persists an analysis configuration to the `workflows/` subdirectory. If `filename` is provided, overwrites the existing workflow cleanly.
+- `attach_workflow_file(wf_filename, source_path, key, description="", mime_hint="application/octet-stream")`: Copies a companion binary file into the workflow's attachment folder and returns its metadata record.
+- `get_attachment_path(wf_filename, key)`: Resolves the absolute path for a saved workflow attachment.

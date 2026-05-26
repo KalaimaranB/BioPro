@@ -76,7 +76,7 @@ jobs:
 
       - name: Install Linting & Security Tools
         run: |
-          uv pip install --system ruff mypy pip-audit types-requests types-Markdown types-Pygments types-psutil requests markdown Pygments psutil
+          uv pip install ruff mypy pip-audit types-requests types-Markdown types-Pygments types-psutil requests markdown Pygments psutil
 
       - name: Run Ruff Linter
         run: ruff check .
@@ -117,10 +117,10 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          uv pip install --system -r requirements.txt
-          uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
-          uv pip install --system pytest pytest-qt pytest-cov
-          uv pip install --system --no-deps -e .
+          uv pip install -r requirements.txt
+          uv pip install git+https://github.com/KalaimaranB/BioPro-SDK.git
+          uv pip install pytest pytest-qt pytest-cov
+          uv pip install --no-deps -e .
 
       # Using shell: bash guarantees multi-line backslash continuation works perfectly on Windows!
       - name: Run Core & SDK Tests
@@ -169,9 +169,9 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          uv pip install --system -r requirements.txt
-          uv pip install --system git+https://github.com/KalaimaranB/BioPro-SDK.git
-          uv pip install --system pyinstaller pytest
+          uv pip install -r requirements.txt
+          uv pip install git+https://github.com/KalaimaranB/BioPro-SDK.git
+          uv pip install pyinstaller pytest
 
       - name: Run Supply Chain Integrity Check
         run: pytest tests/core/test_supply_chain.py

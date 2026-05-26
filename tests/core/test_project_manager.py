@@ -132,6 +132,80 @@ class TestProjectManager:
         assert workflows[0]["name"] == "Test Workflow"
         assert workflows[0]["module"] == "test_module"
 
+    def test_save_workflow_update_overwrites_existing(self, open_project):
+        """Verifies that saving with an existing filename overwrites instead of creating a new file."""
+        pm = open_project
+        metadata = {"name": "Test Workflow"}
+        # First save
+        fname1 = pm.save_workflow("mod", {"data": 1}, metadata)
+
+        # Second save with same filename
+        fname2 = pm.save_workflow("mod", {"data": 2}, metadata, filename=fname1)
+
+        assert fname1 == fname2
+        workflows = pm.list_workflows()
+        assert len(workflows) == 1
+
+        # Verify payload updated
+        payload = pm.load_workflow_payload(fname1)
+        assert payload["data"] == 2
+
+    def test_save_workflow_update_missing_file_creates_new(self, open_project):
+        """Verifies passing a non-existent filename acts like a new save."""
+        pm = open_project
+        fname = pm.save_workflow("mod", {"data": 1}, {"name": "Test"}, filename="missing.json")
+        assert fname == "missing.json"
+        assert len(pm.list_workflows()) == 1
+
+    def test_attach_file_to_workflow(self, open_project, tmp_path):
+        """Verifies attaching a file to a workflow copies it to the attachments folder."""
+        pm = open_project
+        wf_name = pm.save_workflow("mod", {}, {"name": "Test"})
+
+        # Create dummy bin
+        dummy = tmp_path / "data.bin"
+        dummy.write_text("binary content")
+
+        att = pm.attach_workflow_file(wf_name, dummy, "raw", "Raw data")
+        assert att["key"] == "raw"
+        assert att["filename"] == "data.bin"
+        assert att["description"] == "Raw data"
+        assert "sha256" in att
+
+        # Resave with attachment
+        pm.save_workflow("mod", {}, {"name": "Test"}, filename=wf_name, attachments=[att])
+
+        # Verify get_attachment_path
+        resolved = pm.get_attachment_path(wf_name, "raw")
+        assert resolved is not None
+        assert resolved.exists()
+        assert resolved.name == "data.bin"
+        assert "attachments" in resolved.parent.name
+
+    def test_delete_workflow_also_removes_attachments(self, open_project, tmp_path):
+        """Verifies that deleting a workflow cleans up its attachments folder."""
+        pm = open_project
+        wf_name = pm.save_workflow("mod", {}, {"name": "Test"})
+
+        dummy = tmp_path / "data.bin"
+        dummy.write_text("binary content")
+        att = pm.attach_workflow_file(wf_name, dummy, "raw")
+        pm.save_workflow("mod", {}, {"name": "Test"}, filename=wf_name, attachments=[att])
+
+        att_dir = pm.project_dir / "workflows" / f"{Path(wf_name).stem}_attachments"
+        assert att_dir.exists()
+
+        pm.delete_workflow("mod", wf_name)
+
+        assert not (pm.project_dir / "workflows" / wf_name).exists()
+        assert not att_dir.exists()
+
+    def test_load_attachments_missing_key_returns_none(self, open_project):
+        """Verifies that querying a missing attachment key returns None."""
+        pm = open_project
+        wf_name = pm.save_workflow("mod", {}, {"name": "Test"})
+        assert pm.get_attachment_path(wf_name, "missing") is None
+
     def test_open_corrupted_json_handles_gracefully(self, empty_project_dir):
         """Verifies that the manager doesn't crash on corrupted project files."""
         # Setup with a fixed name for predictable assertion

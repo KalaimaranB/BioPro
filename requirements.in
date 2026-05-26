@@ -28,6 +28,7 @@ cellpose
 flowkit
 flowio
 fast-histogram
+umap-learn
 llama-cpp-python[server]
 
 # Build & Packaging

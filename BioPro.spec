@@ -16,6 +16,7 @@ pil_bins, pil_datas, pil_hidden = collect_all('PIL')
 cert_bins, cert_datas, cert_hidden = collect_all('certifi')
 llm_bins, llm_datas, llm_hidden = collect_all('llama_cpp')
 sdk_bins, sdk_datas, sdk_hidden = collect_all('biopro_sdk')
+umap_bins, umap_datas, umap_hidden = collect_all('umap')
 
 # --- THE OPTIMIZATION ENGINE ---
 # Strip out hundreds of MBs of useless testing/mock data from the final build
@@ -28,9 +29,9 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins + llm_bins + sdk_bins))
-all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas + llm_datas + sdk_datas))
-all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden)))
+all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins + llm_bins + sdk_bins + umap_bins))
+all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas + llm_datas + sdk_datas + umap_datas))
+all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden + umap_hidden)))
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
 # Explicitly exclude test modules and development dependencies
@@ -72,6 +73,7 @@ hidden_imports = [
     'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore',
     'pygments',
+    'umap',
 ]
 
 a = Analysis(

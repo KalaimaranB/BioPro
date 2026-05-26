@@ -167,6 +167,15 @@ class GalacticLoader(QWidget):
 
         painter.drawText(QRectF(0, h * 0.75 + 60, w, 30), Qt.AlignmentFlag.AlignCenter, sub_text)
 
+    def warp_out(self, callback):
+        """Triggers a cinematic warp-out effect, then calls the callback."""
+        self.message = "ARRIVING AT DESTINATION..."
+        self.target_speed = 0.8  # Jump to lightspeed!
+        self.accel = 0.02  # Fast acceleration
+
+        # Wait for the warp effect to visually peak before running the heavy callback
+        QTimer.singleShot(500, callback)
+
 
 if __name__ == "__main__":
     import sys

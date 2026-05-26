@@ -375,6 +375,11 @@ class WorkspaceWindow(QMainWindow):
         module_id = manifest["id"]
         self.current_module_id = module_id
 
+        # Trigger the smooth cinematic warp-out before freezing the main thread to build the UI
+        self.loading_screen.warp_out(lambda: self._instantiate_module_panel(manifest, PanelClass))
+
+    def _instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:
+        module_id = manifest["id"]
         try:
             # We are back on the MAIN THREAD here.
             # Widget instantiation MUST happen on the main thread.

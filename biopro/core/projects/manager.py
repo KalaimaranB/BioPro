@@ -175,8 +175,36 @@ class ProjectManager:
     def get_asset_path(self, file_hash: str) -> Path | None:
         return self.assets.get_asset_path(self.data, file_hash)
 
-    def save_workflow(self, module_id: str, payload: dict, metadata: dict) -> str:
-        return self.workflows.save(module_id, payload, metadata)
+    def save_workflow(
+        self,
+        module_id: str,
+        payload: dict,
+        metadata: dict,
+        filename: str | None = None,
+        attachments: list[dict] | None = None,
+    ) -> str:
+        return self.workflows.save(module_id, payload, metadata, filename, attachments)
+
+    def attach_workflow_file(
+        self,
+        wf_filename: str,
+        source_path: Path | str,
+        key: str,
+        description: str = "",
+        mime_hint: str = "application/octet-stream",
+    ) -> dict:
+        return self.workflows.attach_file(wf_filename, source_path, key, description, mime_hint)
+
+    def get_attachment_path(self, wf_filename: str, key: str) -> Path | None:
+        attachments = self.workflows.load_attachments(wf_filename)
+        for att in attachments:
+            if att.get("key") == key:
+                rel_path = att.get("relative_path")
+                if rel_path:
+                    path = self.project_dir / rel_path
+                    if path.exists():
+                        return path
+        return None
 
     def list_workflows(self) -> list[dict]:
         return self.workflows.list_all()
