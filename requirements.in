@@ -29,6 +29,7 @@ flowkit
 flowio
 fast-histogram
 umap-learn
+hdbscan
 llama-cpp-python[server]
 
 # Build & Packaging
@@ -38,5 +39,7 @@ certifi
 # Dev & Test
 pytest
 pytest-qt
+pytest-cov
+coverage
 ruff
 mypy
