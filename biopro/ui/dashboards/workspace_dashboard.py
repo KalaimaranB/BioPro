@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPushButton,
     QSizePolicy,
     QVBoxLayout,
@@ -25,7 +24,7 @@ class WorkspaceDashboard(QWidget):
 
     module_selected = pyqtSignal(dict)  # Passes manifest
     workflow_selected = pyqtSignal(str, str)  # Passes (module_id, filename)
-    workflow_delete_requested = pyqtSignal(str, str)  # Passes (module_id, filename)
+    workflow_settings_requested = pyqtSignal(str, str)  # Passes (module_id, filename)
 
     return_to_hub_requested = pyqtSignal()
     open_store_requested = pyqtSignal()
@@ -242,30 +241,23 @@ class WorkspaceDashboard(QWidget):
 
             title = wf.get("name", filename.replace(".json", ""))
             date_str = wf.get("timestamp", "Unknown Date")
+            desc = wf.get("description", "")
 
-            card = WorkflowCard(title=title, date_str=date_str, module_name=pretty_mod)
+            card = WorkflowCard(
+                title=title, date_str=date_str, module_name=pretty_mod, description=desc
+            )
 
             # THE LAMBDA FIX: We are now explicitly locking 't=title' into memory!
             card.clicked.connect(
                 lambda *args, mid=module_id, fn=filename: self.workflow_selected.emit(mid, fn)
             )
-            card.delete_requested.connect(
-                lambda *args, mid=module_id, fn=filename, t=title: self._confirm_delete(mid, fn, t)
+            card.settings_requested.connect(
+                lambda *args, mid=module_id, fn=filename: self.workflow_settings_requested.emit(
+                    mid, fn
+                )
             )
 
             self.workflows_grid.addWidget(card, i // 3, i % 3)
-
-    def _confirm_delete(self, module_id: str, filename: str, title: str) -> None:
-        """Prompt the user before emitting the delete signal."""
-        reply = QMessageBox.question(
-            self,
-            "Delete Workflow",
-            f"Are you sure you want to permanently delete '{title}'?\n\nThis cannot be undone.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self.workflow_delete_requested.emit(module_id, filename)
 
     def _update_dashboard_text(self):
         import datetime

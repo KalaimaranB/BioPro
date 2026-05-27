@@ -47,8 +47,11 @@ class WorkflowManager:
         if attachments is not None:
             workflow_data["attachments"] = attachments
 
-        with open(filepath, "w") as f:
+        temp_filepath = filepath.with_suffix(".tmp")
+        with open(temp_filepath, "w") as f:
             json.dump(workflow_data, f, indent=4)
+
+        temp_filepath.replace(filepath)
 
         return str(filepath.name)
 
@@ -155,3 +158,46 @@ class WorkflowManager:
         except Exception as e:
             logger.error(f"Failed to delete workflow {filename}: {e}")
         return False
+
+    def delete_attachment(self, filename: str, key: str) -> bool:
+        """Deletes a specific attachment from a workflow and updates its manifest."""
+        filepath = self.wf_dir / os.path.basename(filename)
+        if not filepath.exists():
+            return False
+
+        try:
+            with open(filepath) as f:
+                data = json.load(f)
+
+            attachments = data.get("attachments", [])
+            target_att = None
+
+            for att in attachments:
+                if att.get("key") == key:
+                    target_att = att
+                    break
+
+            if not target_att:
+                return False
+
+            # Remove from json and save
+            attachments.remove(target_att)
+            if not attachments:
+                data.pop("attachments", None)
+            else:
+                data["attachments"] = attachments
+
+            with open(filepath, "w") as f:
+                json.dump(data, f, indent=4)
+
+            # Delete physical file
+            rel_path = target_att.get("relative_path")
+            if rel_path:
+                phys_path = self.project_dir / rel_path
+                if phys_path.exists() and phys_path.is_file():
+                    os.remove(phys_path)
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to delete attachment {key} from {filename}: {e}")
+            return False

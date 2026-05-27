@@ -332,7 +332,7 @@ class WorkspaceWindow(QMainWindow):
 
         # ── THE NEW WORKFLOW SIGNALS ──
         self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
-        self.home_screen.workflow_delete_requested.connect(self._handle_delete_workflow)
+        self.home_screen.workflow_settings_requested.connect(self._handle_workflow_settings)
         self.home_screen.trust_module_requested.connect(self._on_trust_requested)
 
     def _show_home(self) -> None:
@@ -436,9 +436,21 @@ class WorkspaceWindow(QMainWindow):
                 and self._pending_workflow_payload is not None
             ):
                 if hasattr(self.wizard_panel, "load_workflow"):
-                    self.wizard_panel.load_workflow(self._pending_workflow_payload)
+                    import inspect
+
+                    sig = inspect.signature(self.wizard_panel.load_workflow)
+
+                    kwargs = {}
+                    if "filename" in sig.parameters:
+                        kwargs["filename"] = getattr(self, "_pending_workflow_filename", None)
+                    if "metadata" in sig.parameters:
+                        kwargs["metadata"] = getattr(self, "_pending_workflow_metadata", None)
+
+                    self.wizard_panel.load_workflow(self._pending_workflow_payload, **kwargs)
                     self.status_bar.showMessage("Successfully loaded workflow payload.")
                 self._pending_workflow_payload = None
+                self._pending_workflow_filename = None
+                self._pending_workflow_metadata = None
 
             # Jump from Hyperspace to the Analysis view!
             self._transition_to_page(_PAGE_ANALYSIS)
@@ -652,7 +664,7 @@ class WorkspaceWindow(QMainWindow):
         self.home_screen.open_store_requested.connect(self._open_store)
         self.home_screen.open_ai_requested.connect(self._open_ai_chat)
         self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
-        self.home_screen.workflow_delete_requested.connect(self._handle_delete_workflow)
+        self.home_screen.workflow_settings_requested.connect(self._handle_workflow_settings)
         self.home_screen.trust_module_requested.connect(self._on_trust_requested)
 
         # Insert back into stack at index 0
@@ -810,6 +822,18 @@ class WorkspaceWindow(QMainWindow):
 
             # 3. Store the pending payload for when the module is fully loaded
             self._pending_workflow_payload = payload
+            self._pending_workflow_filename = filename
+
+            # Extract metadata directly from the file to pass to the plugin
+            import json
+
+            try:
+                wf_file = self.project_manager.project_dir / "workflows" / filename
+                with open(wf_file) as f:
+                    data = json.load(f)
+                    self._pending_workflow_metadata = data.get("metadata", {})
+            except Exception:
+                self._pending_workflow_metadata = {}
 
             # 4. Open the module asynchronously
             self._open_module(manifest)
@@ -820,11 +844,13 @@ class WorkspaceWindow(QMainWindow):
 
             QMessageBox.critical(self, "Load Error", f"Could not load workflow:\n{str(e)}")
 
-    def _handle_delete_workflow(self, module_id: str, filename: str) -> None:
-        success = self.project_manager.delete_workflow(module_id, filename)
-        if success:
-            # Refresh the UI so the card instantly vanishes!
-            self._refresh_hub_workflows()
+    def _handle_workflow_settings(self, module_id: str, filename: str) -> None:
+        from biopro.ui.dialogs.workflow_settings import WorkflowSettingsDialog
+
+        dialog = WorkflowSettingsDialog(self.project_manager, module_id, filename, parent=self)
+        dialog.workflow_deleted.connect(self._refresh_hub_workflows)
+        dialog.attachment_deleted.connect(self._refresh_hub_workflows)
+        dialog.exec()
 
     # ─── ANIMATION ENGINE ───────────────────────────────────────────
     def _transition_to_page(self, page_index: int) -> None:

@@ -214,3 +214,6 @@ class ProjectManager:
 
     def delete_workflow(self, module_id: str, filename: str) -> bool:
         return self.workflows.delete(filename)
+
+    def delete_workflow_attachment(self, filename: str, key: str) -> bool:
+        return self.workflows.delete_attachment(filename, key)
