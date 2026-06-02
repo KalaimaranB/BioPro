@@ -78,7 +78,7 @@ wheels = [
 
 [[package]]
 name = "biopro"
-version = "1.2.1"
+version = "1.2.2"
 source = { editable = "." }
 dependencies = [
     { name = "biopro-sdk" },
@@ -117,7 +117,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "biopro-sdk", specifier = ">=1.1.6" },
+    { name = "biopro-sdk", specifier = ">=1.2.1" },
     { name = "cellpose", specifier = ">=3.0" },
     { name = "fast-histogram", specifier = ">=0.12" },
     { name = "flowio", specifier = ">=1.1" },
@@ -150,16 +150,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "biopro-sdk"
-version = "1.1.6"
+version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyqt6" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/02/0c2b27e15702ec36b03770badd626258bdb81d6cda7ca9bd3b5b73b8f6fb/biopro_sdk-1.1.6.tar.gz", hash = "sha256:20290742ad5b904e16c9d983863118439461a855ef931b8f511146d5bce867c2", size = 66367, upload-time = "2026-05-26T21:18:01.478Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/cf/1f623a3f6c6efe230c8f4042539aec099f2f29ca76fc7d0a5df07f0812f9/biopro_sdk-1.2.1.tar.gz", hash = "sha256:362dc1d658749c946d61f74813f47e0b3c49156f372cacd8155cd8e016c73869", size = 68093, upload-time = "2026-06-02T04:15:50.063Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/c6/fc2603da88995f79d2195f60b921ac244369275c2f02aec83802a66e2b1c/biopro_sdk-1.1.6-py3-none-any.whl", hash = "sha256:4ece0bfbdfd3c80ff7f76eec092fbf82c81464560916cc5504c3667bb9d0cb1f", size = 61620, upload-time = "2026-05-26T21:17:59.881Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/12/6448b9dce1fe5f3df26e85ba076b9420d778ba501c85efc2e2c9a0e0e9bc/biopro_sdk-1.2.1-py3-none-any.whl", hash = "sha256:81ffc75912ffbe9b7bb42d3beab3d71c823da4afa711231a7c3a8b7b70b2a416", size = 63529, upload-time = "2026-06-02T04:15:48.723Z" },
 ]
 
 [[package]]

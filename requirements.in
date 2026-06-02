@@ -21,6 +21,12 @@ opencv-python-headless
 tifffile
 openpyxl
 
+# Synthetic Biology
+networkx>=3.1
+sbol3>=1.1
+tellurium>=2.2
+mesa>=2.0
+
 # AI & Analysis
 torch
 torchvision

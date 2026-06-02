@@ -1,21 +1,16 @@
 """Tests for AnalysisWorker and background analysis execution."""
 
+from dataclasses import dataclass
+
 from biopro_sdk.plugin import AnalysisBase, AnalysisWorker, PluginState
 from PyQt6.QtCore import QObject, QThread
 
 
+@dataclass
 class MockState(PluginState):
     """Simple mock state for testing."""
 
-    def __init__(self, value=0):
-        self.value = value
-
-    def to_dict(self):
-        return {"value": self.value}
-
-    @classmethod
-    def from_dict(cls, d):
-        return cls(d["value"])
+    value: int = 0
 
 
 class MockAnalyzer(AnalysisBase):

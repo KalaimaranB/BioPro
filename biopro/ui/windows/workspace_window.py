@@ -381,8 +381,14 @@ class WorkspaceWindow(QMainWindow):
         module_id = manifest["id"]
         self.current_module_id = module_id
 
-        # Trigger the smooth cinematic warp-out before freezing the main thread to build the UI
-        self.loading_screen.warp_out(lambda: self._instantiate_module_panel(manifest, PanelClass))
+        # Trigger the smooth cinematic warp-out. When the warp finishes, we fade to black
+        # and THEN build the heavy UI so the screen doesn't freeze on the animation.
+        self.loading_screen.warp_out(
+            lambda: self._transition_to_page(
+                _PAGE_ANALYSIS,
+                on_black_callback=lambda: self._instantiate_module_panel(manifest, PanelClass),
+            )
+        )
 
     def _instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:
         module_id = manifest["id"]
@@ -452,8 +458,7 @@ class WorkspaceWindow(QMainWindow):
                 self._pending_workflow_filename = None
                 self._pending_workflow_metadata = None
 
-            # Jump from Hyperspace to the Analysis view!
-            self._transition_to_page(_PAGE_ANALYSIS)
+            # The transition is already happening; we are currently on a black screen!
             self.status_bar.showMessage(f"{manifest.get('name')} — open a file to begin (Ctrl+O)")
 
         except Exception:
@@ -463,13 +468,44 @@ class WorkspaceWindow(QMainWindow):
 
     def _on_module_load_error(self, module_id: str, error_msg: str) -> None:
         """Handles loading failures gracefully."""
-        self._transition_to_page(_PAGE_HOME)
+        # Stop any running animations
+        if (
+            hasattr(self, "_anim_out")
+            and self._anim_out.state() == QPropertyAnimation.State.Running
+        ):
+            self._anim_out.stop()
+        if hasattr(self, "_anim_in") and self._anim_in.state() == QPropertyAnimation.State.Running:
+            self._anim_in.stop()
+
+        # Force immediate return to home screen without animation so dialogs appear over the right UI
+        self.root_stack.setCurrentIndex(_PAGE_HOME)
+        self.root_stack.setGraphicsEffect(None)
 
         from biopro.ui.dialogs.error_report import ErrorReportDialog
 
         # Extract the exact exception message from the last line of the traceback if possible
         lines = [line.strip() for line in error_msg.strip().split("\n") if line.strip()]
         exc_msg = lines[-1] if lines else error_msg
+
+        if "PermissionError: Security Block:" in exc_msg:
+            # The module is untrusted, prompt user to lock it
+            if self._on_trust_requested(module_id):
+                # If they successfully trusted it, find the manifest and try loading again!
+                manifests = self.module_manager.get_available_modules()
+                manifest = next((m for m in manifests if m["id"] == module_id), None)
+                if manifest:
+                    self._open_module(manifest)
+            else:
+                # User declined or it failed, so we should discard the pending workflow
+                self._pending_workflow_payload = None
+                self._pending_workflow_filename = None
+                self._pending_workflow_metadata = None
+            return
+
+        # Clear pending workflow state on any other load error
+        self._pending_workflow_payload = None
+        self._pending_workflow_filename = None
+        self._pending_workflow_metadata = None
 
         error_data = {
             "plugin_id": module_id,
@@ -595,7 +631,7 @@ class WorkspaceWindow(QMainWindow):
 
         core_preferences.set("theme", str(theme_path.absolute()))
 
-    def _on_trust_requested(self, module_id: str) -> None:
+    def _on_trust_requested(self, module_id: str) -> bool:
         """Handle the user clicking the '⚠️ Lock' button on an untrusted plugin."""
         reply = QMessageBox.question(
             self,
@@ -614,10 +650,12 @@ class WorkspaceWindow(QMainWindow):
                 )
                 # Refresh dashboard
                 self.home_screen.populate_modules(self.module_manager.get_available_modules())
+                return True
             else:
                 QMessageBox.critical(
                     self, "Error", "Failed to trust module. Could not calculate hashes."
                 )
+        return False
 
     def _on_theme_changed(self) -> None:
         """Full workspace UI rebuild on theme swap."""
@@ -853,9 +891,11 @@ class WorkspaceWindow(QMainWindow):
         dialog.exec()
 
     # ─── ANIMATION ENGINE ───────────────────────────────────────────
-    def _transition_to_page(self, page_index: int) -> None:
+    def _transition_to_page(self, page_index: int, on_black_callback=None) -> None:
         """Smoothly fades out the current page and fades in the new one."""
         if self.root_stack.currentIndex() == page_index:
+            if on_black_callback:
+                on_black_callback()
             return
 
         # 1. Attach an opacity effect to the entire window stack
@@ -870,12 +910,20 @@ class WorkspaceWindow(QMainWindow):
         self._anim_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
         # 3. When it hits absolute black, swap the page and trigger the fade in!
-        self._anim_out.finished.connect(lambda: self._on_fade_out_finished(page_index))
+        self._anim_out.finished.connect(
+            lambda: self._on_fade_out_finished(page_index, on_black_callback)
+        )
         self._anim_out.start()
 
-    def _on_fade_out_finished(self, page_index: int) -> None:
+    def _on_fade_out_finished(self, page_index: int, on_black_callback=None) -> None:
         """Triggers the fade-in sequence once the screen is black."""
         self.root_stack.setCurrentIndex(page_index)
+
+        # Ensure the screen paints as black before doing heavy synchronous work
+        QApplication.processEvents()
+
+        if on_black_callback:
+            on_black_callback()
 
         self._anim_in = QPropertyAnimation(self._fade_effect, b"opacity")
         self._anim_in.setDuration(150)

@@ -42,6 +42,11 @@ def setup_logging():
             "handlers": ["console", "file"],
             "level": "DEBUG",
         },
+        "loggers": {
+            "numba": {"level": "CRITICAL", "propagate": False},
+            "matplotlib": {"level": "WARNING", "propagate": False},
+            "PIL": {"level": "WARNING", "propagate": False},
+        },
     }
 
     logging.config.dictConfig(LOGGING_CONFIG)
@@ -95,6 +100,16 @@ class BioProApp:
 
         self.module_manager = module_manager
         self.updater = updater
+
+        # Apply SDK global styles (Fusion style engine, QPalette, QToolTip CSS).
+        # This MUST be called after QApplication is created — the module-level call
+        # in components.py fires too early (before QApplication exists) and is a no-op.
+        try:
+            from biopro_sdk.plugin.components import _apply_global_sdk_styles
+
+            _apply_global_sdk_styles()
+        except Exception:
+            pass
 
     def run(self):
         print("4. Showing Hub Window...")

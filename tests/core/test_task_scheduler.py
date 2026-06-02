@@ -1,5 +1,6 @@
 """Tests for TaskScheduler and centralized concurrency management."""
 
+from dataclasses import dataclass
 from typing import Any
 
 import pytest
@@ -8,16 +9,9 @@ from biopro_sdk.plugin import AnalysisBase, PluginState
 from biopro.core.task_scheduler import task_scheduler
 
 
+@dataclass
 class MockState(PluginState):
-    def __init__(self, value=0):
-        self.value = value
-
-    def to_dict(self):
-        return {"value": self.value}
-
-    @classmethod
-    def from_dict(cls, d):
-        return cls(d["value"])
+    value: int = 0
 
 
 class MockAnalyzer(AnalysisBase):

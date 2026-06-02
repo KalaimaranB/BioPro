@@ -251,6 +251,14 @@ class ThemeManager(QObject):
                 widget.setStyleSheet(qss)
                 widget.update()
 
+        # Re-inject app-level styles (QToolTip, QPalette) so they also reflect the new theme
+        try:
+            from biopro_sdk.plugin.components import _apply_global_sdk_styles
+
+            _apply_global_sdk_styles()
+        except Exception:
+            pass
+
 
 # Global singleton instance so the whole app shares one engine
 theme_manager = ThemeManager()

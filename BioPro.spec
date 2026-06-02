@@ -74,6 +74,10 @@ hidden_imports = [
     'PyQt6.QtWebEngineCore',
     'pygments',
     'umap',
+    'networkx',
+    'sbol3',
+    'tellurium',
+    'mesa',
 ]
 
 a = Analysis(

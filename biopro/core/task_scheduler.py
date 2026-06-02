@@ -120,14 +120,12 @@ class TaskScheduler(QObject):
     def _cleanup(self, task_id: str):
         """Release worker reference so it can be garbage collected."""
         if task_id in self._active_workers:
+            # We explicitly do NOT call worker.finished.disconnect() here because
+            # this method is called *during* the finished signal emission.
+            # Disconnecting it would instantly clear the connection list, preventing
+            # downstream slots (like deleteLater and local UI callbacks) from executing.
             worker = self._active_workers[task_id]
-            try:
-                worker.finished.disconnect()
-                worker.error.disconnect()
-                worker.progress.disconnect()
-                worker.setParent(None)
-            except (RuntimeError, TypeError):
-                pass  # Already deleted or signals not connected
+            worker.setParent(None)
             del self._active_workers[task_id]
 
 
