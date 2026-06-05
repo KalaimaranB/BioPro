@@ -1,34 +1,57 @@
 import random
+from enum import Enum, auto
 
-from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer
+from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import QWidget
 
 from biopro.ui.theme import Colors, theme_manager
 
 
+class _Phase(Enum):
+    IDLE = auto()
+    WARPING_OUT = auto()  # "Arriving at destination" — speed ramps to max
+    DONE = auto()  # Warp-out peaked; signal has been emitted
+
+
 class GalacticLoader(QWidget):
-    """A cinematic Galactic hyperspace loading screen."""
+    """A cinematic Galactic hyperspace loading screen.
+
+    Transition flow
+    ---------------
+    1. set_module()   — resets stars, sets message, begins entry fade-in
+    2. warp_out()     — ramps speed to lightspeed; emits warp_out_finished when peak is reached
+    3. Caller handles the crossfade externally (workspace_window._crossfade_to_analysis)
+
+    The internal QTimer keeps running through all phases so the animation is never
+    interrupted by the page swap.
+    """
+
+    # Fired once the warp-out speed peak is reached — caller should start the crossfade.
+    warp_out_finished = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)  # Background is black
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent)
 
         self.stars = []
         self._init_stars()
 
         self.speed = 0.0
-        self.target_speed = 0.05  # Slightly slower for smoothness
-        self.accel = 0.0004  # Much more gradual acceleration
+        self.target_speed = 0.05
+        self.accel = 0.0004
+
+        self._phase = _Phase.IDLE
+        # Countdown in ticks once we reach warp-out target speed before emitting signal
+        self._warp_out_ticks = 0
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._update_animation)
-        self.timer.start(16)
+        self.timer.start(16)  # ~60 fps
 
         self.message = "Initializing Hyperdrive..."
         self.module_name = ""
 
-        # Smooth entry variables
         self.global_opacity = 0.0
         self.fade_speed = 0.02
 
@@ -49,17 +72,33 @@ class GalacticLoader(QWidget):
     def set_module(self, name: str):
         self.module_name = name
         self.message = f"Traveling to {name}..."
-        # Reset speed for a fresh jump
         self.speed = 0.0
+        self.global_opacity = 0.0
+        self._phase = _Phase.IDLE
 
     def _update_animation(self):
         # 1. Fade in the whole screen
         if self.global_opacity < 1.0:
-            self.global_opacity += self.fade_speed
+            self.global_opacity = min(1.0, self.global_opacity + self.fade_speed)
 
-        # 2. Accelerate speed more smoothly
-        if self.speed < self.target_speed:
-            self.speed += self.accel
+        # 2. Speed management depending on phase
+        if self._phase == _Phase.IDLE:
+            # Normal cruising ramp
+            if self.speed < self.target_speed:
+                self.speed += self.accel
+
+        elif self._phase == _Phase.WARPING_OUT:
+            # Accelerate hard toward lightspeed
+            self.speed += 0.02
+            if self.speed >= 0.8:
+                self.speed = 0.8
+                # Count a few frames at peak so the effect lands visually
+                self._warp_out_ticks += 1
+                if self._warp_out_ticks >= 4:  # ~64ms of peak warp — brief, cinematic
+                    self._phase = _Phase.DONE
+                    self.warp_out_finished.emit()
+
+        # _Phase.DONE — keep running at max so crossfade looks great
 
         # 3. Update stars
         for s in self.stars:
@@ -78,41 +117,31 @@ class GalacticLoader(QWidget):
         w, h = self.width(), self.height()
         cx, cy = w / 2, h / 2
 
-        # 1. Fill dynamic theme background
+        # 1. Background
         painter.fillRect(self.rect(), QColor(Colors.BG_DARKEST))
 
-        # 2. Draw Stars / Hyperspace Lines
+        # 2. Theme accent
         is_sw = "Galactic" in theme_manager.current_theme_name
         is_dark_side = is_sw and getattr(Colors, "DNA_PRIMARY", "").upper() == "#E60000"
-
         accent = Colors.ACCENT_PRIMARY
         if is_sw:
             accent = Colors.ACCENT_PRIMARY if not is_dark_side else Colors.DNA_PRIMARY
 
-        # Use global opacity for the fade-in effect
         painter.setOpacity(self.global_opacity)
 
         for s in self.stars:
-            # Perspective projection
-            w / h if h > 0 else 1
-
             px = cx + (s["x"] * w) / s["z"]
             py = cy + (s["y"] * h) / s["z"]
 
-            # Trail for hyperspace effect
-            trail_length = self.speed * 15  # Shorter trails for smoothness
+            trail_length = self.speed * 15
             pz_prev = s["z"] + trail_length
             px_prev = cx + (s["x"] * w) / pz_prev
             py_prev = cy + (s["y"] * h) / pz_prev
 
-            # alpha based on Z and global fade
             z_fade = 1.0 - (s["z"] / 2.0)
-            alpha = int(255 * z_fade)
-            alpha = max(0, min(255, alpha))
+            alpha = max(0, min(255, int(255 * z_fade)))
 
-            # Trails color based on theme
             if self.speed > 0.025:
-                # Use theme accent with some white blending for that "laser" look
                 base_color = QColor(accent)
                 color = QColor(
                     int(base_color.red() * 0.7 + 255 * 0.3),
@@ -124,7 +153,6 @@ class GalacticLoader(QWidget):
                 color = QColor(255, 255, 255, alpha)
 
             pen = QPen(color)
-            # Thinner lines for a more premium, less 'chunky' feel
             pen.setWidthF(max(0.5, s["size"] * z_fade * 0.8))
             painter.setPen(pen)
 
@@ -133,48 +161,44 @@ class GalacticLoader(QWidget):
             else:
                 painter.drawPoint(QPointF(px, py))
 
-        # --- NEW: Vignette Overlay ---
-        # This draws a soft shadow around the edges to focus the eyes on the center
+        # 3. Vignette
         from PyQt6.QtGui import QBrush, QRadialGradient
 
         vignette = QRadialGradient(cx, cy, max(w, h) * 0.6)
-        vignette.setColorAt(0, QColor(0, 0, 0, 0))  # Clear in center
-        vignette.setColorAt(0.7, QColor(0, 0, 0, 40))  # Slight dimming
-        vignette.setColorAt(1.0, QColor(0, 0, 0, 200))  # Deep black at edges
+        vignette.setColorAt(0, QColor(0, 0, 0, 0))
+        vignette.setColorAt(0.7, QColor(0, 0, 0, 40))
+        vignette.setColorAt(1.0, QColor(0, 0, 0, 200))
         painter.fillRect(self.rect(), QBrush(vignette))
 
-        # Text Layer - Cinematic Galactic yellow/blue
+        # 4. Message text
         painter.setPen(QColor(accent))
-        # Use a tech-y font if possible, fallback to Courier
         font = QFont("Courier New", 28, QFont.Weight.Bold)
         font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
         painter.setFont(font)
-
         text_rect = QRectF(0, h * 0.75, w, 60)
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, self.message.upper())
 
-        # Subtext / Tech info
+        # 5. Tech sub-text
         painter.setPen(QColor(Colors.FG_SECONDARY))
-        painter.setOpacity(self.global_opacity * 0.5)  # Dimmer subtext
+        painter.setOpacity(self.global_opacity * 0.5)
         painter.setFont(QFont("Courier New", 12))
-
-        # Random seed based on time or just static for the session
         coords = f"{random.randint(1000, 9999)}-{random.randint(10, 99)}"
         sector = random.choice(
             ["INNER RIM", "OUTER RIM", "UNKNOWN REGIONS", "CORE WORLDS", "EXPANSION REGION"]
         )
         sub_text = f"COORDINATES: {coords} | SECTOR: {sector} | STATUS: HYPERDRIVE ENGAGED"
-
         painter.drawText(QRectF(0, h * 0.75 + 60, w, 30), Qt.AlignmentFlag.AlignCenter, sub_text)
 
-    def warp_out(self, callback):
-        """Triggers a cinematic warp-out effect, then calls the callback."""
-        self.message = "ARRIVING AT DESTINATION..."
-        self.target_speed = 0.8  # Jump to lightspeed!
-        self.accel = 0.02  # Fast acceleration
+    def warp_out(self):
+        """Begin the cinematic warp-out sequence.
 
-        # Wait for the warp effect to visually peak before running the heavy callback
-        QTimer.singleShot(500, callback)
+        The animation accelerates to lightspeed on its own.  When the visual peak
+        is reached the ``warp_out_finished`` signal is emitted so the caller can
+        start the crossfade — no callback needed.
+        """
+        self.message = "ARRIVING AT DESTINATION..."
+        self._warp_out_ticks = 0
+        self._phase = _Phase.WARPING_OUT
 
 
 if __name__ == "__main__":
@@ -184,7 +208,6 @@ if __name__ == "__main__":
 
     app = QApplication(sys.argv)
 
-    # Create the loader
     loader = GalacticLoader()
     loader.set_module("Flow Cytometry Analysis")
     loader.setWindowTitle("BioPro - Hyperspace Preview")

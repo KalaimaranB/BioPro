@@ -125,8 +125,15 @@ class TaskScheduler(QObject):
             # Disconnecting it would instantly clear the connection list, preventing
             # downstream slots (like deleteLater and local UI callbacks) from executing.
             worker = self._active_workers[task_id]
-            worker.setParent(None)
-            del self._active_workers[task_id]
+            try:
+                import sip  # type: ignore[import-not-found, import-untyped]
+
+                if not sip.isdeleted(worker):
+                    worker.setParent(None)
+            except Exception:
+                pass
+            finally:
+                del self._active_workers[task_id]
 
 
 class TaskSchedulerProxy:

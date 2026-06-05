@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 
@@ -122,6 +123,8 @@ class WorkspaceWindow(QMainWindow):
         self._module_thread = None
         self._module_worker = None
         self._pending_workflow_payload: dict | None = None
+        self._pending_manifest: dict | None = None
+        self._pending_panel_class: type | None = None
 
         self._show_home()
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -377,25 +380,56 @@ class WorkspaceWindow(QMainWindow):
         self._module_thread.start()
 
     def _on_module_loaded(self, manifest: dict, PanelClass: type) -> None:
-        """Callback for when the background thread finished importing the module."""
+        """Callback for when the background thread finished importing the module.
+
+        Transition design
+        -----------------
+        1. ``warp_out()`` fires IMMEDIATELY — the animation transitions to "ARRIVING AT
+           DESTINATION" right away while the event loop is still free.
+        2. When the warp peaks (``warp_out_finished``), build the plugin panel on the
+           main thread.  The unavoidable construction freeze happens AFTER the cinematic
+           warp-out, not before it — so "travelling" is the longest phase and "arriving"
+           is a brief, dramatic flash.
+        3. Panel ready → ``_crossfade_to_analysis()`` reveals the UI.
+        """
         module_id = manifest["id"]
         self.current_module_id = module_id
+        self._pending_manifest = manifest
+        self._pending_panel_class = PanelClass
 
-        # Trigger the smooth cinematic warp-out. When the warp finishes, we fade to black
-        # and THEN build the heavy UI so the screen doesn't freeze on the animation.
-        self.loading_screen.warp_out(
-            lambda: self._transition_to_page(
-                _PAGE_ANALYSIS,
-                on_black_callback=lambda: self._instantiate_module_panel(manifest, PanelClass),
-            )
-        )
+        # Step 1: Start warp-out immediately — animation keeps running uninterrupted
+        with contextlib.suppress(TypeError):
+            self.loading_screen.warp_out_finished.disconnect()
+
+        self.loading_screen.warp_out_finished.connect(self._on_warp_peaked)
+        self.loading_screen.warp_out()
+
+    def _on_warp_peaked(self) -> None:
+        """Called when the warp-out animation reaches its visual peak.
+
+        The panel is built here (synchronously, on the main thread).  Any freeze
+        during construction is now sandwiched between the "ARRIVING" flash and the
+        crossfade — the travelling hyperspace phase is never interrupted.
+        """
+        with contextlib.suppress(TypeError):
+            self.loading_screen.warp_out_finished.disconnect(self._on_warp_peaked)
+
+        manifest = self._pending_manifest
+        PanelClass = self._pending_panel_class
+        self._pending_manifest = None
+        self._pending_panel_class = None
+
+        self._instantiate_module_panel(manifest, PanelClass)
+        self._crossfade_to_analysis()
 
     def _instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:
+        """Construct the plugin widget on the main thread.
+
+        Called BEFORE any transition animation so the widget is ready to be
+        revealed by the crossfade — never blocks the visible animation.
+        """
         module_id = manifest["id"]
         try:
-            # We are back on the MAIN THREAD here.
-            # Widget instantiation MUST happen on the main thread.
-
             if self.wizard_panel is not None:
                 if hasattr(self.wizard_panel, "cleanup"):
                     self.wizard_panel.cleanup()
@@ -436,7 +470,7 @@ class WorkspaceWindow(QMainWindow):
             if hasattr(self.wizard_panel, "state_changed"):
                 self.wizard_panel.state_changed.connect(self._push_history)
 
-            # Inject any pending workflow payload that was waiting for the module to load
+            # Inject any pending workflow payload
             if (
                 hasattr(self, "_pending_workflow_payload")
                 and self._pending_workflow_payload is not None
@@ -445,7 +479,6 @@ class WorkspaceWindow(QMainWindow):
                     import inspect
 
                     sig = inspect.signature(self.wizard_panel.load_workflow)
-
                     kwargs = {}
                     if "filename" in sig.parameters:
                         kwargs["filename"] = getattr(self, "_pending_workflow_filename", None)
@@ -458,13 +491,69 @@ class WorkspaceWindow(QMainWindow):
                 self._pending_workflow_filename = None
                 self._pending_workflow_metadata = None
 
-            # The transition is already happening; we are currently on a black screen!
             self.status_bar.showMessage(f"{manifest.get('name')} — open a file to begin (Ctrl+O)")
 
         except Exception:
             import traceback
 
             self._on_module_load_error(module_id, traceback.format_exc())
+
+    def _crossfade_to_analysis(self) -> None:
+        """Crossfade from the running loader directly into the analysis page.
+
+        ``QStackedWidget`` only paints the *current* widget, so we can't simply
+        make the analysis page transparent to see the loader behind it.  Instead
+        we flip the approach:
+
+        1. Switch the stack to the analysis page (fully rendered, no effect).
+        2. Reparent the loader as a **floating overlay** child of ``root_stack``
+           covering its full geometry.
+        3. Attach a ``QGraphicsOpacityEffect`` to the *loader overlay* and
+           animate it from 1.0 → 0.0 over ~350 ms.
+        4. When done, re-add the loader back into the stack and stop its timer.
+
+        The result: the analysis page is fully visible underneath while the
+        hyperspace dissolves out on top — continuous animation, zero black frame.
+        """
+        # Guard: don't double-fire
+        with contextlib.suppress(TypeError):
+            self.loading_screen.warp_out_finished.disconnect(self._crossfade_to_analysis)
+
+        # 1. Remove the loader from the QStackedWidget so it becomes a free widget
+        self.root_stack.removeWidget(self.loading_screen)
+
+        # 2. Switch the stack to the analysis page — it appears instantly underneath
+        self.root_stack.setCurrentIndex(_PAGE_ANALYSIS)
+
+        # 3. Float the loader ON TOP of the stack, perfectly covering it
+        self.loading_screen.setParent(self.root_stack)
+        self.loading_screen.setGeometry(self.root_stack.rect())
+        self.loading_screen.show()
+        self.loading_screen.raise_()
+
+        # 4. Fade the loader overlay out (1 → 0) while analysis page shows beneath
+        self._loader_fade = QGraphicsOpacityEffect(self.loading_screen)
+        self.loading_screen.setGraphicsEffect(self._loader_fade)
+        self._loader_fade.setOpacity(1.0)
+
+        self._anim_out = QPropertyAnimation(self._loader_fade, b"opacity")
+        self._anim_out.setDuration(350)
+        self._anim_out.setStartValue(1.0)
+        self._anim_out.setEndValue(0.0)
+        self._anim_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
+
+        def _on_crossfade_done():
+            # Stop the timer — no need to keep painting a hidden widget
+            self.loading_screen.timer.stop()
+            # Remove the effect so rendering is clean next time
+            self.loading_screen.setGraphicsEffect(None)
+            # Put the loader back into the stack at its designated slot
+            # so _transition_to_page can show it again on the next module open
+            self.loading_screen.hide()
+            self.root_stack.insertWidget(_PAGE_LOADING, self.loading_screen)
+
+        self._anim_out.finished.connect(_on_crossfade_done)
+        self._anim_out.start()
 
     def _on_module_load_error(self, module_id: str, error_msg: str) -> None:
         """Handles loading failures gracefully."""
@@ -476,6 +565,21 @@ class WorkspaceWindow(QMainWindow):
             self._anim_out.stop()
         if hasattr(self, "_anim_in") and self._anim_in.state() == QPropertyAnimation.State.Running:
             self._anim_in.stop()
+
+        # Clean up a floating loader overlay if the crossfade was in-progress
+        if (
+            hasattr(self, "loading_screen")
+            and self.loading_screen.parent() is self.root_stack
+            and self.root_stack.indexOf(self.loading_screen) == -1
+        ):
+            self.loading_screen.timer.stop()
+            self.loading_screen.setGraphicsEffect(None)
+            self.loading_screen.hide()
+            self.root_stack.insertWidget(_PAGE_LOADING, self.loading_screen)
+
+        # Discard any pending warp-peaked state
+        self._pending_manifest = None
+        self._pending_panel_class = None
 
         # Force immediate return to home screen without animation so dialogs appear over the right UI
         self.root_stack.setCurrentIndex(_PAGE_HOME)
@@ -540,6 +644,14 @@ class WorkspaceWindow(QMainWindow):
         super().resizeEvent(event)
         if hasattr(self, "hologram_overlay") and self.hologram_overlay.isVisible():
             self.hologram_overlay.setGeometry(self.root_stack.geometry())
+        # Keep the floating loader overlay filling the stack during a crossfade
+        if (
+            hasattr(self, "loading_screen")
+            and self.loading_screen.parent() is self.root_stack
+            and self.loading_screen.isVisible()
+            and self.root_stack.indexOf(self.loading_screen) == -1  # it's floating, not in stack
+        ):
+            self.loading_screen.setGeometry(self.root_stack.rect())
 
     def closeEvent(self, event):
         """Ensures all projects and plugins release resources before exit."""
@@ -891,48 +1003,41 @@ class WorkspaceWindow(QMainWindow):
         dialog.exec()
 
     # ─── ANIMATION ENGINE ───────────────────────────────────────────
-    def _transition_to_page(self, page_index: int, on_black_callback=None) -> None:
-        """Smoothly fades out the current page and fades in the new one."""
+    def _transition_to_page(self, page_index: int) -> None:
+        """Fade the whole stack out then in when switching between Home and Loading pages.
+
+        This is used for Home ↔ Loading transitions only.  The Loading → Analysis
+        crossfade is handled separately by ``_crossfade_to_analysis()`` which keeps
+        the loader animation running through the dissolve.
+        """
         if self.root_stack.currentIndex() == page_index:
-            if on_black_callback:
-                on_black_callback()
             return
 
-        # 1. Attach an opacity effect to the entire window stack
+        # Re-start the loader timer in case it was stopped from a previous load
+        if page_index == _PAGE_LOADING:
+            self.loading_screen.timer.start(16)
+
+        # Attach opacity effect to the whole stack for simple page swaps
         self._fade_effect = QGraphicsOpacityEffect(self.root_stack)
         self.root_stack.setGraphicsEffect(self._fade_effect)
 
-        # 2. Animate the fade out (1.0 to 0.0)
         self._anim_out = QPropertyAnimation(self._fade_effect, b"opacity")
-        self._anim_out.setDuration(150)  # 150ms is the UI standard for snappy but smooth
+        self._anim_out.setDuration(150)
         self._anim_out.setStartValue(1.0)
         self._anim_out.setEndValue(0.0)
         self._anim_out.setEasingCurve(QEasingCurve.Type.InOutQuad)
 
-        # 3. When it hits absolute black, swap the page and trigger the fade in!
-        self._anim_out.finished.connect(
-            lambda: self._on_fade_out_finished(page_index, on_black_callback)
-        )
+        def _swap_and_fade_in():
+            self.root_stack.setCurrentIndex(page_index)
+            self._anim_in = QPropertyAnimation(self._fade_effect, b"opacity")
+            self._anim_in.setDuration(150)
+            self._anim_in.setStartValue(0.0)
+            self._anim_in.setEndValue(1.0)
+            self._anim_in.setEasingCurve(QEasingCurve.Type.InOutQuad)
+            self._anim_in.finished.connect(lambda: self.root_stack.setGraphicsEffect(None))
+            self._anim_in.start()
+
+        self._anim_out.finished.connect(_swap_and_fade_in)
         self._anim_out.start()
-
-    def _on_fade_out_finished(self, page_index: int, on_black_callback=None) -> None:
-        """Triggers the fade-in sequence once the screen is black."""
-        self.root_stack.setCurrentIndex(page_index)
-
-        # Ensure the screen paints as black before doing heavy synchronous work
-        QApplication.processEvents()
-
-        if on_black_callback:
-            on_black_callback()
-
-        self._anim_in = QPropertyAnimation(self._fade_effect, b"opacity")
-        self._anim_in.setDuration(150)
-        self._anim_in.setStartValue(0.0)
-        self._anim_in.setEndValue(1.0)
-        self._anim_in.setEasingCurve(QEasingCurve.Type.InOutQuad)
-
-        # Remove the effect completely when done so it doesn't mess with text anti-aliasing!
-        self._anim_in.finished.connect(lambda: self.root_stack.setGraphicsEffect(None))
-        self._anim_in.start()
 
     # ────────────────────────────────────────────────────────────────
