@@ -129,18 +129,53 @@ class WorkspaceWindow(QMainWindow):
         self._show_home()
         theme_manager.theme_changed.connect(self._on_theme_changed)
 
+    @staticmethod
+    def _write_checkbox_svgs() -> tuple[str, str]:
+        """Write theme-aware SVG checkbox images to a temp dir and return their paths."""
+        import os
+        import tempfile
+
+        # Checked — accent-filled box with white checkmark polyline
+        checked_svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">'
+            f'<rect width="16" height="16" rx="3" fill="{Colors.ACCENT_PRIMARY}"/>'
+            '<polyline points="3,8.5 6.5,12 13,4" fill="none" stroke="white"'
+            ' stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+            "</svg>"
+        )
+        # Unchecked — neutral box, clearly bordered
+        unchecked_svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">'
+            f'<rect x="1" y="1" width="14" height="14" rx="3"'
+            f' fill="{Colors.BG_MEDIUM}" stroke="{Colors.FG_SECONDARY}" stroke-width="1.5"/>'
+            "</svg>"
+        )
+
+        tmp = tempfile.gettempdir()
+        checked_path = os.path.join(tmp, "biopro_cb_checked.svg")
+        unchecked_path = os.path.join(tmp, "biopro_cb_unchecked.svg")
+
+        with open(checked_path, "w", encoding="utf-8") as f:
+            f.write(checked_svg)
+        with open(unchecked_path, "w", encoding="utf-8") as f:
+            f.write(unchecked_svg)
+
+        return checked_path, unchecked_path
+
     def _apply_supplemental_qss(self) -> None:
+        checked_path, unchecked_path = self._write_checkbox_svgs()
 
         extra = (
-            "QCheckBox { spacing: 8px; color: #e6edf3; }"
-            f"QCheckBox::indicator {{ width: 16px; height: 16px;"
-            f" border: 2px solid {Colors.BORDER_FOCUS}; border-radius: 4px;"
-            f" background: {Colors.BG_MEDIUM}; }}"
-            f"QCheckBox::indicator:checked {{ background: {Colors.ACCENT_PRIMARY};"
-            f" border-color: {Colors.ACCENT_PRIMARY}; }}"
-            f"QCheckBox::indicator:unchecked:hover {{ border-color: {Colors.FG_SECONDARY}; }}"
-            f"QCheckBox::indicator:disabled {{ border-color: {Colors.BG_LIGHT};"
-            f" background: {Colors.BG_DARK}; }}"
+            f"QCheckBox {{ spacing: 8px; color: {Colors.FG_PRIMARY}; }}"
+            # ── Standalone QCheckBox indicators ──────────────────────────────
+            f"QCheckBox::indicator {{ width: 16px; height: 16px; }}"
+            f"QCheckBox::indicator:unchecked {{ image: url({unchecked_path}); }}"
+            f"QCheckBox::indicator:checked   {{ image: url({checked_path}); }}"
+            # ── QListWidget item checkboxes (ItemIsUserCheckable) ─────────────
+            # These use QListView::indicator, which is a separate selector.
+            f"QListView::indicator {{ width: 16px; height: 16px; }}"
+            f"QListView::indicator:unchecked {{ image: url({unchecked_path}); }}"
+            f"QListView::indicator:checked   {{ image: url({checked_path}); }}"
             f"QGroupBox {{ color: {Colors.FG_PRIMARY}; font-weight: bold; "
             f" border: 1px solid {Colors.BORDER}; border-radius: 6px; margin-top: 12px; }}"
             f"QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0 5px; }}"
@@ -285,6 +320,7 @@ class WorkspaceWindow(QMainWindow):
         self.analysis_toolbar.btn_home.clicked.connect(self._show_home)
         self.analysis_toolbar.btn_close_project.clicked.connect(self.return_to_hub)
         self.analysis_toolbar.btn_ai.clicked.connect(self._open_ai_chat)
+        self.analysis_toolbar.btn_academy.clicked.connect(self._open_academy)
 
         # --- NEW: Aurebesh/Techy Subtitle ---
         self.aurebesh_lbl = QLabel("")
@@ -311,15 +347,231 @@ class WorkspaceWindow(QMainWindow):
 
         self.root_stack.addWidget(self.analysis_page)
 
+        # --- NEW: Tutorial Overlay ---
+        from biopro.ui.wizards.tutorial_overlay import TutorialOverlay
+
+        self.tutorial_overlay = TutorialOverlay(self.analysis_page)
+        self.tutorial_overlay.hide()
+
+        # We hook into global manager
+        self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
+        self.tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
+        self._tutorial_connections: dict = {}
+        self._tutorial_last_step_id: str | None = None
+        self._verification_wait: int = 0
+        self.startTimer(100)  # Polling for overlay sync
+
         # ── Page 2: Loading Screen (Galactic Hyperspace) ─────────────
         self.loading_screen = GalacticLoader()
         self.root_stack.addWidget(self.loading_screen)
 
         self.setCentralWidget(self.root_stack)
 
+    def _on_tutorial_next(self) -> None:
+        """Called when the overlay Next button is clicked.
+
+        For VerificationStep with allow_interaction=True the 'Next' button
+        is labelled 'Check ✓'; clicking it runs the validator immediately
+        rather than waiting for the background timer.
+        """
+        from biopro.core.models.tutorial_models import VerificationStep
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        step = global_tutorial_manager.current_step
+        if (
+            step
+            and isinstance(step, VerificationStep)
+            and getattr(step, "allow_interaction", False)
+        ):
+            app_state = getattr(getattr(self, "wizard_panel", None), "state", None)
+            if step.validator and step.validator.validate(app_state):
+                global_tutorial_manager.next_step(step.on_success_step_id)
+            elif step.on_fail_step_id:
+                global_tutorial_manager.next_step(step.on_fail_step_id)
+        else:
+            global_tutorial_manager.next_step()
+
+    def _on_tutorial_skip(self) -> None:
+        """Hide the overlay and stop the active course."""
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        self.tutorial_overlay.hide()
+        global_tutorial_manager.active_course = None
+        global_tutorial_manager.current_step = None
+
+        wizard_panel = getattr(self, "wizard_panel", None)
+        if wizard_panel:
+            for canvas in wizard_panel.findChildren(QWidget, "FlowCanvas"):
+                if hasattr(canvas, "set_guide_polygon"):
+                    canvas.set_guide_polygon(None)
+
+    def timerEvent(self, event) -> None:
+        super().timerEvent(event)
+        if not hasattr(self, "tutorial_overlay") or not self.tutorial_overlay.isVisible():
+            return
+
+        from biopro.core.models.tutorial_models import InteractionStep, VerificationStep
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        step = global_tutorial_manager.current_step
+        if not step:
+            self.tutorial_overlay.hide()
+            return
+
+        # Only update geometry and raise if the rect changed to prevent rendering glitches
+        new_geom = self.analysis_page.rect()
+        if self.tutorial_overlay.geometry() != new_geom:
+            self.tutorial_overlay.setGeometry(new_geom)
+            self.tutorial_overlay.raise_()
+
+        # Re-render the bubble if the step changed
+        current_id = step.id
+        if current_id != self._tutorial_last_step_id:
+            self._tutorial_last_step_id = current_id
+            self._verification_wait = 0
+            self.tutorial_overlay.raise_()
+            self.tutorial_overlay.render_step(step)
+
+            guide_poly = getattr(step, "guide_poly", None)
+            wizard_panel = getattr(self, "wizard_panel", None)
+            if wizard_panel:
+                for canvas in wizard_panel.findChildren(QWidget, "FlowCanvas"):
+                    if hasattr(canvas, "set_guide_polygon"):
+                        canvas.set_guide_polygon(guide_poly)
+
+            # Wire InteractionStep signal → auto-advance
+            if isinstance(step, InteractionStep) and step.target_widget_name:
+                wizard_panel = getattr(self, "wizard_panel", None)
+                if wizard_panel:
+                    targets = wizard_panel.findChildren(QWidget, step.target_widget_name)
+                    for target_w in targets:
+                        if hasattr(target_w, step.event_trigger):
+                            obj_id = id(target_w)
+                            conn_key = f"{step.id}__{step.target_widget_name}__{step.event_trigger}__{obj_id}"
+                            if conn_key not in self._tutorial_connections:
+                                print(f"DEBUG: Wiring InteractionStep signal {conn_key}")
+
+                                def _make_advancer(sid: str):
+                                    def _advance(*_args):
+                                        print(
+                                            f"DEBUG: InteractionStep trigger fired for {sid}! current step is {global_tutorial_manager.current_step.id if global_tutorial_manager.current_step else None}"
+                                        )
+                                        if (
+                                            global_tutorial_manager.current_step
+                                            and global_tutorial_manager.current_step.id == sid
+                                        ):
+                                            print("DEBUG: Advancing next_step!")
+                                            global_tutorial_manager.next_step()
+
+                                    return _advance
+
+                                advancer = _make_advancer(step.id)
+                                self._tutorial_connections[conn_key] = advancer
+                                try:
+                                    getattr(target_w, step.event_trigger).connect(advancer)
+                                    print(
+                                        f"DEBUG: Successfully connected to {step.event_trigger} on widget {obj_id}"
+                                    )
+                                except Exception as e:
+                                    print(
+                                        f"DEBUG: Failed to connect to {step.event_trigger} on widget {obj_id}: {e}"
+                                    )
+
+        # Auto-verify VerificationStep
+        if isinstance(step, VerificationStep) and step.validator:
+            self._verification_wait += 1
+            if self._verification_wait > 20:  # ~2 s at 100 ms ticks
+                self._verification_wait = 0
+                app_state = getattr(getattr(self, "wizard_panel", None), "state", None)
+
+                try:
+                    is_valid = step.validator.validate(app_state)
+                    print(f"DEBUG: Validation result for {step.id}: {is_valid}")
+                except Exception as e:
+                    import traceback
+
+                    traceback.print_exc()
+                    print(f"DEBUG: Validation error: {e}")
+                    is_valid = False
+
+                if is_valid:
+                    global_tutorial_manager.next_step(step.on_success_step_id)
+                elif not getattr(step, "allow_interaction", False) and step.on_fail_step_id:
+                    global_tutorial_manager.next_step(step.on_fail_step_id)
+
+        # Auto-execute ActionStep
+        if step.__class__.__name__ == "ActionStep" and step.id != getattr(
+            self, "_last_action_step_executed", None
+        ):
+            self._last_action_step_executed = step.id
+            try:
+                wizard_panel = getattr(self, "wizard_panel", None)
+                if step.action and wizard_panel:
+                    step.action(wizard_panel)
+            except Exception as e:
+                import traceback
+
+                traceback.print_exc()
+                print(f"DEBUG: ActionStep error: {e}")
+            global_tutorial_manager.next_step(step.next_step_id)
+
+        # Spotlight: find target widgets and map to overlay-local coordinates
+        targets: list[QWidget] = []
+        wizard_panel = getattr(self, "wizard_panel", None)
+        if wizard_panel:
+            for attr in ("target_widget_name",):
+                name = getattr(step, attr, "")
+                if name:
+                    w = wizard_panel.findChild(QWidget, name)
+                    if w and w.isVisible():
+                        targets.append(w)
+            for name in getattr(step, "target_widget_names", []):
+                for w in wizard_panel.findChildren(QWidget, name):
+                    if w and w.isVisible():
+                        targets.append(w)
+
+        from PyQt6.QtCore import QRect
+
+        rects = []
+        for w in targets:
+            global_pos = w.mapToGlobal(w.rect().topLeft())
+            local_pos = self.tutorial_overlay.mapFromGlobal(global_pos)
+            rects.append(QRect(local_pos, w.size()))
+        self.tutorial_overlay.set_targets(rects)
+
+    def _open_academy(self):
+        from biopro.core.tutorial_manager import global_tutorial_manager
+        from biopro.ui.dialogs.academy_window import AcademyWindow
+
+        mod_id = getattr(self, "current_module_id", None)
+        if not mod_id:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.information(
+                self, "Academy", "Please load a module first to access its Academy."
+            )
+            return
+
+        dialog = AcademyWindow(global_tutorial_manager, mod_id, self)
+        dialog.exec()
+
+        if global_tutorial_manager.active_course:
+            self.tutorial_overlay.setGeometry(self.analysis_page.rect())
+            self.tutorial_overlay.show()
+            self.status_bar.showMessage(
+                "Started Academy Course: " + global_tutorial_manager.active_course.title
+            )
+
     def _setup_status_bar(self) -> None:
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+
+        is_sw = "Galactic" in theme_manager.current_theme_name
+        self.status_bar.setStyleSheet(
+            f"background: {Colors.BG_DARK}; color: {Colors.FG_SECONDARY};"
+            f" border-top: 1px solid {Colors.BORDER};"
+            f" font-family: {Fonts.FAMILY_MONO if is_sw else 'inherit'};"
+        )
 
         self.zoom_label = QLabel("100%")
         self.zoom_label.setObjectName("subtitle")
@@ -337,6 +589,16 @@ class WorkspaceWindow(QMainWindow):
         self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
         self.home_screen.workflow_settings_requested.connect(self._handle_workflow_settings)
         self.home_screen.trust_module_requested.connect(self._on_trust_requested)
+        self.home_screen.open_academy_requested.connect(self._open_academy_from_home)
+
+    def _open_academy_from_home(self):
+        from PyQt6.QtWidgets import QMessageBox
+
+        QMessageBox.information(
+            self,
+            "BioPro Academy",
+            "Academy courses are module-specific. Please open an analysis module first to access its Academy.",
+        )
 
     def _show_home(self) -> None:
         if self.wizard_panel and hasattr(self.wizard_panel, "reset_to_setup"):
@@ -644,6 +906,10 @@ class WorkspaceWindow(QMainWindow):
         super().resizeEvent(event)
         if hasattr(self, "hologram_overlay") and self.hologram_overlay.isVisible():
             self.hologram_overlay.setGeometry(self.root_stack.geometry())
+
+        if hasattr(self, "tutorial_overlay"):
+            self.tutorial_overlay.setGeometry(self.analysis_page.rect())
+
         # Keep the floating loader overlay filling the stack during a crossfade
         if (
             hasattr(self, "loading_screen")

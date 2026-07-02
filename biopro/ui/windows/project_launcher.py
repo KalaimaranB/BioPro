@@ -209,6 +209,10 @@ class ProjectLauncherWindow(QMainWindow):
         self.btn_new.clicked.connect(self._on_new_project)
         btn_layout.addWidget(self.btn_new)
 
+        self.btn_academy = SecondaryButton("🎓 Start Academy Course")
+        self.btn_academy.clicked.connect(self._on_academy_project)
+        btn_layout.addWidget(self.btn_academy)
+
         self.btn_open = SecondaryButton("📁 Open Project...")
         self.btn_open.clicked.connect(self._on_open_project)
         btn_layout.addWidget(self.btn_open)
@@ -267,6 +271,32 @@ class ProjectLauncherWindow(QMainWindow):
             self._launch_workspace(pm)
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Could not create project:\n{str(e)}")
+
+    def _on_academy_project(self):
+        name, ok = QInputDialog.getText(self, "Academy Project", "Enter Academy Project Name:")
+        if not ok or not name.strip():
+            return
+
+        dir_path = QFileDialog.getExistingDirectory(
+            self, "Select Empty Folder for Academy Workspace"
+        )
+        if not dir_path:
+            return
+
+        selected_path = Path(dir_path)
+
+        # Prevent "MyProject/MyProject" inception
+        if selected_path.name == name.strip():
+            project_dir = selected_path
+        else:
+            project_dir = selected_path / name.strip()
+
+        try:
+            pm = ProjectManager(project_dir)
+            pm.create_new(name.strip(), is_academy=True)
+            self._launch_workspace(pm)
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not create academy project:\n{str(e)}")
 
     def _on_open_project(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select BioPro Project Folder")

@@ -20,7 +20,16 @@
     "FAMILY_HEADINGS": "sans-serif",
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
-    "TAGLINE": "Bio Analysis Made Simple — designed for modern lab workflows",
-    "APP_TITLE": "BioPro — Bio-Image Analysis",
-    "GREETING": "Good morning"
+    "TAGLINE": "Bio Analysis Made Simple \u2014 designed for modern lab workflows",
+    "APP_TITLE": "BioPro \u2014 Biology Analysis",
+    "GREETING": "Good morning",
+    "CHART_COLORS": [
+        "#2f81f7",
+        "#238636",
+        "#d29922",
+        "#f85149",
+        "#a371f7",
+        "#00f2ff",
+        "#c9d1d9"
+    ]
 }

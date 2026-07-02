@@ -29,6 +29,8 @@ class WorkspaceDashboard(QWidget):
     return_to_hub_requested = pyqtSignal()
     open_store_requested = pyqtSignal()
     open_ai_requested = pyqtSignal()
+    open_academy_requested = pyqtSignal()
+    resume_course_requested = pyqtSignal(str)  # Passes course_id
     trust_module_requested = pyqtSignal(str)  # Passes module_id
 
     def __init__(self, parent=None) -> None:
@@ -89,6 +91,15 @@ class WorkspaceDashboard(QWidget):
         self.btn_ai.clicked.connect(self.open_ai_requested.emit)
         title_row.addWidget(self.btn_ai)
 
+        self.btn_academy = QPushButton("🎓 Academy")
+        self.btn_academy.setStyleSheet(
+            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
+            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: #58a6ff; }}"
+        )
+        self.btn_academy.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_academy.clicked.connect(self.open_academy_requested.emit)
+        title_row.addWidget(self.btn_academy)
+
         self.btn_return_hub = QPushButton("🏠 Return to Project Hub")
         self.btn_return_hub.setStyleSheet(
             f"QPushButton {{"
@@ -133,6 +144,29 @@ class WorkspaceDashboard(QWidget):
         stats_layout.addWidget(self.stat_modules)
         stats_layout.addStretch()
         hero_layout.addLayout(stats_layout)
+
+        # 5. Academy Resume Banner
+        self.academy_banner = QWidget()
+        self.academy_banner.setStyleSheet(
+            "background-color: rgba(31, 111, 235, 0.1); border: 1px solid #1f6feb; border-radius: 6px;"
+        )
+        self.academy_banner.setVisible(False)
+        banner_layout = QHBoxLayout(self.academy_banner)
+        banner_layout.setContentsMargins(15, 10, 15, 10)
+
+        self.lbl_resume = QLabel("📖 Resume: Course")
+        self.lbl_resume.setStyleSheet("color: #79c0ff; font-weight: bold; font-size: 13px;")
+        banner_layout.addWidget(self.lbl_resume)
+        banner_layout.addStretch()
+
+        self.btn_resume = QPushButton("Resume →")
+        self.btn_resume.setStyleSheet(
+            "background-color: #1f6feb; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-weight: bold;"
+        )
+        self.btn_resume.setCursor(Qt.CursorShape.PointingHandCursor)
+        banner_layout.addWidget(self.btn_resume)
+
+        hero_layout.addWidget(self.academy_banner)
 
         root.addWidget(hero)
 
@@ -184,6 +218,9 @@ class WorkspaceDashboard(QWidget):
         root.addWidget(content, stretch=1)
 
     # ── Population Methods ──
+
+    def populate_academy_banner(self, in_progress_course_id: str, title: str, step_info: str):
+        self.academy_banner.setVisible(False)
 
     def populate_modules(self, manifests: list[dict]) -> None:
         """Dynamically build the selection grid based on installed plugins."""

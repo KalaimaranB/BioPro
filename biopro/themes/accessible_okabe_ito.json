@@ -23,6 +23,15 @@
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
     "TAGLINE": "High Contrast & Universal Accessibility based on the Okabe-Ito Palette",
-    "APP_TITLE": "BioPro — Universal Access",
-    "GREETING": "Accessibility protocols active"
+    "APP_TITLE": "BioPro \u2014 Universal Access",
+    "GREETING": "Accessibility protocols active",
+    "CHART_COLORS": [
+        "#56B4E9",
+        "#009E73",
+        "#E69F00",
+        "#D55E00",
+        "#0072B2",
+        "#56B4E9",
+        "#ffffff"
+    ]
 }

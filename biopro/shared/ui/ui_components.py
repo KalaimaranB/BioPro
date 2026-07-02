@@ -10,8 +10,9 @@ class PrimaryButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setProperty("btn_type", "primary")
         self.setStyleSheet(f"""
-            QPushButton {{
+            QPushButton[btn_type="primary"] {{
                 background-color: {Colors.ACCENT_PRIMARY};
                 color: {Colors.BG_DARKEST};
                 border: none;
@@ -20,8 +21,8 @@ class PrimaryButton(QPushButton):
                 font-size: 13px;
                 font-weight: bold;
             }}
-            QPushButton:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}
-            QPushButton:disabled {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_SECONDARY}; }}
+            QPushButton[btn_type="primary"]:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}
+            QPushButton[btn_type="primary"]:disabled {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_SECONDARY}; }}
         """)
 
 
@@ -31,8 +32,9 @@ class SecondaryButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setProperty("btn_type", "secondary")
         self.setStyleSheet(f"""
-            QPushButton {{
+            QPushButton[btn_type="secondary"] {{
                 background-color: {Colors.BG_MEDIUM};
                 color: {Colors.FG_PRIMARY};
                 border: 1px solid {Colors.BORDER};
@@ -40,7 +42,7 @@ class SecondaryButton(QPushButton):
                 padding: 10px 20px;
                 font-size: 13px;
             }}
-            QPushButton:hover {{ background-color: {Colors.BG_LIGHT}; }}
+            QPushButton[btn_type="secondary"]:hover {{ background-color: {Colors.BG_LIGHT}; }}
         """)
 
 

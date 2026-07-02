@@ -47,12 +47,12 @@ class AnalysisToolBar(QWidget):
         layout.addStretch()
 
         theme_manager.theme_changed.connect(self._apply_theme_styles)
-        self.lbl_hint = QLabel("Ctrl+O to open file")
-        self.lbl_hint.setStyleSheet(
-            f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_DISABLED};"
-            f" background: transparent;"
+        self.btn_academy = SecondaryButton("🎓 Cyto Academy")
+        self.btn_academy.setStyleSheet(
+            f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
+            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;"
         )
-        layout.addWidget(self.lbl_hint)
+        layout.addWidget(self.btn_academy)
 
         self._apply_theme_styles()
 
@@ -70,6 +70,7 @@ class AnalysisToolBar(QWidget):
             f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
             f" color: {Colors.FG_PRIMARY}; background: transparent;"
         )
-        self.lbl_hint.setStyleSheet(
-            f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_DISABLED}; background: transparent;"
+        self.btn_academy.setStyleSheet(
+            f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
+            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;"
         )

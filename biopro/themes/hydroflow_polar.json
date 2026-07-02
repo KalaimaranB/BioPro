@@ -22,7 +22,16 @@
     "FAMILY_HEADINGS": "Segoe UI, sans-serif",
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
-    "TAGLINE": "Fluid Dynamics & Aqueous Solutions — Balance is Eternal",
-    "APP_TITLE": "BioPro — Hydrographic Polar Station",
-    "GREETING": "System calibrated — fluid levels optimal"
+    "TAGLINE": "Fluid Dynamics & Aqueous Solutions \u2014 Balance is Eternal",
+    "APP_TITLE": "BioPro \u2014 Hydrographic Polar Station",
+    "GREETING": "System calibrated \u2014 fluid levels optimal",
+    "CHART_COLORS": [
+        "#0099cc",
+        "#00b3a6",
+        "#ff9900",
+        "#d94444",
+        "#4d79ff",
+        "#00a2e8",
+        "#002b4d"
+    ]
 }

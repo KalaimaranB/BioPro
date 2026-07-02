@@ -23,6 +23,15 @@
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
     "TAGLINE": "Spinjitzu Vector Kinetics & Elemental Synchronization",
-    "APP_TITLE": "BioPro — Spinjitzu Monastery Archive",
-    "GREETING": "Ninja-go! Analysis sequence initiated"
+    "APP_TITLE": "BioPro \u2014 Spinjitzu Monastery Archive",
+    "GREETING": "Ninja-go! Analysis sequence initiated",
+    "CHART_COLORS": [
+        "#d4af37",
+        "#2e8b57",
+        "#ff9900",
+        "#c0392b",
+        "#e60000",
+        "#ffcc00",
+        "#3d352c"
+    ]
 }

@@ -22,7 +22,16 @@
     "FAMILY_HEADINGS": "Impact, sans-serif",
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
-    "TAGLINE": "Subterranean Bioluminescence & Vector Analysis — Cavern 99 Protocol",
-    "APP_TITLE": "BioPro — Cavern 99 Slinger Archive",
-    "GREETING": "System charged — vectors ready to deploy"
+    "TAGLINE": "Subterranean Bioluminescence & Vector Analysis \u2014 Cavern 99 Protocol",
+    "APP_TITLE": "BioPro \u2014 Cavern 99 Slinger Archive",
+    "GREETING": "System charged \u2014 vectors ready to deploy",
+    "CHART_COLORS": [
+        "#00ccff",
+        "#39ff14",
+        "#ff9900",
+        "#ff3333",
+        "#ff6600",
+        "#00ffcc",
+        "#f0f4f8"
+    ]
 }

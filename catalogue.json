@@ -1,81 +1,137 @@
 [
   {
     "id": "BBa_R0010",
-    "name": "BBa_R0010",
+    "name": "promoter (lacI regulated)",
     "description": "promoter (lacI regulated)",
     "sequence": "caatacgcaaaccgcctctccccgcgcgttggccgattcattaatgcagctggcacgacaggtttcccgactggaaagcgggcagtgagcgcaacgcaattaatgtgagttagctcactcattaggcaccccaggctttacactttatgcttccggctcgtatgttgtgtggaattgtgagcggataacaatttcacacaa",
-    "is_custom": false,
+    "is_custom": true,
     "part_type": "promoter",
-    "properties": {},
+    "properties": {
+      "negative_regulators": "1",
+      "positive_regulators": "NA",
+      "o_l": "NA",
+      "o_h": "NA",
+      "direction": "Forward",
+      "biology": "NA",
+      "control": "IPTG, lacI",
+      "citation": "Elowitz, M., Leibler, S. A synthetic oscillatory network of transcriptional regulators. Nature 403, 335\u2013338 (2000). https://doi.org/10.1038/35002125"
+    },
     "y_min": 0.5,
     "y_max": 250.0,
     "K_d": 40.0,
     "n": 2.0,
-    "repressors": [],
+    "repressors": [
+      "LacI"
+    ],
     "activators": []
   },
   {
     "id": "BBa_R0040",
-    "name": "BBa_R0040",
+    "name": "TetR repressible promoter",
     "description": "TetR repressible promoter",
     "sequence": "tccctatcagtgatagagattgacatccctatcagtgatagagatactgagcac",
-    "is_custom": false,
+    "is_custom": true,
     "part_type": "promoter",
-    "properties": {},
+    "properties": {
+      "negative_regulators": "1",
+      "positive_regulators": "NA",
+      "o_l": "NA",
+      "o_h": "NA",
+      "direction": "Forward",
+      "biology": "NA",
+      "control": "aTc, tetracyline",
+      "citation": "Elowitz, M., Leibler, S. A synthetic oscillatory network of transcriptional regulators. Nature 403, 335\u2013338 (2000). https://doi.org/10.1038/35002125"
+    },
     "y_min": 0.5,
     "y_max": 250.0,
     "K_d": 40.0,
     "n": 2.0,
-    "repressors": [],
+    "repressors": [
+      "TetR"
+    ],
     "activators": []
   },
   {
     "id": "BBa_R0051",
-    "name": "BBa_R0051",
+    "name": "promoter (lambda cI regulated)",
     "description": "lambda cI repressible promoter",
     "sequence": "aatatataaaaaaagattattaaaaatttattagttaaataagagacaaataaagttaac",
-    "is_custom": false,
+    "is_custom": true,
     "part_type": "promoter",
-    "properties": {},
+    "properties": {
+      "negative_regulators": "1",
+      "positive_regulators": "NA",
+      "o_l": "NA",
+      "o_h": "NA",
+      "direction": "Forward",
+      "control": "lambda cI",
+      "citation": "Elowitz, M., Leibler, S. A synthetic oscillatory network of transcriptional regulators. Nature 403, 335\u2013338 (2000). https://doi.org/10.1038/35002125"
+    },
     "y_min": 0.5,
     "y_max": 250.0,
     "K_d": 40.0,
     "n": 2.0,
-    "repressors": [],
+    "repressors": [
+      "cI"
+    ],
     "activators": []
   },
   {
     "id": "BBa_C0012",
-    "name": "BBa_C0012",
+    "name": "lacI repressor  from E. coli (+LVA)",
     "description": "lacI repressor from E. coli (+LVA)",
     "sequence": "atggtgaatgtgaaaccagtaacgttatacgatgtcgcagagtatgccggtgtctcttatcagaccgtttcccgcgtggtgaaccaggccagccacgtttctgcgaaaacgcgggaaaaagtggaagcggcgatggcggagctgaattacattcccaaccgcgtggcacaacaactggcgggcaaacagtcgttgctgattggcgttgccacctccagtctggccctgcacgcgccgtcgcaaattgtcgcggcgattaaatctcgcgccgatcaactgggtgccagcgtggtggtgtcgatggtagaacgaagcggcgtcgaagcctgtaaagcggcggtgcacaatcttctcgcgcaacgcgtcagtgggctgatcattaactatccgctggatgaccaggatgccattgctgtggaagctgcctgcactaatgttccggcgttatttcttgatgtctctgaccagacacccatcaacagtattattttctcccatgaagacggtacgcgactgggcgtggagcatctggtcgcattgggtcaccagcaaatcgcgctgttagcgggcccattaagttctgtctcggcgcgtctgcgtctggctggctggcataaatatctcactcgcaatcaaattcagccgatagcggaacgggaaggcgactggagtgccatgtccggttttcaacaaaccatgcaaatgctgaatgagggcatcgttcccactgcgatgctggttgccaacgatcagatggcgctgggcgcaatgcgcgccattaccgagtccgggctgcgcgttggtgcggatatctcggtagtgggatacgacgataccgaagacagctcatgttatatcccgccgttaaccaccatcaaacaggattttcgcctgctggggcaaaccagcgtggaccgcttgctgcaactctctcagggccaggcggtgaagggcaatcagctgttgcccgtctcactggtgaaaagaaaaaccaccctggcgcccaatacgcaaaccgcctctccccgcgcgttggccgattcattaatgcagctggcacgacaggtttcccgactggaaagcgggcagtgagcgcaacgcaattaatgtgagttagctcactcattaggcaccccaggctttacactttatgcttccggctcgtataatgtgtgga",
-    "is_custom": false,
+    "is_custom": true,
     "part_type": "cds",
-    "properties": {},
+    "properties": {
+      "ligands": "allolactose, IPTG",
+      "swisspro": "P03023",
+      "protein": "LacI",
+      "direction": "Forward",
+      "tag": "LVA",
+      "function": "Rep",
+      "citation": "Elowitz, M., Leibler, S. A synthetic oscillatory network of transcriptional regulators. Nature 403, 335\u2013338 (2000). https://doi.org/10.1038/35002125"
+    },
     "translation_rate": 0.1,
     "degradation_rate": 0.01,
     "product": "LacI"
   },
   {
     "id": "BBa_C0040",
-    "name": "BBa_C0040",
+    "name": "tetracycline repressor from transposon Tn10 (+LVA)",
     "description": "tetR repressor from transposon Tn10 (+LVA)",
     "sequence": "atgtccagattagataaaagtaaagtgattaacagcgcattagagctgcttaatgaggtcggaatcgaaggtttaacaacccgtaaactcgcccagaagctaggtgtagagcagcctacattgtattggcatgtaaaaaataagcgggctttgctcgacgccttagccattgagatgttagataggcaccatactcactttgccctttagaaggggaaagctggcaagattttttacgtaataacgctaaaagttttagatgtgctttactaagtcactcgaatgcgactggcgtgtta",
-    "is_custom": false,
+    "is_custom": true,
     "part_type": "cds",
-    "properties": {},
+    "properties": {
+      "ligands": "tetracycline",
+      "swisspro": "P04483",
+      "protein": "TetR",
+      "direction": "Forward",
+      "tag": "LVA",
+      "function": "Rep",
+      "citation": "Elowitz, M., Leibler, S. A synthetic oscillatory network of transcriptional regulators. Nature 403, 335\u2013338 (2000). https://doi.org/10.1038/35002125"
+    },
     "translation_rate": 0.1,
     "degradation_rate": 0.01,
     "product": "TetR"
   },
   {
     "id": "BBa_C0051",
-    "name": "BBa_C0051",
+    "name": "cI repressor from E. coli phage lambda (+LVA) ",
     "description": "cI repressor from E. coli phage lambda (+LVA)",
     "sequence": "atgagcacaaaaaagaaaccattaacacaagagcagcttgaggacgcacgtcgccttaaagcaatttatgaaaaaaagaaaaatgaacttggcttatcccaggaatctgtcgcagacaagatggggatggggcagtcaggcgttggtgctttatttaatggcatcaatgcattaaatgcttataacgccgcattgcttgcaaaaattctcaaagttagcgttgaagaatttagcccttcaatcgccagagaaatctacgagatgtatgaagcggttagtatgcagccgtcacttagaagtgagtatgagtaccctgttttttctcatgttcaggcagggatgttctcacctgagcttagaacctttaccaaaggtgatgcggagagatgggtaagcacaaccaaaaaagccagtgattctgcattctggcttgaggttgaaggtaattccatgaccgcaccaacaggctccaagccaagctttcctgacggaatgttaattctcgttgaccctgagcaggctgttgagccaggtgatttctgcatagccagacttgggggtgatgagtttaccttcaagaaactgatcagggatagcggtcaggtgtttttacaaccactaaacccacagtacccaatgatcccatgcaatgagagttgttccgttgtggggaaagttatcgctagtcagtggcctgaagagacgtttggc",
-    "is_custom": false,
+    "is_custom": true,
     "part_type": "cds",
-    "properties": {},
+    "properties": {
+      "ligands": "RecA",
+      "swisspro": "P03034",
+      "protein": "CI lambda",
+      "direction": "Forward",
+      "tag": "LVA",
+      "function": "Rep",
+      "citation": "Elowitz, M., Leibler, S. A synthetic oscillatory network of transcriptional regulators. Nature 403, 335\u2013338 (2000). https://doi.org/10.1038/35002125"
+    },
     "translation_rate": 0.1,
     "degradation_rate": 0.01,
     "product": "cI"

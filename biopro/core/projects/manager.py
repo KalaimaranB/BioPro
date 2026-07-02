@@ -41,7 +41,7 @@ class ProjectManager:
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 
-    def create_new(self, project_name: str) -> None:
+    def create_new(self, project_name: str, is_academy: bool = False) -> None:
         if self.project_dir.exists():
             raise FileExistsError("Directory already exists.")
 
@@ -50,6 +50,7 @@ class ProjectManager:
 
         self.data = {
             "project_name": project_name,
+            "is_academy": is_academy,
             "created_at": datetime.now().isoformat(),
             "last_modified": datetime.now().isoformat(),
             "assets": {},
@@ -211,6 +212,9 @@ class ProjectManager:
 
     def load_workflow_payload(self, filename: str) -> dict:
         return self.workflows.load_payload(filename)
+
+    def get_workflow_hash(self, filename: str) -> str | None:
+        return self.workflows.get_hash(filename)
 
     def delete_workflow(self, module_id: str, filename: str) -> bool:
         return self.workflows.delete(filename)

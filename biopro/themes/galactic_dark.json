@@ -22,7 +22,16 @@
     "FAMILY_HEADINGS": "monospace",
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
-    "TAGLINE": "Galactic Empire — Bio-Data Retrieval System",
-    "APP_TITLE": "BioPro — Imperial Intelligence",
-    "GREETING": "Awaiting commands, Commander"
+    "TAGLINE": "Galactic Empire \u2014 Bio-Data Retrieval System",
+    "APP_TITLE": "BioPro \u2014 Imperial Intelligence",
+    "GREETING": "Awaiting commands, Commander",
+    "CHART_COLORS": [
+        "#e60000",
+        "#d29922",
+        "#ffeb3b",
+        "#ff0000",
+        "#880000",
+        "#e60000",
+        "#e0e0e0"
+    ]
 }

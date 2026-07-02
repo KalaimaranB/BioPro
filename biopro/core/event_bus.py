@@ -30,6 +30,13 @@ class BioProEvent(Enum):
     SYSTEM_WARNING = auto()  # args: (message: str)
     CORE_UPDATE_AVAILABLE = auto()  # args: (remote_version: str, download_url: str)
 
+    # Academy & Tutorial Engine
+    ACADEMY_STEP_CHANGED = auto()  # args: (step: BaseStep)
+    ACADEMY_COURSE_COMPLETED = auto()  # args: (course_id: str, badge_reward: str)
+    ACADEMY_SUBTASK_COMPLETED = auto()  # args: (subtask_id: str, remaining_count: int)
+    ACADEMY_CHECKPOINT_SAVED = auto()  # args: (course_id: str, checkpoint_path: str)
+    ACADEMY_COURSE_PREPARE_PROJECT = auto()  # args: (course_id: str)
+
 
 class EventManager(QObject):
     """Central event coordinator.

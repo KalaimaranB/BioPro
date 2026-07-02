@@ -22,7 +22,16 @@
     "FAMILY_HEADINGS": "Georgia, serif",
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
-    "TAGLINE": "Atmospheric Dynamics & Particle Flow — Harmony in Analysis",
-    "APP_TITLE": "BioPro — AeroFlow Terminal",
-    "GREETING": "Flow freely, analyze swiftly"
+    "TAGLINE": "Atmospheric Dynamics & Particle Flow \u2014 Harmony in Analysis",
+    "APP_TITLE": "BioPro \u2014 AeroFlow Terminal",
+    "GREETING": "Flow freely, analyze swiftly",
+    "CHART_COLORS": [
+        "#4dd2ff",
+        "#8ee07d",
+        "#ffc04d",
+        "#ff6b6b",
+        "#ff9233",
+        "#ffe066",
+        "#fcfaf2"
+    ]
 }

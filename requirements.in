@@ -16,6 +16,7 @@ numpy
 pandas
 scipy
 matplotlib
+seaborn>=0.13
 scikit-image
 opencv-python-headless
 tifffile

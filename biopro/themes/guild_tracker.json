@@ -22,7 +22,16 @@
     "FAMILY_HEADINGS": "Trebuchet MS, sans-serif",
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
-    "TAGLINE": "Guild Asset Tracking & High-Fidelity Metallurgy — This is the Way",
-    "APP_TITLE": "BioPro — Nevarro Bounty Registry",
-    "GREETING": "Bounty target located — Tracking fob active"
+    "TAGLINE": "Guild Asset Tracking & High-Fidelity Metallurgy \u2014 This is the Way",
+    "APP_TITLE": "BioPro \u2014 Nevarro Bounty Registry",
+    "GREETING": "Bounty target located \u2014 Tracking fob active",
+    "CHART_COLORS": [
+        "#00a3cc",
+        "#2ecc71",
+        "#f39c12",
+        "#e74c3c",
+        "#cca300",
+        "#00a3cc",
+        "#2d3538"
+    ]
 }

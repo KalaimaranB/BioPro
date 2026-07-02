@@ -21,7 +21,16 @@
     "SCANLINE_OPACITY": 0,
     "FAMILY_HEADINGS": "sans-serif",
     "FAMILY_UI": "sans-serif",
-    "TAGLINE": "Rebel Alliance — Medical Research Hub",
-    "APP_TITLE": "BioPro — Echo Base Medical",
-    "GREETING": "May the Force be with you"
+    "TAGLINE": "Rebel Alliance \u2014 Medical Research Hub",
+    "APP_TITLE": "BioPro \u2014 Echo Base Medical",
+    "GREETING": "May the Force be with you",
+    "CHART_COLORS": [
+        "#0969da",
+        "#1a7f37",
+        "#9a6700",
+        "#cf222e",
+        "#ff8c00",
+        "#0969da",
+        "#1f2328"
+    ]
 }

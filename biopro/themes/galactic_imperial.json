@@ -22,7 +22,16 @@
     "FAMILY_HEADINGS": "monospace",
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
-    "TAGLINE": "Imperial Security Bureau — Bio-Archive Alpha",
-    "APP_TITLE": "BioPro — ISB Terminal",
-    "GREETING": "Loyalty is its own reward"
+    "TAGLINE": "Imperial Security Bureau \u2014 Bio-Archive Alpha",
+    "APP_TITLE": "BioPro \u2014 ISB Terminal",
+    "GREETING": "Loyalty is its own reward",
+    "CHART_COLORS": [
+        "#ff0000",
+        "#3fb950",
+        "#d29922",
+        "#ff0000",
+        "#ffffff",
+        "#ff0000",
+        "#e0e0e0"
+    ]
 }

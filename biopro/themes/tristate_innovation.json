@@ -23,6 +23,15 @@
     "FAMILY_UI": "sans-serif",
     "FAMILY_MONO": "monospace",
     "TAGLINE": "Tri-State Area Mechanical Modeling & Innovation Protocols",
-    "APP_TITLE": "BioPro — Danville Innovation Hub",
-    "GREETING": "I know what we are going to analyze today!"
+    "APP_TITLE": "BioPro \u2014 Danville Innovation Hub",
+    "GREETING": "I know what we are going to analyze today!",
+    "CHART_COLORS": [
+        "#00a896",
+        "#4caf50",
+        "#ffa726",
+        "#f44336",
+        "#ff6f00",
+        "#00a896",
+        "#1f3c3d"
+    ]
 }

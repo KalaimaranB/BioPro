@@ -141,6 +141,19 @@ class WorkflowManager:
             data = json.load(f)
             return data.get("attachments", [])
 
+    def get_hash(self, filename: str) -> str | None:
+        """Returns the SHA-256 hash of a workflow file."""
+        import hashlib
+
+        filepath = self.wf_dir / filename
+        if not filepath.exists():
+            return None
+        sha256 = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            while chunk := f.read(8192):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+
     def delete(self, filename: str) -> bool:
         """Deletes a saved workflow JSON file."""
         file_path = self.wf_dir / os.path.basename(filename)
