@@ -12,7 +12,7 @@ markdown
 pygments
 
 # Scientific Core
-numpy
+numpy<2.2
 pandas
 scipy
 matplotlib
@@ -50,3 +50,4 @@ pytest-cov
 coverage
 ruff
 mypy
+types-requests
