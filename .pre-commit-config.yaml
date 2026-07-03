@@ -7,6 +7,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+        always_run: true
 
       - id: ruff-formatter
         name: Ruff Formatter
@@ -14,6 +15,7 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
+        always_run: true
 
       - id: mypy
         name: Mypy Type Checker

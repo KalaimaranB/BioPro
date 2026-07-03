@@ -93,7 +93,7 @@ jobs:
   # Job 3: Cross-platform tests
   test:
     name: Run Tests (${{ matrix.os }})
-    needs: [check-version]
+    needs: [check-version, audit-and-lint]
     if: |
       always() &&
       (github.event_name == 'pull_request' || 
