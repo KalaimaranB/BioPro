@@ -67,7 +67,7 @@ tests/core/trust_debug.log
 !docs/*.pub
 
 # AI Models (Heavy)
-models/
+/models/
 
 # Scratch & Temporary
 dist_saved/
