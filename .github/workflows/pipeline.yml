@@ -59,7 +59,7 @@ jobs:
     name: Security Audit & Lints (Ubuntu)
     needs: [check-version]
     if: |
-      always() &&
+      success() &&
       (github.event_name == 'pull_request' || 
        github.event_name == 'workflow_dispatch' || 
        needs.check-version.outputs.changed == 'true')
@@ -95,7 +95,7 @@ jobs:
     name: Run Tests (${{ matrix.os }})
     needs: [check-version, audit-and-lint]
     if: |
-      always() &&
+      success() &&
       (github.event_name == 'pull_request' || 
        github.event_name == 'workflow_dispatch' || 
        needs.check-version.outputs.changed == 'true')
