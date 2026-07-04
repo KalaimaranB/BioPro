@@ -34,6 +34,8 @@ torchvision
 cellpose
 flowkit
 flowio
+flowutils
+fcsparser
 fast-histogram
 umap-learn
 hdbscan

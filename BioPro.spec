@@ -12,6 +12,8 @@ torch_bins, torch_datas, torch_hidden = collect_all('torch')
 tv_bins, tv_datas, tv_hidden = collect_all('torchvision')
 fk_bins, fk_datas, fk_hidden = collect_all('flowkit')
 fio_bins, fio_datas, fio_hidden = collect_all('flowio')
+fcs_bins, fcs_datas, fcs_hidden = collect_all('fcsparser')
+fu_bins, fu_datas, fu_hidden = collect_all('flowutils')
 pil_bins, pil_datas, pil_hidden = collect_all('PIL')
 cert_bins, cert_datas, cert_hidden = collect_all('certifi')
 llm_bins, llm_datas, llm_hidden = collect_all('llama_cpp')
@@ -29,9 +31,9 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + pil_bins + cert_bins + llm_bins + sdk_bins + umap_bins))
-all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + pil_datas + cert_datas + llm_datas + sdk_datas + umap_datas))
-all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden + umap_hidden)))
+all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + fcs_bins + fu_bins + pil_bins + cert_bins + llm_bins + sdk_bins + umap_bins))
+all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + fcs_datas + fu_datas + pil_datas + cert_datas + llm_datas + sdk_datas + umap_datas))
+all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + fcs_hidden + fu_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden + umap_hidden)))
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
 # Explicitly exclude test modules and development dependencies
