@@ -19,6 +19,8 @@ cert_bins, cert_datas, cert_hidden = collect_all('certifi')
 llm_bins, llm_datas, llm_hidden = collect_all('llama_cpp')
 sdk_bins, sdk_datas, sdk_hidden = collect_all('biopro_sdk')
 umap_bins, umap_datas, umap_hidden = collect_all('umap')
+skl_bins, skl_datas, skl_hidden = collect_all('sklearn')
+sns_bins, sns_datas, sns_hidden = collect_all('seaborn')
 
 # --- THE OPTIMIZATION ENGINE ---
 # Strip out hundreds of MBs of useless testing/mock data from the final build
@@ -31,9 +33,9 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + fcs_bins + fu_bins + pil_bins + cert_bins + llm_bins + sdk_bins + umap_bins))
-all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + fcs_datas + fu_datas + pil_datas + cert_datas + llm_datas + sdk_datas + umap_datas))
-all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + fcs_hidden + fu_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden + umap_hidden)))
+all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + fcs_bins + fu_bins + pil_bins + cert_bins + llm_bins + sdk_bins + umap_bins + skl_bins + sns_bins))
+all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + fcs_datas + fu_datas + pil_datas + cert_datas + llm_datas + sdk_datas + umap_datas + skl_datas + sns_datas))
+all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + fcs_hidden + fu_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden + umap_hidden + skl_hidden + sns_hidden)))
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
 # Explicitly exclude test modules and development dependencies
