@@ -104,34 +104,34 @@ class ErrorReportDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _apply_styles(self):
-        self.title_label.setStyleSheet(f"color: {Colors.ACCENT_CRITICAL};")
+        self.title_label.setStyleSheet(f"color: {Colors.ACCENT_DANGER};")
         self.subtitle_label.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
         self.contact_label.setStyleSheet(f"color: {Colors.FG_SECONDARY}; margin-right: 10px;")
 
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {Colors.BG_DARKER};
-                border: 1px solid {Colors.BORDER_LIGHT};
+                background-color: {Colors.BG_DARKEST};
+                border: 1px solid {Colors.BORDER};
             }}
             QLabel {{
                 color: {Colors.FG_PRIMARY};
             }}
             QTextEdit {{
-                background-color: {Colors.BG_DARKEST};
-                color: {Colors.ACCENT_CRITICAL};
-                border: 1px solid {Colors.BORDER_DARK};
+                background-color: {Colors.BG_DARK};
+                color: {Colors.ACCENT_DANGER};
+                border: 1px solid {Colors.BORDER};
                 border-radius: 4px;
                 padding: 10px;
             }}
             QPushButton {{
-                background-color: {Colors.BG_DARKEST};
+                background-color: {Colors.BG_DARK};
                 color: {Colors.FG_PRIMARY};
-                border: 1px solid {Colors.BORDER_LIGHT};
+                border: 1px solid {Colors.BORDER};
                 padding: 8px 16px;
                 border-radius: 4px;
             }}
             QPushButton:hover {{
-                background-color: {Colors.BG_LIGHT};
+                background-color: {Colors.BG_MEDIUM};
                 border: 1px solid {Colors.ACCENT_PRIMARY};
             }}
         """)

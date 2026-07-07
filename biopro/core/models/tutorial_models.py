@@ -52,6 +52,7 @@ class VerificationStep(BaseStep):
     on_success_step_id: str | None = None
     on_fail_step_id: str | None = None
     hide_next_button: bool = False
+    max_retries: int = 0
 
 
 @dataclass

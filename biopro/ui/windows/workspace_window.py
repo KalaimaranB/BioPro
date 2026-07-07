@@ -429,6 +429,7 @@ class WorkspaceWindow(QMainWindow):
         if current_id != self._tutorial_last_step_id:
             self._tutorial_last_step_id = current_id
             self._verification_wait = 0
+            self._verification_attempts = 0
             self.tutorial_overlay.raise_()
             self.tutorial_overlay.render_step(step)
 
@@ -495,9 +496,16 @@ class WorkspaceWindow(QMainWindow):
                     is_valid = False
 
                 if is_valid:
+                    self._verification_attempts = 0
                     global_tutorial_manager.next_step(step.on_success_step_id)
                 elif not getattr(step, "allow_interaction", False) and step.on_fail_step_id:
-                    global_tutorial_manager.next_step(step.on_fail_step_id)
+                    max_retries = getattr(step, "max_retries", 0)
+                    attempts = getattr(self, "_verification_attempts", 0)
+                    if attempts >= max_retries:
+                        self._verification_attempts = 0
+                        global_tutorial_manager.next_step(step.on_fail_step_id)
+                    else:
+                        self._verification_attempts = attempts + 1
 
         # Auto-execute ActionStep
         if step.__class__.__name__ == "ActionStep" and step.id != getattr(

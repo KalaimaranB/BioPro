@@ -244,6 +244,11 @@ class ModuleManager:
         """Prepend plugin's local .plugin_venv site-packages to sys.path if it exists."""
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         site_packages = plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages"
+
+        # Fallback to standard .venv for developers who symlink their workspaces
+        if not site_packages.exists():
+            site_packages = plugin_path / ".venv" / "lib" / py_ver / "site-packages"
+
         if site_packages.exists() and str(site_packages) not in sys.path:
             if getattr(sys, "frozen", False):
                 # In frozen apps, insert after the first element (the app executable dir)
@@ -260,7 +265,7 @@ class ModuleManager:
             norm_path = str(Path(path))
             if (
                 target_marker in norm_path
-                and ".plugin_venv" in norm_path
+                and (".plugin_venv" in norm_path or ".venv" in norm_path)
                 and "site-packages" in norm_path
             ):
                 sys.path.remove(path)

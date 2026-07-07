@@ -63,17 +63,15 @@ class AcademyWindow(QDialog):
 
         # Header
         header_layout = QHBoxLayout()
-        header = QLabel("Available Courses")
-        header.setFont(Fonts.H1)
-        header.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY};")
+        self.header = QLabel("Available Courses")
+        self.header.setFont(Fonts.H1)
 
-        header_desc = QLabel("Master the techniques of bio-image analysis.")
-        header_desc.setFont(Fonts.BODY)
-        header_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
+        self.header_desc = QLabel("Master the techniques of bio analysis.")
+        self.header_desc.setFont(Fonts.BODY)
 
         header_vbox = QVBoxLayout()
-        header_vbox.addWidget(header)
-        header_vbox.addWidget(header_desc)
+        header_vbox.addWidget(self.header)
+        header_vbox.addWidget(self.header_desc)
 
         header_layout.addLayout(header_vbox)
         header_layout.addStretch()
@@ -94,14 +92,25 @@ class AcademyWindow(QDialog):
         self.scroll.setWidget(self.scroll_content)
         self.layout.addWidget(self.scroll)
 
-        self._populate_courses()
-
         # Footer
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         self.close_btn = QPushButton("Close")
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_btn.setFont(Fonts.BODY)
+        self.close_btn.clicked.connect(self.accept)
+        btn_layout.addWidget(self.close_btn)
+        self.layout.addLayout(btn_layout)
+
+        self._apply_styles()
+
+        from biopro.ui.theme import theme_manager
+
+        theme_manager.theme_changed.connect(self._apply_styles)
+
+    def _apply_styles(self):
+        self.header.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY};")
+        self.header_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
         self.close_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Colors.BG_MEDIUM};
@@ -115,9 +124,7 @@ class AcademyWindow(QDialog):
                 border: 1px solid {Colors.BORDER_FOCUS};
             }}
         """)
-        self.close_btn.clicked.connect(self.accept)
-        btn_layout.addWidget(self.close_btn)
-        self.layout.addLayout(btn_layout)
+        self._populate_courses()
 
     def _animate_particles(self):
         w, h = self.width(), self.height()
@@ -181,18 +188,27 @@ class AcademyWindow(QDialog):
         self.cards_layout.addStretch()
 
     def _create_course_card(self, course) -> QWidget:
+        def hex_to_rgba(hex_color: str, alpha: float) -> str:
+            h = hex_color.lstrip("#")
+            if len(h) == 6:
+                return f"rgba({int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)}, {alpha})"
+            return hex_color
+
         card = QFrame()
         card.setObjectName("CourseCard")
         # Glassmorphism styling with border radius
+        bg_dark_rgba = hex_to_rgba(Colors.BG_DARK, 0.85)
+        bg_medium_rgba = hex_to_rgba(Colors.BG_MEDIUM, 0.95)
+
         card.setStyleSheet(f"""
             QFrame#CourseCard {{
-                background-color: rgba(22, 27, 34, 0.85);
+                background-color: {bg_dark_rgba};
                 border: 1px solid {Colors.BORDER};
                 border-radius: 12px;
             }}
             QFrame#CourseCard:hover {{
                 border: 1px solid {Colors.BORDER_FOCUS};
-                background-color: rgba(33, 38, 45, 0.95);
+                background-color: {bg_medium_rgba};
             }}
         """)
 
@@ -226,8 +242,9 @@ class AcademyWindow(QDialog):
         status_pill.setFont(Fonts.CAPTION)
         if progress >= 100.0:
             status_pill.setText(" COMPLETED ")
+            success_rgba = hex_to_rgba(Colors.ACCENT_SUCCESS, 0.2)
             status_pill.setStyleSheet(f"""
-                background-color: rgba(35, 134, 54, 0.2);
+                background-color: {success_rgba};
                 color: {Colors.ACCENT_SUCCESS};
                 border: 1px solid {Colors.ACCENT_SUCCESS};
                 border-radius: 10px;
@@ -236,8 +253,9 @@ class AcademyWindow(QDialog):
             """)
         else:
             status_pill.setText(" IN PROGRESS " if progress > 0 else " NOT STARTED ")
+            secondary_rgba = hex_to_rgba(Colors.FG_SECONDARY, 0.1)
             status_pill.setStyleSheet(f"""
-                background-color: rgba(139, 148, 158, 0.1);
+                background-color: {secondary_rgba};
                 color: {Colors.FG_SECONDARY};
                 border: 1px solid {Colors.BORDER};
                 border-radius: 10px;
@@ -249,8 +267,9 @@ class AcademyWindow(QDialog):
         if progress >= 100.0 and getattr(course, "badge_reward", None):
             badge = QLabel(f" AWARD: {course.badge_reward} ")
             badge.setFont(Fonts.CAPTION)
+            warning_rgba = hex_to_rgba(Colors.ACCENT_WARNING, 0.15)
             badge.setStyleSheet(f"""
-                background-color: rgba(210, 153, 34, 0.15);
+                background-color: {warning_rgba};
                 color: {Colors.ACCENT_WARNING};
                 border: 1px solid {Colors.ACCENT_WARNING};
                 border-radius: 10px;
@@ -275,6 +294,7 @@ class AcademyWindow(QDialog):
         action_btn.setFont(Fonts.BODY)
 
         if progress < 100.0:
+            success_hover_rgba = hex_to_rgba(Colors.ACCENT_SUCCESS, 0.8)
             action_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {Colors.ACCENT_SUCCESS};
@@ -284,7 +304,7 @@ class AcademyWindow(QDialog):
                     padding: 10px 24px;
                     font-weight: bold;
                 }}
-                QPushButton:hover {{ background-color: #2ea043; }}
+                QPushButton:hover {{ background-color: {success_hover_rgba}; }}
             """)
         else:
             action_btn.setStyleSheet(f"""
@@ -307,6 +327,7 @@ class AcademyWindow(QDialog):
             reset_btn = QPushButton("Reset Progress")
             reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             reset_btn.setFont(Fonts.CAPTION)
+            danger_rgba = hex_to_rgba(Colors.ACCENT_DANGER, 0.1)
             reset_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: transparent;
@@ -316,7 +337,7 @@ class AcademyWindow(QDialog):
                     padding: 4px 10px;
                 }}
                 QPushButton:hover {{
-                    background-color: rgba(248, 81, 73, 0.1);
+                    background-color: {danger_rgba};
                 }}
             """)
             reset_btn.clicked.connect(lambda _, cid=course.id: self._reset_course(cid))
