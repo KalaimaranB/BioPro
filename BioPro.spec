@@ -65,6 +65,24 @@ hidden_imports = [
     'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore',
     'pygments',
+    # --- Standard Library Guarantees for Dynamic Plugins ---
+    'fileinput',
+    'multiprocessing',
+    'concurrent.futures',
+    'ctypes',
+    'ctypes.util',
+    'sqlite3',
+    'urllib',
+    'urllib.request',
+    'bz2',
+    'lzma',
+    'gzip',
+    'zipfile',
+    'tarfile',
+    'xml.etree.ElementTree',
+    'csv',
+    'json',
+    'logging.config',
 ] + collect_submodules('biopro')
 
 a = Analysis(
