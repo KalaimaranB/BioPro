@@ -30,6 +30,10 @@ class ErrorReportDialog(QDialog):
         self._setup_ui()
         self._apply_styles()
 
+        from biopro.ui.theme import theme_manager
+
+        theme_manager.theme_changed.connect(self._apply_styles)
+
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 30, 30, 30)
@@ -43,11 +47,9 @@ class ErrorReportDialog(QDialog):
         title_v_layout = QVBoxLayout()
         self.title_label = QLabel("Something went wrong.")
         self.title_label.setFont(Fonts.H2)
-        self.title_label.setStyleSheet(f"color: {Colors.ACCENT_CRITICAL};")
 
         self.subtitle_label = QLabel(f"Source: {self.error_data.get('plugin_id', 'Core System')}")
         self.subtitle_label.setFont(Fonts.CAPTION)
-        self.subtitle_label.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
 
         title_v_layout.addWidget(self.title_label)
         title_v_layout.addWidget(self.subtitle_label)
@@ -87,7 +89,6 @@ class ErrorReportDialog(QDialog):
 
         self.contact_label = QLabel("Contact Developer regarding errors")
         self.contact_label.setFont(Fonts.CAPTION)
-        self.contact_label.setStyleSheet(f"color: {Colors.FG_SECONDARY}; margin-right: 10px;")
 
         self.close_btn = QPushButton("Dismiss")
         self.close_btn.setMinimumWidth(100)
@@ -103,6 +104,10 @@ class ErrorReportDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _apply_styles(self):
+        self.title_label.setStyleSheet(f"color: {Colors.ACCENT_CRITICAL};")
+        self.subtitle_label.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
+        self.contact_label.setStyleSheet(f"color: {Colors.FG_SECONDARY}; margin-right: 10px;")
+
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {Colors.BG_DARKER};

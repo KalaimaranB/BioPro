@@ -120,7 +120,7 @@ class TestModuleManager:
 
         plugin_path = mock_plugin_environment / "test_module_a"
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        site_packages = plugin_path / ".venv" / "lib" / py_ver / "site-packages"
+        site_packages = plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages"
         site_packages.mkdir(parents=True)
 
         mm._inject_plugin_path(plugin_path)
@@ -147,7 +147,7 @@ class TestModuleManager:
             / ".biopro"
             / "plugins"
             / "test_module_a"
-            / ".venv"
+            / ".plugin_venv"
             / "lib"
             / py_ver
             / "site-packages"

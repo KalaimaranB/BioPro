@@ -241,18 +241,27 @@ class ModuleManager:
         return False
 
     def _inject_plugin_path(self, plugin_path: Path):
-        """Prepend plugin's local .venv site-packages to sys.path if it exists."""
+        """Prepend plugin's local .plugin_venv site-packages to sys.path if it exists."""
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        site_packages = plugin_path / ".venv" / "lib" / py_ver / "site-packages"
+        site_packages = plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages"
         if site_packages.exists() and str(site_packages) not in sys.path:
-            sys.path.insert(0, str(site_packages))
+            if getattr(sys, "frozen", False):
+                # In frozen apps, insert after the first element (the app executable dir)
+                # to avoid breaking critical core libraries while still taking precedence over system
+                sys.path.insert(1, str(site_packages))
+            else:
+                sys.path.insert(0, str(site_packages))
             logger.info(f"Dynamically injected plugin path to sys.path: {site_packages}")
 
     def _cleanup_plugin_paths(self):
-        """Remove any plugin .venv paths from sys.path."""
+        """Remove any plugin .plugin_venv paths from sys.path."""
         target_marker = str(Path(".biopro") / "plugins")
         for path in list(sys.path):
             norm_path = str(Path(path))
-            if target_marker in norm_path and ".venv" in norm_path and "site-packages" in norm_path:
+            if (
+                target_marker in norm_path
+                and ".plugin_venv" in norm_path
+                and "site-packages" in norm_path
+            ):
                 sys.path.remove(path)
                 logger.info(f"Cleaned up dynamic plugin path from sys.path: {path}")

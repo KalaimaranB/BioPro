@@ -82,7 +82,7 @@ class TutorialOverlay(QWidget):
         self.bubble_container.setStyleSheet(
             f"#BubbleContainer {{ background-color: {Colors.BG_DARKEST}; border: 2px solid {Colors.ACCENT_SUCCESS}; border-radius: 12px; }}"
         )
-        self.bubble_container.setMaximumWidth(420)
+        self.bubble_container.setMaximumWidth(500)
         self.bubble_layout = QVBoxLayout(self.bubble_container)
         self.bubble_layout.setContentsMargins(0, 0, 0, 0)
         self.bubble_layout.setSpacing(0)
@@ -97,7 +97,7 @@ class TutorialOverlay(QWidget):
         header = QHBoxLayout()
         self.lbl_progress = QLabel("BioPro Academy")
         self.lbl_progress.setStyleSheet(
-            f"color: {Colors.FG_SECONDARY}; font-size: 11px; font-weight: bold;"
+            f"color: {Colors.FG_SECONDARY}; font-size: 13px; font-weight: bold; font-family: sans-serif;"
         )
         self.btn_close = QPushButton("×")
         self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -119,10 +119,10 @@ class TutorialOverlay(QWidget):
         # Step text
         self.text_label = QLabel("Welcome to BioPro Academy!")
         self.text_label.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; font-size: 13px; padding: 6px 0px; line-height: 1.4;"
+            f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; font-size: 16px; font-family: sans-serif; padding: 8px 0px; line-height: 1.4;"
         )
         self.text_label.setWordWrap(True)
-        self.text_label.setMinimumWidth(300)
+        self.text_label.setMinimumWidth(350)
         self.body_layout.addWidget(self.text_label)
 
         # Dynamic content (checklists, etc.)

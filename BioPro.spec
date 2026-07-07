@@ -1,26 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
-from PyInstaller.utils.hooks import collect_all
+import shutil
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 # Prevent PyInstaller from crashing when tracing PyTorch's massive dependency tree
 sys.setrecursionlimit(5000)
 
-# 1. Force-collect heavy imaging and AI libraries
-sk_bins, sk_datas, sk_hidden = collect_all('skimage')
-cp_bins, cp_datas, cp_hidden = collect_all('cellpose')
-torch_bins, torch_datas, torch_hidden = collect_all('torch')
-tv_bins, tv_datas, tv_hidden = collect_all('torchvision')
-fk_bins, fk_datas, fk_hidden = collect_all('flowkit')
-fio_bins, fio_datas, fio_hidden = collect_all('flowio')
-fcs_bins, fcs_datas, fcs_hidden = collect_all('fcsparser')
-fu_bins, fu_datas, fu_hidden = collect_all('flowutils')
+# 1. Force-collect heavy core libraries
 pil_bins, pil_datas, pil_hidden = collect_all('PIL')
 cert_bins, cert_datas, cert_hidden = collect_all('certifi')
 llm_bins, llm_datas, llm_hidden = collect_all('llama_cpp')
 sdk_bins, sdk_datas, sdk_hidden = collect_all('biopro_sdk')
-umap_bins, umap_datas, umap_hidden = collect_all('umap')
-skl_bins, skl_datas, skl_hidden = collect_all('sklearn')
-sns_bins, sns_datas, sns_hidden = collect_all('seaborn')
 
 # --- THE OPTIMIZATION ENGINE ---
 # Strip out hundreds of MBs of useless testing/mock data from the final build
@@ -33,9 +23,16 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = sorted(filter_bloat(sk_bins + cp_bins + torch_bins + tv_bins + fk_bins + fio_bins + fcs_bins + fu_bins + pil_bins + cert_bins + llm_bins + sdk_bins + umap_bins + skl_bins + sns_bins))
-all_datas = sorted(filter_bloat(sk_datas + cp_datas + torch_datas + tv_datas + fk_datas + fio_datas + fcs_datas + fu_datas + pil_datas + cert_datas + llm_datas + sdk_datas + umap_datas + skl_datas + sns_datas))
-all_hidden = sorted(list(set(sk_hidden + cp_hidden + torch_hidden + tv_hidden + fk_hidden + fio_hidden + fcs_hidden + fu_hidden + pil_hidden + cert_hidden + llm_hidden + sdk_hidden + umap_hidden + skl_hidden + sns_hidden)))
+all_bins = sorted(filter_bloat(pil_bins + cert_bins + llm_bins + sdk_bins))
+all_datas = sorted(filter_bloat(pil_datas + cert_datas + llm_datas + sdk_datas))
+all_hidden = sorted(list(set(pil_hidden + cert_hidden + llm_hidden + sdk_hidden)))
+
+# --- BUNDLE UV SIDECAR ---
+# We package the uv binary into sys._MEIPASS/bin/uv so the PackageManager
+# can use it to install dependencies in the frozen environment.
+uv_path = shutil.which('uv')
+if uv_path:
+    all_bins.append((uv_path, 'bin'))
 
 # 2. Aggressive Excludes (Modules BioPro does not need to run)
 # Explicitly exclude test modules and development dependencies
@@ -58,31 +55,18 @@ hidden_imports = [
     'pandas',
     'numpy',
     'scipy',
-    'cv2',
-    'fcsparser',
     'psutil',
     'requests',
-    'tifffile',
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
     'PIL',
-    'flowkit',
-    'flowio',
-    'flowutils',
-    'fast_histogram',
-    'torchvision',
     'certifi',
     'cryptography',
     'markdown',
     'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore',
     'pygments',
-    'umap',
-    'networkx',
-    'sbol3',
-    'tellurium',
-    'mesa',
-]
+] + collect_submodules('biopro')
 
 a = Analysis(
     ['biopro/__main__.py'],

@@ -66,7 +66,7 @@ def test_plugin_installer_worker(mock_link, mock_install, tmp_path: Path):
 
     manifest = {
         "id": "my_plugin",
-        "dependencies": {
+        "python_dependencies": {
             "scipy": "1.11.3",
         },
     }
@@ -106,7 +106,7 @@ def test_worker_exception(tmp_path):
     """Verify worker handles unexpected exceptions during installation."""
     plugin_dir = tmp_path / "plugin_crash"
     plugin_dir.mkdir()
-    (plugin_dir / "manifest.json").write_text('{"id": "test", "dependencies": {"a": "1"}}')
+    (plugin_dir / "manifest.json").write_text('{"id": "test", "python_dependencies": {"a": "1"}}')
     with patch.object(PluginInstallerWorker, "finished") as mock_finished:
         worker = PluginInstallerWorker(plugin_dir)
         with patch.object(worker.pm, "install_package", side_effect=Exception("Crash")):

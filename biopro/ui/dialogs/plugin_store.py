@@ -532,7 +532,7 @@ class PluginStoreDialog(QDialog):
         self.filter_list = None
         self.scroll_area = None
 
-        self.setWindowTitle("BioPro Module Store")
+        self.setWindowTitle("Marketplace")
         self.setMinimumSize(600, 450)
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
 
@@ -935,6 +935,14 @@ class PluginStoreDialog(QDialog):
         self.status_lbl.hide()
 
         if success:
+            from biopro.ui.dialogs.dependency_installer_dialog import DependencyInstallerDialog
+
+            plugin_dir = self.updater.plugin_dir / plugin_id
+            plugin_name = mod_data.get("name", plugin_id)
+
+            installer = DependencyInstallerDialog(plugin_dir, plugin_name, parent=self)
+            installer.exec()
+
             # We no longer need to call self._load_store_data() here!
             # The Event Bus will fire and we will catch it in _on_plugin_event.
             pass

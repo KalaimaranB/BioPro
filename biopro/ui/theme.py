@@ -159,10 +159,10 @@ class ThemeManager(QObject):
             logger.info(f"Successfully loaded theme: {self.current_theme_name}")
 
             # Perform Global Smart Refresh
-            self._apply_global_style_migration(old_map, new_map)
-
-            # Broadcast to the app that it's time to redraw!
-            self.theme_changed.emit()
+            # theme_changed is emitted inside the migration, after the last chunk finishes
+            self._apply_global_style_migration(
+                old_map, new_map, on_complete=self.theme_changed.emit
+            )
             return True
 
         except Exception as e:
@@ -201,7 +201,7 @@ class ThemeManager(QObject):
         themes.sort(key=lambda x: 0 if "Default" in x[0] else 1)
         return themes
 
-    def _apply_global_style_migration(self, old_map: dict, new_map: dict) -> None:
+    def _apply_global_style_migration(self, old_map: dict, new_map: dict, on_complete=None) -> None:
         """Recursively finds all widgets and replaces old hex codes with new ones.
 
         This 'Smart Refresh' mechanism allows for hot-swapping themes without
@@ -235,29 +235,68 @@ class ThemeManager(QObject):
 
         logger.info(f"Migrating styles for {len(translations)} color changes...")
 
-        for widget in app.allWidgets():
-            if not isinstance(widget, QWidget):
-                continue
+        from biopro.ui.components.overlays import BioLoadingOverlay
 
-            qss = widget.styleSheet()
-            if not qss:
-                continue
+        main_window = app.activeWindow()
+        overlay = None
+        if main_window:
+            overlay = BioLoadingOverlay(main_window)
+            overlay.set_text("Applying Theme...")
+            overlay.start()
+            app.processEvents()
 
-            original_qss = qss
-            for pattern, new_hex in translations:
-                qss = pattern.sub(new_hex, qss)
+        all_widgets = app.allWidgets()
+        total_widgets = len(all_widgets)
+        from PyQt6.QtCore import QTimer
 
-            if qss != original_qss:
-                widget.setStyleSheet(qss)
-                widget.update()
+        def process_chunk(start_idx):
+            chunk_size = 30  # Process 30 widgets per frame to guarantee 60fps responsiveness
+            end_idx = min(start_idx + chunk_size, total_widgets)
 
-        # Re-inject app-level styles (QToolTip, QPalette) so they also reflect the new theme
-        try:
-            from biopro_sdk.plugin.components import _apply_global_sdk_styles
+            for i in range(start_idx, end_idx):
+                widget = all_widgets[i]
 
-            _apply_global_sdk_styles()
-        except Exception:
-            pass
+                try:
+                    if not isinstance(widget, QWidget) or widget is overlay:
+                        continue
+
+                    qss = widget.styleSheet()
+                    if not qss:
+                        continue
+
+                    original_qss = qss
+                    for pattern, new_hex in translations:
+                        qss = pattern.sub(new_hex, qss)
+
+                    if qss != original_qss:
+                        widget.setStyleSheet(qss)
+                except RuntimeError:
+                    # Widget was deleted in the middle of the async migration (e.g. tooltip, popup)
+                    continue
+
+            if end_idx < total_widgets:
+                # Yield back to the main event loop, allowing the OS to breathe and the overlay to animate
+                QTimer.singleShot(15, lambda: process_chunk(end_idx))
+            else:
+                if overlay:
+                    overlay.stop()
+                    overlay.deleteLater()
+
+                # Re-inject app-level styles (QToolTip, QPalette) so they also reflect the new theme
+                try:
+                    from biopro_sdk.plugin.components import _apply_global_sdk_styles
+
+                    _apply_global_sdk_styles()
+                except Exception:
+                    pass
+
+                # Broadcast theme_changed AFTER migration is fully complete so all signal
+                # handlers (e.g. _apply_styles) run while the overlay is already visible
+                if on_complete:
+                    on_complete()
+
+        # Give the UI 50ms to render the overlay onto the screen before we start the heavy migration chunks
+        QTimer.singleShot(50, lambda: process_chunk(0))
 
 
 # Global singleton instance so the whole app shares one engine

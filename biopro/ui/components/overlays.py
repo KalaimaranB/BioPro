@@ -22,10 +22,11 @@ class BioLoadingOverlay(QWidget):
         self.timer.timeout.connect(self._animate)
 
         layout = QVBoxLayout(self)
+        from biopro.ui.theme import Colors
+
         self.lbl_text = QLabel("Loading...")
-        # Hardcoding the pink temporarily since theme colors might change
         self.lbl_text.setStyleSheet(
-            "color: #F472B6; font-size: 18px; font-weight: bold; background: transparent;"
+            f"color: {Colors.FG_PRIMARY}; font-size: 18px; font-weight: bold; background: transparent;"
         )
         self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -56,6 +57,13 @@ class BioLoadingOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        from biopro.ui.theme import Colors
+
+        # Explicitly draw the dark overlay background using the theme's background color
+        bg = QColor(Colors.BG_DARKER)
+        bg.setAlpha(220)
+        painter.fillRect(self.rect(), bg)
+
         cx = self.width() / 2
         cy = self.height() / 2 - 40
 
@@ -64,12 +72,20 @@ class BioLoadingOverlay(QWidget):
 
         painter.setPen(Qt.PenStyle.NoPen)
 
-        painter.setBrush(QBrush(QColor(236, 72, 153, 60)))
+        from biopro.ui.theme import Colors
+
+        accent = QColor(Colors.ACCENT_PRIMARY)
+
+        # Draw translucent outer membrane
+        accent.setAlpha(60)
+        painter.setBrush(QBrush(accent))
         painter.drawEllipse(
             QRectF(cx - membrane_r, cy - membrane_r, membrane_r * 2, membrane_r * 2)
         )
 
-        painter.setBrush(QBrush(QColor(236, 72, 153, 200)))
+        # Draw solid inner nucleus
+        accent.setAlpha(200)
+        painter.setBrush(QBrush(accent))
         painter.drawEllipse(QRectF(cx - nucleus_r, cy - nucleus_r, nucleus_r * 2, nucleus_r * 2))
 
     def resizeEvent(self, event):

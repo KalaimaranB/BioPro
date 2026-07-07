@@ -146,7 +146,7 @@ class ProjectLauncherWindow(QMainWindow):
         self.list_recent.itemDoubleClicked.connect(self._on_recent_double_clicked)
         left_layout.addWidget(self.list_recent)
 
-        self.btn_store = SecondaryButton("☁️ Plugin Store & Updates")
+        self.btn_store = SecondaryButton("☁️ Marketplace")
         self.btn_store.clicked.connect(self._open_store)
         left_layout.addWidget(self.btn_store)
 
@@ -210,6 +210,7 @@ class ProjectLauncherWindow(QMainWindow):
         btn_layout.addWidget(self.btn_new)
 
         self.btn_academy = SecondaryButton("🎓 Start Academy Course")
+        self.btn_academy.setMinimumWidth(220)
         self.btn_academy.clicked.connect(self._on_academy_project)
         btn_layout.addWidget(self.btn_academy)
 
