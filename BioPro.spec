@@ -9,7 +9,6 @@ sys.setrecursionlimit(5000)
 # 1. Force-collect heavy core libraries
 pil_bins, pil_datas, pil_hidden = collect_all('PIL')
 cert_bins, cert_datas, cert_hidden = collect_all('certifi')
-llm_bins, llm_datas, llm_hidden = collect_all('llama_cpp')
 sdk_bins, sdk_datas, sdk_hidden = collect_all('biopro_sdk')
 
 # --- THE OPTIMIZATION ENGINE ---
@@ -23,9 +22,9 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = sorted(filter_bloat(pil_bins + cert_bins + llm_bins + sdk_bins))
-all_datas = sorted(filter_bloat(pil_datas + cert_datas + llm_datas + sdk_datas))
-all_hidden = sorted(list(set(pil_hidden + cert_hidden + llm_hidden + sdk_hidden)))
+all_bins = sorted(filter_bloat(pil_bins + cert_bins + sdk_bins))
+all_datas = sorted(filter_bloat(pil_datas + cert_datas + sdk_datas))
+all_hidden = sorted(list(set(pil_hidden + cert_hidden + sdk_hidden)))
 
 # --- BUNDLE UV SIDECAR ---
 # We package the uv binary into sys._MEIPASS/bin/uv so the PackageManager

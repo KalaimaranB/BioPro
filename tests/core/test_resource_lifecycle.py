@@ -43,7 +43,9 @@ class TestResourceInspector:
         assert ResourceInspector.is_heavy(123) is False
 
     def test_torch_tensors(self):
-        import torch
+        import pytest
+
+        torch = pytest.importorskip("torch")
 
         # Large CPU tensor (Default threshold 1MB, float32 is 4 bytes/elem)
         t_cpu = torch.zeros(1024 * 1024 // 4 * 2)
@@ -77,7 +79,9 @@ class TestResourceInspector:
         assert h is not None
         assert h.startswith("np:")
 
-        import torch
+        import pytest
+
+        torch = pytest.importorskip("torch")
 
         t = torch.zeros(5)
         h2 = ResourceInspector.get_object_hash(t)

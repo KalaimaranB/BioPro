@@ -80,7 +80,7 @@ class BioProApp:
 
         # CRITICAL: WebEngine initialization must happen BEFORE QApplication is created.
         with contextlib.suppress(ImportError):
-            pass
+            import PyQt6.QtWebEngineWidgets  # noqa: F401
 
         print("1. Initializing QApplication...")
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
