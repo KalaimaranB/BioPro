@@ -250,12 +250,7 @@ class ModuleManager:
             site_packages = plugin_path / ".venv" / "lib" / py_ver / "site-packages"
 
         if site_packages.exists() and str(site_packages) not in sys.path:
-            if getattr(sys, "frozen", False):
-                # In frozen apps, insert after the first element (the app executable dir)
-                # to avoid breaking critical core libraries while still taking precedence over system
-                sys.path.insert(1, str(site_packages))
-            else:
-                sys.path.insert(0, str(site_packages))
+            sys.path.insert(0, str(site_packages))
             logger.info(f"Dynamically injected plugin path to sys.path: {site_packages}")
 
     def _cleanup_plugin_paths(self):
