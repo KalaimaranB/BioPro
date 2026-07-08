@@ -53,7 +53,7 @@ def test_link_package_cleanup(tmp_path):
     assert (plugin_site / "dir_conflict").is_symlink()
     assert (plugin_site / "link_conflict").is_symlink()
     assert not (plugin_site / ".hidden").exists()
-    assert not (plugin_site / "pkg.dist-info").exists()
+    assert (plugin_site / "pkg.dist-info").is_symlink()
 
 
 @patch("biopro.core.package_manager.PackageManager.install_package")

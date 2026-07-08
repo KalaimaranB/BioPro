@@ -107,12 +107,7 @@ class PackageManager:
 
         for item in cached_path.iterdir():
             # Skip metadata and pip directories to prevent conflicts
-            if (
-                item.name.startswith(".")
-                or "dist-info" in item.name
-                or "egg-info" in item.name
-                or item.name == "bin"
-            ):
+            if item.name.startswith(".") or item.name == "bin":
                 continue
 
             target_link = plugin_site_packages / item.name
