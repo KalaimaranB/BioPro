@@ -65,11 +65,6 @@ hidden_imports = [
     'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore',
     'pygments',
-    'flowkit',
-    'flowio',
-    'flowutils',
-    'bokeh',
-    'fast_histogram',
     # --- Standard Library Guarantees for Dynamic Plugins ---
     'fileinput',
     'multiprocessing',
