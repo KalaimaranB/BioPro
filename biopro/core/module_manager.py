@@ -276,22 +276,45 @@ class ModuleManager:
             )
             return
 
-        if str(selected_path) not in sys.path:
-            sys.path.insert(0, str(selected_path))
-            logger.info(
-                "Dynamically injected plugin path to sys.path: %s",
-                selected_path,
-            )
-            logger.debug(
-                "sys.path head after injection: %s",
-                sys.path[:12],
-            )
+        # Insert the plugin site-packages before any application-bundle paths
+        # so that module imports and package data resolve to the plugin's
+        # environment rather than the PyInstaller app bundle.
+        insert_index = 0
+        try:
+            app_root = str(self.internal_plugins_dir).split("biopro/plugins")[0]
+            for idx, p in enumerate(sys.path):
+                if p and str(p).startswith(app_root):
+                    insert_index = idx
+                    break
+        except Exception:
+            insert_index = 0
+
+        if str(selected_path) in sys.path:
+            current_idx = sys.path.index(str(selected_path))
+            if current_idx > insert_index:
+                # Move existing entry earlier to take precedence
+                sys.path.pop(current_idx)
+                sys.path.insert(insert_index, str(selected_path))
+                logger.info(
+                    "Moved existing plugin path earlier in sys.path: %s (to index %d)",
+                    selected_path,
+                    insert_index,
+                )
+            else:
+                logger.debug(
+                    "Plugin path already present on sys.path at index %d: %s",
+                    current_idx,
+                    selected_path,
+                )
             self._log_plugin_environment(plugin_path, selected_path)
         else:
-            logger.debug(
-                "Plugin path already present on sys.path: %s",
+            sys.path.insert(insert_index, str(selected_path))
+            logger.info(
+                "Dynamically injected plugin path to sys.path at index %d: %s",
+                insert_index,
                 selected_path,
             )
+            logger.debug("sys.path head after injection: %s", sys.path[:12])
             self._log_plugin_environment(plugin_path, selected_path)
 
         # --- Anti-Tamper for Scientific Libraries in PyInstaller ---
