@@ -10,8 +10,6 @@ sys.setrecursionlimit(5000)
 pil_bins, pil_datas, pil_hidden = collect_all('PIL')
 cert_bins, cert_datas, cert_hidden = collect_all('certifi')
 sdk_bins, sdk_datas, sdk_hidden = collect_all('biopro_sdk')
-bokeh_bins, bokeh_datas, bokeh_hidden = collect_all('bokeh')
-fk_bins, fk_datas, fk_hidden = collect_all('flowkit')
 
 # --- THE OPTIMIZATION ENGINE ---
 # Strip out hundreds of MBs of useless testing/mock data from the final build
@@ -24,9 +22,9 @@ def filter_bloat(item_list):
         clean_list.append(item)
     return clean_list
 
-all_bins = sorted(filter_bloat(pil_bins + cert_bins + sdk_bins + bokeh_bins + fk_bins))
-all_datas = sorted(filter_bloat(pil_datas + cert_datas + sdk_datas + bokeh_datas + fk_datas))
-all_hidden = sorted(list(set(pil_hidden + cert_hidden + sdk_hidden + bokeh_hidden + fk_hidden)))
+all_bins = sorted(filter_bloat(pil_bins + cert_bins + sdk_bins))
+all_datas = sorted(filter_bloat(pil_datas + cert_datas + sdk_datas))
+all_hidden = sorted(list(set(pil_hidden + cert_hidden + sdk_hidden)))
 
 # --- BUNDLE UV SIDECAR ---
 # We package the uv binary into sys._MEIPASS/bin/uv so the PackageManager
