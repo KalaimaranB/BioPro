@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import shutil
 import subprocess
 import sys
@@ -22,11 +21,31 @@ class PackageManager:
             self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def find_installer_cmd(
-        self, package_name: str, version_spec: str, target_dir: Path
-    ) -> list[str]:
-        """Returns the command list to install a package into target_dir."""
-        # Try to find uv sidecar (bundled in PyInstaller MEIPASS, or in system PATH)
+    def resolve_and_install_all(
+        self, dependencies: dict[str, str], plugin_dir: Path, progress_callback=None
+    ):
+        """Batch install all dependencies natively using uv or pip into the plugin venv."""
+        if not dependencies:
+            if progress_callback:
+                progress_callback(100)
+            return
+
+        py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+        site_packages = plugin_dir / ".plugin_venv" / "lib" / py_ver / "site-packages"
+        site_packages.mkdir(parents=True, exist_ok=True)
+
+        reqs = []
+        for name, ver in dependencies.items():
+            if (
+                ver
+                and not ver.startswith("=")
+                and not ver.startswith(">")
+                and not ver.startswith("<")
+            ):
+                reqs.append(f"{name}=={ver}")
+            else:
+                reqs.append(f"{name}{ver}")
+
         uv_path = None
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
             bundled_uv = Path(sys._MEIPASS) / "bin" / "uv"
@@ -36,111 +55,41 @@ class PackageManager:
         if not uv_path:
             uv_path = shutil.which("uv")
 
-        package_req = (
-            f"{package_name}{version_spec}"
-            if version_spec and not version_spec.startswith("=")
-            else f"{package_name}=={version_spec}"
-            if version_spec
-            else package_name
-        )
-
         if uv_path:
-            # uv pip install
-            # if frozen, sys.executable is not python. We can tell uv the python version.
-            py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
             cmd = [
                 uv_path,
                 "pip",
                 "install",
-                package_req,
                 "--target",
-                str(target_dir),
+                str(site_packages),
                 "--python",
-                sys.executable if not getattr(sys, "frozen", False) else py_ver,
-                "--no-deps",
-            ]
-            return cmd
+                sys.executable
+                if not getattr(sys, "frozen", False)
+                else f"{sys.version_info.major}.{sys.version_info.minor}",
+            ] + reqs
+        else:
+            cmd = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--target",
+                str(site_packages),
+            ] + reqs
 
-        # Fallback to pip
-        cmd = [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            package_req,
-            "--target",
-            str(target_dir),
-            "--only-binary=:all:",
-            "--no-deps",
-        ]
-        return cmd
+        if progress_callback:
+            progress_callback(10)
 
-    def install_package(self, package_name: str, version_spec: str) -> Path:
-        """Securely install a package into the global cache using target isolation."""
-        safe_spec = (
-            version_spec.replace(">", "").replace("=", "").replace("<", "").strip()
-            if version_spec
-            else "latest"
-        )
-        target_dir = self.cache_dir / f"{package_name}_{safe_spec}"
-
-        if target_dir.exists() and any(target_dir.iterdir()):
-            logger.info(f"Package {package_name} {version_spec} is already cached.")
-            return target_dir
-
-        target_dir.mkdir(parents=True, exist_ok=True)
-        cmd = self.find_installer_cmd(package_name, version_spec, target_dir)
-
-        logger.info(f"Installing {package_name} {version_spec} with command: {' '.join(cmd)}")
+        logger.info(f"Installing plugin dependencies natively: {' '.join(cmd)}")
         result = subprocess.run(cmd, capture_output=True, text=True)
+
         if result.returncode != 0:
-            shutil.rmtree(target_dir, ignore_errors=True)
             raise RuntimeError(
-                f"Failed to install package {package_name} {version_spec}: {result.stderr}\nCommand: {' '.join(cmd)}"
+                f"Failed to install dependencies: {result.stderr}\nCommand: {' '.join(cmd)}"
             )
 
-        return target_dir
-
-    def link_package(self, cached_path: Path, plugin_site_packages: Path):
-        """Create symbolic links inside plugin's site-packages pointing back to the cache."""
-        plugin_site_packages.mkdir(parents=True, exist_ok=True)
-
-        for item in cached_path.iterdir():
-            # Skip metadata and pip directories to prevent conflicts
-            if item.name.startswith(".") or item.name == "bin":
-                continue
-
-            target_link = plugin_site_packages / item.name
-            if target_link.is_symlink() or target_link.exists():
-                try:
-                    if target_link.is_symlink():
-                        target_link.unlink()
-                    elif target_link.is_dir():
-                        shutil.rmtree(target_link)
-                    else:
-                        target_link.unlink()
-                except Exception:
-                    pass
-
-            # Use absolute paths for symlinks
-            os.symlink(str(item.absolute()), str(target_link.absolute()))
-
-    def resolve_and_install_all(
-        self, dependencies: dict[str, str], plugin_dir: Path, progress_callback=None
-    ):
-        """Batch install and link for all deps in python_dependencies."""
-        if not dependencies:
-            return
-
-        py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        site_packages = plugin_dir / ".plugin_venv" / "lib" / py_ver / "site-packages"
-
-        total = len(dependencies)
-        for idx, (pkg_name, pkg_version) in enumerate(dependencies.items()):
-            cached_path = self.install_package(pkg_name, pkg_version)
-            self.link_package(cached_path, site_packages)
-            if progress_callback:
-                progress_callback(int(((idx + 1) / total) * 100))
+        if progress_callback:
+            progress_callback(100)
 
 
 class PluginInstallerWorker(QThread):

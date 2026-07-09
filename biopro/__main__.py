@@ -272,4 +272,11 @@ def main():
 
 
 if __name__ == "__main__":
+    import contextlib
+    import multiprocessing
+
+    multiprocessing.freeze_support()
+    with contextlib.suppress(RuntimeError):
+        multiprocessing.set_start_method("spawn", force=True)
+
     main()
