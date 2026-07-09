@@ -55,6 +55,14 @@ class PackageManager:
         if not uv_path:
             uv_path = shutil.which("uv")
 
+        logger.info(
+            "Preparing plugin dependency install: target=%s uv_path=%s req_count=%d",
+            site_packages,
+            uv_path or "<none>",
+            len(reqs),
+        )
+        logger.debug("Plugin dependency requirement list: %s", reqs)
+
         if uv_path:
             cmd = [
                 uv_path,
@@ -80,7 +88,7 @@ class PackageManager:
         if progress_callback:
             progress_callback(10)
 
-        logger.info(f"Installing plugin dependencies natively: {' '.join(cmd)}")
+        logger.info("Installing plugin dependencies natively: %s", " ".join(cmd))
         result = subprocess.run(cmd, capture_output=True, text=True)
 
         if result.returncode != 0:

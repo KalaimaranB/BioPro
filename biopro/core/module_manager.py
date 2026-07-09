@@ -1,6 +1,8 @@
 """Dynamic Plugin/Module Loader for BioPro."""
 
+import contextlib
 import importlib
+import importlib.metadata as metadata
 import logging
 import sys
 from pathlib import Path
@@ -151,6 +153,13 @@ class ModuleManager:
         if mod_info["loaded"]:
             return mod_info["plugin_ref"].get_panel_class()
 
+        logger.info(
+            "Loading plugin UI: module_id=%s package=%s path=%s trust_level=%s",
+            module_id,
+            mod_info["package_name"],
+            mod_info["path"],
+            mod_info["trust_level"],
+        )
         self._inject_plugin_path(mod_info["path"])
 
         package_name = f"biopro.plugins.{mod_info['package_name']}"
@@ -243,15 +252,96 @@ class ModuleManager:
     def _inject_plugin_path(self, plugin_path: Path):
         """Prepend plugin's local .plugin_venv site-packages to sys.path if it exists."""
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        site_packages = plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages"
+        candidate_paths = [
+            plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages",
+            plugin_path / ".venv" / "lib" / py_ver / "site-packages",
+        ]
 
-        # Fallback to standard .venv for developers who symlink their workspaces
-        if not site_packages.exists():
-            site_packages = plugin_path / ".venv" / "lib" / py_ver / "site-packages"
+        selected_path = None
+        for candidate in candidate_paths:
+            logger.debug(
+                "Checking plugin site-packages candidate: %s exists=%s",
+                candidate,
+                candidate.exists(),
+            )
+            if candidate.exists():
+                selected_path = candidate
+                break
 
-        if site_packages.exists() and str(site_packages) not in sys.path:
-            sys.path.insert(0, str(site_packages))
-            logger.info(f"Dynamically injected plugin path to sys.path: {site_packages}")
+        if not selected_path:
+            logger.warning(
+                "No plugin Python environment found for %s. Checked: %s",
+                plugin_path,
+                ", ".join(str(p) for p in candidate_paths),
+            )
+            return
+
+        if str(selected_path) not in sys.path:
+            sys.path.insert(0, str(selected_path))
+            logger.info(
+                "Dynamically injected plugin path to sys.path: %s",
+                selected_path,
+            )
+            logger.debug(
+                "sys.path head after injection: %s",
+                sys.path[:12],
+            )
+            self._log_plugin_environment(plugin_path, selected_path)
+        else:
+            logger.debug(
+                "Plugin path already present on sys.path: %s",
+                selected_path,
+            )
+            self._log_plugin_environment(plugin_path, selected_path)
+
+        # --- Anti-Tamper for Scientific Libraries in PyInstaller ---
+        # Bokeh explicitly looks inside sys._MEIPASS for templates if sys.frozen is True.
+        # Because our plugin environment is separate from the PyInstaller bundle, we
+        # temporarily lie to Python and preload bokeh templates so it binds to the
+        # .plugin_venv correctly!
+        was_frozen = getattr(sys, "frozen", False)
+        if was_frozen:
+            try:
+                sys.frozen = False  # type: ignore[attr-defined]
+                with contextlib.suppress(ImportError):
+                    importlib.import_module("bokeh.core.templates")
+            finally:
+                sys.frozen = True  # type: ignore[attr-defined]
+
+    def _log_plugin_environment(self, plugin_path: Path, site_packages: Path) -> None:
+        """Log the plugin virtual environment package list and summary."""
+        try:
+            distributions = list(metadata.distributions(path=[str(site_packages)]))
+            packages = sorted(
+                [
+                    (
+                        dist.metadata.get("Name", dist.name),
+                        dist.version,
+                    )
+                    for dist in distributions
+                ],
+                key=lambda item: item[0].lower() if item[0] else "",
+            )
+            logger.info(
+                "Plugin environment summary: plugin=%s site_packages=%s package_count=%d",
+                plugin_path.name,
+                site_packages,
+                len(packages),
+            )
+            if packages:
+                package_list = ", ".join(f"{name}=={version}" for name, version in packages)
+                logger.info("Plugin environment packages: %s", package_list)
+            else:
+                logger.warning(
+                    "No installed distributions found in plugin environment: %s",
+                    site_packages,
+                )
+        except Exception as exc:
+            logger.warning(
+                "Failed to enumerate plugin environment packages for %s: %s",
+                site_packages,
+                exc,
+            )
 
     def _cleanup_plugin_paths(self):
         """Remove any plugin .plugin_venv paths from sys.path."""
