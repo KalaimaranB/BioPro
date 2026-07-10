@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biopro"
-version = "1.4.1"
+version = "1.4.2"
 description = "An open-source, intuitive bio analysis tool — Open Source, Free and Accessible to all."
 readme = "README.md"
 license = "MIT"

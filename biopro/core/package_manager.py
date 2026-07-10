@@ -24,24 +24,17 @@ class PackageManager:
     def resolve_and_install_all(
         self, dependencies: dict[str, str], plugin_dir: Path, progress_callback=None
     ):
-        """Batch install all dependencies natively using uv or pip into the plugin venv."""
+        """Batch install all dependencies natively using uv into a standalone plugin venv."""
         if not dependencies:
             if progress_callback:
                 progress_callback(100)
             return
 
-        py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        site_packages = plugin_dir / ".plugin_venv" / "lib" / py_ver / "site-packages"
-        site_packages.mkdir(parents=True, exist_ok=True)
+        venv_dir = plugin_dir / ".plugin_venv"
 
         reqs = []
         for name, ver in dependencies.items():
-            if (
-                ver
-                and not ver.startswith("=")
-                and not ver.startswith(">")
-                and not ver.startswith("<")
-            ):
+            if ver and not ver.startswith(("=", ">", "<")):
                 reqs.append(f"{name}=={ver}")
             else:
                 reqs.append(f"{name}{ver}")
@@ -51,50 +44,66 @@ class PackageManager:
             bundled_uv = Path(sys._MEIPASS) / "bin" / "uv"
             if bundled_uv.exists():
                 uv_path = str(bundled_uv)
-
         if not uv_path:
             uv_path = shutil.which("uv")
 
+        if not uv_path:
+            raise RuntimeError(
+                "uv is required to install plugin dependencies but was not found "
+                "(bundled uv missing and not on PATH)."
+            )
+
         logger.info(
-            "Preparing plugin dependency install: target=%s uv_path=%s req_count=%d",
-            site_packages,
-            uv_path or "<none>",
+            "Preparing plugin dependency install: venv=%s uv_path=%s req_count=%d",
+            venv_dir,
+            uv_path,
             len(reqs),
         )
         logger.debug("Plugin dependency requirement list: %s", reqs)
 
-        if uv_path:
-            cmd = [
-                uv_path,
-                "pip",
-                "install",
-                "--target",
-                str(site_packages),
-                "--python",
-                sys.executable
-                if not getattr(sys, "frozen", False)
-                else f"{sys.version_info.major}.{sys.version_info.minor}",
-            ] + reqs
-        else:
-            cmd = [
-                sys.executable,
-                "-m",
-                "pip",
-                "install",
-                "--target",
-                str(site_packages),
-            ] + reqs
-
         if progress_callback:
-            progress_callback(10)
+            progress_callback(5)
 
-        logger.info("Installing plugin dependencies natively: %s", " ".join(cmd))
-        result = subprocess.run(cmd, capture_output=True, text=True)
-
+        # 1. Create a real, standalone interpreter for the plugin (idempotent)
+        venv_cmd = [uv_path, "venv", str(venv_dir), "--python", "3.12"]
+        logger.info("Creating plugin venv: %s", " ".join(venv_cmd))
+        result = subprocess.run(venv_cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(
-                f"Failed to install dependencies: {result.stderr}\nCommand: {' '.join(cmd)}"
+                f"Failed to create plugin venv: {result.stderr}\nCommand: {' '.join(venv_cmd)}"
             )
+
+        venv_python = venv_dir / "bin" / "python3.12"
+        if not venv_python.exists():
+            raise RuntimeError(f"uv venv did not produce expected interpreter at {venv_python}")
+
+        if progress_callback:
+            progress_callback(15)
+
+        # 2. Install packages into that interpreter, not into a bare directory
+        install_cmd = [uv_path, "pip", "install", "--python", str(venv_python)] + reqs
+        logger.info("Installing plugin dependencies: %s", " ".join(install_cmd))
+        result = subprocess.run(install_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to install dependencies: {result.stderr}\nCommand: {' '.join(install_cmd)}"
+            )
+
+        # 3. Boot self-test — fail loudly here, not three steps later at file-load time
+        worker_script = plugin_dir / "analysis" / "fcs_worker.py"
+        if not worker_script.exists():
+            raise RuntimeError(
+                f"Cannot run plugin self-test — worker script not found at {worker_script}"
+            )
+
+        selftest_cmd = [str(venv_python), str(worker_script), "--selftest"]
+        result = subprocess.run(selftest_cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Plugin venv self-test failed — interpreter or packages are broken: "
+                f"{result.stderr.strip()}"
+            )
+        logger.info("Plugin venv self-test passed: %s", result.stdout.strip())
 
         if progress_callback:
             progress_callback(100)
