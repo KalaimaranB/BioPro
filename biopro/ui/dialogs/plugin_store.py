@@ -548,6 +548,12 @@ class PluginStoreDialog(QDialog):
         self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
         self.tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
 
+        # If a tutorial is already active (e.g. STORE_OPENED just fired), render it now
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        if global_tutorial_manager.current_step:
+            self.tutorial_overlay.render_step(global_tutorial_manager.current_step)
+
         # Subscribe to the nervous system
         event_bus.subscribe(BioProEvent.PLUGIN_INSTALLED, self._on_plugin_event)
         event_bus.subscribe(BioProEvent.PLUGIN_REMOVED, self._on_plugin_event)
@@ -838,6 +844,7 @@ class PluginStoreDialog(QDialog):
         is_verified = data.get("is_verified", False)
 
         card = ModuleCard()  # Base styling
+        card.setObjectName("StoreModuleCard")
         card.setMinimumWidth(350)
 
         main_layout = QVBoxLayout(card)

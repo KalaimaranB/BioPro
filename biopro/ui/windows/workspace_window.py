@@ -631,7 +631,7 @@ class WorkspaceWindow(QMainWindow):
         from PyQt6.QtCore import QRect
 
         targets: list[QWidget] = []
-        search_root: QWidget = self
+        search_root: QWidget = parent_page
         if search_root:
             for attr in ("target_widget_name",):
                 name = getattr(step, attr, "")

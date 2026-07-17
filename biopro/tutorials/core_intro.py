@@ -175,7 +175,7 @@ _steps = [
             "Inside the Store you'll see a catalog of all available modules. Notice the 🛡️ VERIFIED ROOT badge on official modules — this means they've passed a rigorous review."
         ),
         cyto_emotion="talking",
-        target_widget_names=["moduleCard"],
+        target_widget_names=["StoreModuleCard"],
         next_step_id="ws_store_security",
     ),
     InfoStep(
@@ -208,14 +208,14 @@ _steps = [
             "A Flow Cytometry module card now appears in your workspace. Each card shows the module's name, icon, and trust level. Click a card to launch that analysis environment."
         ),
         cyto_emotion="talking",
-        target_widget_names=["moduleCard"],
+        target_widget_names=["module_card_flow_cytometry_workspace"],
         next_step_id="ws_open_module_action",
     ),
     WaitForEventStep(
         id="ws_open_module_action",
         text=("Click the Flow Cytometry card to open the analysis environment."),
         cyto_emotion="pointing",
-        target_widget_names=["moduleCard"],
+        target_widget_names=["module_card_flow_cytometry_workspace"],
         event_name="MODULE_OPENED",
         allow_interaction=True,
         next_step_id="analysis_landed",

@@ -56,7 +56,7 @@ wheels = [
 
 [[package]]
 name = "biopro"
-version = "1.4.3"
+version = "1.4.4"
 source = { editable = "." }
 dependencies = [
     { name = "biopro-sdk" },

@@ -131,6 +131,12 @@ class BioProApp:
 
         dialog = PluginStoreDialog(self.module_manager, self.updater, parent=parent_window)
         dialog.exec()
+
+        # Explicitly cleanup the tutorial overlay and delete the C++ dialog object
+        # to guarantee we don't leak memory or dangling event bus subscriptions.
+        dialog.tutorial_overlay._cleanup()
+        dialog.deleteLater()
+
         self.module_manager.reload_modules()
         if hasattr(parent_window, "refresh_ui"):
             parent_window.refresh_ui()

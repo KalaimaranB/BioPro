@@ -67,11 +67,25 @@ class TutorialOverlay(QWidget):
         self._build_cyto()
         self._build_bubble()
 
-        event_bus.subscribe(BioProEvent.ACADEMY_STEP_CHANGED, self.render_step)
-        event_bus.subscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_completed)
-        event_bus.subscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self.show_completion_screen)
+        # Save bound methods as instance variables so they can be reliably removed later
+        # (Accessing self.method creates a new bound method object each time, which fails list.remove)
+        self._render_step_cb = self.render_step
+        self._on_subtask_cb = self._on_subtask_completed
+        self._on_course_cb = self.show_completion_screen
+
+        event_bus.subscribe(BioProEvent.ACADEMY_STEP_CHANGED, self._render_step_cb)
+        event_bus.subscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
+        event_bus.subscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self._on_course_cb)
+
+        self.destroyed.connect(self._cleanup)
 
         self._populate_default_buttons()
+
+    def _cleanup(self, *args) -> None:
+        """Unsubscribe from event bus when the C++ object is deleted."""
+        event_bus.unsubscribe(BioProEvent.ACADEMY_STEP_CHANGED, self._render_step_cb)
+        event_bus.unsubscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
+        event_bus.unsubscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self._on_course_cb)
 
     # ── Build helpers ─────────────────────────────────────────────────────────
 
@@ -402,15 +416,27 @@ class TutorialOverlay(QWidget):
         if rects:
             primary = rects[0]
 
-            cyto_x = primary.x() + primary.width() + 40
+            # Compute the union bounding box of ALL targets to ensure Cyto avoids all of them
+            union_rect = rects[0]
+            for r in rects[1:]:
+                union_rect = union_rect.united(r)
+
+            cyto_x = union_rect.x() + union_rect.width() + 40
             cyto_y = max(20, primary.y() - 120)
 
+            # If not enough room on the right, try the left
             if cyto_x + 320 > self.width():
-                cyto_x = max(20, primary.x() - 350)
+                cyto_x = union_rect.x() - 350
+                # If not enough room on the left either, put Cyto above or below the entire block
+                if cyto_x < 20:
+                    cyto_x = max(20, union_rect.x() + (union_rect.width() // 2) - 150)
+                    if union_rect.y() + union_rect.height() + 400 < self.height():
+                        cyto_y = union_rect.y() + union_rect.height() + 40
+                    else:
+                        cyto_y = max(20, union_rect.y() - 400)
 
-            # If a target is massive (like the plot canvas), move Cyto to the left sidebar
-            # so he doesn't block the area where the user needs to draw gates.
-            if any(r.width() > self.width() * 0.5 for r in rects):
+            # If the union target is massive (like the plot canvas), move Cyto to the left sidebar
+            if union_rect.width() > self.width() * 0.5 and len(rects) == 1:
                 cyto_x = 20
                 cyto_y = max(20, self.height() - 400)
 
@@ -445,7 +471,10 @@ class TutorialOverlay(QWidget):
         if bubble_x + bubble_w > self.width():
             bubble_x = self.width() - bubble_w - 20
         if bubble_y + bubble_h > self.height():
-            bubble_y = max(10, cyto_y - bubble_h - 20)
+            # Cyto's visible avatar starts at roughly y=130 inside its 400px bounding box.
+            # Place the bubble just above the visible graphics (leaving a ~20px gap)
+            # rather than above the entire 400px bounding box.
+            bubble_y = max(10, cyto_y + 130 - bubble_h - 20)
 
         # Keep bubble out of spotlight holes (unless hole is huge)
         if rects:
@@ -516,9 +545,13 @@ class TutorialOverlay(QWidget):
 
     def _update_mask(self) -> None:
         """Build a widget mask so mouse events pass through to target areas."""
-        allow = getattr(self.current_step, "allow_interaction", False)
+        from biopro.core.models.tutorial_models import ForcedInteractionStep, InteractionStep
 
-        if self.target_rects:
+        allow = getattr(self.current_step, "allow_interaction", False)
+        if isinstance(self.current_step, (InteractionStep, ForcedInteractionStep)):
+            allow = True
+
+        if self.target_rects and allow:
             # Mask = whole overlay MINUS the spotlight holes (holes are click-through)
             full = QRegion(self.rect())
             holes = QRegion()
@@ -535,7 +568,7 @@ class TutorialOverlay(QWidget):
 
         elif allow:
             # No specific targets but interaction is allowed — only the bubble
-            # and cyto block clicks; everything else is pass-through.
+            # and Cyto block clicks; everything else is pass-through.
             mask = QRegion(self.cyto.geometry())
             mask = mask.united(QRegion(self.bubble_container.geometry()))
             self.setMask(mask)

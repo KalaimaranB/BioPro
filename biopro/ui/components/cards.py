@@ -34,6 +34,10 @@ class ModuleCard(QFrame):
         self._developer_key = developer_key
         self._title = title
         self.setObjectName("moduleCard")
+        # Generate a unique tutorial_id based on the title so specific cards can be spotlighted
+        safe_title = title.lower().replace(" ", "_")
+        self.setProperty("tutorial_id", f"module_card_{safe_title}")
+
         self.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)
         self.setMinimumSize(220, 150)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
