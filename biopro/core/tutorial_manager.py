@@ -11,6 +11,7 @@ from biopro.core.models.tutorial_models import (
     BaseStep,
     Course,
     ForcedInteractionStep,
+    WaitForEventStep,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,9 @@ class AcademyManager:
         # State tracking
         self.active_course: Course | None = None
         self.current_step: BaseStep | None = None
+
+        # Tracks the active event subscription for WaitForEventStep
+        self._wait_event_subscription: tuple | None = None  # (BioProEvent, callback)
 
         self._load_progress()
 
@@ -96,6 +100,9 @@ class AcademyManager:
                             "subtask_progress": {},
                         }
                         self._save_progress()
+                        # Subscribe immediately if the first step is a WaitForEventStep
+                        if isinstance(self.current_step, WaitForEventStep):
+                            self._subscribe_wait_event(self.current_step)
 
                     self._emit_step_changed()
                     return True
@@ -123,9 +130,12 @@ class AcademyManager:
                 logger.warning("Cannot advance: not all sub-tasks completed.")
                 return
 
+        # Unsubscribe any previous WaitForEventStep listener before moving on
+        self._cancel_wait_subscription()
+
         next_id = specific_step_id or self.current_step.next_step_id
 
-        if next_id:
+        if next_id and next_id != "__complete__":
             self.current_step = self.active_course.get_step(next_id)
             if self.current_step:
                 self.in_progress[self.active_course.id]["current_step_id"] = self.current_step.id
@@ -133,6 +143,9 @@ class AcademyManager:
                 if isinstance(self.current_step, ForcedInteractionStep):
                     self.in_progress[self.active_course.id]["subtask_progress"] = {}
                 self._save_progress()
+                # Subscribe if this is a WaitForEventStep
+                if isinstance(self.current_step, WaitForEventStep):
+                    self._subscribe_wait_event(self.current_step)
             self._emit_step_changed()
         else:
             self.complete_course()
@@ -160,8 +173,35 @@ class AcademyManager:
             return {}
         return self.in_progress.get(self.active_course.id, {}).get("subtask_progress", {})
 
+    def _subscribe_wait_event(self, step: WaitForEventStep) -> None:
+        """Subscribe to the named event so the step auto-advances when it fires."""
+        try:
+            event_type = BioProEvent[step.event_name]
+        except KeyError:
+            logger.error(f"WaitForEventStep references unknown event: {step.event_name!r}")
+            return
+
+        step_id = step.id
+
+        def _on_event(*_args, **_kwargs):
+            # Only advance if we're still on this step
+            if self.current_step and self.current_step.id == step_id:
+                self.next_step()
+
+        event_bus.subscribe(event_type, _on_event)
+        self._wait_event_subscription = (event_type, _on_event)
+        logger.debug(f"WaitForEventStep {step_id!r}: subscribed to {event_type.name}")
+
+    def _cancel_wait_subscription(self) -> None:
+        """Unsubscribe any active WaitForEventStep listener."""
+        if self._wait_event_subscription:
+            event_type, callback = self._wait_event_subscription
+            event_bus.unsubscribe(event_type, callback)
+            self._wait_event_subscription = None
+
     def complete_course(self) -> None:
         """Marks the active course as completed and awards badges."""
+        self._cancel_wait_subscription()
         if self.active_course:
             course_id = self.active_course.id
             if course_id not in self.completed_courses:
@@ -271,6 +311,24 @@ class AcademyManager:
                         # If on a side branch, try to return progress of last main path step, or fallback
                         return 0.0
         return 0.0
+
+    def is_core_intro_done(self) -> bool:
+        """Returns True if the core onboarding tour has been completed."""
+        return "core_intro_v1" in self.completed_courses
+
+    def start_core_intro(self) -> bool:
+        """Starts the core onboarding tour directly (no ACADEMY_COURSE_PREPARE_PROJECT event).
+
+        Safe to call before any module is loaded.  Registers the course on
+        the ``"core"`` sentinel module ID if it hasn't been registered yet.
+        Returns True on success.
+        """
+        from biopro.tutorials.core_intro import core_intro_course
+
+        if "core" not in self.courses_by_module:
+            self.register_storyboard("core", core_intro_course)
+
+        return self.start_course_confirmed("core_intro_v1")
 
 
 global_tutorial_manager = AcademyManager()

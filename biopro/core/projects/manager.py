@@ -184,7 +184,15 @@ class ProjectManager:
         filename: str | None = None,
         attachments: list[dict] | None = None,
     ) -> str:
-        return self.workflows.save(module_id, payload, metadata, filename, attachments)
+        result = self.workflows.save(module_id, payload, metadata, filename, attachments)
+        # Notify the tutorial engine that a workflow was saved
+        try:
+            from biopro.core.event_bus import BioProEvent, event_bus
+
+            event_bus.emit(BioProEvent.WORKFLOW_SAVED, result)
+        except Exception:
+            pass
+        return result
 
     def attach_workflow_file(
         self,

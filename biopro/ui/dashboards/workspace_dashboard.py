@@ -25,6 +25,7 @@ class WorkspaceDashboard(QWidget):
     module_selected = pyqtSignal(dict)  # Passes manifest
     workflow_selected = pyqtSignal(str, str)  # Passes (module_id, filename)
     workflow_settings_requested = pyqtSignal(str, str)  # Passes (module_id, filename)
+    open_academy_for_module_requested = pyqtSignal(str)  # Passes module_id
 
     return_to_hub_requested = pyqtSignal()
     open_store_requested = pyqtSignal()
@@ -74,6 +75,7 @@ class WorkspaceDashboard(QWidget):
         title_row.addStretch()
 
         self.btn_store = QPushButton("☁️ Store")
+        self.btn_store.setObjectName("btn_store")
         self.btn_store.setStyleSheet(
             f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 20px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
             f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
@@ -83,6 +85,7 @@ class WorkspaceDashboard(QWidget):
         title_row.addWidget(self.btn_store)
 
         self.btn_ai = QPushButton("🧠 AI Chat")
+        self.btn_ai.setObjectName("btn_ai")
         self.btn_ai.setStyleSheet(
             f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
             f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
@@ -92,6 +95,7 @@ class WorkspaceDashboard(QWidget):
         title_row.addWidget(self.btn_ai)
 
         self.btn_academy = QPushButton("🎓 Academy")
+        self.btn_academy.setObjectName("btn_academy")
         self.btn_academy.setStyleSheet(
             f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
             f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: #58a6ff; }}"
@@ -258,6 +262,9 @@ class WorkspaceDashboard(QWidget):
 
     def populate_workflows(self, workflows: list[dict]) -> None:
         """Populate the recent sessions grid with WorkflowCards."""
+        # Lazy import to avoid circular dependency at module level
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
         for i in reversed(range(self.workflows_grid.count())):
             widget = self.workflows_grid.itemAt(i).widget()
             if widget:
@@ -280,8 +287,18 @@ class WorkspaceDashboard(QWidget):
             date_str = wf.get("timestamp", "Unknown Date")
             desc = wf.get("description", "")
 
+            # Check if the module has Academy courses registered
+            courses = global_tutorial_manager.get_courses_for_module(module_id)
+            has_academy = len(courses) > 0
+            course_count = len(courses)
+
             card = WorkflowCard(
-                title=title, date_str=date_str, module_name=pretty_mod, description=desc
+                title=title,
+                date_str=date_str,
+                module_name=pretty_mod,
+                description=desc,
+                has_academy=has_academy,
+                course_count=course_count,
             )
 
             # THE LAMBDA FIX: We are now explicitly locking 't=title' into memory!
@@ -292,6 +309,9 @@ class WorkspaceDashboard(QWidget):
                 lambda *args, mid=module_id, fn=filename: self.workflow_settings_requested.emit(
                     mid, fn
                 )
+            )
+            card.academy_requested.connect(
+                lambda *args, mid=module_id: self.open_academy_for_module_requested.emit(mid)
             )
 
             self.workflows_grid.addWidget(card, i // 3, i % 3)

@@ -535,13 +535,45 @@ class PluginStoreDialog(QDialog):
         self.setWindowTitle("Marketplace")
         self.setMinimumSize(600, 450)
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        self.setObjectName("PluginStoreDialog")
 
         self._setup_ui()
         self._load_store_data()
 
+        # Tutorial overlay for when the store is open
+        from biopro.ui.wizards.tutorial_overlay import TutorialOverlay
+
+        self.tutorial_overlay = TutorialOverlay(self)
+        self.tutorial_overlay.hide()
+        self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
+        self.tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
+
         # Subscribe to the nervous system
         event_bus.subscribe(BioProEvent.PLUGIN_INSTALLED, self._on_plugin_event)
         event_bus.subscribe(BioProEvent.PLUGIN_REMOVED, self._on_plugin_event)
+
+    def _on_tutorial_next(self) -> None:
+        from biopro.core.models.tutorial_models import BranchingStep
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        step = global_tutorial_manager.current_step
+        if step and isinstance(step, BranchingStep):
+            first_target = next(iter(step.options.values()), None)
+            if first_target == "__complete__":
+                global_tutorial_manager.complete_course()
+                global_tutorial_manager.current_step = None
+                global_tutorial_manager._emit_step_changed()
+            elif first_target:
+                global_tutorial_manager.next_step(first_target)
+            return
+
+        if step and getattr(step, "next_step_id", None):
+            global_tutorial_manager.next_step(step.next_step_id)
+
+    def _on_tutorial_skip(self) -> None:
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        global_tutorial_manager.end_tutorial()
 
     def _on_plugin_event(self, _id: str):
         """React to external plugin changes."""

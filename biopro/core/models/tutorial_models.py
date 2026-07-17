@@ -100,6 +100,18 @@ class SubplotCheckStep(BaseStep):
 
 
 @dataclass
+class WaitForEventStep(BaseStep):
+    """Auto-advances when a specific BioProEvent fires on the event bus.
+
+    The Next button is hidden; the overlay shows a waiting indicator.
+    ``event_name`` must match a ``BioProEvent`` enum member name exactly
+    (e.g. ``"PROJECT_LOADED"``, ``"FILE_IMPORTED"``).
+    """
+
+    event_name: str = ""  # BioProEvent enum member name to wait for
+
+
+@dataclass
 class Course:
     """A collection of polymorphic steps representing a guided tutorial course."""
 

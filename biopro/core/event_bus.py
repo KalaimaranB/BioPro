@@ -37,6 +37,13 @@ class BioProEvent(Enum):
     ACADEMY_CHECKPOINT_SAVED = auto()  # args: (course_id: str, checkpoint_path: str)
     ACADEMY_COURSE_PREPARE_PROJECT = auto()  # args: (course_id: str)
 
+    # User action events (used by WaitForEventStep in the tutorial engine)
+    STORE_OPENED = auto()  # args: () — Marketplace dialog was opened
+    STORE_CLOSED = auto()  # args: () — Marketplace dialog was closed
+    MODULE_OPENED = auto()  # args: (module_id: str) — analysis panel loaded
+    FILE_IMPORTED = auto()  # args: (file_path: str) — a file was imported into a module
+    WORKFLOW_SAVED = auto()  # args: (filename: str) — a workflow was saved
+
 
 class EventManager(QObject):
     """Central event coordinator.

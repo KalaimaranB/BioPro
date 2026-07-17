@@ -7,6 +7,7 @@ from biopro_sdk.plugin import PrimaryButton, SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
+    QKeySequence,
 )
 from PyQt6.QtWidgets import (
     QFileDialog,
@@ -100,12 +101,32 @@ class ProjectLauncherWindow(QMainWindow):
         # Trigger background update check 0.5s after Hub loads (non-blocking)
         QTimer.singleShot(500, self._start_update_check_worker)
 
+        # Show the core intro tutorial on first ever launch (800ms delay lets
+        # the window fully render before the overlay appears)
+        QTimer.singleShot(800, self._maybe_start_core_intro)
+
+        # Lightweight polling loop to keep the overlay in sync with AcademyManager
+        self._hub_poll_timer = QTimer(self)
+        self._hub_poll_timer.setInterval(100)
+        self._hub_poll_timer.timeout.connect(self._poll_tutorial_overlay)
+        self._hub_poll_timer.start()
+
     def _setup_ui(self) -> None:
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+        self._central_widget = QWidget()
+        self.setCentralWidget(self._central_widget)
+
+        # Tutorial overlay — parented to the central widget so it floats over
+        # the entire hub window.  Created early so _maybe_start_core_intro can
+        # reference it immediately after the 800 ms delay.
+        from biopro.ui.wizards.tutorial_overlay import TutorialOverlay
+
+        self._hub_tutorial_overlay = TutorialOverlay(self._central_widget, compact_mode=True)
+        self._hub_tutorial_overlay.hide()
+        self._hub_tutorial_overlay.btn_next.clicked.connect(self._on_hub_tutorial_next)
+        self._hub_tutorial_overlay.btn_close.clicked.connect(self._on_hub_tutorial_skip)
 
         # Outer vertical layout: banner on top, main panels below
-        outer_layout = QVBoxLayout(central_widget)
+        outer_layout = QVBoxLayout(self._central_widget)
         outer_layout.setContentsMargins(0, 0, 0, 0)
         outer_layout.setSpacing(0)
 
@@ -137,6 +158,7 @@ class ProjectLauncherWindow(QMainWindow):
         left_layout.addWidget(self.lbl_recent)
 
         self.list_recent = QListWidget()
+        self.list_recent.setObjectName("list_recent")
         self.list_recent.setStyleSheet(
             f"QListWidget {{ border: none; background: transparent; color: {Colors.FG_SECONDARY}; }}"
             f"QListWidget::item {{ padding: 10px; border-radius: 5px; }}"
@@ -144,6 +166,8 @@ class ProjectLauncherWindow(QMainWindow):
             f"QListWidget::item:selected {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; font-weight: bold; }}"
         )
         self.list_recent.itemDoubleClicked.connect(self._on_recent_double_clicked)
+        self.list_recent.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.list_recent.customContextMenuRequested.connect(self._on_recent_context_menu)
         left_layout.addWidget(self.list_recent)
 
         self.btn_store = SecondaryButton("☁️ Marketplace")
@@ -206,20 +230,112 @@ class ProjectLauncherWindow(QMainWindow):
         btn_layout.setSpacing(15)
 
         self.btn_new = PrimaryButton("✨ Create New Project")
+        self.btn_new.setProperty("tutorial_id", "btn_new")
         self.btn_new.clicked.connect(self._on_new_project)
         btn_layout.addWidget(self.btn_new)
 
-        self.btn_academy = SecondaryButton("🎓 Start Academy Course")
-        self.btn_academy.setMinimumWidth(220)
-        self.btn_academy.clicked.connect(self._on_academy_project)
-        btn_layout.addWidget(self.btn_academy)
-
         self.btn_open = SecondaryButton("📁 Open Project...")
+        self.btn_open.setObjectName("btn_open")
         self.btn_open.clicked.connect(self._on_open_project)
         btn_layout.addWidget(self.btn_open)
 
         right_layout.addLayout(btn_layout)
         main_layout.addWidget(right_panel)
+
+    # ── Tutorial overlay helpers ────────────────────────────────────────
+    def _maybe_start_core_intro(self) -> None:
+        """Start the onboarding tour if the user hasn't seen it yet."""
+        from biopro.core.preferences import core_preferences
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        if global_tutorial_manager.is_core_intro_done():
+            return
+        if core_preferences.get("core_intro_dismissed_once", False):
+            return
+
+        started = global_tutorial_manager.start_core_intro()
+        if started:
+            self._sync_hub_overlay_geometry()
+            self._hub_tutorial_overlay.show()
+            # Trigger compact Cyto+bubble side-by-side positioning
+            self._hub_tutorial_overlay.set_targets([])
+            self._hub_tutorial_overlay.raise_()
+
+    def _sync_hub_overlay_geometry(self) -> None:
+        """Keep the overlay filling the central widget."""
+        if hasattr(self, "_central_widget"):
+            self._hub_tutorial_overlay.setGeometry(self._central_widget.rect())
+
+    def _poll_tutorial_overlay(self) -> None:
+        """Lightweight timer slot: re-renders the overlay when the step changes."""
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        if not self._hub_tutorial_overlay.isVisible():
+            return
+
+        step = global_tutorial_manager.current_step
+        if not step:
+            self._hub_tutorial_overlay.hide()
+            return
+
+        self._sync_hub_overlay_geometry()
+
+        # Only re-render when the step actually changes
+        if step.id != getattr(self, "_hub_last_step_id", None):
+            self._hub_last_step_id = step.id
+            self._hub_tutorial_overlay.render_step(step)
+
+        # Always update target rectangles to track widget movement
+        targets = []
+        if getattr(step, "target_widget_names", []):
+            for name in step.target_widget_names:
+                # First try objectName match
+                by_name = [w for w in self.findChildren(QWidget, name) if w and w.isVisible()]
+                if by_name:
+                    targets.extend(by_name)
+                else:
+                    # Fall back to tutorial_id property match
+                    for w in self.findChildren(QWidget):
+                        if w.property("tutorial_id") == name and w.isVisible():
+                            targets.append(w)
+
+        rects = []
+        for w in targets:
+            global_pos = w.mapToGlobal(w.rect().topLeft())
+            local_pos = self._hub_tutorial_overlay.mapFromGlobal(global_pos)
+            from PyQt6.QtCore import QRect
+
+            rects.append(QRect(local_pos, w.size()))
+
+        self._hub_tutorial_overlay.set_targets(rects)
+        self._hub_tutorial_overlay.raise_()
+
+    def _on_hub_tutorial_next(self) -> None:
+        from biopro.core.models.tutorial_models import BranchingStep
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        step = global_tutorial_manager.current_step
+
+        if step and isinstance(step, BranchingStep):
+            first_target = next(iter(step.options.values()), None)
+            if first_target == "__complete__":
+                global_tutorial_manager.complete_course()
+                global_tutorial_manager.current_step = None
+                global_tutorial_manager._emit_step_changed()
+            elif first_target:
+                global_tutorial_manager.next_step(first_target)
+            return
+
+        global_tutorial_manager.next_step()
+
+    def _on_hub_tutorial_skip(self) -> None:
+        from biopro.core.preferences import core_preferences
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        core_preferences.set("core_intro_dismissed_once", True)
+        global_tutorial_manager.active_course = None
+        global_tutorial_manager.current_step = None
+        self._hub_tutorial_overlay.hide()
 
     # ── Logic ─────────────────────────────────────────────────────────
     def _start_update_check_worker(self) -> None:
@@ -274,30 +390,13 @@ class ProjectLauncherWindow(QMainWindow):
             QMessageBox.critical(self, "Error", f"Could not create project:\n{str(e)}")
 
     def _on_academy_project(self):
-        name, ok = QInputDialog.getText(self, "Academy Project", "Enter Academy Project Name:")
-        if not ok or not name.strip():
-            return
+        """Deprecated — Academy courses are now accessed per-workflow inside the Workspace.
 
-        dir_path = QFileDialog.getExistingDirectory(
-            self, "Select Empty Folder for Academy Workspace"
-        )
-        if not dir_path:
-            return
-
-        selected_path = Path(dir_path)
-
-        # Prevent "MyProject/MyProject" inception
-        if selected_path.name == name.strip():
-            project_dir = selected_path
-        else:
-            project_dir = selected_path / name.strip()
-
-        try:
-            pm = ProjectManager(project_dir)
-            pm.create_new(name.strip(), is_academy=True)
-            self._launch_workspace(pm)
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not create academy project:\n{str(e)}")
+        This method is kept for internal compatibility but should no longer be
+        called from the UI. Open a project normally and use the 🎓 Academy button
+        inside the Workspace toolbar instead.
+        """
+        logger.warning("_on_academy_project() is deprecated. Academy courses are now per-workflow.")
 
     def _on_open_project(self):
         dir_path = QFileDialog.getExistingDirectory(self, "Select BioPro Project Folder")
@@ -311,6 +410,55 @@ class ProjectLauncherWindow(QMainWindow):
         if path_str:
             self._attempt_open(Path(path_str))
 
+    def _on_recent_context_menu(self, pos):
+        import shutil
+
+        from PyQt6.QtWidgets import QMenu
+
+        from biopro.core.config import AppConfig
+
+        item = self.list_recent.itemAt(pos)
+        if not item:
+            return
+
+        path_str = item.data(Qt.ItemDataRole.UserRole)
+        if not path_str:
+            return
+
+        menu = QMenu(self)
+        action_remove = menu.addAction("Remove from Recent List")
+        action_delete = menu.addAction("Delete Project from Disk...")
+
+        action = menu.exec(self.list_recent.mapToGlobal(pos))
+        if not action:
+            return
+
+        config = AppConfig()
+        if action == action_remove:
+            config.remove_recent_project(path_str)
+            self._load_recent_projects()
+        elif action == action_delete:
+            reply = QMessageBox.warning(
+                self,
+                "Delete Project",
+                f"Are you sure you want to permanently delete the project at:\n\n{path_str}\n\nThis cannot be undone!",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                try:
+                    # Remove from recents list first
+                    config.remove_recent_project(path_str)
+
+                    # Delete from disk
+                    target_path = Path(path_str)
+                    if target_path.exists() and target_path.is_dir():
+                        shutil.rmtree(target_path)
+
+                    self._load_recent_projects()
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to delete project:\n{str(e)}")
+
     def _attempt_open(self, project_dir: Path):
         try:
             pm = ProjectManager(project_dir)
@@ -323,12 +471,16 @@ class ProjectLauncherWindow(QMainWindow):
 
     def _launch_workspace(self, project_manager: ProjectManager):
         """Transition from the Hub to the actual Analysis Workspace."""
+        from biopro.core.event_bus import BioProEvent, event_bus
+
         # 1. Save to global recents list
         config = AppConfig()
         config.add_recent_project(project_manager.project_dir)
 
-        # 2. Transition the UI
-        # Pass self.module_manager instead of the undefined variable
+        # 2. Emit PROJECT_LOADED so WaitForEventStep(PROJECT_LOADED) auto-advances
+        event_bus.emit(BioProEvent.PROJECT_LOADED, str(project_manager.project_dir))
+
+        # 3. Transition the UI
         self.workspace = WorkspaceWindow(
             project_manager,
             self.module_manager,
@@ -341,7 +493,12 @@ class ProjectLauncherWindow(QMainWindow):
 
     def _open_store(self):
         """Tells the main Controller that the user wants to open the store."""
+        from biopro.core.event_bus import BioProEvent, event_bus
+
+        event_bus.emit(BioProEvent.STORE_OPENED)
         self.open_store_callback(self)
+        # STORE_CLOSED is emitted by the controller/store dialog when it closes
+        event_bus.emit(BioProEvent.STORE_CLOSED)
 
     def _open_ai_chat(self):
         """Show the floating AI Chat window from the Hub."""
@@ -353,6 +510,7 @@ class ProjectLauncherWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        self._sync_hub_overlay_geometry()
         scale = max(1.0, min(self.width() / 800.0, 1.8))
 
         try:
@@ -379,6 +537,7 @@ class ProjectLauncherWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Save window geometry before closing."""
+        self._hub_poll_timer.stop()
         from biopro.core.preferences import core_preferences
 
         geom_hex = self.saveGeometry().toHex().data().decode("ascii")
@@ -400,6 +559,68 @@ class ProjectLauncherWindow(QMainWindow):
             action = QAction(name, self)
             action.triggered.connect(lambda checked, p=path: self._switch_theme(p))
             theme_menu.addAction(action)
+
+        # HELP MENU
+        help_menu = menubar.addMenu("&Help")
+
+        docs_action = QAction("📖 BioPro &Help Center", self)
+        docs_action.setShortcut(QKeySequence("F1"))
+        docs_action.triggered.connect(self._open_help_center)
+        help_menu.addAction(docs_action)
+
+        help_menu.addSeparator()
+
+        wiki_action = QAction("🌐 View GitHub Wiki Online", self)
+        wiki_action.triggered.connect(self._open_wiki_online)
+        help_menu.addAction(wiki_action)
+
+        about_action = QAction("🧬 &About BioPro", self)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+
+        help_menu.addSeparator()
+
+        restart_tour_action = QAction("♻️ Restart Onboarding Tour", self)
+        restart_tour_action.triggered.connect(self._restart_core_intro)
+        help_menu.addAction(restart_tour_action)
+
+    def _open_help_center(self):
+        """Launch the localized help center."""
+        from biopro.ui.dialogs.help_dialog import HelpCenterDialog
+
+        dialog = HelpCenterDialog(module_manager=self.module_manager, parent=self)
+        dialog.exec()
+
+    def _open_wiki_online(self):
+        """Open the public wiki in the browser."""
+        import webbrowser
+
+        webbrowser.open("https://github.com/KalaimaranB/BioPro/wiki")
+
+    def _restart_core_intro(self) -> None:
+        """Resets core intro progress and re-launches the onboarding tour."""
+        from biopro.core.preferences import core_preferences
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        # Clear both gates so the tour auto-starts again
+        global_tutorial_manager.reset_course("core_intro_v1")
+        core_preferences.set("core_intro_dismissed_once", False)
+
+        self._maybe_start_core_intro()
+
+    def _show_about(self) -> None:
+        from biopro.core.config import AppConfig
+
+        QMessageBox.about(
+            self,
+            "About BioPro",
+            f"<h2>🧬 BioPro v{AppConfig.CORE_VERSION}</h2>"
+            "<p>Bio Analysis Made Simple</p>"
+            "<p>An open-source, intuitive platform for lab students "
+            "and professionals.</p>"
+            "<p>© 2026 BioPro Contributors<br>"
+            "Licensed under the MIT License</p>",
+        )
 
     def _switch_theme(self, theme_path: Path):
         theme_manager.load_theme(theme_path)

@@ -5,14 +5,13 @@ from biopro.ui.theme import Colors, Fonts  # Assuming these exist in your theme 
 
 
 class PrimaryButton(QPushButton):
-    """The main action button (Green/Accent color)."""
+    """The main action button (accent color)."""
 
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setProperty("btn_type", "primary")
         self.setStyleSheet(f"""
-            QPushButton[btn_type="primary"] {{
+            QPushButton {{
                 background-color: {Colors.ACCENT_PRIMARY};
                 color: {Colors.BG_DARKEST};
                 border: none;
@@ -21,8 +20,8 @@ class PrimaryButton(QPushButton):
                 font-size: 13px;
                 font-weight: bold;
             }}
-            QPushButton[btn_type="primary"]:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}
-            QPushButton[btn_type="primary"]:disabled {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_SECONDARY}; }}
+            QPushButton:hover {{ background-color: {Colors.ACCENT_PRIMARY_HOVER}; }}
+            QPushButton:disabled {{ background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_SECONDARY}; }}
         """)
 
 
@@ -32,9 +31,8 @@ class SecondaryButton(QPushButton):
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setProperty("btn_type", "secondary")
         self.setStyleSheet(f"""
-            QPushButton[btn_type="secondary"] {{
+            QPushButton {{
                 background-color: {Colors.BG_MEDIUM};
                 color: {Colors.FG_PRIMARY};
                 border: 1px solid {Colors.BORDER};
@@ -42,7 +40,7 @@ class SecondaryButton(QPushButton):
                 padding: 10px 20px;
                 font-size: 13px;
             }}
-            QPushButton[btn_type="secondary"]:hover {{ background-color: {Colors.BG_LIGHT}; }}
+            QPushButton:hover {{ background-color: {Colors.BG_LIGHT}; }}
         """)
 
 

@@ -125,9 +125,15 @@ class WorkspaceWindow(QMainWindow):
         self._pending_workflow_payload: dict | None = None
         self._pending_manifest: dict | None = None
         self._pending_panel_class: type | None = None
+        self._last_import_file_count: int = 0  # For FILE_IMPORTED detection
 
         self._show_home()
         theme_manager.theme_changed.connect(self._on_theme_changed)
+
+        # Continue (or start) the core intro if in progress — handles hub→workspace handoff
+        from PyQt6.QtCore import QTimer
+
+        QTimer.singleShot(400, self._maybe_start_core_intro)
 
     @staticmethod
     def _write_checkbox_svgs() -> tuple[str, str]:
@@ -282,6 +288,12 @@ class WorkspaceWindow(QMainWindow):
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
 
+        help_menu.addSeparator()
+
+        restart_tour_action = QAction("♻️ Restart Onboarding Tour", self)
+        restart_tour_action.triggered.connect(self._restart_core_intro)
+        help_menu.addAction(restart_tour_action)
+
     def _setup_shortcuts(self):
         """Register global app shortcuts."""
         help_shortcut = QAction(self)
@@ -301,6 +313,19 @@ class WorkspaceWindow(QMainWindow):
         import webbrowser
 
         webbrowser.open("https://github.com/KalaimaranB/BioPro/wiki")
+
+    def _restart_core_intro(self) -> None:
+        """Resets core intro progress and re-launches the onboarding tour."""
+        from biopro.core.preferences import core_preferences
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        # Clear both gates so the tour auto-starts again
+        global_tutorial_manager.reset_course("core_intro_v1")
+        core_preferences.set("core_intro_dismissed_once", False)
+
+        # Make sure we're on the home screen before showing the overlay
+        self._show_home()
+        self._maybe_start_core_intro()
 
     def _setup_central_widget(self) -> None:
         self.root_stack = QStackedWidget()
@@ -347,25 +372,53 @@ class WorkspaceWindow(QMainWindow):
 
         self.root_stack.addWidget(self.analysis_page)
 
-        # --- NEW: Tutorial Overlay ---
+        # --- NEW: Tutorial Overlay (Analysis page) ---
         from biopro.ui.wizards.tutorial_overlay import TutorialOverlay
 
         self.tutorial_overlay = TutorialOverlay(self.analysis_page)
         self.tutorial_overlay.hide()
 
-        # We hook into global manager
+        # --- Home Screen Tutorial Overlay (Phase 3) ---
+        # A second overlay instance parented to the home screen for the core
+        # intro tutorial which runs before any module is loaded.
+        self.home_tutorial_overlay = TutorialOverlay(self.home_screen)
+        self.home_tutorial_overlay.hide()
+
+        # Both overlays share the same Next/Skip handlers
         self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
         self.tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
+        self.home_tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
+        self.home_tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
+
         self._tutorial_connections: dict = {}
         self._tutorial_last_step_id: str | None = None
         self._verification_wait: int = 0
         self.startTimer(100)  # Polling for overlay sync
 
-        # ── Page 2: Loading Screen (Galactic Hyperspace) ─────────────
+        # ── Page 2: Loading Screen (Galactic Hyperspace) ──
         self.loading_screen = GalacticLoader()
         self.root_stack.addWidget(self.loading_screen)
 
         self.setCentralWidget(self.root_stack)
+
+    def _active_overlay(self):
+        """Returns the TutorialOverlay that is currently relevant.
+
+        Uses the home overlay when the core intro is active (home screen),
+        and the analysis overlay for all module-specific courses.
+        """
+        from PyQt6.QtWidgets import QDialog
+
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        store = self.findChild(QDialog, "PluginStoreDialog")
+        if store and store.isVisible() and hasattr(store, "tutorial_overlay"):
+            return store.tutorial_overlay
+
+        course = global_tutorial_manager.active_course
+        if course and course.id == "core_intro_v1":
+            return self.home_tutorial_overlay
+        return self.tutorial_overlay
 
     def _on_tutorial_next(self) -> None:
         """Called when the overlay Next button is clicked.
@@ -373,11 +426,26 @@ class WorkspaceWindow(QMainWindow):
         For VerificationStep with allow_interaction=True the 'Next' button
         is labelled 'Check ✓'; clicking it runs the validator immediately
         rather than waiting for the background timer.
+
+        For BranchingStep, the first option key maps to the target step_id;
+        '__complete__' is a sentinel that completes the course.
         """
-        from biopro.core.models.tutorial_models import VerificationStep
+        from biopro.core.models.tutorial_models import BranchingStep, VerificationStep
         from biopro.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step
+
+        if step and isinstance(step, BranchingStep):
+            # Take the first option (the primary CTA)
+            first_target = next(iter(step.options.values()), None)
+            if first_target == "__complete__":
+                global_tutorial_manager.complete_course()
+                global_tutorial_manager.current_step = None
+                global_tutorial_manager._emit_step_changed()
+            elif first_target:
+                global_tutorial_manager.next_step(first_target)
+            return
+
         if (
             step
             and isinstance(step, VerificationStep)
@@ -392,10 +460,29 @@ class WorkspaceWindow(QMainWindow):
             global_tutorial_manager.next_step()
 
     def _on_tutorial_skip(self) -> None:
-        """Hide the overlay and stop the active course."""
+        """Hide the active overlay and stop the current course.
+
+        For the core intro specifically, sets a preference flag so the
+        tour is not re-triggered on the next launch (user can still
+        restart it from Help → Restart Onboarding Tour).
+        """
         from biopro.core.tutorial_manager import global_tutorial_manager
 
+        active_course = global_tutorial_manager.active_course
+
+        # Suppress the home tutorial overlay
+        self.home_tutorial_overlay.hide()
+        # Suppress the analysis tutorial overlay
         self.tutorial_overlay.hide()
+
+        if active_course and active_course.id == "core_intro_v1":
+            from biopro.core.preferences import core_preferences
+
+            core_preferences.set("core_intro_dismissed_once", True)
+            self.status_bar.showMessage(
+                "Tour skipped — restart anytime from Help → Restart Onboarding Tour.", 6000
+            )
+
         global_tutorial_manager.active_course = None
         global_tutorial_manager.current_step = None
 
@@ -407,7 +494,11 @@ class WorkspaceWindow(QMainWindow):
 
     def timerEvent(self, event) -> None:
         super().timerEvent(event)
-        if not hasattr(self, "tutorial_overlay") or not self.tutorial_overlay.isVisible():
+
+        # Determine which overlay is live right now
+        active_overlay = self._active_overlay()
+        if not active_overlay.isVisible():
+            # Nothing to drive — bail early
             return
 
         from biopro.core.models.tutorial_models import InteractionStep, VerificationStep
@@ -415,14 +506,26 @@ class WorkspaceWindow(QMainWindow):
 
         step = global_tutorial_manager.current_step
         if not step:
-            self.tutorial_overlay.hide()
+            active_overlay.hide()
             return
 
+        from PyQt6.QtWidgets import QDialog
+
+        store = self.findChild(QDialog, "PluginStoreDialog")
+        if store and store.isVisible():
+            parent_page = store
+        else:
+            is_core_intro = (
+                global_tutorial_manager.active_course is not None
+                and global_tutorial_manager.active_course.id == "core_intro_v1"
+            )
+            parent_page = self.home_screen if is_core_intro else self.analysis_page
+
         # Only update geometry and raise if the rect changed to prevent rendering glitches
-        new_geom = self.analysis_page.rect()
-        if self.tutorial_overlay.geometry() != new_geom:
-            self.tutorial_overlay.setGeometry(new_geom)
-            self.tutorial_overlay.raise_()
+        new_geom = parent_page.rect()
+        if active_overlay.geometry() != new_geom:
+            active_overlay.setGeometry(new_geom)
+            active_overlay.raise_()
 
         # Re-render the bubble if the step changed
         current_id = step.id
@@ -430,8 +533,8 @@ class WorkspaceWindow(QMainWindow):
             self._tutorial_last_step_id = current_id
             self._verification_wait = 0
             self._verification_attempts = 0
-            self.tutorial_overlay.raise_()
-            self.tutorial_overlay.render_step(step)
+            active_overlay.raise_()
+            active_overlay.render_step(step)
 
             guide_poly = getattr(step, "guide_poly", None)
             wizard_panel = getattr(self, "wizard_panel", None)
@@ -523,52 +626,46 @@ class WorkspaceWindow(QMainWindow):
                 print(f"DEBUG: ActionStep error: {e}")
             global_tutorial_manager.next_step(step.next_step_id)
 
-        # Spotlight: find target widgets and map to overlay-local coordinates
+        # Spotlight: find target widgets and map to overlay-local coordinates.
+        # For the core intro, search home_screen children; otherwise search the wizard_panel.
+        from PyQt6.QtCore import QRect
+
         targets: list[QWidget] = []
-        wizard_panel = getattr(self, "wizard_panel", None)
-        if wizard_panel:
+        search_root: QWidget = self
+        if search_root:
             for attr in ("target_widget_name",):
                 name = getattr(step, attr, "")
                 if name:
-                    w = wizard_panel.findChild(QWidget, name)
+                    w = search_root.findChild(QWidget, name)
                     if w and w.isVisible():
                         targets.append(w)
             for name in getattr(step, "target_widget_names", []):
-                for w in wizard_panel.findChildren(QWidget, name):
-                    if w and w.isVisible():
-                        targets.append(w)
-
-        from PyQt6.QtCore import QRect
+                by_name = [
+                    w for w in search_root.findChildren(QWidget, name) if w and w.isVisible()
+                ]
+                if by_name:
+                    targets.extend(by_name)
+                else:
+                    # Fall back: find by tutorial_id property (avoids breaking SDK stylesheet selectors)
+                    for w in search_root.findChildren(QWidget):
+                        if w.property("tutorial_id") == name and w.isVisible():
+                            targets.append(w)
 
         rects = []
         for w in targets:
             global_pos = w.mapToGlobal(w.rect().topLeft())
-            local_pos = self.tutorial_overlay.mapFromGlobal(global_pos)
+            local_pos = active_overlay.mapFromGlobal(global_pos)
             rects.append(QRect(local_pos, w.size()))
-        self.tutorial_overlay.set_targets(rects)
+        active_overlay.set_targets(rects)
 
     def _open_academy(self):
-        from biopro.core.tutorial_manager import global_tutorial_manager
-        from biopro.ui.dialogs.academy_window import AcademyWindow
-
         mod_id = getattr(self, "current_module_id", None)
         if not mod_id:
-            from PyQt6.QtWidgets import QMessageBox
-
-            QMessageBox.information(
-                self, "Academy", "Please load a module first to access its Academy."
+            self.status_bar.showMessage(
+                "Open an analysis module first to access its Academy courses.", 4000
             )
             return
-
-        dialog = AcademyWindow(global_tutorial_manager, mod_id, self)
-        dialog.exec()
-
-        if global_tutorial_manager.active_course:
-            self.tutorial_overlay.setGeometry(self.analysis_page.rect())
-            self.tutorial_overlay.show()
-            self.status_bar.showMessage(
-                "Started Academy Course: " + global_tutorial_manager.active_course.title
-            )
+        self._open_academy_for_module(mod_id)
 
     def _setup_status_bar(self) -> None:
         self.status_bar = QStatusBar()
@@ -598,15 +695,55 @@ class WorkspaceWindow(QMainWindow):
         self.home_screen.workflow_settings_requested.connect(self._handle_workflow_settings)
         self.home_screen.trust_module_requested.connect(self._on_trust_requested)
         self.home_screen.open_academy_requested.connect(self._open_academy_from_home)
+        self.home_screen.open_academy_for_module_requested.connect(self._open_academy_for_module)
 
     def _open_academy_from_home(self):
-        from PyQt6.QtWidgets import QMessageBox
+        """Called via the top-bar Academy button while on the home screen.
 
-        QMessageBox.information(
-            self,
-            "BioPro Academy",
-            "Academy courses are module-specific. Please open an analysis module first to access its Academy.",
-        )
+        Opens the Academy for the most recently used module.  If none has been
+        loaded yet, shows a friendly hint in the status bar instead of a
+        blocking dialog.
+        """
+        mod_id = getattr(self, "current_module_id", None)
+        if mod_id:
+            self._open_academy_for_module(mod_id)
+        else:
+            self.status_bar.showMessage(
+                "Open an analysis module first to access its Academy courses.", 4000
+            )
+
+    def _open_academy_for_module(self, module_id: str) -> None:
+        """Opens the Academy course catalogue for the given module.
+
+        If the module has exactly one course and it hasn't been started yet,
+        starts it directly (fast path).  Otherwise opens the full catalogue.
+        """
+        from biopro.core.tutorial_manager import global_tutorial_manager
+        from biopro.ui.dialogs.academy_window import AcademyWindow
+
+        courses = global_tutorial_manager.get_courses_for_module(module_id)
+
+        # Fast path: single unstarted course → start immediately without the catalogue
+        if len(courses) == 1:
+            c = courses[0]
+            progress = global_tutorial_manager.get_progress(c.id)
+            if progress == 0.0:
+                global_tutorial_manager.start_course_confirmed(c.id)
+                self.tutorial_overlay.setGeometry(self.analysis_page.rect())
+                self.tutorial_overlay.show()
+                self.status_bar.showMessage(f"Started: {c.title}")
+                return
+
+        # Default: open full catalogue
+        dialog = AcademyWindow(global_tutorial_manager, module_id, self)
+        dialog.exec()
+
+        if global_tutorial_manager.active_course:
+            self.tutorial_overlay.setGeometry(self.analysis_page.rect())
+            self.tutorial_overlay.show()
+            self.status_bar.showMessage(
+                "Started Academy Course: " + global_tutorial_manager.active_course.title
+            )
 
     def _show_home(self) -> None:
         if self.wizard_panel and hasattr(self.wizard_panel, "reset_to_setup"):
@@ -617,6 +754,41 @@ class WorkspaceWindow(QMainWindow):
 
         self.status_bar.showMessage("Welcome to BioPro — choose a module to begin")
         self.zoom_label.setText("")
+
+    def _maybe_start_core_intro(self) -> None:
+        """Start (or continue) the core onboarding tutorial.
+
+        Three cases:
+        1. Course already done → return.
+        2. User dismissed it → return (can restart from Help menu).
+        3. Course in-progress (e.g. started on hub, workspace just opened) → show overlay.
+        4. First ever launch → start the course fresh.
+        """
+        from biopro.core.preferences import core_preferences
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        if global_tutorial_manager.is_core_intro_done():
+            return
+        if core_preferences.get("core_intro_dismissed_once", False):
+            return
+
+        # Case 3: course is already in-progress (hub → workspace handoff)
+        if (
+            global_tutorial_manager.active_course is not None
+            and global_tutorial_manager.active_course.id == "core_intro_v1"
+            and global_tutorial_manager.current_step is not None
+        ):
+            self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
+            self.home_tutorial_overlay.show()
+            self.home_tutorial_overlay.raise_()
+            return
+
+        # Case 4: first ever launch — start fresh
+        started = global_tutorial_manager.start_core_intro()
+        if started:
+            self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
+            self.home_tutorial_overlay.show()
+            self.home_tutorial_overlay.raise_()
 
     def _open_module(self, manifest: dict) -> None:
         """Triggers the Galactic transition and starts async module loading."""
@@ -739,6 +911,11 @@ class WorkspaceWindow(QMainWindow):
                 self.wizard_panel.status_message.connect(self.status_bar.showMessage)
             if hasattr(self.wizard_panel, "state_changed"):
                 self.wizard_panel.state_changed.connect(self._push_history)
+                # Hook state_changed to detect file imports for the tutorial
+                self.wizard_panel.state_changed.connect(self._on_wizard_state_changed)
+
+            # Emit MODULE_OPENED for WaitForEventStep(MODULE_OPENED)
+            event_bus.emit(BioProEvent.MODULE_OPENED, module_id)
 
             # Inject any pending workflow payload
             if (
@@ -918,6 +1095,9 @@ class WorkspaceWindow(QMainWindow):
         if hasattr(self, "tutorial_overlay"):
             self.tutorial_overlay.setGeometry(self.analysis_page.rect())
 
+        if hasattr(self, "home_tutorial_overlay"):
+            self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
+
         # Keep the floating loader overlay filling the stack during a crossfade
         if (
             hasattr(self, "loading_screen")
@@ -982,8 +1162,31 @@ class WorkspaceWindow(QMainWindow):
         # 3. THE FIX: Destroy this workspace window so it actually closes
         self.close()
 
+    def _on_wizard_state_changed(self) -> None:
+        """Detects file imports via state_changed and emits FILE_IMPORTED.
+
+        Checks if the wizard panel's state has more loaded files than last time
+        and emits the event so WaitForEventStep(FILE_IMPORTED) auto-advances.
+        """
+        panel = getattr(self, "wizard_panel", None)
+        if panel is None:
+            return
+
+        # Try common state structures used by BioPro plugins
+        state = getattr(panel, "state", None) or {}
+        files = state.get("files") or state.get("loaded_files") or state.get("file_list") or []
+        current_count = len(files) if isinstance(files, (list, dict)) else 0
+
+        if current_count > self._last_import_file_count:
+            self._last_import_file_count = current_count
+            event_bus.emit(BioProEvent.FILE_IMPORTED, "")
+
     def _open_store(self):
+        from biopro.core.event_bus import BioProEvent
+
+        event_bus.emit(BioProEvent.STORE_OPENED)
         self.open_store_callback(self)
+        event_bus.emit(BioProEvent.STORE_CLOSED)
 
     def _open_ai_chat(self):
         """Show the floating AI Chat window."""
@@ -1090,6 +1293,8 @@ class WorkspaceWindow(QMainWindow):
         self.home_screen.workflow_selected.connect(self._load_workflow_from_dashboard)
         self.home_screen.workflow_settings_requested.connect(self._handle_workflow_settings)
         self.home_screen.trust_module_requested.connect(self._on_trust_requested)
+        self.home_screen.open_academy_requested.connect(self._open_academy_from_home)
+        self.home_screen.open_academy_for_module_requested.connect(self._open_academy_for_module)
 
         # Insert back into stack at index 0
         self.root_stack.insertWidget(_PAGE_HOME, self.home_screen)

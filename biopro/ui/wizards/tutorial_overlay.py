@@ -31,6 +31,7 @@ from biopro.core.models.tutorial_models import (
     InteractionStep,
     SubplotCheckStep,
     VerificationStep,
+    WaitForEventStep,
 )
 from biopro.ui.components.cyto_character import CytoWidget
 from biopro.ui.theme import Colors
@@ -53,7 +54,7 @@ class TutorialOverlay(QWidget):
     set_progress(cur, total) Update the progress bar.
     """
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, compact_mode: bool = False) -> None:
         super().__init__(parent)
         # Allow mouse events; masking handles the passthrough behaviour.
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
@@ -61,6 +62,7 @@ class TutorialOverlay(QWidget):
 
         self.target_rects: list[QRect] = []
         self.current_step: BaseStep | None = None
+        self._compact_mode = compact_mode
 
         self._build_cyto()
         self._build_bubble()
@@ -82,7 +84,7 @@ class TutorialOverlay(QWidget):
         self.bubble_container.setStyleSheet(
             f"#BubbleContainer {{ background-color: {Colors.BG_DARKEST}; border: 2px solid {Colors.ACCENT_SUCCESS}; border-radius: 12px; }}"
         )
-        self.bubble_container.setMaximumWidth(500)
+        self.bubble_container.setFixedWidth(420)
         self.bubble_layout = QVBoxLayout(self.bubble_container)
         self.bubble_layout.setContentsMargins(0, 0, 0, 0)
         self.bubble_layout.setSpacing(0)
@@ -118,11 +120,15 @@ class TutorialOverlay(QWidget):
 
         # Step text
         self.text_label = QLabel("Welcome to BioPro Academy!")
-        self.text_label.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; font-size: 16px; font-family: sans-serif; padding: 8px 0px; line-height: 1.4;"
-        )
+        self.text_label.setTextFormat(Qt.TextFormat.PlainText)
+        font = self.text_label.font()
+        font.setPixelSize(16)
+        font.setBold(True)
+        font.setFamily("sans-serif")
+        self.text_label.setFont(font)
+        self.text_label.setStyleSheet(f"color: {Colors.FG_PRIMARY}; padding: 8px 0px;")
         self.text_label.setWordWrap(True)
-        self.text_label.setMinimumWidth(350)
+        self.text_label.setFixedWidth(392)  # 420 (container) - 28 (margins)
         self.body_layout.addWidget(self.text_label)
 
         # Dynamic content (checklists, etc.)
@@ -206,7 +212,7 @@ class TutorialOverlay(QWidget):
         subtitle = QLabel(f"Successfully processed {clean_name}")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY}; font-size: 15px; font-family: monospace;"
+            f"color: {Colors.FG_PRIMARY}; font-size: 15px; font-family: monospace;"
         )
 
         badge_lbl = QLabel(badge_reward)
@@ -338,6 +344,11 @@ class TutorialOverlay(QWidget):
             self.btn_next.show()
             self.btn_next.setText("Confirm Subplot")
 
+        elif isinstance(step, WaitForEventStep):
+            # Auto-advances; no Next button needed. Show a waiting indicator.
+            self.btn_next.hide()
+            self._render_waiting_indicator()
+
         self._force_resize()
 
     # ── Spotlight geometry ────────────────────────────────────────────────────
@@ -350,7 +361,44 @@ class TutorialOverlay(QWidget):
         self.update()  # schedule repaint
 
     def _reposition_cyto_and_bubble(self, rects: list[QRect]) -> None:
-        """Move Cyto and bubble so they don't overlap spotlight holes."""
+        """Move Cyto and bubble so they don't overlap spotlight holes.
+
+        In ``compact_mode`` (hub launcher) Cyto is hidden and the bubble is
+        centred in the overlay — no complex geometry needed.
+        """
+        if self._compact_mode:
+            # ── Compact layout: Cyto and bubble as a side-by-side pair ────────
+            self.cyto.show()
+            self._force_resize()
+            bubble_w = self.bubble_container.sizeHint().width()
+            bubble_h = self.bubble_container.sizeHint().height()
+
+            # Cyto's visual right edge is roughly cx + 240.
+            # We place the bubble at cx + 240 so they sit side-by-side.
+            total_w = 240 + bubble_w
+
+            # Centre the pair horizontally
+            start_x = max(10, (self.width() - total_w) // 2)
+            cx = start_x
+            bx = start_x + 240
+
+            cyto_h = 400
+            pair_h = max(cyto_h, bubble_h)
+
+            # Centre vertically
+            start_y = max(10, (self.height() - pair_h) // 2)
+            cy = start_y + (pair_h - cyto_h) // 2
+            by = start_y + (pair_h - bubble_h) // 2 + 30  # shift bubble slightly down for balance
+
+            self.cyto.move(cx, cy)
+            self.cyto.point_at(10)  # Point towards bubble
+
+            self.bubble_container.move(bx, by)
+
+            self.cyto.raise_()
+            self.bubble_container.raise_()
+            return
+
         if rects:
             primary = rects[0]
 
@@ -519,17 +567,47 @@ class TutorialOverlay(QWidget):
             self.btn_next.show()
 
     def _render_branching_options(self, options: dict) -> None:
-        """Render branch buttons — caller must connect them to next_step(target_id)."""
+        """Render branch buttons and connect them to next_step."""
         self._clear_buttons()
         btn_style = (
             "background-color: #1f6feb; color: white; border: none;"
             "border-radius: 4px; padding: 8px 14px; font-weight: bold;"
         )
-        for text in options:
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        for text, target_id in options.items():
             btn = QPushButton(text.replace("btn_", "").replace("_", " ").title())
             btn.setStyleSheet(btn_style)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            # Use default argument capture for target_id inside the lambda
+            btn.clicked.connect(
+                lambda checked, tid=target_id: global_tutorial_manager.next_step(tid)
+            )
             self.btn_layout.addWidget(btn)
+
+    def _render_waiting_indicator(self) -> None:
+        """Add a pulsing 'waiting' label for WaitForEventStep steps."""
+        from PyQt6.QtCore import QTimer
+
+        wait_lbl = QLabel("⏳  Waiting for your action…")
+        wait_lbl.setObjectName("waitingIndicator")
+        wait_lbl.setStyleSheet(
+            f"color: {Colors.ACCENT_PRIMARY}; font-size: 12px; font-style: italic;"
+        )
+        self.dynamic_content.addWidget(wait_lbl)
+
+        # Simple text-blink pulse: toggle opacity-like feel by toggling colour
+        self._wait_pulse_state = False
+
+        def _pulse():
+            self._wait_pulse_state = not self._wait_pulse_state
+            colour = Colors.ACCENT_PRIMARY if self._wait_pulse_state else Colors.FG_SECONDARY
+            wait_lbl.setStyleSheet(f"color: {colour}; font-size: 12px; font-style: italic;")
+
+        self._wait_pulse_timer = QTimer(self)
+        self._wait_pulse_timer.setInterval(700)
+        self._wait_pulse_timer.timeout.connect(_pulse)
+        self._wait_pulse_timer.start()
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -545,15 +623,27 @@ class TutorialOverlay(QWidget):
                 item.widget().setParent(None)
 
     def _clear_dynamic_content(self) -> None:
+        # Stop any running WaitForEventStep pulse timer
+        if hasattr(self, "_wait_pulse_timer") and self._wait_pulse_timer.isActive():
+            self._wait_pulse_timer.stop()
         while self.dynamic_content.count():
             item = self.dynamic_content.takeAt(0)
             if item.widget():
                 item.widget().setParent(None)
 
     def _force_resize(self) -> None:
-        # Do not call self.text_label.adjustSize() here.
-        # It calculates height using an unconstrained width, which gets cached.
-        # When the layout later clamps the width to 420px, the text wraps but the
-        # container height remains too small, causing the text to be cut off at the top/bottom.
+        # Explicitly calculate the required height for the fixed width (392px)
+        # and enforce it as the minimum height so the container layout expands.
+        # Reset minimum height first so we don't infinitely compound during typing effect
+        self.text_label.setMinimumHeight(0)
+
+        # Add 48px buffer to account for stylesheet padding and macOS line-height quirks
+        required_height = self.text_label.heightForWidth(392) + 48
+        self.text_label.setMinimumHeight(required_height)
+
+        self.text_label.updateGeometry()
+        self.body_layout.invalidate()
+        self.body_container.updateGeometry()
         self.bubble_layout.invalidate()
-        self.bubble_container.adjustSize()
+        self.bubble_container.updateGeometry()
+        self.bubble_container.resize(self.bubble_layout.sizeHint())

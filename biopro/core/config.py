@@ -77,6 +77,15 @@ class AppConfig:
 
         return cast(list[str], self.data.get("recent_projects", []))
 
+    def remove_recent_project(self, project_path: Path | str) -> None:
+        """Remove a project from the recents list."""
+        path_str = str(Path(project_path).absolute())
+        recent: list[str] = self.data.get("recent_projects", [])
+        if path_str in recent:
+            recent.remove(path_str)
+            self.data["recent_projects"] = recent
+            self.save()
+
     def get_skipped_update_version(self) -> str | None:
         """Return the version string the user last chose to skip, or None."""
         return self.data.get("skipped_update_version")

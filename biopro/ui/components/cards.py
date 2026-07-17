@@ -164,15 +164,29 @@ class ModuleCard(QFrame):
 
 
 class DashboardWorkflowCard(QFrame):
-    """Clickable card representing a saved workflow with a settings button."""
+    """Clickable card representing a saved workflow with a settings button.
+
+    When ``has_academy=True`` the card shows a 🎓 pill badge and a subtle blue
+    left-border accent.  Clicking the pill emits ``academy_requested`` (independent
+    from the card's main ``clicked`` signal).
+    """
 
     clicked = pyqtSignal()
     settings_requested = pyqtSignal()
+    academy_requested = pyqtSignal()
 
     def __init__(
-        self, title: str, date_str: str, module_name: str, description: str = "", parent=None
+        self,
+        title: str,
+        date_str: str,
+        module_name: str,
+        description: str = "",
+        has_academy: bool = False,
+        course_count: int = 0,
+        parent=None,
     ) -> None:
         super().__init__(parent)
+        self._has_academy = has_academy
         self.setObjectName("workflowCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumSize(220, 130)
@@ -182,7 +196,7 @@ class DashboardWorkflowCard(QFrame):
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(4)
 
-        # Top row: Module Name and Settings Button
+        # Top row: Module Name, Academy pill (optional), and Settings Button
         top_row = QHBoxLayout()
         mod_lbl = QLabel(module_name)
         mod_lbl.setStyleSheet(
@@ -190,6 +204,31 @@ class DashboardWorkflowCard(QFrame):
         )
         top_row.addWidget(mod_lbl)
         top_row.addStretch()
+
+        # Academy badge pill — shown only when courses are registered for this module
+        self._academy_btn: QPushButton | None = None
+        if has_academy:
+            label = (
+                f"🎓 {course_count} course" if course_count == 1 else f"🎓 {course_count} courses"
+            )
+            self._academy_btn = QPushButton(label)
+            self._academy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._academy_btn.setStyleSheet(
+                "QPushButton {"
+                "  background: rgba(31, 111, 235, 0.18);"
+                "  color: #79c0ff;"
+                "  border: 1px solid #1f6feb;"
+                "  border-radius: 8px;"
+                "  padding: 1px 7px;"
+                "  font-size: 10px;"
+                "  font-weight: bold;"
+                "}"
+                "QPushButton:hover {"
+                "  background: rgba(31, 111, 235, 0.35);"
+                "}"
+            )
+            self._academy_btn.clicked.connect(self._on_academy_clicked)
+            top_row.addWidget(self._academy_btn)
 
         self.btn_settings = QPushButton("⚙️")
         self.btn_settings.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -228,12 +267,30 @@ class DashboardWorkflowCard(QFrame):
     def _on_settings_clicked(self) -> None:
         self.settings_requested.emit()
 
+    def _on_academy_clicked(self) -> None:
+        """Emits academy_requested without also triggering the card's main click."""
+        self.academy_requested.emit()
+
     def _apply_style(self, hovered: bool) -> None:
-        border = Colors.FG_SECONDARY if hovered else Colors.BORDER
-        bg = Colors.BG_MEDIUM if hovered else Colors.BG_DARK
-        self.setStyleSheet(
-            f"QFrame#workflowCard {{ background: {bg}; border: 1px solid {border}; border-radius: 8px; }}"
-        )
+        if self._has_academy:
+            # Blue left-border accent when academy courses are available
+            border_left = "#1f6feb"
+            border = "#1f6feb" if hovered else "#1f6feb88"
+            bg = Colors.BG_MEDIUM if hovered else Colors.BG_DARK
+            self.setStyleSheet(
+                f"QFrame#workflowCard {{"
+                f"  background: {bg};"
+                f"  border: 1px solid {border};"
+                f"  border-left: 3px solid {border_left};"
+                f"  border-radius: 8px;"
+                f"}}"
+            )
+        else:
+            border = Colors.FG_SECONDARY if hovered else Colors.BORDER
+            bg = Colors.BG_MEDIUM if hovered else Colors.BG_DARK
+            self.setStyleSheet(
+                f"QFrame#workflowCard {{ background: {bg}; border: 1px solid {border}; border-radius: 8px; }}"
+            )
 
     def enterEvent(self, event) -> None:
         self._apply_style(True)
@@ -244,8 +301,15 @@ class DashboardWorkflowCard(QFrame):
         super().leaveEvent(event)
 
     def mousePressEvent(self, event) -> None:
-        if not self.btn_settings.geometry().contains(event.position().toPoint()):
-            self.clicked.emit()
+        pos = event.position().toPoint()
+        # Ignore clicks on overlay buttons — they handle their own signals
+        if self.btn_settings.geometry().contains(pos):
+            super().mousePressEvent(event)
+            return
+        if self._academy_btn and self._academy_btn.geometry().contains(pos):
+            super().mousePressEvent(event)
+            return
+        self.clicked.emit()
         super().mousePressEvent(event)
 
 
