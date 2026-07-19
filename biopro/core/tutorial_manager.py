@@ -214,6 +214,11 @@ class AcademyManager:
             self.completed_courses.remove(course_id)
             modified = True
 
+        badge_idx = next((i for i, b in enumerate(self.badges) if b.get("id") == course_id), None)
+        if badge_idx is not None:
+            self.badges.pop(badge_idx)
+            modified = True
+
         if modified:
             self._save_progress()
             logger.info(f"Progress reset for course {course_id}")

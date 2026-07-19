@@ -727,12 +727,12 @@ class WorkspaceWindow(QMainWindow):
             if len(courses) == 1:
                 c = courses[0]
                 progress = global_tutorial_manager.get_progress(c.id)
-            if progress == 0.0:
-                global_tutorial_manager.start_course_confirmed(c.id)
-                self.tutorial_overlay.setGeometry(self.analysis_page.rect())
-                self.tutorial_overlay.show()
-                self.status_bar.showMessage(f"Started: {c.title}")
-                return
+                if progress == 0.0:
+                    global_tutorial_manager.start_course_confirmed(c.id)
+                    self.tutorial_overlay.setGeometry(self.analysis_page.rect())
+                    self.tutorial_overlay.show()
+                    self.status_bar.showMessage(f"Started: {c.title}")
+                    return
 
         # Default: open full catalogue
         dialog = AcademyWindow(global_tutorial_manager, module_id, self)

@@ -257,7 +257,7 @@ class AcademyDashboard(QWidget):
                 progress = self.manager.get_progress(course.id)
                 card = AcademyCourseCard(course, is_locked, progress)
                 card.start_requested.connect(self._handle_course_action)
-                card.restart_requested.connect(self._handle_course_action)
+                card.restart_requested.connect(self._handle_course_restart)
                 grid.addWidget(card, i // 2, i % 2)
 
             self.content_layout.addLayout(grid)
@@ -265,3 +265,9 @@ class AcademyDashboard(QWidget):
     def _handle_course_action(self, course_id: str):
         self.manager.start_course(course_id)
         self.start_course_requested.emit(course_id)
+
+    def _handle_course_restart(self, course_id: str):
+        if hasattr(self.manager, "reset_course"):
+            self.manager.reset_course(course_id)
+            self._refresh()
+        self._handle_course_action(course_id)
