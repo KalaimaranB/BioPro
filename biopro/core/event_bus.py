@@ -40,6 +40,7 @@ class BioProEvent(Enum):
     # User action events (used by WaitForEventStep in the tutorial engine)
     STORE_OPENED = auto()  # args: () — Marketplace dialog was opened
     STORE_CLOSED = auto()  # args: () — Marketplace dialog was closed
+    STORE_MODULE_DETAILS_OPENED = auto()  # args: () - Store module details dialog opened
     MODULE_OPENED = auto()  # args: (module_id: str) — analysis panel loaded
     FILE_IMPORTED = auto()  # args: (file_path: str) — a file was imported into a module
     WORKFLOW_SAVED = auto()  # args: (filename: str) — a workflow was saved

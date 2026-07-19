@@ -7,7 +7,6 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import (
     QBrush,
     QColor,
-    QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
@@ -22,6 +21,9 @@ from PyQt6.QtWidgets import (
     QGraphicsScene,
     QGraphicsView,
 )
+
+from biopro.ui.components.cyto_costumes import CostumeFactory
+from biopro.ui.theme import theme_manager
 
 
 class Particle(QGraphicsEllipseItem):
@@ -88,7 +90,12 @@ class CytoWidget(QGraphicsView):
         self.target_arm_angle = -35.0
         self.emotion = "happy"
 
+        self.theme_manager = theme_manager
+        self.current_costume = None
         self.build_character()
+
+        self.apply_theme()
+        theme_manager.theme_changed.connect(self.apply_theme)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.animate)
@@ -202,28 +209,16 @@ class CytoWidget(QGraphicsView):
         self.right_arm.setTransformOriginPoint(0, 0)
         self.right_arm.setZValue(6)
 
-        # 7. Lightsaber Handle
-        self.handle = QGraphicsRectItem(45, -20, 10, 35)
-        handle_grad = QLinearGradient(45, -20, 55, -20)
-        handle_grad.setColorAt(0, QColor("#8b949e"))
-        handle_grad.setColorAt(1, QColor("#c9d1d9"))
-        self.handle.setBrush(QBrush(handle_grad))
-        self.handle.setPen(QPen(QColor("#ffffff"), 1))
-        self.handle.setParentItem(self.right_arm)
-
-        # 8. Lightsaber Blade with Bloom
-        self.blade = QGraphicsRectItem(47, -100, 6, 80)
-        self.blade.setBrush(QBrush(QColor("#ffffff")))
-        self.blade.setPen(QPen(Qt.PenStyle.NoPen))
-        self.blade.setParentItem(self.right_arm)
-
-        self.glow_effect = QGraphicsDropShadowEffect()
-        self.glow_effect.setOffset(0, 0)
-        self.glow_effect.setColor(QColor(57, 255, 20))
-        self.glow_effect.setBlurRadius(20)
-        self.blade.setGraphicsEffect(self.glow_effect)
-
     # --- API Methods ---
+
+    def apply_theme(self):
+        """Updates Cyto's costume based on the active theme."""
+        if self.current_costume:
+            self.current_costume.detach(self)
+
+        theme_name = theme_manager.current_theme_name
+        self.current_costume = CostumeFactory.get_costume(theme_name)
+        self.current_costume.attach(self)
 
     def speak(self, text: str):
         """Triggers the talking animation sequence. (Text rendering handled by overlay)"""
@@ -358,9 +353,8 @@ class CytoWidget(QGraphicsView):
         self.current_mouth_open += (self.target_mouth_open - self.current_mouth_open) * 0.3
         self.mouth.setRect(-8, 14 - (self.current_mouth_open / 2 - 1), 16, self.current_mouth_open)
 
-        # Saber hum
-        hum_blur = 20 + math.sin(self.time_step * 15) * 6
-        self.glow_effect.setBlurRadius(hum_blur)
+        if self.current_costume:
+            self.current_costume.animate(self, self.time_step)
 
         # Arm Pointing
         if self.emotion == "idle" and random.random() < 0.02:

@@ -1,7 +1,7 @@
 import math
 import random
 
-from PyQt6.QtCore import QPointF, Qt, QTimer
+from PyQt6.QtCore import QPointF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QPainter, QPen
 from PyQt6.QtWidgets import (
     QDialog,
@@ -40,12 +40,19 @@ class AcademyWindow(QDialog):
     Displays all available courses for a given module and tracks progress.
     """
 
-    def __init__(self, tutorial_manager, module_id: str, parent=None):
+    core_course_requested = pyqtSignal()
+
+    def __init__(self, tutorial_manager, module_id: str | None = None, parent=None):
         super().__init__(parent)
         self.tutorial_manager = tutorial_manager
         self.module_id = module_id
 
-        self.setWindowTitle(f"BioPro Academy - {module_id.capitalize()} Courses")
+        if self.module_id:
+            self.setWindowTitle(
+                f"BioPro Academy - {self.module_id.replace('_', ' ').title()} Courses"
+            )
+        else:
+            self.setWindowTitle("BioPro Academy - Global Hub")
         self.setMinimumSize(800, 500)
 
         # No stylesheet background because we use custom paintEvent for particles
@@ -171,23 +178,102 @@ class AcademyWindow(QDialog):
             if item.widget():
                 item.widget().deleteLater()
 
-        courses = self.tutorial_manager.get_courses_for_module(self.module_id)
+        # --- COURSE DISCOVERY (GLOBAL HUB) ---
+        if self.module_id is None:
+            # 1. Register Core Onboarding Course
+            try:
+                from biopro.tutorials.core_intro import core_intro_course
 
-        if not courses:
+                if "core" not in self.tutorial_manager.courses_by_module:
+                    self.tutorial_manager.register_storyboard("core", core_intro_course)
+            except Exception:
+                pass
+
+            # 2. Extract courses from all plugins via the newly exposed 'register_courses' hook
+            if hasattr(self.parent(), "module_manager"):
+                import importlib
+
+                for _mod_id, mod_info in self.parent().module_manager.modules.items():
+                    if mod_info.get("trust_level") == "untrusted":
+                        continue
+                    try:
+                        package_name = f"biopro.plugins.{mod_info['package_name']}"
+                        plugin_module = importlib.import_module(package_name)
+                        if hasattr(plugin_module, "register_courses"):
+                            plugin_module.register_courses(self.tutorial_manager)
+                    except Exception:
+                        pass
+        # ------------------------------------
+
+        # Badges section for global view
+        if self.module_id is None:
+            badges = getattr(self.tutorial_manager, "badges", [])
+            if badges:
+                badges_lbl = QLabel("🏆 Earned Badges")
+                badges_lbl.setFont(Fonts.H2)
+                badges_lbl.setStyleSheet(f"color: {Colors.ACCENT_WARNING}; padding-top: 10px;")
+                self.cards_layout.addWidget(badges_lbl)
+
+                badges_container = QWidget()
+                badges_layout = QHBoxLayout(badges_container)
+                badges_layout.setContentsMargins(0, 0, 0, 0)
+                badges_layout.setSpacing(10)
+
+                # Use a set to avoid duplicates if any
+                unique_badges = set()
+                for b in badges:
+                    if isinstance(b, dict):
+                        icon = b.get("icon", "🏅")
+                        label = b.get("label", b.get("id", "Badge"))
+                        unique_badges.add(f"{icon} {label}")
+                    else:
+                        unique_badges.add(str(b))
+
+                for b_text in sorted(unique_badges):
+                    b_lbl = QLabel(b_text)
+                    b_lbl.setFont(Fonts.H3)
+                    b_lbl.setStyleSheet(
+                        f"background-color: {Colors.BG_DARK}; color: {Colors.FG_PRIMARY}; border: 1px solid {Colors.ACCENT_WARNING}; border-radius: 8px; padding: 8px 16px;"
+                    )
+                    badges_layout.addWidget(b_lbl)
+                badges_layout.addStretch()
+                self.cards_layout.addWidget(badges_container)
+                self.cards_layout.addSpacing(20)
+
+        def _add_empty():
             lbl = QLabel("No courses implemented yet. Check back soon!")
             lbl.setFont(Fonts.H2)
             lbl.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.cards_layout.addWidget(lbl)
-            return
 
-        for course in courses:
-            card = self._create_course_card(course)
-            self.cards_layout.addWidget(card)
+        if self.module_id is not None:
+            courses = self.tutorial_manager.get_courses_for_module(self.module_id)
+            if not courses:
+                _add_empty()
+            else:
+                for course in courses:
+                    card = self._create_course_card(course, self.module_id)
+                    self.cards_layout.addWidget(card)
+        else:
+            # Global view: iterate all modules
+            if not getattr(self.tutorial_manager, "courses_by_module", {}):
+                _add_empty()
+            else:
+                for mod_id, courses in self.tutorial_manager.courses_by_module.items():
+                    if not courses:
+                        continue
+                    mod_lbl = QLabel(f"📦 {mod_id.replace('_', ' ').title()}")
+                    mod_lbl.setFont(Fonts.H2)
+                    mod_lbl.setStyleSheet(f"color: {Colors.FG_SECONDARY}; padding-top: 10px;")
+                    self.cards_layout.addWidget(mod_lbl)
+                    for course in courses:
+                        card = self._create_course_card(course, mod_id)
+                        self.cards_layout.addWidget(card)
 
         self.cards_layout.addStretch()
 
-    def _create_course_card(self, course) -> QWidget:
+    def _create_course_card(self, course, mod_id: str) -> QWidget:
         def hex_to_rgba(hex_color: str, alpha: float) -> str:
             h = hex_color.lstrip("#")
             if len(h) == 6:
@@ -293,7 +379,25 @@ class AcademyWindow(QDialog):
         action_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         action_btn.setFont(Fonts.BODY)
 
-        if progress < 100.0:
+        is_disabled = self.module_id is None and mod_id != "core"
+
+        if is_disabled:
+            action_btn.setText("Enter Module to Start")
+            action_btn.setEnabled(False)
+            action_btn.setToolTip(
+                f"Open the {mod_id.replace('_', ' ').title()} module to start this course."
+            )
+            action_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {Colors.BG_MEDIUM};
+                    color: {Colors.FG_SECONDARY};
+                    border: 1px solid {Colors.BORDER};
+                    border-radius: 6px;
+                    padding: 10px 24px;
+                    font-weight: bold;
+                }}
+            """)
+        elif progress < 100.0:
             success_hover_rgba = hex_to_rgba(Colors.ACCENT_SUCCESS, 0.8)
             action_btn.setStyleSheet(f"""
                 QPushButton {{
@@ -349,6 +453,11 @@ class AcademyWindow(QDialog):
         return card
 
     def _start_course(self, course_id: str):
+        if course_id == "core_intro_v1":
+            self.core_course_requested.emit()
+            self.accept()
+            return
+
         self.tutorial_manager.start_course(course_id)
         self.accept()
 

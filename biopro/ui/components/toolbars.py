@@ -28,6 +28,7 @@ class AnalysisToolBar(QWidget):
         layout.addWidget(self.btn_close_project)
 
         self.btn_home = SecondaryButton("← Home")
+        self.btn_home.setObjectName("btn_home")
         layout.addWidget(self.btn_home)
 
         self.btn_ai = SecondaryButton("🧠 AI Chat")

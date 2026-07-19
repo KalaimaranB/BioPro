@@ -81,6 +81,17 @@ class TutorialOverlay(QWidget):
 
         self._populate_default_buttons()
 
+        # Initialize with the current state of the tutorial manager
+        from PyQt6.QtCore import QTimer
+
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        if getattr(global_tutorial_manager, "current_step", None):
+            # Defer rendering slightly to allow layout to settle
+            QTimer.singleShot(0, lambda: self.render_step(global_tutorial_manager.current_step))
+        else:
+            self.hide()
+
     def _cleanup(self, *args) -> None:
         """Unsubscribe from event bus when the C++ object is deleted."""
         event_bus.unsubscribe(BioProEvent.ACADEMY_STEP_CHANGED, self._render_step_cb)
@@ -298,6 +309,8 @@ class TutorialOverlay(QWidget):
     def render_step(self, step: BaseStep | None) -> None:
         """Full render of a step — called by event_bus on ACADEMY_STEP_CHANGED."""
         if not step:
+            if hasattr(self, "completion_container") and self.completion_container.isVisible():
+                return
             self.hide()
             return
 
@@ -471,10 +484,10 @@ class TutorialOverlay(QWidget):
         if bubble_x + bubble_w > self.width():
             bubble_x = self.width() - bubble_w - 20
         if bubble_y + bubble_h > self.height():
-            # Cyto's visible avatar starts at roughly y=130 inside its 400px bounding box.
-            # Place the bubble just above the visible graphics (leaving a ~20px gap)
-            # rather than above the entire 400px bounding box.
-            bubble_y = max(10, cyto_y + 130 - bubble_h - 20)
+            # If placing below Cyto pushes it off-screen, place it above Cyto's visible face.
+            # Cyto's face is around y=150. We want the bottom of the bubble (bubble_y + bubble_h)
+            # to be above y=150, leaving a small gap.
+            bubble_y = max(10, cyto_y + 130 - bubble_h)
 
         # Keep bubble out of spotlight holes (unless hole is huge)
         if rects:
@@ -653,7 +666,12 @@ class TutorialOverlay(QWidget):
         while self.btn_layout.count():
             item = self.btn_layout.takeAt(0)
             if item.widget():
-                item.widget().setParent(None)
+                w = item.widget()
+                if w == getattr(self, "btn_next", None):
+                    w.hide()
+                    w.setParent(None)
+                else:
+                    w.deleteLater()
 
     def _clear_dynamic_content(self) -> None:
         # Stop any running WaitForEventStep pulse timer
@@ -662,7 +680,7 @@ class TutorialOverlay(QWidget):
         while self.dynamic_content.count():
             item = self.dynamic_content.takeAt(0)
             if item.widget():
-                item.widget().setParent(None)
+                item.widget().deleteLater()
 
     def _force_resize(self) -> None:
         # Explicitly calculate the required height for the fixed width (392px)

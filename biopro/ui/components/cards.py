@@ -39,12 +39,12 @@ class ModuleCard(QFrame):
         self.setProperty("tutorial_id", f"module_card_{safe_title}")
 
         self.setCursor(Qt.CursorShape.PointingHandCursor if enabled else Qt.CursorShape.ArrowCursor)
-        self.setMinimumSize(220, 150)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumSize(260, 190)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 16, 20, 16)
-        layout.setSpacing(6)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(10)
 
         top_row = QHBoxLayout()
         icon_lbl = QLabel(icon)
@@ -80,6 +80,7 @@ class ModuleCard(QFrame):
         self.title_lbl.setStyleSheet(
             f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY if enabled else Colors.FG_DISABLED}; background: transparent;"
         )
+        self.title_lbl.setWordWrap(True)
         layout.addWidget(self.title_lbl)
 
         self.desc_lbl = QLabel(description)
@@ -185,6 +186,7 @@ class DashboardWorkflowCard(QFrame):
         date_str: str,
         module_name: str,
         description: str = "",
+        tags: list[str] = None,
         has_academy: bool = False,
         course_count: int = 0,
         parent=None,
@@ -194,11 +196,11 @@ class DashboardWorkflowCard(QFrame):
         self.setObjectName("workflowCard")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumSize(220, 130)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(4)
+        layout.setSpacing(6)
 
         # Top row: Module Name, Academy pill (optional), and Settings Button
         top_row = QHBoxLayout()
@@ -249,6 +251,7 @@ class DashboardWorkflowCard(QFrame):
         self.title_lbl.setStyleSheet(
             f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY}; background: transparent;"
         )
+        self.title_lbl.setWordWrap(True)
         layout.addWidget(self.title_lbl)
 
         if description:
@@ -258,6 +261,15 @@ class DashboardWorkflowCard(QFrame):
             )
             self.desc_lbl.setWordWrap(True)
             layout.addWidget(self.desc_lbl)
+
+        if tags:
+            tag_str = "  ".join([f"#{t}" for t in tags])
+            self.tag_lbl = QLabel(tag_str)
+            self.tag_lbl.setStyleSheet(
+                f"color: {Colors.FG_SECONDARY}; font-size: 11px; font-style: italic; background: transparent;"
+            )
+            self.tag_lbl.setWordWrap(True)
+            layout.addWidget(self.tag_lbl)
 
         self.date_lbl = QLabel(f"Saved: {date_str}")
         self.date_lbl.setStyleSheet(

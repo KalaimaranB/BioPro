@@ -234,8 +234,8 @@ class ProjectLauncherWindow(QMainWindow):
         self.btn_new.clicked.connect(self._on_new_project)
         btn_layout.addWidget(self.btn_new)
 
-        self.btn_open = SecondaryButton("📁 Open Project...")
-        self.btn_open.setObjectName("btn_open")
+        self.btn_open = PrimaryButton("📁 Open Project...")
+        self.btn_open.setProperty("tutorial_id", "btn_open")
         self.btn_open.clicked.connect(self._on_open_project)
         btn_layout.addWidget(self.btn_open)
 

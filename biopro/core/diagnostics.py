@@ -66,6 +66,11 @@ class DiagnosticEngine:
 
         # Attach black box to the root logger so it sees everything
         logging.getLogger().addHandler(self.black_box)
+
+        # Throttling state
+        self._last_error_sig = None
+        self._last_error_time = 0.0
+
         self._initialized = True
 
     def report_error(
@@ -79,6 +84,18 @@ class DiagnosticEngine:
 
         This will log the error and broadcast it via the Event Bus for UI display.
         """
+        import time
+
+        now = time.time()
+        error_sig = f"{message}|{str(exception)}"
+
+        # Throttle identical errors to max 1 per 2 seconds to prevent dialog storms
+        if self._last_error_sig == error_sig and (now - self._last_error_time) < 2.0:
+            return
+
+        self._last_error_sig = error_sig
+        self._last_error_time = now
+
         tb = traceback.format_exc() if exception else None
 
         error_data = {

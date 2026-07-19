@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QGridLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -31,7 +32,6 @@ class WorkspaceDashboard(QWidget):
     open_store_requested = pyqtSignal()
     open_ai_requested = pyqtSignal()
     open_academy_requested = pyqtSignal()
-    resume_course_requested = pyqtSignal(str)  # Passes course_id
     trust_module_requested = pyqtSignal(str)  # Passes module_id
 
     def __init__(self, parent=None) -> None:
@@ -74,30 +74,33 @@ class WorkspaceDashboard(QWidget):
         title_row.addWidget(name)
         title_row.addStretch()
 
+        title_row.addSpacing(20)
         self.btn_store = QPushButton("☁️ Store")
         self.btn_store.setObjectName("btn_store")
         self.btn_store.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 20px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
+            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
             f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
         )
         self.btn_store.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_store.clicked.connect(self.open_store_requested.emit)
         title_row.addWidget(self.btn_store)
 
+        title_row.addSpacing(10)
         self.btn_ai = QPushButton("🧠 AI Chat")
         self.btn_ai.setObjectName("btn_ai")
         self.btn_ai.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
+            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
             f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
         )
         self.btn_ai.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_ai.clicked.connect(self.open_ai_requested.emit)
         title_row.addWidget(self.btn_ai)
 
+        title_row.addSpacing(10)
         self.btn_academy = QPushButton("🎓 Academy")
         self.btn_academy.setObjectName("btn_academy")
         self.btn_academy.setStyleSheet(
-            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; margin-left: 10px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
+            f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
             f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: #58a6ff; }}"
         )
         self.btn_academy.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -149,29 +152,6 @@ class WorkspaceDashboard(QWidget):
         stats_layout.addStretch()
         hero_layout.addLayout(stats_layout)
 
-        # 5. Academy Resume Banner
-        self.academy_banner = QWidget()
-        self.academy_banner.setStyleSheet(
-            "background-color: rgba(31, 111, 235, 0.1); border: 1px solid #1f6feb; border-radius: 6px;"
-        )
-        self.academy_banner.setVisible(False)
-        banner_layout = QHBoxLayout(self.academy_banner)
-        banner_layout.setContentsMargins(15, 10, 15, 10)
-
-        self.lbl_resume = QLabel("📖 Resume: Course")
-        self.lbl_resume.setStyleSheet("color: #79c0ff; font-weight: bold; font-size: 13px;")
-        banner_layout.addWidget(self.lbl_resume)
-        banner_layout.addStretch()
-
-        self.btn_resume = QPushButton("Resume →")
-        self.btn_resume.setStyleSheet(
-            "background-color: #1f6feb; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-weight: bold;"
-        )
-        self.btn_resume.setCursor(Qt.CursorShape.PointingHandCursor)
-        banner_layout.addWidget(self.btn_resume)
-
-        hero_layout.addWidget(self.academy_banner)
-
         root.addWidget(hero)
 
         # Call the update text method to apply Galactic overrides or time-based greeting
@@ -184,25 +164,17 @@ class WorkspaceDashboard(QWidget):
         content_layout.setContentsMargins(56, 36, 56, 36)
         content_layout.setSpacing(30)
 
-        # Recent Workflows Section
-        self.workflows_container = QWidget()
-        wf_layout = QVBoxLayout(self.workflows_container)
-        wf_layout.setContentsMargins(0, 0, 0, 0)
-        wf_layout.setSpacing(14)
+        from biopro.ui.layouts.flow_layout import FlowLayout
 
-        wf_lbl = QLabel("Recent Sessions")
-        wf_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};"
-        )
-        wf_layout.addWidget(wf_lbl)
-
-        self.workflows_grid = QGridLayout()
-        self.workflows_grid.setSpacing(14)
-        self.workflows_grid.setColumnStretch(0, 1)
-        self.workflows_grid.setColumnStretch(1, 1)
-        self.workflows_grid.setColumnStretch(2, 1)
-        wf_layout.addLayout(self.workflows_grid)
-        content_layout.addWidget(self.workflows_container)
+        scroll_style = """
+            QScrollArea { background: transparent; }
+            QScrollArea > QWidget > QWidget { background: transparent; }
+            QScrollBar:vertical { width: 8px; background: transparent; margin-left: 2px; }
+            QScrollBar::handle:vertical { background: rgba(255, 255, 255, 0.2); border-radius: 4px; min-height: 40px; }
+            QScrollBar::handle:vertical:hover { background: rgba(255, 255, 255, 0.3); }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }
+        """
 
         # New Analysis Section
         new_lbl = QLabel("Start New Analysis")
@@ -211,37 +183,57 @@ class WorkspaceDashboard(QWidget):
         )
         content_layout.addWidget(new_lbl)
 
-        self.modules_grid = QGridLayout()
-        self.modules_grid.setSpacing(14)
-        self.modules_grid.setColumnStretch(0, 1)
-        self.modules_grid.setColumnStretch(1, 1)
-        self.modules_grid.setColumnStretch(2, 1)
-        content_layout.addLayout(self.modules_grid)
+        self.modules_inner = QWidget()
+        self.modules_layout = FlowLayout(self.modules_inner, margin=0, spacing=24)
+        content_layout.addWidget(self.modules_inner)
 
+        # Recent Workflows Section
+        self.workflows_container = QWidget()
+        self.workflows_container.setObjectName("workflows_container")
+        wf_layout = QVBoxLayout(self.workflows_container)
+        wf_layout.setContentsMargins(0, 20, 0, 0)
+        wf_layout.setSpacing(14)
+
+        wf_lbl = QLabel("Recent Sessions")
+        wf_lbl.setStyleSheet(
+            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};"
+        )
+        wf_layout.addWidget(wf_lbl)
+
+        self.workflows_inner = QWidget()
+        self.workflows_layout = FlowLayout(self.workflows_inner, margin=0, spacing=20)
+        wf_layout.addWidget(self.workflows_inner)
+
+        content_layout.addWidget(self.workflows_container)
         content_layout.addStretch()
-        root.addWidget(content, stretch=1)
+
+        # Wrap content in a main scroll area
+        self.main_scroll = QScrollArea()
+        self.main_scroll.setWidgetResizable(True)
+        self.main_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.main_scroll.setWidget(content)
+        self.main_scroll.setStyleSheet(scroll_style)
+
+        root.addWidget(self.main_scroll, stretch=1)
 
     # ── Population Methods ──
 
-    def populate_academy_banner(self, in_progress_course_id: str, title: str, step_info: str):
-        self.academy_banner.setVisible(False)
-
     def populate_modules(self, manifests: list[dict]) -> None:
         """Dynamically build the selection grid based on installed plugins."""
-        for i in reversed(range(self.modules_grid.count())):
-            widget = self.modules_grid.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
+        while self.modules_layout.count():
+            item = self.modules_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
         if not manifests:
             lbl = QLabel("No analysis modules installed. Use the Store to download plugins.")
             lbl.setStyleSheet(f"color: {Colors.FG_DISABLED}; font-style: italic;")
-            self.modules_grid.addWidget(lbl, 0, 0)
+            self.modules_layout.addWidget(lbl)
             return
 
         self.stat_modules.setText(f"📡 {len(manifests)} Modules Active")  # Update the stat
 
-        for i, manifest in enumerate(manifests):
+        for _i, manifest in enumerate(manifests):
             card = ModuleCard(
                 icon=manifest.get("icon", "📦"),
                 title=manifest.get("name", "Unknown Module"),
@@ -258,17 +250,17 @@ class WorkspaceDashboard(QWidget):
             card.trust_requested.connect(
                 lambda *args, mid=mid_val: self.trust_module_requested.emit(mid)
             )
-            self.modules_grid.addWidget(card, i // 3, i % 3)
+            self.modules_layout.addWidget(card)
 
     def populate_workflows(self, workflows: list[dict]) -> None:
         """Populate the recent sessions grid with WorkflowCards."""
         # Lazy import to avoid circular dependency at module level
         from biopro.core.tutorial_manager import global_tutorial_manager
 
-        for i in reversed(range(self.workflows_grid.count())):
-            widget = self.workflows_grid.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
+        while self.workflows_layout.count():
+            item = self.workflows_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
         if not workflows:
             self.workflows_container.setVisible(False)
@@ -276,7 +268,7 @@ class WorkspaceDashboard(QWidget):
 
         self.workflows_container.setVisible(True)
 
-        for i, wf in enumerate(workflows):
+        for _i, wf in enumerate(workflows):
             filename = wf.get("filename", "")
             module_id = wf.get("module_id", "Unknown")
 
@@ -286,6 +278,7 @@ class WorkspaceDashboard(QWidget):
             title = wf.get("name", filename.replace(".json", ""))
             date_str = wf.get("timestamp", "Unknown Date")
             desc = wf.get("description", "")
+            tags = wf.get("tags", [])
 
             # Check if the module has Academy courses registered
             courses = global_tutorial_manager.get_courses_for_module(module_id)
@@ -297,6 +290,7 @@ class WorkspaceDashboard(QWidget):
                 date_str=date_str,
                 module_name=pretty_mod,
                 description=desc,
+                tags=tags,
                 has_academy=has_academy,
                 course_count=course_count,
             )
@@ -314,7 +308,7 @@ class WorkspaceDashboard(QWidget):
                 lambda *args, mid=module_id: self.open_academy_for_module_requested.emit(mid)
             )
 
-            self.workflows_grid.addWidget(card, i // 3, i % 3)
+            self.workflows_layout.addWidget(card)
 
     def _update_dashboard_text(self):
         import datetime

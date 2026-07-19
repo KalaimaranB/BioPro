@@ -116,6 +116,10 @@ class BioProApp:
         self.show_hub()
 
         print("5. Starting PyQt Event Loop...")
+        from biopro.core.task_scheduler import task_scheduler
+
+        self.app.aboutToQuit.connect(task_scheduler.shutdown)
+
         sys.exit(self.app.exec())
 
     def show_hub(self):

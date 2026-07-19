@@ -73,6 +73,13 @@ class _Fonts:
         return f
 
     @property
+    def H3(self):
+        from PyQt6.QtGui import QFont
+
+        f = QFont(self.FAMILY_HEADINGS, self.SIZE_NORMAL, QFont.Weight.Bold)
+        return f
+
+    @property
     def BODY(self):
         from PyQt6.QtGui import QFont
 

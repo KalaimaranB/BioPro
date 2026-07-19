@@ -30,13 +30,13 @@ class AcademyManager:
 
         # Persistence data
         self.completed_courses: list[str] = []
-        self.in_progress: dict[str, dict[str, Any]] = {}
         self.badges: list[dict[str, Any]] = []
         self.prerequisites_met: dict[str, str] = {}  # course_id -> workflow_hash
 
         # State tracking
         self.active_course: Course | None = None
         self.current_step: BaseStep | None = None
+        self.active_subtask_progress: dict[str, bool] = {}
 
         # Tracks the active event subscription for WaitForEventStep
         self._wait_event_subscription: tuple | None = None  # (BioProEvent, callback)
@@ -50,7 +50,6 @@ class AcademyManager:
                 with open(self.progress_file) as f:
                     data = json.load(f)
                     self.completed_courses = data.get("completed_courses", [])
-                    self.in_progress = data.get("in_progress", {})
                     self.badges = data.get("badges", [])
                     self.prerequisites_met = data.get("prerequisites_met", {})
             except Exception as e:
@@ -62,7 +61,6 @@ class AcademyManager:
             self.config_dir.mkdir(parents=True, exist_ok=True)
             data = {
                 "completed_courses": self.completed_courses,
-                "in_progress": self.in_progress,
                 "badges": self.badges,
                 "prerequisites_met": self.prerequisites_met,
             }
@@ -95,11 +93,7 @@ class AcademyManager:
 
                     if course.steps:
                         self.current_step = course.steps[0]
-                        self.in_progress[course_id] = {
-                            "current_step_id": self.current_step.id,
-                            "subtask_progress": {},
-                        }
-                        self._save_progress()
+                        self.active_subtask_progress = {}
                         # Subscribe immediately if the first step is a WaitForEventStep
                         if isinstance(self.current_step, WaitForEventStep):
                             self._subscribe_wait_event(self.current_step)
@@ -138,11 +132,9 @@ class AcademyManager:
         if next_id and next_id != "__complete__":
             self.current_step = self.active_course.get_step(next_id)
             if self.current_step:
-                self.in_progress[self.active_course.id]["current_step_id"] = self.current_step.id
                 # Reset subtask progress for the new step
                 if isinstance(self.current_step, ForcedInteractionStep):
-                    self.in_progress[self.active_course.id]["subtask_progress"] = {}
-                self._save_progress()
+                    self.active_subtask_progress = {}
                 # Subscribe if this is a WaitForEventStep
                 if isinstance(self.current_step, WaitForEventStep):
                     self._subscribe_wait_event(self.current_step)
@@ -161,17 +153,15 @@ class AcademyManager:
         if subtask_id not in valid_ids:
             return
 
-        progress = self.in_progress[self.active_course.id].setdefault("subtask_progress", {})
-        progress[subtask_id] = True
-        self._save_progress()
+        self.active_subtask_progress[subtask_id] = True
 
-        remaining = sum(1 for t in valid_ids if not progress.get(t, False))
+        remaining = sum(1 for t in valid_ids if not self.active_subtask_progress.get(t, False))
         event_bus.emit(BioProEvent.ACADEMY_SUBTASK_COMPLETED, subtask_id, remaining)
 
     def _get_current_subtask_progress(self) -> dict[str, bool]:
         if not self.active_course:
             return {}
-        return self.in_progress.get(self.active_course.id, {}).get("subtask_progress", {})
+        return self.active_subtask_progress
 
     def _subscribe_wait_event(self, step: WaitForEventStep) -> None:
         """Subscribe to the named event so the step auto-advances when it fires."""
@@ -207,9 +197,6 @@ class AcademyManager:
             if course_id not in self.completed_courses:
                 self.completed_courses.append(course_id)
 
-            if course_id in self.in_progress:
-                del self.in_progress[course_id]
-
             if self.active_course.badge_reward:
                 self._award_badge(self.active_course)
 
@@ -225,10 +212,6 @@ class AcademyManager:
         modified = False
         if course_id in self.completed_courses:
             self.completed_courses.remove(course_id)
-            modified = True
-
-        if course_id in self.in_progress:
-            del self.in_progress[course_id]
             modified = True
 
         if modified:
@@ -293,23 +276,14 @@ class AcademyManager:
 
     def get_progress(self, course_id: str) -> float:
         """Returns completion percentage (100.0 if completed)."""
-        if course_id in self.completed_courses:
+        if course_id in self.completed_courses or any(
+            b.get("id") == course_id for b in self.badges
+        ):
+            if course_id not in self.completed_courses:
+                self.completed_courses.append(course_id)
+                self._save_progress()
             return 100.0
 
-        if course_id in self.in_progress:
-            # Calculate roughly based on step index
-            for courses in self.courses_by_module.values():
-                for course in courses:
-                    if course.id == course_id and course.steps:
-                        current_step_id = self.in_progress[course_id].get("current_step_id")
-                        main_path = course.get_main_path()
-                        if not main_path:
-                            return 0.0
-                        if current_step_id in main_path:
-                            idx = main_path.index(current_step_id)
-                            return (idx / len(main_path)) * 100.0
-                        # If on a side branch, try to return progress of last main path step, or fallback
-                        return 0.0
         return 0.0
 
     def is_core_intro_done(self) -> bool:

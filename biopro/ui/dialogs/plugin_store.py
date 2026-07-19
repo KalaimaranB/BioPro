@@ -845,6 +845,7 @@ class PluginStoreDialog(QDialog):
 
         card = ModuleCard()  # Base styling
         card.setObjectName("StoreModuleCard")
+        card.setProperty("tutorial_id", f"store_card_{plugin_id}")
         card.setMinimumWidth(350)
 
         main_layout = QVBoxLayout(card)
@@ -995,6 +996,7 @@ class PluginStoreDialog(QDialog):
 
     def _view_plugin_details(self, plugin_id: str, data: dict):
         """Displays detailed V2 meta inspection dialog."""
+        event_bus.emit(BioProEvent.STORE_MODULE_DETAILS_OPENED)
         dialog = PluginDetailsDialog(plugin_id, data, self)
         dialog.exec()
 

@@ -19,7 +19,6 @@ class AcademyCourseCard(QFrame):
     """A card representing a single course."""
 
     start_requested = pyqtSignal(str)
-    resume_requested = pyqtSignal(str)
     restart_requested = pyqtSignal(str)
 
     def __init__(self, course: Course, is_locked: bool, progress: float):
@@ -91,7 +90,7 @@ class AcademyCourseCard(QFrame):
         # Buttons
         btn_layout = QHBoxLayout()
         if not self.is_locked:
-            if self.progress == 0:
+            if self.progress < 100:
                 btn_start = QPushButton("Start Course →")
                 btn_start.setStyleSheet(
                     "background-color: #2ea043; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-weight: bold;"
@@ -100,15 +99,7 @@ class AcademyCourseCard(QFrame):
                 btn_start.clicked.connect(lambda: self.start_requested.emit(self.course.id))
                 btn_layout.addWidget(btn_start)
             else:
-                btn_resume = QPushButton("Resume →")
-                btn_resume.setStyleSheet(
-                    "background-color: #1f6feb; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-weight: bold;"
-                )
-                btn_resume.setCursor(Qt.CursorShape.PointingHandCursor)
-                btn_resume.clicked.connect(lambda: self.resume_requested.emit(self.course.id))
-                btn_layout.addWidget(btn_resume)
-
-                btn_restart = QPushButton("Restart")
+                btn_restart = QPushButton("Restart Course")
                 btn_restart.setStyleSheet(
                     "background-color: transparent; color: #8b949e; border: 1px solid #30363d; border-radius: 4px; padding: 6px 12px;"
                 )
@@ -266,7 +257,6 @@ class AcademyDashboard(QWidget):
                 progress = self.manager.get_progress(course.id)
                 card = AcademyCourseCard(course, is_locked, progress)
                 card.start_requested.connect(self._handle_course_action)
-                card.resume_requested.connect(self._handle_course_action)
                 card.restart_requested.connect(self._handle_course_action)
                 grid.addWidget(card, i // 2, i % 2)
 

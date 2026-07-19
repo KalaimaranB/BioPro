@@ -13,6 +13,7 @@ from PyQt6.QtCore import (
     QSize,
     Qt,
     QThread,
+    QTimer,
     pyqtSignal,
     pyqtSlot,
 )
@@ -404,19 +405,16 @@ class WorkspaceWindow(QMainWindow):
     def _active_overlay(self):
         """Returns the TutorialOverlay that is currently relevant.
 
-        Uses the home overlay when the core intro is active (home screen),
-        and the analysis overlay for all module-specific courses.
+        Uses the home overlay when on the home screen, and the analysis
+        overlay when a module is open.
         """
         from PyQt6.QtWidgets import QDialog
-
-        from biopro.core.tutorial_manager import global_tutorial_manager
 
         store = self.findChild(QDialog, "PluginStoreDialog")
         if store and store.isVisible() and hasattr(store, "tutorial_overlay"):
             return store.tutorial_overlay
 
-        course = global_tutorial_manager.active_course
-        if course and course.id == "core_intro_v1":
+        if self.root_stack.currentIndex() == getattr(self, "_PAGE_HOME", 0):
             return self.home_tutorial_overlay
         return self.tutorial_overlay
 
@@ -505,7 +503,13 @@ class WorkspaceWindow(QMainWindow):
         from biopro.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step
-        if not step:
+
+        has_completion = (
+            hasattr(active_overlay, "completion_container")
+            and active_overlay.completion_container.isVisible()
+        )
+
+        if not step and not has_completion:
             active_overlay.hide()
             return
 
@@ -515,17 +519,21 @@ class WorkspaceWindow(QMainWindow):
         if store and store.isVisible():
             parent_page = store
         else:
-            is_core_intro = (
-                global_tutorial_manager.active_course is not None
-                and global_tutorial_manager.active_course.id == "core_intro_v1"
-            )
-            parent_page = self.home_screen if is_core_intro else self.analysis_page
+            if getattr(self, "root_stack", None) and self.root_stack.currentIndex() == getattr(
+                self, "_PAGE_HOME", 0
+            ):
+                parent_page = self.home_screen
+            else:
+                parent_page = self.analysis_page
 
         # Only update geometry and raise if the rect changed to prevent rendering glitches
         new_geom = parent_page.rect()
         if active_overlay.geometry() != new_geom:
             active_overlay.setGeometry(new_geom)
             active_overlay.raise_()
+
+        if not step:
+            return
 
         # Re-render the bubble if the step changed
         current_id = step.id
@@ -545,41 +553,41 @@ class WorkspaceWindow(QMainWindow):
 
             # Wire InteractionStep signal → auto-advance
             if isinstance(step, InteractionStep) and step.target_widget_name:
-                wizard_panel = getattr(self, "wizard_panel", None)
-                if wizard_panel:
-                    targets = wizard_panel.findChildren(QWidget, step.target_widget_name)
-                    for target_w in targets:
-                        if hasattr(target_w, step.event_trigger):
-                            obj_id = id(target_w)
-                            conn_key = f"{step.id}__{step.target_widget_name}__{step.event_trigger}__{obj_id}"
-                            if conn_key not in self._tutorial_connections:
-                                print(f"DEBUG: Wiring InteractionStep signal {conn_key}")
+                targets = parent_page.findChildren(QWidget, step.target_widget_name)
+                for target_w in targets:
+                    if hasattr(target_w, step.event_trigger):
+                        obj_id = id(target_w)
+                        conn_key = (
+                            f"{step.id}__{step.target_widget_name}__{step.event_trigger}__{obj_id}"
+                        )
+                        if conn_key not in self._tutorial_connections:
+                            print(f"DEBUG: Wiring InteractionStep signal {conn_key}")
 
-                                def _make_advancer(sid: str):
-                                    def _advance(*_args):
-                                        print(
-                                            f"DEBUG: InteractionStep trigger fired for {sid}! current step is {global_tutorial_manager.current_step.id if global_tutorial_manager.current_step else None}"
-                                        )
-                                        if (
-                                            global_tutorial_manager.current_step
-                                            and global_tutorial_manager.current_step.id == sid
-                                        ):
-                                            print("DEBUG: Advancing next_step!")
-                                            global_tutorial_manager.next_step()
-
-                                    return _advance
-
-                                advancer = _make_advancer(step.id)
-                                self._tutorial_connections[conn_key] = advancer
-                                try:
-                                    getattr(target_w, step.event_trigger).connect(advancer)
+                            def _make_advancer(sid: str):
+                                def _advance(*_args):
                                     print(
-                                        f"DEBUG: Successfully connected to {step.event_trigger} on widget {obj_id}"
+                                        f"DEBUG: InteractionStep trigger fired for {sid}! current step is {global_tutorial_manager.current_step.id if global_tutorial_manager.current_step else None}"
                                     )
-                                except Exception as e:
-                                    print(
-                                        f"DEBUG: Failed to connect to {step.event_trigger} on widget {obj_id}: {e}"
-                                    )
+                                    if (
+                                        global_tutorial_manager.current_step
+                                        and global_tutorial_manager.current_step.id == sid
+                                    ):
+                                        print("DEBUG: Advancing next_step!")
+                                        global_tutorial_manager.next_step()
+
+                                return _advance
+
+                            advancer = _make_advancer(step.id)
+                            self._tutorial_connections[conn_key] = advancer
+                            try:
+                                getattr(target_w, step.event_trigger).connect(advancer)
+                                print(
+                                    f"DEBUG: Successfully connected to {step.event_trigger} on widget {obj_id}"
+                                )
+                            except Exception as e:
+                                print(
+                                    f"DEBUG: Failed to connect to {step.event_trigger} on widget {obj_id}: {e}"
+                                )
 
         # Auto-verify VerificationStep
         if isinstance(step, VerificationStep) and step.validator:
@@ -627,7 +635,7 @@ class WorkspaceWindow(QMainWindow):
             global_tutorial_manager.next_step(step.next_step_id)
 
         # Spotlight: find target widgets and map to overlay-local coordinates.
-        # For the core intro, search home_screen children; otherwise search the wizard_panel.
+        # Search the current parent_page (home_screen, analysis_page, or active dialog).
         from PyQt6.QtCore import QRect
 
         targets: list[QWidget] = []
@@ -700,33 +708,25 @@ class WorkspaceWindow(QMainWindow):
     def _open_academy_from_home(self):
         """Called via the top-bar Academy button while on the home screen.
 
-        Opens the Academy for the most recently used module.  If none has been
-        loaded yet, shows a friendly hint in the status bar instead of a
-        blocking dialog.
+        Opens the Global Academy Hub, showing all available courses.
         """
-        mod_id = getattr(self, "current_module_id", None)
-        if mod_id:
-            self._open_academy_for_module(mod_id)
-        else:
-            self.status_bar.showMessage(
-                "Open an analysis module first to access its Academy courses.", 4000
-            )
+        self._open_academy_for_module(None)
 
-    def _open_academy_for_module(self, module_id: str) -> None:
-        """Opens the Academy course catalogue for the given module.
+    def _open_academy_for_module(self, module_id: str | None) -> None:
+        """Opens the Academy course catalogue for the given module (or Global Hub if None).
 
-        If the module has exactly one course and it hasn't been started yet,
-        starts it directly (fast path).  Otherwise opens the full catalogue.
+        If a specific module is provided and has exactly one course that hasn't
+        been started yet, starts it directly (fast path). Otherwise opens the full catalogue.
         """
         from biopro.core.tutorial_manager import global_tutorial_manager
         from biopro.ui.dialogs.academy_window import AcademyWindow
 
-        courses = global_tutorial_manager.get_courses_for_module(module_id)
-
         # Fast path: single unstarted course → start immediately without the catalogue
-        if len(courses) == 1:
-            c = courses[0]
-            progress = global_tutorial_manager.get_progress(c.id)
+        if module_id is not None:
+            courses = global_tutorial_manager.get_courses_for_module(module_id)
+            if len(courses) == 1:
+                c = courses[0]
+                progress = global_tutorial_manager.get_progress(c.id)
             if progress == 0.0:
                 global_tutorial_manager.start_course_confirmed(c.id)
                 self.tutorial_overlay.setGeometry(self.analysis_page.rect())
@@ -736,11 +736,22 @@ class WorkspaceWindow(QMainWindow):
 
         # Default: open full catalogue
         dialog = AcademyWindow(global_tutorial_manager, module_id, self)
+
+        def _handle_core_course():
+            self._show_home()
+            global_tutorial_manager.start_core_intro()
+
+        dialog.core_course_requested.connect(_handle_core_course)
         dialog.exec()
 
         if global_tutorial_manager.active_course:
-            self.tutorial_overlay.setGeometry(self.analysis_page.rect())
-            self.tutorial_overlay.show()
+            overlay = self._get_active_overlay()
+            if overlay == self.home_tutorial_overlay:
+                overlay.setGeometry(self.home_screen.rect())
+            else:
+                overlay.setGeometry(self.analysis_page.rect())
+            overlay.show()
+            overlay.raise_()
             self.status_bar.showMessage(
                 "Started Academy Course: " + global_tutorial_manager.active_course.title
             )
@@ -748,6 +759,8 @@ class WorkspaceWindow(QMainWindow):
     def _show_home(self) -> None:
         if self.wizard_panel and hasattr(self.wizard_panel, "reset_to_setup"):
             self.wizard_panel.reset_to_setup()
+
+        self._refresh_hub_workflows()
 
         self.current_module_id = None
         self._transition_to_page(_PAGE_HOME)
@@ -1174,12 +1187,35 @@ class WorkspaceWindow(QMainWindow):
 
         # Try common state structures used by BioPro plugins
         state = getattr(panel, "state", None) or {}
-        files = state.get("files") or state.get("loaded_files") or state.get("file_list") or []
-        current_count = len(files) if isinstance(files, (list, dict)) else 0
+        if isinstance(state, dict) or hasattr(state, "get"):
+            files = state.get("files") or state.get("loaded_files") or state.get("file_list") or []
+        else:
+            try:
+                files = state.data.experiment.samples
+            except AttributeError:
+                files = []
+
+        current_count = len(files) if hasattr(files, "__len__") else 0
+
+        import logging
+
+        logger = logging.getLogger("workspace_window")
+        logger.warning(
+            f"DEBUG _on_wizard_state_changed: current_count={current_count}, last={self._last_import_file_count}, files type={type(files)}"
+        )
 
         if current_count > self._last_import_file_count:
             self._last_import_file_count = current_count
-            event_bus.emit(BioProEvent.FILE_IMPORTED, "")
+            logger.warning("DEBUG _on_wizard_state_changed: Emitting FILE_IMPORTED")
+
+            # Defer the event emission to the next event loop cycle. This ensures
+            # that any synchronous PyQt slots currently handling the file import UI
+            # interactions have time to finish, allowing the Tutorial Manager to
+            # properly advance to the WaitForEventStep before the event fires.
+            def emit_imported():
+                event_bus.emit(BioProEvent.FILE_IMPORTED, "")
+
+            QTimer.singleShot(100, emit_imported)
 
     def _open_store(self):
         from biopro.core.event_bus import BioProEvent
@@ -1283,7 +1319,19 @@ class WorkspaceWindow(QMainWindow):
             self.root_stack.removeWidget(self.home_screen)
             self.home_screen.deleteLater()
 
+            # Remove dead python reference to avoid resizeEvent crashing
+            if hasattr(self, "home_tutorial_overlay"):
+                del self.home_tutorial_overlay
+
         self.home_screen = HomeScreen()
+
+        # Recreate the tutorial overlay for the new home screen
+        from biopro.ui.wizards.tutorial_overlay import TutorialOverlay
+
+        self.home_tutorial_overlay = TutorialOverlay(self.home_screen)
+        self.home_tutorial_overlay.hide()
+        self.home_tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
+        self.home_tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
 
         # Rewire signals
         self.home_screen.module_selected.connect(self._open_module)
@@ -1421,6 +1469,8 @@ class WorkspaceWindow(QMainWindow):
                                     "module_id": metadata.get("module", "western_blot"),
                                     "name": metadata.get("name", wf_file.stem),
                                     "timestamp": metadata.get("timestamp", "Unknown Date"),
+                                    "description": metadata.get("description", ""),
+                                    "tags": metadata.get("tags", []),
                                 }
                             )
                     except Exception:
