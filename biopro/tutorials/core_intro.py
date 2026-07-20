@@ -60,8 +60,12 @@ def _copy_demo_file(main_panel: Any) -> None:
     if not src_file.exists():
         return
 
-    # Copy to user's Downloads folder
-    downloads_dir = Path.home() / "Downloads"
+    # Use QStandardPaths to safely resolve the OS's real Downloads folder
+    from PyQt6.QtCore import QStandardPaths
+
+    download_loc = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation)
+    downloads_dir = Path(download_loc) if download_loc else Path.home() / "Downloads"
+
     downloads_dir.mkdir(exist_ok=True, parents=True)
 
     dest_file = downloads_dir / "demo_tutorial.fcs"

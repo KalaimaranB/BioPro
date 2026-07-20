@@ -70,6 +70,42 @@ class ModuleManager:
                         try:
                             manifest = parser.parse_file(str(manifest_file))
                         except ManifestValidationError as e:
+                            error_str = str(e)
+                            if "Legacy 'author' field" in error_str:
+                                try:
+                                    import json
+
+                                    with open(manifest_file, encoding="utf-8") as f:
+                                        raw_manifest = json.load(f)
+                                    mod_id = raw_manifest.get("id", plugin_path.name)
+
+                                    manifest = {
+                                        "id": mod_id,
+                                        "name": raw_manifest.get("name", plugin_path.name),
+                                        "description": "This module is outdated and must be updated.",
+                                        "version": raw_manifest.get("version", "Unknown"),
+                                        "trust_level": "outdated",
+                                        "trust_path": None,
+                                        "developer_name": "Unknown",
+                                        "developer_key": "Unknown",
+                                    }
+
+                                    self.modules[mod_id] = {
+                                        "manifest": manifest,
+                                        "path": plugin_path,
+                                        "package_name": plugin_path.name,
+                                        "loaded": False,
+                                        "plugin_ref": None,
+                                        "trust_level": "outdated",
+                                        "trust_error": error_str,
+                                        "trust_path": None,
+                                        "calculated_hashes": None,
+                                    }
+                                    continue
+                                except Exception as inner_e:
+                                    logger.error(f"Failed to parse outdated manifest: {inner_e}")
+                                    # Fall through to normal error reporting
+
                             msg = f"Plugin {plugin_path.name} failed manifest validation: {e}"
                             logger.error(msg)
                             try:
@@ -148,6 +184,11 @@ class ModuleManager:
         if mod_info["trust_level"] == "untrusted":
             raise PermissionError(
                 f"Security Block: Cannot load untrusted module '{module_id}'. Please verify and lock changes first."
+            )
+
+        if mod_info["trust_level"] == "outdated":
+            raise RuntimeError(
+                f"OutdatedModuleError: The module '{mod_info['manifest'].get('name', mod_info['package_name'])}' is outdated and must be updated to work with this version of BioPro."
             )
 
         if mod_info["loaded"]:
@@ -253,8 +294,12 @@ class ModuleManager:
         """Prepend plugin's local .plugin_venv site-packages to sys.path if it exists."""
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         candidate_paths = [
+            # Unix/macOS layout: lib/pythonX.Y/site-packages
             plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages",
             plugin_path / ".venv" / "lib" / py_ver / "site-packages",
+            # Windows layout: Lib/site-packages (no version subdirectory)
+            plugin_path / ".plugin_venv" / "Lib" / "site-packages",
+            plugin_path / ".venv" / "Lib" / "site-packages",
         ]
 
         selected_path = None
@@ -374,7 +419,7 @@ class ModuleManager:
             if (
                 target_marker in norm_path
                 and (".plugin_venv" in norm_path or ".venv" in norm_path)
-                and "site-packages" in norm_path
+                and ("site-packages" in norm_path)
             ):
                 sys.path.remove(path)
                 logger.info(f"Cleaned up dynamic plugin path from sys.path: {path}")

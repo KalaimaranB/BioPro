@@ -98,6 +98,14 @@ class TutorialOverlay(QWidget):
         event_bus.unsubscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
         event_bus.unsubscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self._on_course_cb)
 
+    def _is_alive(self) -> bool:
+        """Safely check if the underlying C++ object has been deleted."""
+        try:
+            self.objectName()
+            return True
+        except RuntimeError:
+            return False
+
     # ── Build helpers ─────────────────────────────────────────────────────────
 
     def _build_cyto(self) -> None:
@@ -205,73 +213,18 @@ class TutorialOverlay(QWidget):
 
     def show_completion_screen(self, course_id: str, badge_reward: str) -> None:
         """Renders the sleek, professional completion overlay."""
+        if not self._is_alive():
+            return
+
         self.show()
 
         if hasattr(self, "completion_container"):
             self.completion_container.deleteLater()
 
-        self.completion_container = QWidget(self)
-        self.completion_container.setObjectName("CompletionContainer")
+        from biopro.ui.wizards.course_complete_overlay import CourseCompleteOverlay
 
-        # Techy/biology theme: translucent dark background, mono-like font style where possible, glowing accent
-        self.completion_container.setStyleSheet(
-            f"#CompletionContainer {{"
-            f"  color: {Colors.FG_SECONDARY}; "
-            f"  background-color: {Colors.BG_DARKEST}; "
-            f"  border: 1px dashed {Colors.BORDER}; "
-            f"  border-radius: 6px; padding: 10px;"
-            f"}}"
-        )
-
-        layout = QVBoxLayout(self.completion_container)
-        layout.setContentsMargins(60, 50, 60, 50)
-        layout.setSpacing(15)
-
-        title = QLabel("PROTOCOL COMPLETE")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet(
-            f"color: {Colors.ACCENT_SUCCESS}; font-size: 20px; font-weight: bold; letter-spacing: 3px;"
-        )
-
-        clean_name = course_id.replace("flow_course_", "").replace("_", " ").title()
-        subtitle = QLabel(f"Successfully processed {clean_name}")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet(
-            f"color: {Colors.FG_PRIMARY}; font-size: 15px; font-family: monospace;"
-        )
-
-        badge_lbl = QLabel(badge_reward)
-        badge_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge_lbl.setStyleSheet("color: #FFD700; font-size: 72px; padding: 20px;")
-
-        badge_text = QLabel(f"New Authentication Badge Unlocked\n[{badge_reward}]")
-        badge_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge_text.setStyleSheet(
-            f"color: {Colors.FG_SECONDARY}; font-size: 14px; font-family: monospace;"
-        )
-
-        btn_close = QPushButton("RETURN TO WORKSPACE")
-        btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_close.setStyleSheet(
-            f"color: {Colors.FG_PRIMARY}; "
-            f"background-color: {Colors.BG_DARKEST}; "
-            f"border: 1px solid {Colors.BORDER}; "
-            f"border-radius: 6px; padding: 10px 20px;"
-            f"font-size: 13px;"
-            f"font-weight: bold;"
-            f"font-family: monospace;"
-        )
-        btn_close.clicked.connect(self._close_completion_screen)
-
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        layout.addSpacing(10)
-        layout.addWidget(badge_lbl)
-        layout.addWidget(badge_text)
-        layout.addSpacing(25)
-        layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignCenter)
-
-        self.completion_container.adjustSize()
+        self.completion_container = CourseCompleteOverlay(self)
+        self.completion_container.dismissed.connect(self._close_completion_screen)
 
         self.bubble_container.hide()
         self.cyto.hide()
@@ -279,8 +232,8 @@ class TutorialOverlay(QWidget):
         self._update_mask()
         self.update()
 
-        self.completion_container.show()
-        self._center_completion_container()
+        self.completion_container.setGeometry(self.rect())
+        self.completion_container.show_completion(course_id, badge_reward)
 
     def _center_completion_container(self) -> None:
         if hasattr(self, "completion_container") and self.completion_container.isVisible():
@@ -308,6 +261,9 @@ class TutorialOverlay(QWidget):
 
     def render_step(self, step: BaseStep | None) -> None:
         """Full render of a step — called by event_bus on ACADEMY_STEP_CHANGED."""
+        if not self._is_alive():
+            return
+
         if not step:
             if hasattr(self, "completion_container") and self.completion_container.isVisible():
                 return
@@ -600,6 +556,8 @@ class TutorialOverlay(QWidget):
             self.dynamic_content.addWidget(lbl)
 
     def _on_subtask_completed(self, subtask_id: str, remaining_count: int) -> None:
+        if not self._is_alive():
+            return
         if not isinstance(self.current_step, ForcedInteractionStep):
             return
         for i in range(self.dynamic_content.count()):

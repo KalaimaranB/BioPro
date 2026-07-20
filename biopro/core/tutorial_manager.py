@@ -214,9 +214,9 @@ class AcademyManager:
             self.completed_courses.remove(course_id)
             modified = True
 
-        badge_idx = next((i for i, b in enumerate(self.badges) if b.get("id") == course_id), None)
-        if badge_idx is not None:
-            self.badges.pop(badge_idx)
+        initial_len = len(self.badges)
+        self.badges = [b for b in self.badges if b.get("id") != course_id]
+        if len(self.badges) != initial_len:
             modified = True
 
         if modified:

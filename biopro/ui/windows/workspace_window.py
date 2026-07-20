@@ -686,6 +686,10 @@ class WorkspaceWindow(QMainWindow):
             f" font-family: {Fonts.FAMILY_MONO if is_sw else 'inherit'};"
         )
 
+        self.copyright_label = QLabel("© Kalaimaran Balasothy")
+        self.copyright_label.setStyleSheet(f"color: {Colors.FG_SECONDARY}; padding-right: 15px;")
+        self.status_bar.addPermanentWidget(self.copyright_label)
+
         self.zoom_label = QLabel("100%")
         self.zoom_label.setObjectName("subtitle")
         self.status_bar.addPermanentWidget(self.zoom_label)
@@ -745,7 +749,7 @@ class WorkspaceWindow(QMainWindow):
         dialog.exec()
 
         if global_tutorial_manager.active_course:
-            overlay = self._get_active_overlay()
+            overlay = self._active_overlay()
             if overlay == self.home_tutorial_overlay:
                 overlay.setGeometry(self.home_screen.rect())
             else:
@@ -1064,6 +1068,30 @@ class WorkspaceWindow(QMainWindow):
                 self._pending_workflow_payload = None
                 self._pending_workflow_filename = None
                 self._pending_workflow_metadata = None
+            return
+
+        if "OutdatedModuleError:" in exc_msg:
+            from PyQt6.QtWidgets import QMessageBox
+
+            parts = exc_msg.split("OutdatedModuleError:", 1)
+            display_text = (
+                parts[1].strip()
+                if len(parts) > 1
+                else "This module is outdated and must be updated."
+            )
+
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Information)
+            msg_box.setWindowTitle("Update Required")
+            msg_box.setText(display_text)
+            msg_box.setInformativeText(
+                "Please contact the developer or check for an updated version."
+            )
+            msg_box.exec()
+
+            self._pending_workflow_payload = None
+            self._pending_workflow_filename = None
+            self._pending_workflow_metadata = None
             return
 
         # Clear pending workflow state on any other load error

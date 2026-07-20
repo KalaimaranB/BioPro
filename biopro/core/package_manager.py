@@ -73,7 +73,14 @@ class PackageManager:
                 f"Failed to create plugin venv: {result.stderr}\nCommand: {' '.join(venv_cmd)}"
             )
 
-        venv_python = venv_dir / "bin" / "python3.12"
+        # Resolve the interpreter path cross-platform.
+        # Windows: <venv>/Scripts/python.exe
+        # Unix/macOS: <venv>/bin/python3.12
+        if sys.platform == "win32":
+            venv_python = venv_dir / "Scripts" / "python.exe"
+        else:
+            venv_python = venv_dir / "bin" / "python3.12"
+
         if not venv_python.exists():
             raise RuntimeError(f"uv venv did not produce expected interpreter at {venv_python}")
 
