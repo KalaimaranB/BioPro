@@ -180,6 +180,30 @@ class ModuleManager:
 
         mod_info = self.modules[module_id]
 
+        plugin_path = Path(mod_info["path"])
+        venv = plugin_path / ".plugin_venv"
+
+        # Task 3: Decouple "is this plugin trusted" from "are this plugin's dependencies installed"
+        deps_missing = True
+        candidates = []
+        if sys.platform == "win32":
+            candidates.append(venv / "Scripts" / "python.exe")
+        else:
+            major, minor = sys.version_info.major, sys.version_info.minor
+            candidates.append(venv / "bin" / f"python{major}.{minor}")
+            candidates.append(venv / "bin" / "python3")
+
+        for c in candidates:
+            if c.exists():
+                deps_missing = False
+                break
+
+        if deps_missing:
+            raise RuntimeError(
+                f"DependencyMissingError: The plugin '{mod_info['manifest'].get('name', mod_info['package_name'])}' "
+                f"is missing its Python environment. Please reinstall the plugin from the Store to repair it."
+            )
+
         # Hard check: Prevent execution of untrusted code
         if mod_info["trust_level"] == "untrusted":
             raise PermissionError(

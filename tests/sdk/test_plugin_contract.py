@@ -83,16 +83,23 @@ class TestPluginContract:
         assert isinstance(MyPlugin, BioProPlugin)  # type: ignore[arg-type]
 
     @patch("biopro.core.module_manager.importlib.import_module")
-    def test_module_manager_validation_pass(self, mock_import):
+    def test_module_manager_validation_pass(self, mock_import, tmp_path):
         """Verifies that ModuleManager allows loading valid plugins."""
-        from pathlib import Path
-
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
+
+        # Create dummy venv to pass dependency check
+        import sys
+
+        venv_bin = tmp_path / ".plugin_venv" / ("Scripts" if sys.platform == "win32" else "bin")
+        venv_bin.mkdir(parents=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+
         mm.modules["mod_a"] = {
             "package_name": "mod_a",
             "loaded": False,
             "trust_level": "verified_mock",
-            "path": Path("."),
+            "path": tmp_path,
+            "manifest": {"name": "Test Module A"},
         }
 
         mock_import.return_value = MockValidPlugin
@@ -103,16 +110,23 @@ class TestPluginContract:
         assert mm.modules["mod_a"]["loaded"] is True
 
     @patch("biopro.core.module_manager.importlib.import_module")
-    def test_module_manager_validation_fail(self, mock_import):
+    def test_module_manager_validation_fail(self, mock_import, tmp_path):
         """Verifies that ModuleManager rejects invalid plugins."""
-        from pathlib import Path
-
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
+
+        # Create dummy venv to pass dependency check
+        import sys
+
+        venv_bin = tmp_path / ".plugin_venv" / ("Scripts" if sys.platform == "win32" else "bin")
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+
         mm.modules["bad_mod"] = {
             "package_name": "bad_mod",
             "loaded": False,
             "trust_level": "verified_mock",
-            "path": Path("."),
+            "path": tmp_path,
+            "manifest": {"name": "Bad Module"},
         }
 
         mock_import.return_value = MockInvalidPlugin

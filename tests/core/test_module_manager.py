@@ -168,7 +168,34 @@ class TestModuleManager:
         ):
             mm = ModuleManager()
 
+        # Create dummy venv so it doesn't fail on missing dependency
+        import sys
+
+        venv_bin = (
+            mm.modules["test_module_a"]["path"]
+            / ".plugin_venv"
+            / ("Scripts" if sys.platform == "win32" else "bin")
+        )
+        venv_bin.mkdir(parents=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+
         with pytest.raises(PermissionError, match="Security Block"):
+            mm.load_module_ui("test_module_a")
+
+    def test_load_module_ui_missing_venv_raises_dependency_error(self, mock_plugin_environment):
+        """Verifies that loading a verified module with missing dependencies raises a specific error."""
+        with patch(
+            "biopro.core.module_manager.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(
+                verify=MagicMock(
+                    return_value=VerificationResult(success=True, trust_level="verified_cache")
+                )
+            ),
+        ):
+            mm = ModuleManager()
+
+        # By default, mock_plugin_environment doesn't have a .plugin_venv
+        with pytest.raises(RuntimeError, match="DependencyMissingError"):
             mm.load_module_ui("test_module_a")
 
     def test_load_module_ui_already_loaded(self, mock_plugin_environment):
@@ -181,6 +208,16 @@ class TestModuleManager:
             mock_plugin = MagicMock()
             mm.modules["test_module_a"]["loaded"] = True
             mm.modules["test_module_a"]["plugin_ref"] = mock_plugin
+
+            import sys
+
+            venv_bin = (
+                mm.modules["test_module_a"]["path"]
+                / ".plugin_venv"
+                / ("Scripts" if sys.platform == "win32" else "bin")
+            )
+            venv_bin.mkdir(parents=True, exist_ok=True)
+            (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
 
             mm.load_module_ui("test_module_a")
             mock_plugin.get_panel_class.assert_called_once()
@@ -207,6 +244,16 @@ class TestModuleManager:
         ):
             mm = ModuleManager()
 
+        import sys
+
+        venv_bin = (
+            mm.modules["test_module_a"]["path"]
+            / ".plugin_venv"
+            / ("Scripts" if sys.platform == "win32" else "bin")
+        )
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+
         plugin_instance = DummyPlugin()
         with patch("importlib.import_module", return_value=plugin_instance):
             mm.load_module_ui("test_module_a")
@@ -226,6 +273,16 @@ class TestModuleManager:
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
+
+        import sys
+
+        venv_bin = (
+            mm.modules["test_module_a"]["path"]
+            / ".plugin_venv"
+            / ("Scripts" if sys.platform == "win32" else "bin")
+        )
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
 
         # Mock sys.modules to simulate successful import but failed interface check
         mock_module = MagicMock()
