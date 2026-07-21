@@ -485,6 +485,40 @@ class NetworkUpdater:
             return True
         return False
 
+    def _safe_remove(self, plugin_folder: Path) -> None:
+        """Safely removes a plugin directory on Windows where files may be locked.
+        Uses a .trash renaming strategy to prevent WinError 32 crashes during updates.
+        """
+        if not plugin_folder.exists():
+            return
+
+        if plugin_folder.is_symlink() or plugin_folder.is_file():
+            plugin_folder.unlink()
+            return
+
+        trash_dir = self.plugin_dir / ".trash"
+        trash_dir.mkdir(parents=True, exist_ok=True)
+
+        import time
+
+        trash_path = trash_dir / f"{plugin_folder.name}_{int(time.time())}"
+
+        try:
+            # Rename gets the active folder out of the way immediately, even if files are locked.
+            plugin_folder.rename(trash_path)
+        except OSError as e:
+            raise RuntimeError(
+                f"The plugin is currently locked by the system and cannot be updated. "
+                f"Please restart BioPro and try again. ({e})"
+            ) from e
+
+        # Try to quietly delete the trashed folder. Locked DLLs will survive this sweep.
+        shutil.rmtree(trash_path, ignore_errors=True)
+
+        # Self-cleaning loop: Try to clean up any past trashed folders that are no longer locked
+        for item in trash_dir.iterdir():
+            shutil.rmtree(item, ignore_errors=True)
+
     def install_plugin(self, plugin_id, remote_info):
         """Downloads a .zip plugin package, extracts it securely, and updates the registry."""
         try:
@@ -496,10 +530,7 @@ class NetworkUpdater:
             zip_bytes = response.content
 
             plugin_folder = self.plugin_dir / plugin_id
-            if plugin_folder.is_symlink() or plugin_folder.is_file():
-                plugin_folder.unlink()
-            elif plugin_folder.exists():
-                shutil.rmtree(plugin_folder)
+            self._safe_remove(plugin_folder)
 
             with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
                 # Smart isolation: Check if the zip already has a top-level folder for the plugin
@@ -533,10 +564,7 @@ class NetworkUpdater:
     def remove_plugin(self, plugin_id):
         try:
             plugin_folder = self.plugin_dir / plugin_id
-            if plugin_folder.is_symlink() or plugin_folder.is_file():
-                plugin_folder.unlink()
-            elif plugin_folder.exists():
-                shutil.rmtree(plugin_folder)
+            self._safe_remove(plugin_folder)
 
             local_data = self.get_local_state()
             if plugin_id in local_data:
