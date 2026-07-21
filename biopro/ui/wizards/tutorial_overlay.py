@@ -346,6 +346,7 @@ class TutorialOverlay(QWidget):
             self.btn_next.hide()
             self._render_waiting_indicator()
         self._force_resize()
+        self._update_mask()
         self._reposition_cyto_and_bubble(getattr(self, "target_rects", []))
 
     # ── Spotlight geometry ────────────────────────────────────────────────────
@@ -509,6 +510,13 @@ class TutorialOverlay(QWidget):
             painter.setPen(solid_pen)
             for r in self.target_rects:
                 painter.drawRoundedRect(r.adjusted(-1, -1, 1, 1), 5, 5)
+
+            # --- DEBUG: draw red borders around the blocking zones ---
+            debug_pen = QPen(QColor(255, 0, 0))
+            debug_pen.setWidth(2)
+            painter.setPen(debug_pen)
+            painter.drawRect(self.cyto.geometry())
+            painter.drawRect(self.bubble_container.geometry())
 
         elif not allow:
             # No targets and not interactive — full dim

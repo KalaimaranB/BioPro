@@ -584,6 +584,21 @@ class ProjectLauncherWindow(QMainWindow):
         restart_tour_action.triggered.connect(self._restart_core_intro)
         help_menu.addAction(restart_tour_action)
 
+        view_logs_action = QAction("📜 View Logs", self)
+        view_logs_action.triggered.connect(self._view_logs)
+        help_menu.addAction(view_logs_action)
+
+    def _setup_footer(self) -> None:
+        """Initialize the footer area."""
+        pass
+
+    def _view_logs(self):
+        """View application logs."""
+        from biopro.ui.dialogs.log_viewer import LogViewerDialog
+
+        dialog = LogViewerDialog(self)
+        dialog.exec()
+
     def _open_help_center(self):
         """Launch the localized help center."""
         from biopro.ui.dialogs.help_dialog import HelpCenterDialog

@@ -187,6 +187,7 @@ class PluginDetailsDialog(QDialog):
 
     def __init__(self, plugin_id: str, data: dict, parent=None):
         super().__init__(parent)
+        self.setObjectName("ModuleDetailsPanel")
         self.setWindowTitle(f"Plugin Details: {data['info'].get('name', plugin_id)}")
         self.setMinimumSize(600, 500)
         self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")

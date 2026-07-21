@@ -228,10 +228,10 @@ _steps = [
         target_widget_names=["store_card_flow_cytometry"],
         event_name="STORE_MODULE_DETAILS_OPENED",
         allow_interaction=True,
-        next_step_id="ws_store_flow_authors",
+        next_step_id="ws_store_details_explain",
     ),
     InfoStep(
-        id="ws_store_flow_authors",
+        id="ws_store_details_explain",
         text=(
             "The details panel provides a comprehensive overview of the module's capabilities, along with information about its authors and contributors."
         ),
@@ -242,10 +242,9 @@ _steps = [
     WaitForEventStep(
         id="ws_store_install_action",
         text=(
-            "Ensure you have the latest version installed, and then close the Store window to return to your workspace."
+            "Ensure you have the latest version installed, and then close the Marketplace to return to your workspace."
         ),
-        cyto_emotion="pointing",
-        target_widget_names=["btn_install", "btn_close_store"],
+        cyto_emotion="talking",
         event_name="STORE_CLOSED",
         allow_interaction=True,
         next_step_id="ws_layout_top",

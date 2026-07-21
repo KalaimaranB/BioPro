@@ -295,6 +295,10 @@ class WorkspaceWindow(QMainWindow):
         restart_tour_action.triggered.connect(self._restart_core_intro)
         help_menu.addAction(restart_tour_action)
 
+        view_logs_action = QAction("📜 View Logs", self)
+        view_logs_action.triggered.connect(self._view_logs)
+        help_menu.addAction(view_logs_action)
+
     def _setup_shortcuts(self):
         """Register global app shortcuts."""
         help_shortcut = QAction(self)
@@ -314,6 +318,13 @@ class WorkspaceWindow(QMainWindow):
         import webbrowser
 
         webbrowser.open("https://github.com/KalaimaranB/BioPro/wiki")
+
+    def _view_logs(self):
+        """View application logs."""
+        from biopro.ui.dialogs.log_viewer import LogViewerDialog
+
+        dialog = LogViewerDialog(self)
+        dialog.exec()
 
     def _restart_core_intro(self) -> None:
         """Resets core intro progress and re-launches the onboarding tour."""
