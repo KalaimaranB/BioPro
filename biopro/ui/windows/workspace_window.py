@@ -73,7 +73,7 @@ class PluginUIWorker(QObject):
 class WorkspaceWindow(QMainWindow):
     """BioPro main application window."""
 
-    APP_TITLE = "BioPro — Bio-Image Analysis"
+    APP_TITLE = "BioPro — Bio Analysis"
     DEFAULT_SIZE = QSize(1400, 860)
 
     # Added hub_callback to the signature!

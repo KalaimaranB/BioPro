@@ -18,7 +18,7 @@ class TestWorkspaceDashboard:
     def test_initial_greeting(self, dashboard):
         """Verifies that a greeting is set upon initialization."""
         assert dashboard.lbl_greeting.text().endswith(".")
-        assert "Bio-Image Analysis" in dashboard.lbl_tagline.text()
+        assert "Bio Analysis" in dashboard.lbl_tagline.text()
 
     def test_populate_modules(self, dashboard):
         """Verifies module card generation."""

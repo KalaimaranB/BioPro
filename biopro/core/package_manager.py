@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -65,10 +66,16 @@ class PackageManager:
         if progress_callback:
             progress_callback(5)
 
+        # Hide subprocess window on Windows
+        sp_kwargs: dict[str, Any] = {}
+        if sys.platform == "win32":
+            # subprocess.CREATE_NO_WINDOW = 0x08000000
+            sp_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
         # 1. Create a real, standalone interpreter for the plugin (idempotent)
         venv_cmd = [uv_path, "venv", str(venv_dir), "--python", "3.12"]
         logger.info("Creating plugin venv: %s", " ".join(venv_cmd))
-        result = subprocess.run(venv_cmd, capture_output=True, text=True)
+        result = subprocess.run(venv_cmd, capture_output=True, text=True, **sp_kwargs)
         if result.returncode != 0:
             raise RuntimeError(
                 f"Failed to create plugin venv: {result.stderr}\nCommand: {' '.join(venv_cmd)}"
@@ -91,7 +98,7 @@ class PackageManager:
         # 2. Install packages into that interpreter, not into a bare directory
         install_cmd = [uv_path, "pip", "install", "--python", str(venv_python)] + reqs
         logger.info("Installing plugin dependencies: %s", " ".join(install_cmd))
-        result = subprocess.run(install_cmd, capture_output=True, text=True)
+        result = subprocess.run(install_cmd, capture_output=True, text=True, **sp_kwargs)
         if result.returncode != 0:
             raise RuntimeError(
                 f"Failed to install dependencies: {result.stderr}\nCommand: {' '.join(install_cmd)}"
@@ -105,7 +112,7 @@ class PackageManager:
             )
 
         selftest_cmd = [str(venv_python), str(worker_script), "--selftest"]
-        result = subprocess.run(selftest_cmd, capture_output=True, text=True)
+        result = subprocess.run(selftest_cmd, capture_output=True, text=True, **sp_kwargs)
         if result.returncode != 0:
             raise RuntimeError(
                 f"Plugin venv self-test failed — interpreter or packages are broken: "

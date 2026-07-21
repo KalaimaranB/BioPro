@@ -1,7 +1,7 @@
 """BioPro — Bio Analysis Made Simple.
 
 An open-source, intuitive platform for lab students
-and professionals. Automates tedious bio-image analysis workflows
+and professionals. Automates tedious bio analysis workflows
 through a modern desktop interface.
 
 Modules:

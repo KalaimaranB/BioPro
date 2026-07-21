@@ -101,8 +101,8 @@ Fonts = _Fonts()
 class Strings:
     """Theme-dependent text values."""
 
-    TAGLINE = "Bio-Image Analysis Made Simple"
-    APP_TITLE = "BioPro — Bio-Image Analysis"
+    TAGLINE = "Bio Analysis Made Simple"
+    APP_TITLE = "BioPro — Bio Analysis"
     GREETING = "Good morning"  # Will be adjusted by time of day if default
 
 
