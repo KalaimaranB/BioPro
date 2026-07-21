@@ -447,7 +447,9 @@ class NetworkUpdater:
                     response.raise_for_status()
 
                     # Clean local dir and extract securely
-                    if local_dir.exists():
+                    if local_dir.is_symlink() or local_dir.is_file():
+                        local_dir.unlink()
+                    elif local_dir.exists():
                         shutil.rmtree(local_dir)
                     local_dir.mkdir(parents=True, exist_ok=True)
 
@@ -494,7 +496,9 @@ class NetworkUpdater:
             zip_bytes = response.content
 
             plugin_folder = self.plugin_dir / plugin_id
-            if plugin_folder.exists():
+            if plugin_folder.is_symlink() or plugin_folder.is_file():
+                plugin_folder.unlink()
+            elif plugin_folder.exists():
                 shutil.rmtree(plugin_folder)
 
             with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
@@ -529,7 +533,9 @@ class NetworkUpdater:
     def remove_plugin(self, plugin_id):
         try:
             plugin_folder = self.plugin_dir / plugin_id
-            if plugin_folder.exists():
+            if plugin_folder.is_symlink() or plugin_folder.is_file():
+                plugin_folder.unlink()
+            elif plugin_folder.exists():
                 shutil.rmtree(plugin_folder)
 
             local_data = self.get_local_state()

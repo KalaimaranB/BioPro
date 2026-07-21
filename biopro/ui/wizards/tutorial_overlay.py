@@ -251,6 +251,25 @@ class TutorialOverlay(QWidget):
         self.text_label.setText(text)
         self._force_resize()
 
+    def set_dark_mode(self, enabled: bool) -> None:
+        """Forces the overlay into a pure dark screen (no cyto, no bubble, no holes)."""
+        if not self._is_alive():
+            return
+        if getattr(self, "_dark_mode_enabled", None) == enabled:
+            return
+        self._dark_mode_enabled = enabled
+
+        if enabled:
+            self.cyto.hide()
+            self.bubble_container.hide()
+            self.target_rects = []
+            self.clearMask()
+        else:
+            self.cyto.show()
+            self.bubble_container.show()
+            self._update_mask()
+        self.update()
+
     def set_progress(self, current: int, total: int, phase_name: str = "") -> None:
         self.progress_bar.setMaximum(max(total, 1))
         self.progress_bar.setValue(current)
@@ -272,6 +291,8 @@ class TutorialOverlay(QWidget):
 
         self.current_step = step
         self.show()
+        self.cyto.show()
+        self.bubble_container.show()
         self._clear_dynamic_content()
         self._populate_default_buttons()
 
@@ -306,14 +327,7 @@ class TutorialOverlay(QWidget):
             self.btn_next.hide()
 
         elif isinstance(step, VerificationStep):
-            # When allow_interaction is True the user acts then clicks Next.
-            if getattr(step, "allow_interaction", False) and not getattr(
-                step, "hide_next_button", False
-            ):
-                self.btn_next.show()
-                self.btn_next.setText("Check ✓")
-            else:
-                self.btn_next.hide()
+            self.btn_next.hide()
 
         elif isinstance(step, BranchingStep):
             self.btn_next.hide()
@@ -331,13 +345,15 @@ class TutorialOverlay(QWidget):
             # Auto-advances; no Next button needed. Show a waiting indicator.
             self.btn_next.hide()
             self._render_waiting_indicator()
-
         self._force_resize()
+        self._reposition_cyto_and_bubble(getattr(self, "target_rects", []))
 
     # ── Spotlight geometry ────────────────────────────────────────────────────
 
     def set_targets(self, rects: list[QRect]) -> None:
         """Sets spotlight rectangles (in overlay-local coordinates)."""
+        if self.target_rects == rects:
+            return
         self.target_rects = rects
         self._reposition_cyto_and_bubble(rects)
         self._update_mask()
@@ -349,9 +365,10 @@ class TutorialOverlay(QWidget):
         In ``compact_mode`` (hub launcher) Cyto is hidden and the bubble is
         centred in the overlay — no complex geometry needed.
         """
-        if self._compact_mode:
-            # ── Compact layout: Cyto and bubble as a side-by-side pair ────────
+        if self._compact_mode or not rects:
+            # ── Centered layout: Cyto and bubble as a side-by-side pair ────────
             self.cyto.show()
+            self.bubble_container.show()
             self._force_resize()
             bubble_w = self.bubble_container.sizeHint().width()
             bubble_h = self.bubble_container.sizeHint().height()
@@ -382,51 +399,46 @@ class TutorialOverlay(QWidget):
             self.bubble_container.raise_()
             return
 
-        if rects:
-            primary = rects[0]
+        primary = rects[0]
 
-            # Compute the union bounding box of ALL targets to ensure Cyto avoids all of them
-            union_rect = rects[0]
-            for r in rects[1:]:
-                union_rect = union_rect.united(r)
+        # Compute the union bounding box of ALL targets to ensure Cyto avoids all of them
+        union_rect = rects[0]
+        for r in rects[1:]:
+            union_rect = union_rect.united(r)
 
-            cyto_x = union_rect.x() + union_rect.width() + 40
-            cyto_y = max(20, primary.y() - 120)
+        cyto_x = union_rect.x() + union_rect.width() + 40
+        cyto_y = max(20, primary.y() - 120)
 
-            # If not enough room on the right, try the left
-            if cyto_x + 320 > self.width():
-                cyto_x = union_rect.x() - 350
-                # If not enough room on the left either, put Cyto above or below the entire block
-                if cyto_x < 20:
-                    cyto_x = max(20, union_rect.x() + (union_rect.width() // 2) - 150)
-                    if union_rect.y() + union_rect.height() + 400 < self.height():
-                        cyto_y = union_rect.y() + union_rect.height() + 40
-                    else:
-                        cyto_y = max(20, union_rect.y() - 400)
+        # If not enough room on the right, try the left
+        if cyto_x + 320 > self.width():
+            cyto_x = union_rect.x() - 350
+            # If not enough room on the left either, put Cyto above or below the entire block
+            if cyto_x < 20:
+                cyto_x = max(20, union_rect.x() + (union_rect.width() // 2) - 150)
+                if union_rect.y() + union_rect.height() + 400 < self.height():
+                    cyto_y = union_rect.y() + union_rect.height() + 40
+                else:
+                    cyto_y = max(20, union_rect.y() - 400)
 
-            # If the union target is massive (like the plot canvas), move Cyto to the left sidebar
-            if union_rect.width() > self.width() * 0.5 and len(rects) == 1:
-                cyto_x = 20
-                cyto_y = max(20, self.height() - 400)
+        # If the union target is massive (like the plot canvas), move Cyto to the left sidebar
+        if union_rect.width() > self.width() * 0.5 and len(rects) == 1:
+            cyto_x = 20
+            cyto_y = max(20, self.height() - 400)
 
-            # Point Cyto's arm at target centre
-            target_cx = primary.center().x()
-            target_cy = primary.center().y()
-            arm_x = cyto_x + 150 + 25
-            arm_y = cyto_y + 250 + 10
-            dx = target_cx - arm_x
-            dy = target_cy - arm_y
-            dist = math.hypot(dx, dy)
-            target_angle = math.degrees(math.atan2(dy, dx))
-            if dist > 47:
-                angle = target_angle + math.degrees(math.acos(min(1.0, 47 / dist)))
-            else:
-                angle = target_angle + 90
-            self.cyto.point_at(angle)
+        # Point Cyto's arm at target centre
+        target_cx = primary.center().x()
+        target_cy = primary.center().y()
+        arm_x = cyto_x + 150 + 25
+        arm_y = cyto_y + 250 + 10
+        dx = target_cx - arm_x
+        dy = target_cy - arm_y
+        dist = math.hypot(dx, dy)
+        target_angle = math.degrees(math.atan2(dy, dx))
+        if dist > 47:
+            angle = target_angle + math.degrees(math.acos(min(1.0, 47 / dist)))
         else:
-            cyto_x = 60
-            cyto_y = 60
-            self.cyto.point_at(-35)
+            angle = target_angle + 90
+        self.cyto.point_at(angle)
 
         self.cyto.move(int(cyto_x), int(cyto_y))
 
@@ -446,18 +458,17 @@ class TutorialOverlay(QWidget):
             bubble_y = max(10, cyto_y + 130 - bubble_h)
 
         # Keep bubble out of spotlight holes (unless hole is huge)
-        if rects:
-            bubble_rect = QRect(int(bubble_x), int(bubble_y), bubble_w, bubble_h)
-            for r in rects:
-                if r.width() > self.width() * 0.6 or r.height() > self.height() * 0.6:
-                    continue  # Ignore massive holes like FlowCanvas
-                if bubble_rect.intersects(r):
-                    if r.x() > self.width() / 2:
-                        bubble_x = min(bubble_x, r.x() - bubble_w - 20)
-                    else:
-                        bubble_x = max(bubble_x, r.right() + 20)
+        bubble_rect = QRect(int(bubble_x), int(bubble_y), bubble_w, bubble_h)
+        for r in rects:
+            if r.width() > self.width() * 0.6 or r.height() > self.height() * 0.6:
+                continue  # Ignore massive holes like FlowCanvas
+            if bubble_rect.intersects(r):
+                if r.x() > self.width() / 2:
+                    bubble_x = min(bubble_x, r.x() - bubble_w - 20)
+                else:
+                    bubble_x = max(bubble_x, r.right() + 20)
 
-            bubble_x = max(10, min(bubble_x, self.width() - bubble_w - 10))
+        bubble_x = max(10, min(bubble_x, self.width() - bubble_w - 10))
 
         self.bubble_container.move(int(bubble_x), int(bubble_y))
 
@@ -590,28 +601,13 @@ class TutorialOverlay(QWidget):
             self.btn_layout.addWidget(btn)
 
     def _render_waiting_indicator(self) -> None:
-        """Add a pulsing 'waiting' label for WaitForEventStep steps."""
-        from PyQt6.QtCore import QTimer
-
+        """Add a static 'waiting' label for WaitForEventStep steps."""
         wait_lbl = QLabel("⏳  Waiting for your action…")
         wait_lbl.setObjectName("waitingIndicator")
         wait_lbl.setStyleSheet(
             f"color: {Colors.ACCENT_PRIMARY}; font-size: 12px; font-style: italic;"
         )
         self.dynamic_content.addWidget(wait_lbl)
-
-        # Simple text-blink pulse: toggle opacity-like feel by toggling colour
-        self._wait_pulse_state = False
-
-        def _pulse():
-            self._wait_pulse_state = not self._wait_pulse_state
-            colour = Colors.ACCENT_PRIMARY if self._wait_pulse_state else Colors.FG_SECONDARY
-            wait_lbl.setStyleSheet(f"color: {colour}; font-size: 12px; font-style: italic;")
-
-        self._wait_pulse_timer = QTimer(self)
-        self._wait_pulse_timer.setInterval(700)
-        self._wait_pulse_timer.timeout.connect(_pulse)
-        self._wait_pulse_timer.start()
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

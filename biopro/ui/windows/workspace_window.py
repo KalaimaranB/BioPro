@@ -495,6 +495,12 @@ class WorkspaceWindow(QMainWindow):
 
         # Determine which overlay is live right now
         active_overlay = self._active_overlay()
+
+        # If store overlay is active, the home overlay should go completely dark
+        if hasattr(self, "home_tutorial_overlay") and self.home_tutorial_overlay.isVisible():
+            store_active = active_overlay != self.home_tutorial_overlay
+            self.home_tutorial_overlay.set_dark_mode(store_active)
+
         if not active_overlay.isVisible():
             # Nothing to drive — bail early
             return
