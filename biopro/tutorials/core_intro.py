@@ -198,7 +198,7 @@ _steps = [
     InfoStep(
         id="ws_store_inside_catalog",
         text=(
-            "The Store catalog lists all available modules. Modules with the 🛡️ VERIFIED badge have passed a rigorous security and code-quality review by the BioPro team."
+            "The Store catalog lists all available modules. Modules with the 🛡️ VERIFIED badge have passed a rigorous security and code-quality review."
         ),
         cyto_emotion="talking",
         target_widget_names=["store_card_flow_cytometry"],
@@ -246,6 +246,7 @@ _steps = [
             "Ensure you have the latest version installed, and then close the Marketplace to return to your workspace."
         ),
         cyto_emotion="talking",
+        target_widget_names=["store_card_flow_cytometry"],
         event_name="STORE_CLOSED",
         allow_interaction=True,
         next_step_id="ws_layout_top",

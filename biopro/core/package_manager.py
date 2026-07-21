@@ -127,9 +127,19 @@ class PluginInstallerWorker(QThread):
         super().__init__()
         self.plugin_dir = Path(plugin_dir)
         self.pm = PackageManager(cache_dir=cache_dir)
+        import logging
+
+        logging.getLogger(__name__).info(
+            "PluginInstallerWorker initialized for %s", self.plugin_dir
+        )
 
     def run(self):
         try:
+            import logging
+
+            logging.getLogger(__name__).info(
+                "PluginInstallerWorker.run() started for %s", self.plugin_dir
+            )
             manifest_path = self.plugin_dir / "manifest.json"
             if not manifest_path.exists():
                 self.finished.emit(False, "manifest.json missing from plugin directory.")

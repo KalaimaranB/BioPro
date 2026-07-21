@@ -315,7 +315,9 @@ class ModuleManager:
 
         if not selected_path:
             logger.warning(
-                "No plugin Python environment found for %s. Checked: %s",
+                "No plugin Python environment found for %s. Checked: %s. "
+                "This usually happens if the plugin was sideloaded locally without running the Store installer, "
+                "or if 'uv venv' & 'uv pip install' were never run manually by the developer.",
                 plugin_path,
                 ", ".join(str(p) for p in candidate_paths),
             )

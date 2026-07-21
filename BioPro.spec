@@ -93,6 +93,7 @@ a = Analysis(
         ('biopro/themes', 'themes'),
         ('biopro/shared', 'biopro/shared'),
         ('biopro/plugins', 'biopro/plugins'),
+        ('biopro/tutorials/assets', 'biopro/tutorials/assets'),
         ('docs', 'docs'),
         ('icon.icns', '.'),
         ('pyproject.toml', '.')
