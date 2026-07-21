@@ -65,3 +65,71 @@ def test_worker_exception(tmp_path):
         with patch.object(worker.pm, "resolve_and_install_all", side_effect=Exception("Crash")):
             worker.run()
             mock_finished.emit.assert_called_with(False, "Crash")
+
+
+def test_resolve_bundled_uv_windows(monkeypatch, tmp_path):
+    """Verify that on Windows, uv.exe is resolved."""
+    import sys
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    pm = PackageManager()
+
+    # Create fake uv.exe
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "uv.exe").touch()
+
+    # Create dummy plugin and fake python
+    plugin_dir = tmp_path / "test_win_uv"
+    plugin_dir.mkdir()
+    venv_python = plugin_dir / ".plugin_venv" / "Scripts" / "python.exe"
+    venv_python.parent.mkdir(parents=True)
+    venv_python.touch()
+    worker_script = plugin_dir / "analysis" / "fcs_worker.py"
+    worker_script.parent.mkdir(parents=True)
+    worker_script.touch()
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        pm.resolve_and_install_all({"dummy": "1.0"}, plugin_dir, lambda x: None)
+
+        # Verify uv.exe was used
+        args = mock_run.call_args_list[0][0][0]
+        assert args[0] == str(bin_dir / "uv.exe")
+
+
+def test_resolve_bundled_uv_unix(monkeypatch, tmp_path):
+    """Verify that on Unix, uv is resolved."""
+    import sys
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setattr(sys, "platform", "darwin")
+
+    pm = PackageManager()
+
+    # Create fake uv
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "uv").touch()
+
+    # Create dummy plugin and fake python
+    plugin_dir = tmp_path / "test_unix_uv"
+    plugin_dir.mkdir()
+    venv_python = plugin_dir / ".plugin_venv" / "bin" / "python3.12"
+    venv_python.parent.mkdir(parents=True)
+    venv_python.touch()
+    worker_script = plugin_dir / "analysis" / "fcs_worker.py"
+    worker_script.parent.mkdir(parents=True)
+    worker_script.touch()
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        pm.resolve_and_install_all({"dummy": "1.0"}, plugin_dir, lambda x: None)
+
+        # Verify uv was used
+        args = mock_run.call_args_list[0][0][0]
+        assert args[0] == str(bin_dir / "uv")

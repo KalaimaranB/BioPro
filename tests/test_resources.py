@@ -31,6 +31,11 @@ class TestBioProResources(unittest.TestCase):
         path = resource_path("biopro/core/config.py")
         self.assertTrue(path.exists(), "resource_path failed to resolve an internal core module")
 
+    def test_demo_tutorial_file_exists(self):
+        """Verify the demo FCS file is resolvable for the onboarding tour."""
+        path = resource_path("biopro/tutorials/assets/demo_tutorial.fcs")
+        self.assertTrue(path.exists(), f"CRITICAL: Demo file missing at {path}")
+
 
 if __name__ == "__main__":
     unittest.main()

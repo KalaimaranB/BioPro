@@ -511,13 +511,6 @@ class TutorialOverlay(QWidget):
             for r in self.target_rects:
                 painter.drawRoundedRect(r.adjusted(-1, -1, 1, 1), 5, 5)
 
-            # --- DEBUG: draw red borders around the blocking zones ---
-            debug_pen = QPen(QColor(255, 0, 0))
-            debug_pen.setWidth(2)
-            painter.setPen(debug_pen)
-            painter.drawRect(self.cyto.geometry())
-            painter.drawRect(self.bubble_container.geometry())
-
         elif not allow:
             # No targets and not interactive — full dim
             painter.fillRect(self.rect(), dim)

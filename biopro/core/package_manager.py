@@ -41,7 +41,8 @@ class PackageManager:
 
         uv_path = None
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-            bundled_uv = Path(sys._MEIPASS) / "bin" / "uv"
+            uv_name = "uv.exe" if sys.platform == "win32" else "uv"
+            bundled_uv = Path(sys._MEIPASS) / "bin" / uv_name
             if bundled_uv.exists():
                 uv_path = str(bundled_uv)
         if not uv_path:

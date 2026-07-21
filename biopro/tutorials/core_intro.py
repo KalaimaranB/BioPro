@@ -53,9 +53,10 @@ def _copy_demo_file(main_panel: Any) -> None:
     import shutil
     from pathlib import Path
 
-    # Find the bundled demo file in the repository
-    base_dir = Path(__file__).parent.parent.parent
-    src_file = base_dir / "biopro" / "tutorials" / "assets" / "demo_tutorial.fcs"
+    from biopro.core.resource_manager import resource_path
+
+    # Find the bundled demo file in the repository or MEIPASS
+    src_file = resource_path("biopro/tutorials/assets/demo_tutorial.fcs")
 
     if not src_file.exists():
         return
