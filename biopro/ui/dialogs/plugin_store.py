@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QScrollArea,
     QSplitter,
@@ -617,6 +618,12 @@ class PluginStoreDialog(QDialog):
 
         header_layout.addStretch()
 
+        self.repair_all_btn = SecondaryButton("Repair All Plugins")
+        self.repair_all_btn.clicked.connect(self._repair_all_plugins)
+        header_layout.addWidget(self.repair_all_btn)
+
+        header_layout.addSpacing(10)
+
         # Search Bar
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search plugins by name, tag, or author...")
@@ -945,6 +952,11 @@ class PluginStoreDialog(QDialog):
             rm_btn.setFixedSize(30, 30)
             rm_btn.clicked.connect(lambda: self._remove_module(plugin_id))
 
+            repair_btn = SecondaryButton("Repair")
+            repair_btn.setToolTip("Diagnose & Repair")
+            repair_btn.clicked.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
+
+            bottom_row.addWidget(repair_btn)
             bottom_row.addWidget(rm_btn)
             bottom_row.addWidget(upd_btn)
         elif state == "UP_TO_DATE":
@@ -954,12 +966,66 @@ class PluginStoreDialog(QDialog):
             )
             bottom_row.addWidget(ok_lbl)
 
+            repair_btn = SecondaryButton("Repair")
+            repair_btn.setToolTip("Diagnose & Repair")
+            repair_btn.clicked.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
+            bottom_row.addWidget(repair_btn)
+
             rm_btn = DangerButton("Remove")
             rm_btn.clicked.connect(lambda: self._remove_module(plugin_id))
             bottom_row.addWidget(rm_btn)
 
         main_layout.addLayout(bottom_row)
+
+        # Add Context Menu for Diagnose & Repair if installed
+        if state in ["UP_TO_DATE", "UPDATE", "INCOMPATIBLE"]:
+            card.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            card.customContextMenuRequested.connect(
+                lambda pos, pid=plugin_id, pd=data: self._show_card_context_menu(card, pos, pid, pd)
+            )
+
         return card
+
+    def _show_card_context_menu(self, card, pos, plugin_id: str, data: dict):
+        menu = QMenu(self)
+        menu.setStyleSheet(f"background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};")
+
+        repair_action = menu.addAction("🛠️ Diagnose & Repair")
+        repair_action.triggered.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
+
+        menu.exec(card.mapToGlobal(pos))
+
+    def _view_plugin_diagnostics(self, plugin_id: str, data: dict):
+        from biopro.ui.dialogs.plugin_doctor_dialog import PluginDoctorDialog
+
+        plugin_dir = self.updater.plugin_dir / plugin_id
+        dialog = PluginDoctorDialog(plugin_id, plugin_dir, self.updater, parent=self)
+        dialog.exec()
+
+        # Refresh the store UI to reflect any repairs made
+        self._load_store_data()
+
+    def _repair_all_plugins(self):
+        from biopro.ui.dialogs.plugin_doctor_dialog import PluginDoctorDialog
+
+        inventory = self.updater.evaluate_store_state()
+        installed_plugins = {
+            pid: data
+            for pid, data in inventory.items()
+            if data["state"] in ["UP_TO_DATE", "UPDATE", "INCOMPATIBLE"]
+        }
+
+        if not installed_plugins:
+            QMessageBox.information(self, "Repair All", "No installed plugins found to repair.")
+            return
+
+        for pid, _data in installed_plugins.items():
+            plugin_dir = self.updater.plugin_dir / pid
+            dialog = PluginDoctorDialog(pid, plugin_dir, self.updater, parent=self)
+            dialog.exec()
+
+        # Refresh the store UI to reflect any repairs made
+        self._load_store_data()
 
     def _install_module(self, plugin_id: str, mod_data: dict):
         """Uses the Logic Engine to install the plugin and update the tracker."""

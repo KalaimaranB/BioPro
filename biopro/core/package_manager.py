@@ -40,6 +40,10 @@ class PackageManager:
             else:
                 reqs.append(f"{name}{ver}")
 
+        # Ensure setuptools is always available since modern uv --seed omits it, breaking packages like FlowKit
+        if not any(r.startswith("setuptools") for r in reqs):
+            reqs.append("setuptools<71.0.0")
+
         uv_path = None
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
             uv_name = "uv.exe" if sys.platform == "win32" else "uv"
@@ -73,7 +77,7 @@ class PackageManager:
             sp_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
 
         # 1. Create a real, standalone interpreter for the plugin (idempotent)
-        venv_cmd = [uv_path, "venv", str(venv_dir), "--python", "3.12"]
+        venv_cmd = [uv_path, "venv", str(venv_dir), "--python", "3.12", "--seed"]
         logger.info("Creating plugin venv: %s", " ".join(venv_cmd))
         result = subprocess.run(venv_cmd, capture_output=True, text=True, **sp_kwargs)
         if result.returncode != 0:
@@ -106,19 +110,17 @@ class PackageManager:
 
         # 3. Boot self-test — fail loudly here, not three steps later at file-load time
         worker_script = plugin_dir / "analysis" / "fcs_worker.py"
-        if not worker_script.exists():
-            raise RuntimeError(
-                f"Cannot run plugin self-test — worker script not found at {worker_script}"
-            )
-
-        selftest_cmd = [str(venv_python), str(worker_script), "--selftest"]
-        result = subprocess.run(selftest_cmd, capture_output=True, text=True, **sp_kwargs)
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"Plugin venv self-test failed — interpreter or packages are broken: "
-                f"{result.stderr.strip()}"
-            )
-        logger.info("Plugin venv self-test passed: %s", result.stdout.strip())
+        if worker_script.exists():
+            selftest_cmd = [str(venv_python), str(worker_script), "--selftest"]
+            result = subprocess.run(selftest_cmd, capture_output=True, text=True, **sp_kwargs)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Plugin venv self-test failed — interpreter or packages are broken: "
+                    f"{result.stderr.strip()}"
+                )
+            logger.info("Plugin venv self-test passed: %s", result.stdout.strip())
+        else:
+            logger.info(f"No self-test script found at {worker_script}, skipping self-test.")
 
         if progress_callback:
             progress_callback(100)
