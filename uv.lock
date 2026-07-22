@@ -89,7 +89,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "biopro-sdk", specifier = ">=1.2.3" },
+    { name = "biopro-sdk", specifier = ">=1.2.6" },
     { name = "matplotlib", specifier = "==3.11.0" },
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.5" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5" },
@@ -116,16 +116,16 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "biopro-sdk"
-version = "1.2.3"
+version = "1.2.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyqt6" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5d/65/90a3f9a57fdc698a5c4bf377107c44f0e8fca02ff834944793512a74bf40/biopro_sdk-1.2.3.tar.gz", hash = "sha256:a43d338624ece01f80b9559aa3167441bbe5f35ed60ae663a582a33c445212fd", size = 68213, upload-time = "2026-07-08T04:28:54.181Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/09/3b09781db219c4205136e74ee11e6b74fb77ccfc92ab530b3eed8d0d1c4c/biopro_sdk-1.2.6.tar.gz", hash = "sha256:971bd138c377d6f81775ed8382eb94254e1f1f1053bee1312dd0591cd84041c3", size = 68532, upload-time = "2026-07-22T04:59:38.982Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/27/bdead60f7709335aa0ec6e4c121f290d66e7687c512d5c6ba0f42118e388/biopro_sdk-1.2.3-py3-none-any.whl", hash = "sha256:7765c1aa56e31f98ef156bb3ff0947120b0d7e4390f8fe03b25c2a19eb89349f", size = 63668, upload-time = "2026-07-08T04:28:53.098Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/83/aebc9814c93bd1b9f25169fcc4a0d669f91ae1e6f5a753e775618abbb392/biopro_sdk-1.2.6-py3-none-any.whl", hash = "sha256:7908816f85b3097810d2551ba01e09f083c28e9b39a9a1038c72301af7c81a55", size = 64213, upload-time = "2026-07-22T04:59:37.546Z" },
 ]
 
 [[package]]

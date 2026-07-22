@@ -950,6 +950,8 @@ class PluginStoreDialog(QDialog):
             rm_btn = DangerButton("×")
             rm_btn.setToolTip("Remove Plugin")
             rm_btn.setFixedSize(30, 30)
+            rm_btn.custom_css_overrides = "padding: 0px;"
+            rm_btn._apply_theme_styles()
             rm_btn.clicked.connect(lambda: self._remove_module(plugin_id))
 
             repair_btn = SecondaryButton("Repair")

@@ -281,6 +281,61 @@ class PluginDoctor:
 
     def _run_phase3_dependencies(self):
         """Phase 3: Dependency Completeness."""
+        # Check for internal lazy imports assuming plugin root is in sys.path
+        import ast
+        import os
+
+        local_modules = {
+            d.name for d in self.plugin_dir.iterdir() if d.is_dir() and (d / "__init__.py").exists()
+        }
+        local_modules.update({f.stem for f in self.plugin_dir.glob("*.py") if f.stem != "__init__"})
+
+        bad_imports = []
+        for root, _, files in os.walk(self.plugin_dir):
+            if ".plugin_venv" in root or ".venv" in root or "tests" in root:
+                continue
+            for file in files:
+                if not file.endswith(".py"):
+                    continue
+                py_file = Path(root) / file
+                try:
+                    tree = ast.parse(py_file.read_text(encoding="utf-8"))
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.Import):
+                            for alias in node.names:
+                                base_module = alias.name.split(".")[0]
+                                if base_module in local_modules:
+                                    bad_imports.append(
+                                        f"{py_file.relative_to(self.plugin_dir)}: import {alias.name}"
+                                    )
+                        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                            base_module = node.module.split(".")[0]
+                            if base_module in local_modules:
+                                bad_imports.append(
+                                    f"{py_file.relative_to(self.plugin_dir)}: from {node.module}..."
+                                )
+                except Exception:
+                    pass
+
+        if bad_imports:
+            sample = ", ".join(bad_imports[:3])
+            more = f" and {len(bad_imports) - 3} more" if len(bad_imports) > 3 else ""
+            self.results["phase3"].append(
+                DiagnosticResult(
+                    "Internal imports use relative paths",
+                    CheckStatus.FAIL,
+                    f"Found absolute imports for local modules (Plugin root is not in sys.path). Examples: {sample}{more}. Use relative imports.",
+                )
+            )
+        else:
+            self.results["phase3"].append(
+                DiagnosticResult(
+                    "Internal imports use relative paths",
+                    CheckStatus.OK,
+                    "No problematic absolute imports found.",
+                )
+            )
+
         if not hasattr(self, "_interpreter_path") or not self._interpreter_path:
             self.results["phase3"].append(
                 DiagnosticResult(
@@ -364,7 +419,7 @@ class PluginDoctor:
                     )
                 )
 
-        # Check for file lock conflicts (Windows specific heuristic)
+        # Check for internal file lock conflicts (Windows specific heuristic)
         if platform.system() == "Windows":
             try:
                 import psutil  # type: ignore
