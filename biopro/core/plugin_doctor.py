@@ -426,8 +426,13 @@ class PluginDoctor:
 
                 locked_files = []
                 site_packages = self.plugin_dir / ".plugin_venv" / "Lib" / "site-packages"
+                target_procs = {"python.exe", "pythonw.exe", "biopro.exe", "code.exe"}
                 for proc in psutil.process_iter(["pid", "name"]):
                     try:
+                        p_name = str(proc.info.get("name", "")).lower()
+                        if p_name not in target_procs:
+                            continue
+
                         for item in proc.open_files():
                             if site_packages.as_posix() in Path(item.path).as_posix():
                                 locked_files.append(

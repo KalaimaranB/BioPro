@@ -479,6 +479,10 @@ class StoreLoaderWorker(QThread):
         self.filter_type = filter_type
 
     def run(self):
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.debug(f"StoreLoaderWorker started for filter_type: '{self.filter_type}'")
         inventory = {}
         trusted_devs = []
         try:
@@ -520,9 +524,19 @@ class StoreLoaderWorker(QThread):
                                 pass
             else:
                 inventory = self.updater.evaluate_store_state()
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).error(
+                f"StoreLoaderWorker encountered an error: {e}", exc_info=True
+            )
             pass
 
+        import logging
+
+        logging.getLogger(__name__).debug(
+            f"StoreLoaderWorker finished for filter_type: '{self.filter_type}'"
+        )
         self.finished.emit(inventory, trusted_devs, self.filter_type)
 
 
@@ -589,6 +603,16 @@ class PluginStoreDialog(QDialog):
 
     def closeEvent(self, event):
         """Cleanup subscriptions on close."""
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        if hasattr(self, "worker") and self.worker.isRunning():
+            logger.debug("PluginStoreDialog closing: Terminating running StoreLoaderWorker...")
+            self.worker.quit()
+            self.worker.wait()
+            logger.debug("StoreLoaderWorker terminated successfully on dialog close.")
+
         event_bus.unsubscribe(BioProEvent.PLUGIN_INSTALLED, self._on_plugin_event)
         event_bus.unsubscribe(BioProEvent.PLUGIN_REMOVED, self._on_plugin_event)
         super().closeEvent(event)
@@ -781,6 +805,15 @@ class PluginStoreDialog(QDialog):
         self.search_input.setEnabled(False)
 
         # Start background worker
+        if hasattr(self, "worker") and self.worker.isRunning():
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "Cancelling existing StoreLoaderWorker before starting a new one."
+            )
+            self.worker.quit()
+            self.worker.wait()
+
         self.worker = StoreLoaderWorker(self.updater, filter_type, self)
         self.worker.finished.connect(self._on_loader_finished)
         self.worker.start()
