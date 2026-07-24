@@ -74,6 +74,12 @@ jobs:
       - name: Checkout Code
         uses: "actions/checkout@v4"
 
+      - name: Checkout SDK
+        uses: "actions/checkout@v4"
+        with:
+          repository: KalaimaranB/BioPro-SDK
+          path: ../BioPro-SDK
+
       - name: Set up uv and Python
         uses: "astral-sh/setup-uv@v5"
         with:
@@ -117,6 +123,12 @@ jobs:
       - name: Checkout Code
         uses: "actions/checkout@v4"
 
+      - name: Checkout SDK
+        uses: "actions/checkout@v4"
+        with:
+          repository: KalaimaranB/BioPro-SDK
+          path: ../BioPro-SDK
+
       - name: Set up uv and Python
         uses: "astral-sh/setup-uv@v5"
         with:
@@ -126,7 +138,6 @@ jobs:
       - name: Install Dependencies
         run: |
           uv sync
-          uv pip install git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install pytest pytest-qt pytest-cov
           uv pip install --no-deps -e .
 
@@ -163,6 +174,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout SDK
+        uses: "actions/checkout@v4"
+        with:
+          repository: KalaimaranB/BioPro-SDK
+          path: ../BioPro-SDK
+
       - name: Set SOURCE_DATE_EPOCH
         shell: bash
         run: |
@@ -178,7 +195,6 @@ jobs:
       - name: Install Dependencies
         run: |
           uv sync
-          uv pip install git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install pyinstaller pytest
 
       - name: Run Supply Chain Integrity Check
