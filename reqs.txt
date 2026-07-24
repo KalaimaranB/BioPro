@@ -248,11 +248,11 @@ pygments==2.20.0 \
     --hash=sha256:6757cd03768053ff99f3039c1a36d6c0aa0b263438fcab17520b30a303a82b5f \
     --hash=sha256:81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176
     # via biopro
-pyobjc-core==12.2.1 \
+pyobjc-core==12.2.1 ; sys_platform == 'darwin' \
     --hash=sha256:7a7b9b018402342cf32bf1956366896350fbe5c0478cb3ef59778f77abed7f07 \
     --hash=sha256:a64232bb27ed101d4adc7d42b0e64a6d3331aac7bee7861c037a6777a163f10b
     # via pyobjc-framework-cocoa
-pyobjc-framework-cocoa==12.2.1 \
+pyobjc-framework-cocoa==12.2.1 ; sys_platform == 'darwin' \
     --hash=sha256:28b9b8bab1c36efb94744786918752d0c1842f5fbb67e7d5ca97b5f736512080 \
     --hash=sha256:b94b37fe5730e5ae1fb0052912cd174e6ec329b0bfba4a012ae5db1014b5864b
     # via biopro

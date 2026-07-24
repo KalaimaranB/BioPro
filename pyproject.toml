@@ -42,7 +42,7 @@ dependencies = [
     "pygments",
     "tifffile",
     "certifi",
-    "pyobjc-framework-cocoa>=12.2.1",
+    "pyobjc-framework-cocoa>=12.2.1 ; sys_platform == 'darwin'",
 ]
 
 [project.optional-dependencies]
