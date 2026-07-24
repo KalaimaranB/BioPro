@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from biopro.ui.theme import Colors
+from biopro.ui.theme import Colors, theme_manager
 
 
 class TrustTimelineDialog(QDialog):
@@ -22,7 +22,7 @@ class TrustTimelineDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(f"Trust Verification: {plugin_name}")
         self.setMinimumSize(450, 500)
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        # Dialog styles handled globally
 
         self._setup_ui(plugin_name, trust_path)
 
@@ -33,22 +33,20 @@ class TrustTimelineDialog(QDialog):
 
         # Header
         header = QLabel("🛡️ Path of Trust")
-        header.setStyleSheet(
-            f"font-size: 20px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; margin-bottom: 4px;"
-        )
+        header.setObjectName("TrustHeader")
         layout.addWidget(header)
 
         sub = QLabel(f"Verified chain for {plugin_name}")
-        sub.setStyleSheet(f"color: {Colors.FG_SECONDARY}; font-size: 12px; margin-bottom: 24px;")
+        sub.setObjectName("TrustSub")
         layout.addWidget(sub)
 
         # Scroll Area for the Timeline
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setObjectName("TransparentScroll")
 
         container = QWidget()
-        container.setStyleSheet("background: transparent;")
+        container.setObjectName("TransparentContainer")
         timeline_layout = QVBoxLayout(container)
         timeline_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         timeline_layout.setContentsMargins(0, 0, 0, 0)
@@ -68,16 +66,7 @@ class TrustTimelineDialog(QDialog):
 
         close_btn = QPushButton("Close")
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {Colors.BG_MEDIUM};
-                border: 1px solid {Colors.BORDER};
-                padding: 8px 24px;
-                border-radius: 6px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{ background: {Colors.BG_LIGHT}; }}
-        """)
+        close_btn.setObjectName("SecondaryButton")
         close_btn.clicked.connect(self.accept)
 
         footer.addStretch()
@@ -97,21 +86,17 @@ class TrustTimelineDialog(QDialog):
         icon_lbl = QLabel(self._get_icon_for_status(node["status"]))
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         icon_lbl.setFixedSize(32, 32)
-        icon_lbl.setStyleSheet(f"""
-            background: {self._get_color_for_status(node["status"])};
-            border-radius: 16px;
-            font-size: 16px;
-            color: {Colors.BG_DARKEST};
-        """)
+        icon_lbl.setObjectName("TrustIcon")
+        theme_manager.apply_style(
+            icon_lbl, f"background: {self._get_color_for_status(node['status'])};"
+        )
 
         left_col.addWidget(icon_lbl)
 
         if not is_last:
             line = QFrame()
             line.setFixedWidth(2)
-            line.setStyleSheet(
-                f"background: {Colors.BORDER}; margin-left: 15px; margin-right: 15px;"
-            )
+            line.setObjectName("TrustLine")
             left_col.addWidget(line)
         else:
             left_col.addStretch()
@@ -124,18 +109,19 @@ class TrustTimelineDialog(QDialog):
         content.setSpacing(2)
 
         name_lbl = QLabel(node["name"])
-        name_lbl.setStyleSheet(f"font-weight: 700; font-size: 14px; color: {Colors.FG_PRIMARY};")
+        name_lbl.setObjectName("TrustName")
         content.addWidget(name_lbl)
 
         status_lbl = QLabel(node["status"].upper())
-        status_lbl.setStyleSheet(
-            f"font-size: 10px; font-weight: 800; color: {self._get_color_for_status(node['status'])}; letter-spacing: 0.5px;"
+        status_lbl.setObjectName("TrustStatus")
+        theme_manager.apply_style(
+            status_lbl, f"color: {self._get_color_for_status(node['status'])};"
         )
         content.addWidget(status_lbl)
 
         if "key" in node:
             key_lbl = QLabel(f"Key: {node['key'][:16]}...")
-            key_lbl.setStyleSheet(f"font-size: 10px; color: {Colors.FG_SECONDARY};")
+            key_lbl.setObjectName("TrustKey")
             content.addWidget(key_lbl)
 
         content.addStretch()

@@ -1,10 +1,13 @@
 """Global Theme and Typography Engine."""
 
-import json
 import logging
+import weakref
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, pyqtSignal
+
+from biopro.core.config import AppConfig
+from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +119,7 @@ class ThemeManager(QObject):
         super().__init__()
         self.current_theme_name = "BioPro Default"
         self._last_color_map = self._get_current_color_map()
+        self._dynamic_widgets = weakref.WeakKeyDictionary()
 
     def _get_current_color_map(self) -> dict[str, str]:
         """Snapshots all hex codes from the Colors class."""
@@ -127,11 +131,39 @@ class ThemeManager(QObject):
             and getattr(Colors, name).startswith("#")
         }
 
+    def apply_style(self, widget, style_template: str):
+        """Applies a dynamic stylesheet to a widget and tracks it for future theme changes.
+
+        The style_template can contain format placeholders (e.g. {BG_DARKEST}).
+        They will be resolved against the current Colors class.
+        """
+        self._dynamic_widgets[widget] = style_template
+        self._set_widget_style(widget, style_template)
+
+    def _set_widget_style(self, widget, style_template: str):
+        """Helper to resolve a template and apply it safely."""
+        color_dict = {k: getattr(Colors, k) for k in dir(Colors) if not k.startswith("_")}
+
+        compiled_qss = style_template
+        for key, val in color_dict.items():
+            compiled_qss = compiled_qss.replace(f"{{{key}}}", str(val))
+
+        import contextlib
+
+        with contextlib.suppress(RuntimeError):
+            widget.setStyleSheet(compiled_qss)
+
+    def _apply_dynamic_styles(self):
+        """Re-evaluates all tracked inline styles across the app."""
+        # weakref dictionary safely iterates over widgets that are still alive in Python
+        for widget, style_template in list(self._dynamic_widgets.items()):
+            self._set_widget_style(widget, style_template)
+
     def load_theme(self, theme_path: Path) -> bool:
         """Reads a theme.json and overwrites the Colors class globally.
 
-        This method triggers a global style migration, scanning all active QWidgets
-        and updating their stylesheets to reflect the new color palette.
+        This method updates the global QApplication stylesheet, instantly
+        repainting the UI with the new color palette.
 
         Args:
             theme_path (Path): Path to the JSON theme definition file.
@@ -144,11 +176,9 @@ class ThemeManager(QObject):
             return False
 
         try:
-            with open(theme_path, encoding="utf-8") as f:
-                data = json.load(f)
-
-            # Snapshot BEFORE update
-            old_map = self._get_current_color_map()
+            data = AtomicJsonFile.load(theme_path)
+            if not data:
+                return False
 
             self.current_theme_name = data.get("name", theme_path.stem)
 
@@ -161,15 +191,12 @@ class ThemeManager(QObject):
                 elif hasattr(Strings, key):
                     setattr(Strings, key, value)
 
-            new_map = self._get_current_color_map()
-
             logger.info(f"Successfully loaded theme: {self.current_theme_name}")
 
-            # Perform Global Smart Refresh
-            # theme_changed is emitted inside the migration, after the last chunk finishes
-            self._apply_global_style_migration(
-                old_map, new_map, on_complete=self.theme_changed.emit
-            )
+            # Perform Global Stylesheet Update
+            self._apply_global_stylesheet()
+            self._apply_dynamic_styles()
+
             return True
 
         except Exception as e:
@@ -180,7 +207,7 @@ class ThemeManager(QObject):
         """Scans both user-space and internal themes directories, returning (Name, Path) tuples."""
         from biopro.core.resource_manager import resource_path
 
-        user_themes_dir = Path.home() / ".biopro" / "themes"
+        user_themes_dir = AppConfig.APP_DATA_DIR / "themes"
         user_themes_dir.mkdir(parents=True, exist_ok=True)
 
         internal_themes_dir = resource_path("themes")
@@ -197,113 +224,59 @@ class ThemeManager(QObject):
                         continue
                     seen_paths.add(resolved)
                     try:
-                        with open(theme_file, encoding="utf-8") as f:
-                            data = json.load(f)
+                        data = AtomicJsonFile.load(theme_file)
+                        if data:
                             name = data.get("name", theme_file.stem)
                             themes.append((name, theme_file))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.error(f"Failed to load theme {theme_file}: {e}", exc_info=True)
 
         # Ensure default is first if found
         themes.sort(key=lambda x: 0 if "Default" in x[0] else 1)
         return themes
 
-    def _apply_global_style_migration(self, old_map: dict, new_map: dict, on_complete=None) -> None:
-        """Recursively finds all widgets and replaces old hex codes with new ones.
-
-        This 'Smart Refresh' mechanism allows for hot-swapping themes without
-        restarting the application. It uses regex to precisely swap hex codes
-        within existing QSS strings.
-
-        Args:
-            old_map (dict): The mapping of color names to hex codes before the change.
-            new_map (dict): The mapping of color names to hex codes after the change.
+    def _apply_global_stylesheet(self) -> None:
+        """Compiles the master base.qss template using the current Colors
+        and applies it natively to the global QApplication instance.
         """
-        import re
-
-        from PyQt6.QtWidgets import QApplication, QWidget
+        from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance()
         if not app:
             return
 
-        # Prepare translation table (Case insensitive search)
-        translations = []
-        for name, old_hex in old_map.items():
-            new_hex = new_map.get(name)
-            if new_hex and old_hex != new_hex:
-                # Compile regex for the hex code, ensuring it's not part of a larger word
-                # but allowing for shorthand/longhand if we wanted (keeping it simple for now)
-                pattern = re.compile(re.escape(old_hex), re.IGNORECASE)
-                translations.append((pattern, new_hex))
-
-        if not translations:
+        qss_path = Path(__file__).resolve().parent / "styles" / "base.qss"
+        if not qss_path.exists():
+            logger.warning(f"Master stylesheet not found at {qss_path}")
             return
 
-        logger.info(f"Migrating styles for {len(translations)} color changes...")
+        try:
+            with open(qss_path, encoding="utf-8") as f:
+                qss_template = f.read()
 
-        from biopro.ui.components.overlays import BioLoadingOverlay
+            # Create a dictionary of all color properties
+            color_dict = {k: getattr(Colors, k) for k in dir(Colors) if not k.startswith("_")}
 
-        main_window = app.activeWindow()
-        overlay = None
-        if main_window:
-            overlay = BioLoadingOverlay(main_window)
-            overlay.set_text("Applying Theme...")
-            overlay.start()
-            app.processEvents()
+            # Substitute the {VARIABLE} placeholders in the QSS string
+            compiled_qss = qss_template
+            for key, val in color_dict.items():
+                compiled_qss = compiled_qss.replace(f"{{{key}}}", str(val))
 
-        all_widgets = app.allWidgets()
-        total_widgets = len(all_widgets)
-        from PyQt6.QtCore import QTimer
+            app.setStyleSheet(compiled_qss)
 
-        def process_chunk(start_idx):
-            chunk_size = 30  # Process 30 widgets per frame to guarantee 60fps responsiveness
-            end_idx = min(start_idx + chunk_size, total_widgets)
+            # Re-inject app-level styles (QToolTip, QPalette) so they also reflect the new theme
+            try:
+                from biopro_sdk.plugin.components import _apply_global_sdk_styles
 
-            for i in range(start_idx, end_idx):
-                widget = all_widgets[i]
+                _apply_global_sdk_styles()
+            except Exception as e:
+                logger.error(f"Failed to apply SDK styles: {e}", exc_info=True)
 
-                try:
-                    if not isinstance(widget, QWidget) or widget is overlay:
-                        continue
+            self.theme_changed.emit()
+            logger.info("Global stylesheet updated successfully.")
 
-                    qss = widget.styleSheet()
-                    if not qss:
-                        continue
-
-                    original_qss = qss
-                    for pattern, new_hex in translations:
-                        qss = pattern.sub(new_hex, qss)
-
-                    if qss != original_qss:
-                        widget.setStyleSheet(qss)
-                except RuntimeError:
-                    # Widget was deleted in the middle of the async migration (e.g. tooltip, popup)
-                    continue
-
-            if end_idx < total_widgets:
-                # Yield back to the main event loop, allowing the OS to breathe and the overlay to animate
-                QTimer.singleShot(15, lambda: process_chunk(end_idx))
-            else:
-                if overlay:
-                    overlay.stop()
-                    overlay.deleteLater()
-
-                # Re-inject app-level styles (QToolTip, QPalette) so they also reflect the new theme
-                try:
-                    from biopro_sdk.plugin.components import _apply_global_sdk_styles
-
-                    _apply_global_sdk_styles()
-                except Exception:
-                    pass
-
-                # Broadcast theme_changed AFTER migration is fully complete so all signal
-                # handlers (e.g. _apply_styles) run while the overlay is already visible
-                if on_complete:
-                    on_complete()
-
-        # Give the UI 50ms to render the overlay onto the screen before we start the heavy migration chunks
-        QTimer.singleShot(50, lambda: process_chunk(0))
+        except Exception as e:
+            logger.error(f"Failed to apply global stylesheet: {e}", exc_info=True)
 
 
 # Global singleton instance so the whole app shares one engine

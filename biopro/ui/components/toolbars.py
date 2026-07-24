@@ -12,11 +12,12 @@ class AnalysisToolBar(QWidget):
     def __init__(self, title: str, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("analysisToolBar")
-        self.setStyleSheet(
+        theme_manager.apply_style(
+            self,
             f"QWidget#analysisToolBar {{"
             f"  background: {Colors.BG_DARK};"
             f"  border-bottom: 1px solid {Colors.BORDER};"
-            f"}}"
+            f"}}",
         )
         self.setFixedHeight(42)
 
@@ -36,22 +37,24 @@ class AnalysisToolBar(QWidget):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setStyleSheet(f"color: {Colors.BORDER};")
+        theme_manager.apply_style(sep, f"color: {Colors.BORDER};")
         layout.addWidget(sep)
 
         self.title_lbl = QLabel(f"🔬  {title}")
-        self.title_lbl.setStyleSheet(
+        theme_manager.apply_style(
+            self.title_lbl,
             f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
-            f" color: {Colors.FG_PRIMARY}; background: transparent;"
+            f" color: {Colors.FG_PRIMARY}; background: transparent;",
         )
         layout.addWidget(self.title_lbl)
         layout.addStretch()
 
         theme_manager.theme_changed.connect(self._apply_theme_styles)
         self.btn_academy = SecondaryButton("🎓 Cyto Academy")
-        self.btn_academy.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_academy,
             f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
-            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;"
+            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;",
         )
         layout.addWidget(self.btn_academy)
 
@@ -61,17 +64,20 @@ class AnalysisToolBar(QWidget):
         self.title_lbl.setText(f"{icon}  {name}")
 
     def _apply_theme_styles(self) -> None:
-        self.setStyleSheet(
+        theme_manager.apply_style(
+            self,
             f"QWidget#analysisToolBar {{"
             f"  background: {Colors.BG_DARK};"
             f"  border-bottom: 1px solid {Colors.BORDER};"
-            f"}}"
+            f"}}",
         )
-        self.title_lbl.setStyleSheet(
+        theme_manager.apply_style(
+            self.title_lbl,
             f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
-            f" color: {Colors.FG_PRIMARY}; background: transparent;"
+            f" color: {Colors.FG_PRIMARY}; background: transparent;",
         )
-        self.btn_academy.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_academy,
             f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
-            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;"
+            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;",
         )

@@ -46,7 +46,7 @@ jobs:
 
       - name: Package Release
         run: |
-          PLUGIN_ID=$(jq -r '.id' manifest.json)
+          PLUGIN_ID=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['tool']['biopro']['plugin']['id'])")
           zip -r ${PLUGIN_ID}.zip . -x "*.git*" -x "*__pycache__*" -x "*.venv*"
 
       - name: Publish GitHub Release

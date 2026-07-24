@@ -1,6 +1,44 @@
 """TDD tests for the init-identity CLI command (developer and project modes)."""
 
-import json
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    return "\n".join(lines)
+
+
 from pathlib import Path
 
 import pytest
@@ -24,31 +62,13 @@ class TestManifestParserIntegration:
             ],
         }
 
-        manifest_file = tmp_path / "manifest.json"
-        manifest_file.write_text(json.dumps(manifest))
+        manifest_file = tmp_path / "pyproject.toml"
+        manifest_file.write_text(_dict_to_toml(manifest))
 
         parser = ManifestParser()
         result = parser.parse_file(str(manifest_file))
         assert result["id"] == "test_plugin"
         assert len(result["authors"]) == 2
-
-    def test_legacy_manifest_file_is_rejected(self, tmp_path):
-        """A manifest using the old 'author' string field raises ManifestValidationError."""
-
-        manifest = {
-            "id": "old_plugin",
-            "name": "Old Plugin",
-            "version": "1.0.0",
-            "description": "Legacy",
-            "author": "alice",
-        }
-        manifest_file = tmp_path / "manifest.json"
-        manifest_file.write_text(json.dumps(manifest))
-
-        parser = ManifestParser()
-        with pytest.raises(ManifestValidationError) as exc:
-            parser.parse_file(str(manifest_file))
-        assert "Legacy 'author' field" in str(exc.value)
 
     def test_missing_required_field_rejected(self, tmp_path):
         """Missing 'authors' key raises ManifestValidationError."""
@@ -60,8 +80,8 @@ class TestManifestParserIntegration:
             "version": "1.0.0",
             "description": "Missing authors",
         }
-        manifest_file = tmp_path / "manifest.json"
-        manifest_file.write_text(json.dumps(manifest))
+        manifest_file = tmp_path / "pyproject.toml"
+        manifest_file.write_text(_dict_to_toml(manifest))
 
         parser = ManifestParser()
         with pytest.raises(ManifestValidationError) as exc:

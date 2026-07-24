@@ -361,7 +361,7 @@ class TestProjectManager:
         with (
             patch("os.replace", side_effect=RuntimeError("Fatal FS error")),
             patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
-            pytest.raises(RuntimeError),
+            pytest.raises(OSError),
         ):
             pm.save()
             mock_diag.assert_called()

@@ -9,9 +9,19 @@ from biopro.core.sbom import SBOMGenerator
 
 @pytest.fixture
 def mock_project_root(tmp_path):
-    # Create a fake requirements.txt
-    req_file = tmp_path / "requirements.txt"
-    req_file.write_text("requests==2.31.0\n# comment\npytest>=7.0.0\n")
+    # Create a fake uv.lock
+    lock_file = tmp_path / "uv.lock"
+    lock_file.write_text("""
+version = 1
+
+[[package]]
+name = "requests"
+version = "1.2.3"
+
+[[package]]
+name = "pytest"
+version = "1.2.3"
+""")
     return tmp_path
 
 

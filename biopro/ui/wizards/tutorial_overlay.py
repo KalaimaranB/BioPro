@@ -34,7 +34,7 @@ from biopro.core.models.tutorial_models import (
     WaitForEventStep,
 )
 from biopro.ui.components.cyto_character import CytoWidget
-from biopro.ui.theme import Colors
+from biopro.ui.theme import Colors, theme_manager
 
 # We will use Colors dynamically in the UI code rather than hardcoded hex codes.
 
@@ -114,8 +114,9 @@ class TutorialOverlay(QWidget):
     def _build_bubble(self) -> None:
         self.bubble_container = QWidget(self)
         self.bubble_container.setObjectName("BubbleContainer")
-        self.bubble_container.setStyleSheet(
-            f"#BubbleContainer {{ background-color: {Colors.BG_DARKEST}; border: 2px solid {Colors.ACCENT_SUCCESS}; border-radius: 12px; }}"
+        theme_manager.apply_style(
+            self.bubble_container,
+            f"#BubbleContainer {{ background-color: {Colors.BG_DARKEST}; border: 2px solid {Colors.ACCENT_SUCCESS}; border-radius: 12px; }}",
         )
         self.bubble_container.setFixedWidth(420)
         self.bubble_layout = QVBoxLayout(self.bubble_container)
@@ -131,14 +132,16 @@ class TutorialOverlay(QWidget):
         # Header row
         header = QHBoxLayout()
         self.lbl_progress = QLabel("BioPro Academy")
-        self.lbl_progress.setStyleSheet(
-            f"color: {Colors.FG_SECONDARY}; font-size: 13px; font-weight: bold; font-family: sans-serif;"
+        theme_manager.apply_style(
+            self.lbl_progress,
+            f"color: {Colors.FG_SECONDARY}; font-size: 13px; font-weight: bold; font-family: sans-serif;",
         )
         self.btn_close = QPushButton("×")
         self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_close.setFixedSize(24, 24)
-        self.btn_close.setStyleSheet(
-            f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;"
+        theme_manager.apply_style(
+            self.btn_close,
+            f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;",
         )
         self.btn_close.enterEvent = lambda e: self.btn_close.setStyleSheet(
             f"color: {Colors.FG_PRIMARY}; border: none; font-size: 16px; font-weight: bold;"
@@ -159,7 +162,7 @@ class TutorialOverlay(QWidget):
         font.setBold(True)
         font.setFamily("sans-serif")
         self.text_label.setFont(font)
-        self.text_label.setStyleSheet(f"color: {Colors.FG_PRIMARY}; padding: 8px 0px;")
+        theme_manager.apply_style(self.text_label, f"color: {Colors.FG_PRIMARY}; padding: 8px 0px;")
         self.text_label.setWordWrap(True)
         self.text_label.setFixedWidth(392)  # 420 (container) - 28 (margins)
         self.body_layout.addWidget(self.text_label)
@@ -171,13 +174,14 @@ class TutorialOverlay(QWidget):
         # Footer container
         self.footer_container = QWidget()
         self.footer_container.setObjectName("BubbleFooter")
-        self.footer_container.setStyleSheet(
+        theme_manager.apply_style(
+            self.footer_container,
             f"#BubbleFooter {{"
             f"  background-color: {Colors.BG_MEDIUM};"
             f"  border-bottom-left-radius: 8px;"
             f"  border-bottom-right-radius: 8px;"
             f"  border-top: 1px solid {Colors.BORDER};"
-            f"}}"
+            f"}}",
         )
         self.footer_layout = QHBoxLayout(self.footer_container)
         self.footer_layout.setContentsMargins(14, 12, 14, 12)
@@ -187,25 +191,27 @@ class TutorialOverlay(QWidget):
         self.progress_bar = QProgressBar()
         self.progress_bar.setFixedHeight(6)
         self.progress_bar.setTextVisible(False)
-        self.progress_bar.setStyleSheet(
+        theme_manager.apply_style(
+            self.progress_bar,
             f"QProgressBar {{ background-color: {Colors.BG_DARKER}; border-radius: 3px; }}"
-            f"QProgressBar::chunk {{ background-color: {Colors.ACCENT_PRIMARY}; border-radius: 3px; }}"
+            f"QProgressBar::chunk {{ background-color: {Colors.ACCENT_PRIMARY}; border-radius: 3px; }}",
         )
         self.footer_layout.addWidget(self.progress_bar, stretch=1)
         self.footer_layout.addSpacing(16)
 
         # Button row
         self.btn_container = QWidget()
-        self.btn_container.setStyleSheet("background: transparent;")
+        theme_manager.apply_style(self.btn_container, "background: transparent;")
         self.btn_layout = QHBoxLayout(self.btn_container)
         self.btn_layout.setContentsMargins(0, 0, 0, 0)
         self.footer_layout.addWidget(self.btn_container)
 
         self.btn_next = QPushButton("Next →")
-        self.btn_next.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_next,
             f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
             f"border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px;"
-            "padding: 6px 14px; font-weight: bold;"
+            "padding: 6px 14px; font-weight: bold;",
         )
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -564,7 +570,9 @@ class TutorialOverlay(QWidget):
         for task in step.sub_tasks:
             lbl = QLabel(f"☐  {task.instruction}")
             lbl.setObjectName(f"subtask_{task.id}")
-            lbl.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 13px; margin-left: 8px;")
+            theme_manager.apply_style(
+                lbl, f"color: {Colors.FG_PRIMARY}; font-size: 13px; margin-left: 8px;"
+            )
             self.dynamic_content.addWidget(lbl)
 
     def _on_subtask_completed(self, subtask_id: str, remaining_count: int) -> None:
@@ -576,8 +584,9 @@ class TutorialOverlay(QWidget):
             widget = self.dynamic_content.itemAt(i).widget()
             if widget and widget.objectName() == f"subtask_{subtask_id}":
                 widget.setText(widget.text().replace("☐", "✅"))
-                widget.setStyleSheet(
-                    f"color: {Colors.FG_PRIMARY}; font-size: 13px; margin-left: 8px; font-weight: bold;"
+                theme_manager.apply_style(
+                    widget,
+                    f"color: {Colors.FG_PRIMARY}; font-size: 13px; margin-left: 8px; font-weight: bold;",
                 )
         if remaining_count == 0:
             self.btn_next.show()
@@ -593,7 +602,7 @@ class TutorialOverlay(QWidget):
 
         for text, target_id in options.items():
             btn = QPushButton(text.replace("btn_", "").replace("_", " ").title())
-            btn.setStyleSheet(btn_style)
+            theme_manager.apply_style(btn, btn_style)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             # Use default argument capture for target_id inside the lambda
             btn.clicked.connect(
@@ -605,8 +614,8 @@ class TutorialOverlay(QWidget):
         """Add a static 'waiting' label for WaitForEventStep steps."""
         wait_lbl = QLabel("⏳  Waiting for your action…")
         wait_lbl.setObjectName("waitingIndicator")
-        wait_lbl.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY}; font-size: 12px; font-style: italic;"
+        theme_manager.apply_style(
+            wait_lbl, f"color: {Colors.ACCENT_PRIMARY}; font-size: 12px; font-style: italic;"
         )
         self.dynamic_content.addWidget(wait_lbl)
 

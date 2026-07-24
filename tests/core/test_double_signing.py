@@ -1,5 +1,46 @@
 import hashlib
+
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    return "\n".join(lines)
+
+
 import json
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,11 +96,9 @@ class TestDoubleSigningPipeline:
             "description": "A split-manifest plugin.",
             "authors": [{"name": "Alice", "role": "Developer", "permissions": ["sign_code"]}],
         }
-        manifest_file = plugin_dir / "manifest.json"
+        manifest_file = plugin_dir / "pyproject.toml"
         # Write manifest.json with deterministic sorting
-        manifest_file.write_text(
-            json.dumps(manifest_data, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-        )
+        manifest_file.write_text(_dict_to_toml(manifest_data), encoding="utf-8")
 
         # Add code file
         code_file = plugin_dir / "code.py"
@@ -74,7 +113,7 @@ class TestDoubleSigningPipeline:
         assert (plugin_dir / "trust_chain.json").exists()
 
         # 2. Verify that manifest.json was NOT modified (remains pristine)
-        pristine_manifest = json.loads(manifest_file.read_text())
+        pristine_manifest = tomllib.loads(manifest_file.read_text())
         assert "integrity" not in pristine_manifest
         assert "hashes" not in pristine_manifest
 
@@ -107,10 +146,8 @@ class TestDoubleSigningPipeline:
             "description": "Double signed plugin.",
             "authors": [{"name": "Alice", "role": "Developer", "permissions": ["sign_code"]}],
         }
-        manifest_file = plugin_dir / "manifest.json"
-        manifest_file.write_text(
-            json.dumps(manifest_data, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-        )
+        manifest_file = plugin_dir / "pyproject.toml"
+        manifest_file.write_text(_dict_to_toml(manifest_data), encoding="utf-8")
 
         code_file = plugin_dir / "code.py"
         code_file.write_text("print('core logic')", encoding="utf-8")
@@ -141,8 +178,8 @@ class TestDoubleSigningPipeline:
         """Ensure project co-signing fails if there is no developer signature.bin."""
         plugin_dir = tmp_path / "unsigned_plugin"
         plugin_dir.mkdir()
-        (plugin_dir / "manifest.json").write_text(
-            json.dumps(
+        (plugin_dir / "pyproject.toml").write_text(
+            _dict_to_toml(
                 {
                     "manifest_version": 2,
                     "id": "unsigned_plugin",
@@ -177,7 +214,7 @@ class TestDoubleSigningPipeline:
             "description": "Desc",
             "authors": [{"name": "Alice", "role": "Developer", "permissions": ["sign_code"]}],
         }
-        (plugin_dir / "manifest.json").write_text(json.dumps(manifest_data), encoding="utf-8")
+        (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest_data), encoding="utf-8")
 
         code_file = plugin_dir / "code.py"
         code_file.write_text("print('secure')", encoding="utf-8")

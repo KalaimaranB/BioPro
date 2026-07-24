@@ -8,14 +8,14 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
 from biopro.core.plugin_doctor import CheckStatus, PluginDoctor
-from biopro.ui.theme import Colors
+from biopro.shared.ui.alerts import show_error, show_info, show_warning
+from biopro.ui.theme import Colors, theme_manager
 
 
 class PluginDoctorDialog(QDialog):
@@ -30,7 +30,9 @@ class PluginDoctorDialog(QDialog):
 
         self.setWindowTitle(f"Plugin Doctor - {plugin_id}")
         self.setMinimumSize(650, 500)
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            self, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
+        )
 
         self.has_repairable_issues = False
         self.has_manual_issues = False
@@ -45,16 +47,20 @@ class PluginDoctorDialog(QDialog):
 
         # Header
         header_lbl = QLabel(f"🩺 Diagnostic Report: {self.plugin_id}")
-        header_lbl.setStyleSheet(f"font-size: 18px; font-weight: bold; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            header_lbl, f"font-size: 18px; font-weight: bold; color: {Colors.FG_PRIMARY};"
+        )
         self.layout.addWidget(header_lbl)
 
         # Scroll Area for Checklist
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        theme_manager.apply_style(
+            self.scroll, "QScrollArea { border: none; background: transparent; }"
+        )
 
         self.content = QWidget()
-        self.content.setStyleSheet("background: transparent;")
+        theme_manager.apply_style(self.content, "background: transparent;")
         self.content_layout = QVBoxLayout(self.content)
         self.content_layout.setSpacing(10)
         self.scroll.setWidget(self.content)
@@ -109,15 +115,16 @@ class PluginDoctorDialog(QDialog):
 
         for phase_key, title in phases.items():
             phase_lbl = QLabel(title)
-            phase_lbl.setStyleSheet(
-                f"font-weight: bold; font-size: 14px; margin-top: 10px; color: {Colors.ACCENT_PRIMARY};"
+            theme_manager.apply_style(
+                phase_lbl,
+                f"font-weight: bold; font-size: 14px; margin-top: 10px; color: {Colors.ACCENT_PRIMARY};",
             )
             self.content_layout.addWidget(phase_lbl)
 
             for res in results.get(phase_key, []):
                 row = QWidget()
-                row.setStyleSheet(
-                    f"background: {Colors.BG_MEDIUM}; border-radius: 4px; padding: 5px;"
+                theme_manager.apply_style(
+                    row, f"background: {Colors.BG_MEDIUM}; border-radius: 4px; padding: 5px;"
                 )
                 row_layout = QHBoxLayout(row)
                 row_layout.setContentsMargins(10, 5, 10, 5)
@@ -142,19 +149,22 @@ class PluginDoctorDialog(QDialog):
 
                 text_layout = QVBoxLayout()
                 title_lbl = QLabel(res.check_name)
-                title_lbl.setStyleSheet(f"font-weight: bold; color: {color};")
+                theme_manager.apply_style(title_lbl, f"font-weight: bold; color: {color};")
                 text_layout.addWidget(title_lbl)
 
                 msg_lbl = QLabel(res.message)
                 msg_lbl.setWordWrap(True)
-                msg_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY};")
+                theme_manager.apply_style(
+                    msg_lbl, f"font-size: 11px; color: {Colors.FG_SECONDARY};"
+                )
                 text_layout.addWidget(msg_lbl)
 
                 if hasattr(res, "details") and res.details:
                     details_lbl = QLabel(res.details)
                     details_lbl.setWordWrap(True)
-                    details_lbl.setStyleSheet(
-                        f"font-size: 10px; color: {Colors.DNA_PRIMARY}; font-style: italic; margin-top: 2px;"
+                    theme_manager.apply_style(
+                        details_lbl,
+                        f"font-size: 10px; color: {Colors.DNA_PRIMARY}; font-style: italic; margin-top: 2px;",
                     )
                     text_layout.addWidget(details_lbl)
 
@@ -181,12 +191,12 @@ class PluginDoctorDialog(QDialog):
         if path:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(bundle)
-            QMessageBox.information(self, "Exported", "Diagnostic bundle saved successfully.")
+            show_info(self, "Exported", "Diagnostic bundle saved successfully.")
 
     def _run_repairs(self):
         """Execute safe repairs."""
         if self.has_manual_issues:
-            QMessageBox.warning(
+            show_warning(
                 self,
                 "Manual Actions Required",
                 "Some issues require manual intervention (e.g., closing locked files). "
@@ -205,9 +215,7 @@ class PluginDoctorDialog(QDialog):
                 mod_data = remote_data["plugins"][self.plugin_id]
                 success, msg = self.updater.install_plugin(self.plugin_id, mod_data)
                 if not success:
-                    QMessageBox.critical(
-                        self, "Repair Failed", f"Failed to re-download plugin: {msg}"
-                    )
+                    show_error(self, "Repair Failed", f"Failed to re-download plugin: {msg}")
                     return
 
         # 2. Reinstall Dependencies if Phase 2 or 3 failed
@@ -223,7 +231,7 @@ class PluginDoctorDialog(QDialog):
                 try:
                     shutil.rmtree(venv_path)
                 except Exception as e:
-                    QMessageBox.critical(
+                    show_error(
                         self,
                         "Repair Failed",
                         f"Could not clear broken environment. File may be locked: {str(e)}",
@@ -235,7 +243,5 @@ class PluginDoctorDialog(QDialog):
             installer = DependencyInstallerDialog(self.plugin_dir, self.plugin_id, parent=self)
             installer.exec()
 
-        QMessageBox.information(
-            self, "Repair Complete", "Automated repairs finished. Re-running diagnostics."
-        )
+        show_info(self, "Repair Complete", "Automated repairs finished. Re-running diagnostics.")
         self.run_diagnostics()

@@ -1,5 +1,4 @@
 import abc
-import json
 from pathlib import Path
 from typing import Any
 
@@ -28,11 +27,16 @@ class ProjectTrustStrategy(ITrustStrategy):
                 security_file = path_obj / "security.json"
                 if security_file.exists():
                     try:
-                        with open(security_file, encoding="utf-8") as f:
-                            sec_data = json.load(f)
-                            entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                    except Exception:
-                        pass
+                        from biopro.core.utils import AtomicJsonFile
+
+                        sec_data = AtomicJsonFile.load(security_file, default={})
+                        entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).debug(
+                            f"Failed to load security file {security_file}: {e}"
+                        )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)
         if not entity_type:
@@ -68,11 +72,16 @@ class DeveloperTrustStrategy(ITrustStrategy):
                 security_file = path_obj / "security.json"
                 if security_file.exists():
                     try:
-                        with open(security_file, encoding="utf-8") as f:
-                            sec_data = json.load(f)
-                            entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                    except Exception:
-                        pass
+                        from biopro.core.utils import AtomicJsonFile
+
+                        sec_data = AtomicJsonFile.load(security_file, default={})
+                        entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).debug(
+                            f"Failed to load security file {security_file}: {e}"
+                        )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)
         if not entity_type:
@@ -105,11 +114,16 @@ class TrustStrategyFactory:
                     security_file = path_obj / "security.json"
                     if security_file.exists():
                         try:
-                            with open(security_file, encoding="utf-8") as f:
-                                sec_data = json.load(f)
-                                entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                        except Exception:
-                            pass
+                            from biopro.core.utils import AtomicJsonFile
+
+                            sec_data = AtomicJsonFile.load(security_file, default={})
+                            entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
+                        except Exception as e:
+                            import logging
+
+                            logging.getLogger(__name__).debug(
+                                f"Failed to load security file {security_file}: {e}"
+                            )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)
         if not entity_type:

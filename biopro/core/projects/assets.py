@@ -67,13 +67,7 @@ class AssetManager:
             }
             return file_hash
         except Exception as e:
-            logger.error(f"Failed to ingest image {filepath}: {e}")
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(f"Failed to ingest image {filepath}: {e}", exception=e)
-            except Exception:
-                pass
+            logger.error(f"Failed to ingest image {filepath}: {e}", exc_info=True)
             raise e
 
     def validate_assets(self, data: dict[str, Any]) -> bool:

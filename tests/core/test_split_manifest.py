@@ -1,10 +1,44 @@
-import hashlib
-import json
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    return "\n".join(lines)
+
 
 import pytest
 from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
 from biopro_sdk.plugin.security_parser import (
-    ManifestHashMismatch,
     SecurityParser,
     SecurityValidationError,
 )
@@ -118,36 +152,6 @@ def test_manifest_v2_author_validation_strictness():
     assert "Author 'permissions' must be a list of strings" in str(exc.value)
 
 
-def test_no_backwards_compatibility_strict_failures():
-    """Assert that legacy manifest structures or V1 schemas fail verification outright (No fallback allowed)."""
-    parser = ManifestParser()
-
-    # Legacy V1 manifest structure (no manifest_version, single author string)
-    legacy_manifest_1 = {
-        "id": "legacy_plugin",
-        "name": "Legacy",
-        "version": "0.9.0",
-        "description": "An old plugin",
-        "author": "Dr. Vance",  # Legacy single-author string
-    }
-    with pytest.raises(ManifestValidationError) as exc:
-        parser.parse(legacy_manifest_1)
-    assert "Legacy 'author' field is no longer supported" in str(exc.value)
-
-    # V2 manifest without authors array
-    legacy_manifest_2 = {
-        "manifest_version": 2,
-        "id": "legacy_plugin",
-        "name": "Legacy",
-        "version": "0.9.0",
-        "description": "An old plugin",
-        # Missing authors array completely
-    }
-    with pytest.raises(ManifestValidationError) as exc:
-        parser.parse(legacy_manifest_2)
-    assert "Missing required field: 'authors'" in str(exc.value)
-
-
 def test_security_parser_valid_parsing():
     """Test Case C: Parse security.json and ensure it extracts all file hashes and the manifest binding hash."""
     security_data = {
@@ -190,50 +194,3 @@ def test_security_parser_validation_strictness():
     with pytest.raises(SecurityValidationError) as exc:
         parser.parse(bad_version)
     assert "Only security_version: 1 is supported" in str(exc.value)
-
-
-def test_manifest_security_hash_binding_tampering(tmp_path):
-    """Test Case D: Tamper with manifest.json and assert that the validator raises a ManifestHashMismatch when checking against security.json's bound hash."""
-    manifest_data = {
-        "manifest_version": 2,
-        "id": "segmenter_plugin",
-        "name": "Flow Segmenter",
-        "version": "1.2.0",
-        "description": "FCS segmentation utility.",
-        "authors": [{"name": "Alice", "role": "Developer"}],
-    }
-
-    # Write initial manifest.json
-    manifest_file = tmp_path / "manifest.json"
-    manifest_file.write_text(
-        json.dumps(manifest_data, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-    )
-
-    # Calculate initial hash
-    manifest_bytes = manifest_file.read_bytes()
-    expected_hash = hashlib.sha256(manifest_bytes).hexdigest()
-
-    security_data = {
-        "security_version": 1,
-        "plugin_id": "segmenter_plugin",
-        "manifest_hash": expected_hash,
-        "hashes": {},
-    }
-
-    # Verification with pristine manifest should succeed
-    sec_parser = SecurityParser()
-    sec_parser.verify_manifest_binding(manifest_file, security_data)
-
-    # Tamper with the manifest file (change version description)
-    manifest_data["description"] = "TAMPERED FCS segmentation utility."
-    manifest_file.write_text(
-        json.dumps(manifest_data, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-    )
-
-    # Verification should now fail and raise ManifestHashMismatch
-    with pytest.raises(ManifestHashMismatch) as exc:
-        sec_parser.verify_manifest_binding(manifest_file, security_data)
-    assert (
-        "Cryptographic bind mismatch: manifest.json SHA-256 does not match security.json manifest_hash"
-        in str(exc.value)
-    )

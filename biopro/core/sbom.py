@@ -7,8 +7,11 @@ import hashlib
 import importlib.metadata
 import json
 import platform
+import tomllib
 from pathlib import Path
 from typing import Any
+
+from biopro.core.config import AppConfig
 
 
 class SBOMGenerator:
@@ -16,7 +19,7 @@ class SBOMGenerator:
 
     def __init__(self, project_root: Path | None = None):
         self.project_root = project_root or Path(__file__).parent.parent.parent
-        self.biopro_dir = Path.home() / ".biopro"
+        self.biopro_dir = AppConfig.APP_DATA_DIR
 
     def get_metadata(self) -> dict[str, Any]:
         """Returns application and environment metadata."""
@@ -62,30 +65,24 @@ class SBOMGenerator:
             "plugins": plugins_list,
         }
 
-        # 1. Gather Core Pip Dependencies (from requirements.txt)
-        req_file = self.project_root / "requirements.txt"
-        if req_file.exists():
-            with open(req_file) as f:
-                for line in f:
-                    name = (
-                        line.strip().split("[")[0].split("=")[0].split("<")[0].split(">")[0].strip()
-                    )
-                    if not name or name.startswith("#"):
-                        continue
+        # 1. Gather Core Pip Dependencies (from uv.lock)
+        lock_file = self.project_root / "uv.lock"
+        if lock_file.exists():
+            with open(lock_file, "rb") as f:
+                lock_data = tomllib.load(f)
 
-                    try:
-                        version = importlib.metadata.version(name)
-                    except Exception:
-                        version = "Installed (Version Unknown)"
+            for pkg in lock_data.get("package", []):
+                name = pkg.get("name")
+                version = pkg.get("version", "Unknown")
 
-                    components_list.append(
-                        {
-                            "type": "library",
-                            "name": name,
-                            "version": version,
-                            "purl": f"pkg:pypi/{name}@{version}",
-                        }
-                    )
+                components_list.append(
+                    {
+                        "type": "library",
+                        "name": name,
+                        "version": version,
+                        "purl": f"pkg:pypi/{name}@{version}",
+                    }
+                )
 
         # 2. Gather Active Plugins Profile
         try:
@@ -175,5 +172,5 @@ class SBOMGenerator:
             from biopro import __version__
 
             return __version__
-        except Exception:
+        except ImportError:
             return "1.0.0"

@@ -1,7 +1,5 @@
 """Module Store and Update Dialog."""
 
-from pathlib import Path
-
 from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton, SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap
@@ -14,17 +12,18 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMenu,
-    QMessageBox,
     QScrollArea,
     QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
+from biopro.core.config import AppConfig
 from biopro.core.event_bus import BioProEvent, event_bus
 from biopro.core.module_manager import ModuleManager
 from biopro.core.network_updater import NetworkUpdater
-from biopro.ui.theme import Colors
+from biopro.shared.ui.alerts import ask_question, show_error, show_info
+from biopro.ui.theme import Colors, theme_manager
 
 
 class TrustPathDialog(QDialog):
@@ -34,7 +33,9 @@ class TrustPathDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(f"Trust Path Verification: {name}")
         self.setMinimumSize(450, 420)
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            self, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -42,8 +43,9 @@ class TrustPathDialog(QDialog):
 
         # Header Info
         header_lbl = QLabel(f"Verification Path for {name}")
-        header_lbl.setStyleSheet(
-            f"font-size: 16px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+        theme_manager.apply_style(
+            header_lbl,
+            f"font-size: 16px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;",
         )
         layout.addWidget(header_lbl)
 
@@ -53,8 +55,8 @@ class TrustPathDialog(QDialog):
         step_color = Colors.DNA_PRIMARY
         steps = []
 
-        manual_path = Path.home() / ".biopro" / "trusted_roots" / f"manual_{dev_id}.pub"
-        network_path = Path.home() / ".biopro" / "trusted_roots" / f"network_{dev_id}.pub"
+        manual_path = AppConfig.APP_DATA_DIR / "trusted_roots" / f"manual_{dev_id}.pub"
+        network_path = AppConfig.APP_DATA_DIR / "trusted_roots" / f"network_{dev_id}.pub"
 
         if manual_path.exists():
             path_type = "Manually Approved Root (Local Override)"
@@ -113,20 +115,23 @@ class TrustPathDialog(QDialog):
 
         # Path Type Banner
         banner = QWidget()
-        banner.setStyleSheet(
-            f"background: {step_color}22; border: 1px solid {step_color}44; border-radius: 6px;"
+        theme_manager.apply_style(
+            banner,
+            f"background: {step_color}22; border: 1px solid {step_color}44; border-radius: 6px;",
         )
         banner_layout = QVBoxLayout(banner)
         banner_layout.setContentsMargins(12, 12, 12, 12)
         banner_layout.setSpacing(4)
 
         banner_title = QLabel(path_type)
-        banner_title.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {step_color}; border: none;"
+        theme_manager.apply_style(
+            banner_title, f"font-size: 13px; font-weight: bold; color: {step_color}; border: none;"
         )
         banner_desc = QLabel(path_desc)
         banner_desc.setWordWrap(True)
-        banner_desc.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
+        theme_manager.apply_style(
+            banner_desc, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+        )
 
         banner_layout.addWidget(banner_title)
         banner_layout.addWidget(banner_desc)
@@ -134,8 +139,9 @@ class TrustPathDialog(QDialog):
 
         # Draw visual trust path nodes
         path_box = QWidget()
-        path_box.setStyleSheet(
-            f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+        theme_manager.apply_style(
+            path_box,
+            f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;",
         )
         path_layout = QVBoxLayout(path_box)
         path_layout.setContentsMargins(15, 15, 15, 15)
@@ -145,26 +151,31 @@ class TrustPathDialog(QDialog):
             if i > 0:
                 arrow = QLabel("▼")
                 arrow.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                arrow.setStyleSheet(f"font-size: 12px; color: {step_color}; border: none;")
+                theme_manager.apply_style(
+                    arrow, f"font-size: 12px; color: {step_color}; border: none;"
+                )
                 path_layout.addWidget(arrow)
 
             node_widget = QWidget()
-            node_widget.setStyleSheet("border: none; background: transparent;")
+            theme_manager.apply_style(node_widget, "border: none; background: transparent;")
             node_item = QHBoxLayout(node_widget)
             node_item.setContentsMargins(0, 0, 0, 0)
             node_item.setSpacing(10)
 
             dot = QLabel("●")
-            dot.setStyleSheet(f"font-size: 16px; color: {step_color}; border: none;")
+            theme_manager.apply_style(dot, f"font-size: 16px; color: {step_color}; border: none;")
             node_item.addWidget(dot)
 
             text_layout = QVBoxLayout()
             lbl_title = QLabel(node_name)
-            lbl_title.setStyleSheet(
-                f"font-size: 12px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none;"
+            theme_manager.apply_style(
+                lbl_title,
+                f"font-size: 12px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none;",
             )
             lbl_desc = QLabel(node_desc)
-            lbl_desc.setStyleSheet(f"font-size: 10px; color: {Colors.FG_SECONDARY}; border: none;")
+            theme_manager.apply_style(
+                lbl_desc, f"font-size: 10px; color: {Colors.FG_SECONDARY}; border: none;"
+            )
             text_layout.addWidget(lbl_title)
             text_layout.addWidget(lbl_desc)
             node_item.addLayout(text_layout)
@@ -191,7 +202,9 @@ class PluginDetailsDialog(QDialog):
         self.setObjectName("ModuleDetailsPanel")
         self.setWindowTitle(f"Plugin Details: {data['info'].get('name', plugin_id)}")
         self.setMinimumSize(600, 500)
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            self, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
+        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -200,20 +213,23 @@ class PluginDetailsDialog(QDialog):
         # Header: Icon & Title
         header = QHBoxLayout()
         icon_lbl = QLabel(data["info"].get("icon", "📦"))
-        icon_lbl.setStyleSheet("font-size: 32px; border: none;")
+        theme_manager.apply_style(icon_lbl, "font-size: 32px; border: none;")
         header.addWidget(icon_lbl)
 
         title_layout = QVBoxLayout()
         name_lbl = QLabel(data["info"].get("name", plugin_id))
-        name_lbl.setStyleSheet(
-            f"font-size: 18px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+        theme_manager.apply_style(
+            name_lbl,
+            f"font-size: 18px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;",
         )
         title_layout.addWidget(name_lbl)
 
         ver_lbl = QLabel(
             f"Version: {data['info'].get('version')}  |  Min Core Required: {data['info'].get('min_core_version', '1.0.0')}"
         )
-        ver_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_DISABLED}; border: none;")
+        theme_manager.apply_style(
+            ver_lbl, f"font-size: 11px; color: {Colors.FG_DISABLED}; border: none;"
+        )
         title_layout.addWidget(ver_lbl)
         header.addLayout(title_layout)
         header.addStretch()
@@ -221,8 +237,9 @@ class PluginDetailsDialog(QDialog):
         # Verified Badge
         if data.get("is_verified", False):
             badge = QLabel("🛡️ VERIFIED ROOT")
-            badge.setStyleSheet(
-                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;"
+            theme_manager.apply_style(
+                badge,
+                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;",
             )
             header.addWidget(badge)
 
@@ -231,38 +248,41 @@ class PluginDetailsDialog(QDialog):
         # Divider
         sep = QWidget()
         sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background-color: {Colors.BORDER};")
+        theme_manager.apply_style(sep, f"background-color: {Colors.BORDER};")
         layout.addWidget(sep)
 
         # Details Scroll Area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        theme_manager.apply_style(scroll, "QScrollArea { border: none; background: transparent; }")
 
         scroll_content = QWidget()
-        scroll_content.setStyleSheet("background: transparent;")
+        theme_manager.apply_style(scroll_content, "background: transparent;")
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setContentsMargins(0, 0, 0, 0)
         scroll_layout.setSpacing(15)
 
         # Description
         desc_title = QLabel("Description")
-        desc_title.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none;"
+        theme_manager.apply_style(
+            desc_title,
+            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none;",
         )
         scroll_layout.addWidget(desc_title)
 
         desc_body = QLabel(data["info"].get("description", "No description available."))
         desc_body.setWordWrap(True)
-        desc_body.setStyleSheet(
-            f"font-size: 12px; color: {Colors.FG_SECONDARY}; border: none; line-height: 1.4;"
+        theme_manager.apply_style(
+            desc_body,
+            f"font-size: 12px; color: {Colors.FG_SECONDARY}; border: none; line-height: 1.4;",
         )
         scroll_layout.addWidget(desc_body)
 
         # Authors
         authors_title = QLabel("Authors & Contributors")
-        authors_title.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none; margin-top: 10px;"
+        theme_manager.apply_style(
+            authors_title,
+            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none; margin-top: 10px;",
         )
         scroll_layout.addWidget(authors_title)
 
@@ -270,8 +290,9 @@ class PluginDetailsDialog(QDialog):
         if authors_data and isinstance(authors_data, list):
             for author in authors_data:
                 author_card = QWidget()
-                author_card.setStyleSheet(
-                    f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+                theme_manager.apply_style(
+                    author_card,
+                    f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;",
                 )
                 ac_layout = QHBoxLayout(author_card)
                 ac_layout.setContentsMargins(12, 12, 12, 12)
@@ -284,25 +305,29 @@ class PluginDetailsDialog(QDialog):
                 gradient = get_developer_gradient_css(author.get("name", "Unknown"))
                 avatar_lbl.setText(initials)
                 avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                avatar_lbl.setStyleSheet(f"""
+                theme_manager.apply_style(
+                    avatar_lbl,
+                    f"""
                     border-radius: 18px;
                     background: {gradient};
                     color: #ffffff;
                     font-size: 11px;
                     font-weight: 800;
                     border: 1px solid {Colors.BORDER};
-                """)
+                """,
+                )
                 ac_layout.addWidget(avatar_lbl)
 
                 text_layout = QVBoxLayout()
                 name_role = QHBoxLayout()
                 a_name = QLabel(author.get("name", "Unknown"))
-                a_name.setStyleSheet(
-                    f"font-size: 12px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+                theme_manager.apply_style(
+                    a_name,
+                    f"font-size: 12px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;",
                 )
                 a_role = QLabel(f"({author.get('role', 'Developer')})")
-                a_role.setStyleSheet(
-                    f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                theme_manager.apply_style(
+                    a_role, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
                 )
                 name_role.addWidget(a_name)
                 name_role.addWidget(a_role)
@@ -312,15 +337,15 @@ class PluginDetailsDialog(QDialog):
                 if author.get("details"):
                     a_details = QLabel(author["details"])
                     a_details.setWordWrap(True)
-                    a_details.setStyleSheet(
-                        f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                    theme_manager.apply_style(
+                        a_details, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
                     )
                     text_layout.addWidget(a_details)
 
                 if author.get("github"):
                     a_git = QLabel(f"GitHub: {author['github']}")
-                    a_git.setStyleSheet(
-                        f"font-size: 11px; color: {Colors.DNA_PRIMARY}; border: none;"
+                    theme_manager.apply_style(
+                        a_git, f"font-size: 11px; color: {Colors.DNA_PRIMARY}; border: none;"
                     )
                     text_layout.addWidget(a_git)
 
@@ -336,13 +361,16 @@ class PluginDetailsDialog(QDialog):
 
                     db = DeveloperProfileDatabase()
                     dev_profile = db.get_profile(author_id)
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).debug(f"Failed to fetch developer profile: {e}")
 
             if dev_profile and dev_profile.get("name"):
                 author_card = QWidget()
-                author_card.setStyleSheet(
-                    f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+                theme_manager.apply_style(
+                    author_card,
+                    f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;",
                 )
                 ac_layout = QHBoxLayout(author_card)
                 ac_layout.setContentsMargins(12, 12, 12, 12)
@@ -352,7 +380,7 @@ class PluginDetailsDialog(QDialog):
                 avatar_lbl.setFixedSize(36, 36)
 
                 cached_avatar = None
-                avatar_dir = Path.home() / ".biopro" / "avatars"
+                avatar_dir = AppConfig.APP_DATA_DIR / "avatars"
                 if avatar_dir.exists():
                     for ext in ["png", "jpg", "jpeg", "webp", "JPEG", "PNG", "JPG"]:
                         candidate = avatar_dir / f"{author_id}.{ext}"
@@ -370,8 +398,8 @@ class PluginDetailsDialog(QDialog):
                             Qt.TransformationMode.SmoothTransformation,
                         )
                         avatar_lbl.setPixmap(pixmap)
-                        avatar_lbl.setStyleSheet(
-                            f"border-radius: 18px; border: 1px solid {Colors.BORDER};"
+                        theme_manager.apply_style(
+                            avatar_lbl, f"border-radius: 18px; border: 1px solid {Colors.BORDER};"
                         )
                     else:
                         cached_avatar = None
@@ -381,26 +409,30 @@ class PluginDetailsDialog(QDialog):
                     gradient = get_developer_gradient_css(author_id)
                     avatar_lbl.setText(initials)
                     avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    avatar_lbl.setStyleSheet(f"""
+                    theme_manager.apply_style(
+                        avatar_lbl,
+                        f"""
                         border-radius: 18px;
                         background: {gradient};
                         color: #ffffff;
                         font-size: 11px;
                         font-weight: 800;
                         border: 1px solid {Colors.BORDER};
-                    """)
+                    """,
+                    )
 
                 ac_layout.addWidget(avatar_lbl)
 
                 text_layout = QVBoxLayout()
                 name_role = QHBoxLayout()
                 a_name = QLabel(dev_profile.get("name", author_id))
-                a_name.setStyleSheet(
-                    f"font-size: 12px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;"
+                theme_manager.apply_style(
+                    a_name,
+                    f"font-size: 12px; font-weight: 800; color: {Colors.ACCENT_PRIMARY}; border: none;",
                 )
                 a_role = QLabel(f"({dev_profile.get('role', 'Developer')})")
-                a_role.setStyleSheet(
-                    f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                theme_manager.apply_style(
+                    a_role, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
                 )
                 name_role.addWidget(a_name)
                 name_role.addWidget(a_role)
@@ -410,8 +442,8 @@ class PluginDetailsDialog(QDialog):
                 if dev_profile.get("description"):
                     a_desc = QLabel(dev_profile["description"])
                     a_desc.setWordWrap(True)
-                    a_desc.setStyleSheet(
-                        f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                    theme_manager.apply_style(
+                        a_desc, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
                     )
                     text_layout.addWidget(a_desc)
 
@@ -420,19 +452,23 @@ class PluginDetailsDialog(QDialog):
             else:
                 legacy_name = author_id if author_id else "Community Contributor"
                 lbl = QLabel(f"👤 {legacy_name}")
-                lbl.setStyleSheet(f"font-size: 12px; color: {Colors.FG_SECONDARY}; border: none;")
+                theme_manager.apply_style(
+                    lbl, f"font-size: 12px; color: {Colors.FG_SECONDARY}; border: none;"
+                )
                 scroll_layout.addWidget(lbl)
 
         # Security Status Panel
         sec_title = QLabel("Security & Gating Verification")
-        sec_title.setStyleSheet(
-            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none; margin-top: 10px;"
+        theme_manager.apply_style(
+            sec_title,
+            f"font-size: 13px; font-weight: bold; color: {Colors.FG_PRIMARY}; border: none; margin-top: 10px;",
         )
         scroll_layout.addWidget(sec_title)
 
         status_card = QWidget()
-        status_card.setStyleSheet(
-            f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+        theme_manager.apply_style(
+            status_card,
+            f"background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER}; border-radius: 6px;",
         )
         sc_layout = QVBoxLayout(status_card)
         sc_layout.setContentsMargins(12, 12, 12, 12)
@@ -455,7 +491,9 @@ class PluginDetailsDialog(QDialog):
             if item is not None:
                 w = item.widget()
                 if w is not None:
-                    w.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
+                    theme_manager.apply_style(
+                        w, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                    )
 
         scroll_layout.addWidget(status_card)
         scroll.setWidget(scroll_content)
@@ -498,11 +536,15 @@ class StoreLoaderWorker(QThread):
 
                         db = DeveloperProfileDatabase()
                         trusted_devs = list(db.profiles.values())
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).debug(
+                            f"Failed to fetch developer database: {e}"
+                        )
 
                 # Scan local manual keys
-                manual_keys_dir = Path.home() / ".biopro" / "trusted_roots"
+                manual_keys_dir = AppConfig.APP_DATA_DIR / "trusted_roots"
                 known_dev_ids = {d.get("developer_id") for d in trusted_devs if "developer_id" in d}
                 if manual_keys_dir.exists():
                     for key_file in manual_keys_dir.glob("manual_*.pub"):
@@ -520,8 +562,12 @@ class StoreLoaderWorker(QThread):
                                         "is_manual": True,
                                     }
                                 )
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                import logging
+
+                                logging.getLogger(__name__).debug(
+                                    f"Failed to read local developer key: {e}"
+                                )
             else:
                 inventory = self.updater.evaluate_store_state()
         except Exception as e:
@@ -550,7 +596,9 @@ class PluginStoreDialog(QDialog):
 
         self.setWindowTitle("Marketplace")
         self.setMinimumSize(600, 450)
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            self, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
+        )
         self.setObjectName("PluginStoreDialog")
 
         self._setup_ui()
@@ -628,15 +676,16 @@ class PluginStoreDialog(QDialog):
         # --- Top Search & Header Bar ---
         header_banner = QWidget()
         header_banner.setFixedHeight(50)  # SLIMMER HEADER
-        header_banner.setStyleSheet(
-            f"background-color: {Colors.BG_MEDIUM}; border-bottom: 1px solid {Colors.BORDER};"
+        theme_manager.apply_style(
+            header_banner,
+            f"background-color: {Colors.BG_MEDIUM}; border-bottom: 1px solid {Colors.BORDER};",
         )
         header_layout = QHBoxLayout(header_banner)
         header_layout.setContentsMargins(20, 0, 20, 0)
 
         header_title = QLabel("☁️ Marketplace")
-        header_title.setStyleSheet(
-            f"font-size: 15px; font-weight: 800; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            header_title, f"font-size: 15px; font-weight: 800; color: {Colors.FG_PRIMARY};"
         )
         header_layout.addWidget(header_title)
 
@@ -652,7 +701,9 @@ class PluginStoreDialog(QDialog):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Search plugins by name, tag, or author...")
         self.search_input.setFixedWidth(300)
-        self.search_input.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.search_input,
+            f"""
             QLineEdit {{
                 background: {Colors.BG_DARKEST};
                 border: 1px solid {Colors.BORDER};
@@ -662,7 +713,8 @@ class PluginStoreDialog(QDialog):
                 font-size: 12px;
             }}
             QLineEdit:focus {{ border: 1px solid {Colors.ACCENT_PRIMARY}; }}
-        """)
+        """,
+        )
         self.search_input.textChanged.connect(self._on_search_changed)
         header_layout.addWidget(self.search_input)
 
@@ -671,13 +723,15 @@ class PluginStoreDialog(QDialog):
         # --- Main Splitter (Sidebar | Content) ---
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(1)
-        self.splitter.setStyleSheet(f"QSplitter::handle {{ background: {Colors.BORDER}; }}")
+        theme_manager.apply_style(
+            self.splitter, f"QSplitter::handle {{ background: {Colors.BORDER}; }}"
+        )
 
         # 1. Sidebar
         self.sidebar = QWidget()
         self.sidebar.setFixedWidth(210)
-        self.sidebar.setStyleSheet(
-            f"background: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};"
+        theme_manager.apply_style(
+            self.sidebar, f"background: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};"
         )
         sidebar_layout = QVBoxLayout(self.sidebar)
         sidebar_layout.setContentsMargins(10, 15, 10, 15)
@@ -685,8 +739,9 @@ class PluginStoreDialog(QDialog):
 
         def add_section_label(text):
             lbl = QLabel(text)
-            lbl.setStyleSheet(
-                f"font-size: 10px; font-weight: 800; color: {Colors.FG_DISABLED}; margin-top: 10px; margin-bottom: 5px; margin-left: 5px;"
+            theme_manager.apply_style(
+                lbl,
+                f"font-size: 10px; font-weight: 800; color: {Colors.FG_DISABLED}; margin-top: 10px; margin-bottom: 5px; margin-left: 5px;",
             )
             sidebar_layout.addWidget(lbl)
 
@@ -695,7 +750,9 @@ class PluginStoreDialog(QDialog):
         self.filter_list = QListWidget()
         self.filter_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.filter_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.filter_list.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.filter_list,
+            f"""
             QListWidget {{
                 background: transparent;
                 border: none;
@@ -715,7 +772,8 @@ class PluginStoreDialog(QDialog):
             QListWidget::item:hover:!selected {{
                 background: {Colors.BG_MEDIUM};
             }}
-        """)
+        """,
+        )
 
         collections = [
             ("All Modules", "all"),
@@ -745,10 +803,12 @@ class PluginStoreDialog(QDialog):
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        theme_manager.apply_style(
+            self.scroll_area, "QScrollArea { border: none; background: transparent; }"
+        )
 
         self.store_grid_widget = QWidget()
-        self.store_grid_widget.setStyleSheet("background: transparent;")
+        theme_manager.apply_style(self.store_grid_widget, "background: transparent;")
         self.store_grid = QGridLayout(self.store_grid_widget)
         self.store_grid.setSizeConstraint(QGridLayout.SizeConstraint.SetMinAndMaxSize)
         self.store_grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
@@ -763,8 +823,9 @@ class PluginStoreDialog(QDialog):
 
         # Status Label at Bottom
         self.status_lbl = QLabel("")
-        self.status_lbl.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; padding: 10px; background: {Colors.BG_MEDIUM}; border-top: 1px solid {Colors.BORDER};"
+        theme_manager.apply_style(
+            self.status_lbl,
+            f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; padding: 10px; background: {Colors.BG_MEDIUM}; border-top: 1px solid {Colors.BORDER};",
         )
         self.status_lbl.hide()
         layout.addWidget(self.status_lbl)
@@ -793,8 +854,8 @@ class PluginStoreDialog(QDialog):
 
         # Show Loading state
         loading_lbl = QLabel("⏳ Loading Marketplace...")
-        loading_lbl.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY}; font-size: 16px; font-weight: bold;"
+        theme_manager.apply_style(
+            loading_lbl, f"color: {Colors.ACCENT_PRIMARY}; font-size: 16px; font-weight: bold;"
         )
         loading_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.store_grid.addWidget(loading_lbl, 0, 0, 1, 2, Qt.AlignmentFlag.AlignCenter)
@@ -896,12 +957,12 @@ class PluginStoreDialog(QDialog):
         # Header: Icon and Name
         header = QHBoxLayout()
         icon_lbl = QLabel(mod_data.get("icon", "📦"))
-        icon_lbl.setStyleSheet("font-size: 24px;")
+        theme_manager.apply_style(icon_lbl, "font-size: 24px;")
         header.addWidget(icon_lbl)
 
         name_layout = QVBoxLayout()
         name_lbl = QLabel(mod_data.get("name", "Unknown"))
-        name_lbl.setStyleSheet("font-size: 15px; font-weight: 800; border: none;")
+        theme_manager.apply_style(name_lbl, "font-size: 15px; font-weight: 800; border: none;")
         name_layout.addWidget(name_lbl)
 
         authors_data = mod_data.get("authors", [])
@@ -921,13 +982,18 @@ class PluginStoreDialog(QDialog):
                     author_text = (
                         f"by {dev_profile.get('name', dev_profile.get('developer_id', author_id))}"
                     )
-                except Exception:
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).debug(f"Failed to fetch developer name: {e}")
                     author_text = f"by {author_id}"
             if not author_text:
                 author_text = f"by {mod_data.get('author', 'Community')}"
 
         author_lbl = QLabel(author_text)
-        author_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
+        theme_manager.apply_style(
+            author_lbl, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+        )
         name_layout.addWidget(author_lbl)
         header.addLayout(name_layout)
         header.addStretch()
@@ -935,8 +1001,9 @@ class PluginStoreDialog(QDialog):
         # Badge for Verified
         if is_verified:
             badge = QLabel("🛡️ VERIFIED")
-            badge.setStyleSheet(
-                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;"
+            theme_manager.apply_style(
+                badge,
+                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;",
             )
             header.addWidget(badge)
 
@@ -946,7 +1013,9 @@ class PluginStoreDialog(QDialog):
         desc = QLabel(mod_data.get("description", ""))
         desc.setWordWrap(True)
         desc.setFixedHeight(40)  # 2 lines roughly
-        desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; border: none; font-size: 12px;")
+        theme_manager.apply_style(
+            desc, f"color: {Colors.FG_SECONDARY}; border: none; font-size: 12px;"
+        )
         main_layout.addWidget(desc)
 
         # Metadata / Actions Row
@@ -957,7 +1026,9 @@ class PluginStoreDialog(QDialog):
             ver_info = f"v{local_ver} ➔ v{mod_data.get('version')}"
 
         ver_lbl = QLabel(ver_info)
-        ver_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_DISABLED}; border: none;")
+        theme_manager.apply_style(
+            ver_lbl, f"font-size: 11px; color: {Colors.FG_DISABLED}; border: none;"
+        )
         bottom_row.addWidget(ver_lbl)
         bottom_row.addStretch()
 
@@ -996,8 +1067,9 @@ class PluginStoreDialog(QDialog):
             bottom_row.addWidget(upd_btn)
         elif state == "UP_TO_DATE":
             ok_lbl = QLabel("✓ Installed")
-            ok_lbl.setStyleSheet(
-                f"color: {Colors.ACCENT_SUCCESS}; font-size: 11px; font-weight: bold; margin-right: 5px;"
+            theme_manager.apply_style(
+                ok_lbl,
+                f"color: {Colors.ACCENT_SUCCESS}; font-size: 11px; font-weight: bold; margin-right: 5px;",
             )
             bottom_row.addWidget(ok_lbl)
 
@@ -1023,7 +1095,9 @@ class PluginStoreDialog(QDialog):
 
     def _show_card_context_menu(self, card, pos, plugin_id: str, data: dict):
         menu = QMenu(self)
-        menu.setStyleSheet(f"background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            menu, f"background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};"
+        )
 
         repair_action = menu.addAction("🛠️ Diagnose & Repair")
         repair_action.triggered.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
@@ -1051,7 +1125,7 @@ class PluginStoreDialog(QDialog):
         }
 
         if not installed_plugins:
-            QMessageBox.information(self, "Repair All", "No installed plugins found to repair.")
+            show_info(self, "Repair All", "No installed plugins found to repair.")
             return
 
         for pid, _data in installed_plugins.items():
@@ -1089,12 +1163,12 @@ class PluginStoreDialog(QDialog):
             # The Event Bus will fire and we will catch it in _on_plugin_event.
             pass
         else:
-            QMessageBox.critical(self, "Installation Failed", msg)
+            show_error(self, "Installation Failed", msg)
 
     def _remove_module(self, plugin_id: str):
         success, msg = self.updater.remove_plugin(plugin_id)
         if not success:
-            QMessageBox.critical(self, "Error", msg)
+            show_error(self, "Error", msg)
 
     def _view_plugin_details(self, plugin_id: str, data: dict):
         """Displays detailed V2 meta inspection dialog."""
@@ -1145,7 +1219,7 @@ class PluginStoreDialog(QDialog):
 
         # 1. Search for cached JPG/PNG image binaries
         cached_avatar = None
-        avatar_dir = Path.home() / ".biopro" / "avatars"
+        avatar_dir = AppConfig.APP_DATA_DIR / "avatars"
         if avatar_dir.exists():
             for ext in ["png", "jpg", "jpeg", "webp"]:
                 candidate = avatar_dir / f"{dev_id}.{ext}"
@@ -1164,7 +1238,9 @@ class PluginStoreDialog(QDialog):
                     Qt.TransformationMode.SmoothTransformation,
                 )
                 avatar_lbl.setPixmap(pixmap)
-                avatar_lbl.setStyleSheet(f"border-radius: 16px; border: 1px solid {Colors.BORDER};")
+                theme_manager.apply_style(
+                    avatar_lbl, f"border-radius: 16px; border: 1px solid {Colors.BORDER};"
+                )
             else:
                 cached_avatar = None
 
@@ -1173,24 +1249,29 @@ class PluginStoreDialog(QDialog):
             gradient = get_developer_gradient_css(dev_id)
             avatar_lbl.setText(initials)
             avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            avatar_lbl.setStyleSheet(f"""
+            theme_manager.apply_style(
+                avatar_lbl,
+                f"""
                 border-radius: 16px;
                 background: {gradient};
                 color: #ffffff;
                 font-size: 11px;
                 font-weight: 800;
                 border: 1px solid {Colors.BORDER};
-            """)
+            """,
+            )
 
         header.addWidget(avatar_lbl)
 
         name_layout = QVBoxLayout()
         name_lbl = QLabel(dev_info.get("name", dev_id))
-        name_lbl.setStyleSheet("font-size: 14px; font-weight: 800; border: none;")
+        theme_manager.apply_style(name_lbl, "font-size: 14px; font-weight: 800; border: none;")
         name_layout.addWidget(name_lbl)
 
         role_lbl = QLabel(dev_info.get("role", "Verified Developer"))
-        role_lbl.setStyleSheet(f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;")
+        theme_manager.apply_style(
+            role_lbl, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+        )
         name_layout.addWidget(role_lbl)
 
         header.addLayout(name_layout)
@@ -1200,13 +1281,15 @@ class PluginStoreDialog(QDialog):
         is_manual = dev.get("is_manual", False)
         if is_manual:
             badge = QLabel("⚠️ MANUAL OVERRIDE")
-            badge.setStyleSheet(
-                f"background: {Colors.ACCENT_WARNING}22; color: {Colors.ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_WARNING}44;"
+            theme_manager.apply_style(
+                badge,
+                f"background: {Colors.ACCENT_WARNING}22; color: {Colors.ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_WARNING}44;",
             )
         else:
             badge = QLabel("🛡️ TRUSTED")
-            badge.setStyleSheet(
-                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;"
+            theme_manager.apply_style(
+                badge,
+                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;",
             )
         header.addWidget(badge)
 
@@ -1216,32 +1299,38 @@ class PluginStoreDialog(QDialog):
         desc = QLabel(dev_info.get("description", ""))
         desc.setWordWrap(True)
         desc.setFixedHeight(40)
-        desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; border: none; font-size: 11px;")
+        theme_manager.apply_style(
+            desc, f"color: {Colors.FG_SECONDARY}; border: none; font-size: 11px;"
+        )
         main_layout.addWidget(desc)
 
         # Footer: Public Key Fingerprint
         bottom_row = QHBoxLayout()
         fp = pub_key[:8] + "..." + pub_key[-8:] if len(pub_key) > 16 else pub_key
         key_lbl = QLabel(f"Fingerprint: {fp}")
-        key_lbl.setStyleSheet(f"font-size: 10px; color: {Colors.FG_DISABLED}; border: none;")
+        theme_manager.apply_style(
+            key_lbl, f"font-size: 10px; color: {Colors.FG_DISABLED}; border: none;"
+        )
         bottom_row.addWidget(key_lbl)
         bottom_row.addStretch()
 
         path_btn = SecondaryButton("Trust Path")
-        path_btn.setStyleSheet("padding: 3px 8px; font-size: 10px; margin-right: 5px;")
+        theme_manager.apply_style(path_btn, "padding: 3px 8px; font-size: 10px; margin-right: 5px;")
         path_btn.clicked.connect(
             lambda: self._show_trust_path(dev_id, dev_info.get("name", dev_id), pub_key)
         )
         bottom_row.addWidget(path_btn)
 
         copy_btn = SecondaryButton("Copy Key")
-        copy_btn.setStyleSheet("padding: 3px 8px; font-size: 10px;")
+        theme_manager.apply_style(copy_btn, "padding: 3px 8px; font-size: 10px;")
         copy_btn.clicked.connect(lambda: self._copy_to_clipboard(pub_key))
         bottom_row.addWidget(copy_btn)
 
         if is_manual:
             revoke_btn = DangerButton("Revoke")
-            revoke_btn.setStyleSheet("padding: 3px 8px; font-size: 10px; margin-left: 5px;")
+            theme_manager.apply_style(
+                revoke_btn, "padding: 3px 8px; font-size: 10px; margin-left: 5px;"
+            )
             revoke_btn.clicked.connect(lambda: self._revoke_manual_trust(dev_id))
             bottom_row.addWidget(revoke_btn)
 
@@ -1254,14 +1343,13 @@ class PluginStoreDialog(QDialog):
         dialog.exec()
 
     def _revoke_manual_trust(self, dev_id: str):
-        reply = QMessageBox.question(
+        if ask_question(
             self,
-            "Revoke Trust",
-            f"Are you sure you want to revoke manual trust for {dev_id}?\n\nPlugins signed by this developer will no longer load.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            key_file = Path.home() / ".biopro" / "trusted_roots" / f"manual_{dev_id}.pub"
+            "Remove Public Key",
+            f"Are you sure you want to remove the developer key '{dev_id}'?\n\n"
+            "This will instantly block all unsigned or mismatched plugins signed by this developer.",
+        ):
+            key_file = AppConfig.APP_DATA_DIR / "trusted_roots" / f"manual_{dev_id}.pub"
             if key_file.exists():
                 try:
                     key_file.unlink()
@@ -1270,7 +1358,7 @@ class PluginStoreDialog(QDialog):
                     QTimer.singleShot(2000, self.status_lbl.hide)
                     self._load_store_data()  # Reload the view
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Failed to remove key file: {e}")
+                    show_error(self, "Error", f"Failed to remove key file: {e}")
 
     def _copy_to_clipboard(self, text: str):
         """Helper to copy authority keys to system clipboard."""
@@ -1282,11 +1370,6 @@ class PluginStoreDialog(QDialog):
         self.status_lbl.setText("Copied public key to clipboard! ✅")
         self.status_lbl.show()
         QTimer.singleShot(2000, self.status_lbl.hide)
-
-    def _remove_module(self, plugin_id: str):
-        success, msg = self.updater.remove_plugin(plugin_id)
-        if not success:
-            QMessageBox.critical(self, "Error", msg)
 
 
 def get_initials(name: str | None) -> str:

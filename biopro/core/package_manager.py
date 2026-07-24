@@ -1,4 +1,3 @@
-import json
 import logging
 import shutil
 import subprocess
@@ -6,7 +5,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from biopro_sdk.plugin.manifest_parser import ManifestParser
 from PyQt6.QtCore import QThread, pyqtSignal
+
+from biopro.core.config import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ class PackageManager:
     def __init__(self, cache_dir: Path | None = None):
         """Initialize PackageManager with a global package cache folder."""
         if cache_dir is None:
-            self.cache_dir = Path.home() / ".biopro" / "cache" / "packages"
+            self.cache_dir = AppConfig.APP_DATA_DIR / "cache" / "packages"
         else:
             self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -31,7 +33,7 @@ class PackageManager:
                 progress_callback(100)
             return
 
-        venv_dir = plugin_dir / ".plugin_venv"
+        venv_dir = plugin_dir / ".venv"
 
         reqs = []
         for name, ver in dependencies.items():
@@ -149,13 +151,17 @@ class PluginInstallerWorker(QThread):
             logging.getLogger(__name__).info(
                 "PluginInstallerWorker.run() started for %s", self.plugin_dir
             )
-            manifest_path = self.plugin_dir / "manifest.json"
+            manifest_path = self.plugin_dir / "pyproject.toml"
             if not manifest_path.exists():
-                self.finished.emit(False, "manifest.json missing from plugin directory.")
+                self.finished.emit(False, "pyproject.toml missing from plugin directory.")
                 return
 
-            with open(manifest_path) as f:
-                manifest = json.load(f)
+            try:
+                parser = ManifestParser()
+                manifest = parser.parse_file(manifest_path)
+            except Exception as e:
+                self.finished.emit(False, f"Failed to parse pyproject.toml: {e}")
+                return
 
             # Use python_dependencies, fallback to core_dependencies for legacy
             dependencies = manifest.get("python_dependencies")

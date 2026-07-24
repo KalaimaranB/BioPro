@@ -1,11 +1,13 @@
 """Centralized Database and Avatar Image Caching system for BioPro Developers."""
 
-import json
 import logging
 from pathlib import Path
 
 import certifi
 import requests
+
+from biopro.core.config import AppConfig
+from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ class DeveloperProfileDatabase:
 
     def __init__(self, db_file: Path | str | None = None):
         if db_file is None:
-            self.db_file = Path.home() / ".biopro" / "trusted_developers.json"
+            self.db_file = AppConfig.APP_DATA_DIR / "trusted_developers.json"
         else:
             self.db_file = Path(db_file)
 
@@ -25,27 +27,20 @@ class DeveloperProfileDatabase:
 
     def _load(self) -> None:
         """Loads developers from the cached database file."""
-        if self.db_file.exists():
-            try:
-                with open(self.db_file) as f:
-                    data = json.load(f)
-                    # Normalize list of profiles into an ID-based dictionary
-                    if isinstance(data, list):
-                        self.profiles = {d.get("developer_id", "Unknown"): d for d in data if d}
-                    elif isinstance(data, dict):
-                        self.profiles = data
-            except Exception as e:
-                logger.warning(f"Could not load trusted developer database: {e}")
+        data = AtomicJsonFile.load(self.db_file)
+        if data:
+            if isinstance(data, list):
+                self.profiles = {d.get("developer_id", "Unknown"): d for d in data if d}
+            elif isinstance(data, dict):
+                self.profiles = data
 
     def save_profiles(self, profiles: list) -> None:
         """Serializes the list of developers to the local cache database."""
-        try:
-            self.profiles = {d.get("developer_id", "Unknown"): d for d in profiles if d}
-            with open(self.db_file, "w") as f:
-                json.dump(profiles, f, indent=4)
+        self.profiles = {d.get("developer_id", "Unknown"): d for d in profiles if d}
+        if AtomicJsonFile.save(self.db_file, profiles):
             logger.debug(f"Saved {len(profiles)} developer profiles to cache database.")
-        except Exception as e:
-            logger.error(f"Failed to write trusted developer database to disk: {e}")
+        else:
+            logger.error("Failed to write trusted developer database to disk.")
 
     def get_profile(self, developer_id: str) -> dict:
         """Retrieves a developer profile, or returns a safe structural fallback."""
@@ -68,7 +63,7 @@ class AvatarManager:
 
     def __init__(self, avatar_dir: Path | str | None = None):
         if avatar_dir is None:
-            self.avatar_dir = Path.home() / ".biopro" / "avatars"
+            self.avatar_dir = AppConfig.APP_DATA_DIR / "avatars"
         else:
             self.avatar_dir = Path(avatar_dir)
 

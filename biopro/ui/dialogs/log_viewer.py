@@ -1,7 +1,5 @@
 """Simple text window for viewing application logs."""
 
-from pathlib import Path
-
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
@@ -12,7 +10,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from biopro.ui.theme import Colors, Fonts
+from biopro.core.config import AppConfig
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 
 class LogViewerDialog(QDialog):
@@ -61,7 +60,9 @@ class LogViewerDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _apply_styles(self):
-        self.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self,
+            f"""
             QDialog {{
                 background-color: {Colors.BG_DARKEST};
                 border: 1px solid {Colors.BORDER};
@@ -84,10 +85,11 @@ class LogViewerDialog(QDialog):
                 background-color: {Colors.BG_MEDIUM};
                 border: 1px solid {Colors.ACCENT_PRIMARY};
             }}
-        """)
+        """,
+        )
 
     def _load_logs(self):
-        log_file = Path.home() / ".biopro" / "biopro.log"
+        log_file = AppConfig.APP_DATA_DIR / "biopro.log"
         if log_file.exists():
             try:
                 with open(log_file, encoding="utf-8") as f:

@@ -61,7 +61,7 @@ class ModuleManager:
 
             for plugin_path in directory.iterdir():
                 if plugin_path.is_dir():
-                    manifest_file = plugin_path / "manifest.json"
+                    manifest_file = plugin_path / "pyproject.toml"
                     if not manifest_file.exists():
                         continue
 
@@ -73,10 +73,9 @@ class ModuleManager:
                             error_str = str(e)
                             if "Legacy 'author' field" in error_str:
                                 try:
-                                    import json
+                                    from biopro.core.utils import AtomicJsonFile
 
-                                    with open(manifest_file, encoding="utf-8") as f:
-                                        raw_manifest = json.load(f)
+                                    raw_manifest = AtomicJsonFile.load(manifest_file, default={})
                                     mod_id = raw_manifest.get("id", plugin_path.name)
 
                                     manifest = {
@@ -107,13 +106,8 @@ class ModuleManager:
                                     # Fall through to normal error reporting
 
                             msg = f"Plugin {plugin_path.name} failed manifest validation: {e}"
-                            logger.error(msg)
-                            try:
-                                from biopro.core.diagnostics import diagnostics
+                            logger.warning(msg)
 
-                                diagnostics.report_error(msg, exception=e)
-                            except Exception:
-                                pass
                             continue
 
                         mod_id = manifest.get("id")
@@ -147,28 +141,22 @@ class ModuleManager:
                             )
 
                     except Exception as e:
-                        logger.error(f"Failed to read manifest for {plugin_path.name}: {e}")
-                        try:
-                            from biopro.core.diagnostics import diagnostics
-
-                            diagnostics.report_error(
-                                f"Failed to read manifest for {plugin_path.name}", exception=e
-                            )
-                        except Exception:
-                            pass
+                        logger.error(
+                            f"Failed to read manifest for {plugin_path.name}: {e}", exc_info=True
+                        )
 
     def get_available_modules(self) -> list[dict]:
         """Return a list of manifests so the UI can build the 'Home Screen' grid."""
         return [m["manifest"] for m in self.modules.values()]
 
-    def load_module_ui(self, module_id: str) -> type[QWidget]:
+    def load_module_ui(self, module_id: str) -> type[QWidget] | None:
         """Dynamically import the Python package and extract the main UI class.
 
         Args:
             module_id (str): The unique identifier for the module from its manifest.
 
         Returns:
-            Type[QWidget]: The class object for the module's main UI panel.
+            Type[QWidget] | None: The class object for the module's main UI panel, or None if initialization failed.
 
         Raises:
             ValueError: If the module is not found.
@@ -181,7 +169,7 @@ class ModuleManager:
         mod_info = self.modules[module_id]
 
         plugin_path = Path(mod_info["path"])
-        venv = plugin_path / ".plugin_venv"
+        venv = plugin_path / ".venv"
 
         # Task 3: Decouple "is this plugin trusted" from "are this plugin's dependencies installed"
         deps_missing = True
@@ -227,37 +215,63 @@ class ModuleManager:
         )
         self._inject_plugin_path(mod_info["path"])
 
-        package_name = f"biopro.plugins.{mod_info['package_name']}"
         try:
-            plugin_module = importlib.import_module(package_name)
+            manifest_dict = mod_info.get("manifest", {})
 
-            # Perform strict contract validation (Track 1 solidification)
-            # Use type: ignore because some IDEs squiggle when checking protocols against modules
-            if not isinstance(plugin_module, BioProPlugin):  # type: ignore
-                msg = f"Module {module_id} failed interface validation. Missing required hooks."
-                logger.error(msg)
-                try:
-                    from biopro.core.diagnostics import diagnostics
+            if "entry_point" in manifest_dict:
+                # V3 Architecture with entry point and PluginContext
+                import logging
 
-                    diagnostics.report_error(msg)
-                except Exception:
-                    pass
-                raise TypeError(f"Module {module_id} does not satisfy BioProPlugin protocol.")
+                from biopro.core.task_scheduler import task_scheduler
 
-            mod_info["plugin_ref"] = plugin_module
-            mod_info["loaded"] = True
-            return plugin_module.get_panel_class()
-        except Exception as e:
-            logger.exception(f"Fatal error loading module {module_id}")
-            try:
-                from biopro.core.diagnostics import diagnostics
+                services = {
+                    "task_scheduler": task_scheduler,
+                    "logger": logging.getLogger(f"plugin.{module_id}"),
+                    "event_bus": None,
+                }
 
-                diagnostics.report_error(
-                    f"Fatal error loading module {module_id}", exception=e, fatal=True
+                from biopro_sdk.plugin.context import PluginContext
+                from biopro_sdk.plugin.manifest import PluginManifest
+
+                pm = PluginManifest(
+                    name=manifest_dict.get("name", module_id),
+                    entry_point=manifest_dict["entry_point"],
+                    sdk_version=manifest_dict.get("sdk_version", "2.0"),
+                    requires=manifest_dict.get("requires", []),
                 )
-            except Exception:
-                pass
-            raise
+                context = PluginContext(services=services, manifest=pm)
+
+                module_name, func_name = manifest_dict["entry_point"].split(":")
+                plugin_module = importlib.import_module(module_name)
+                init_func = getattr(plugin_module, func_name)
+                plugin_instance = init_func(context)
+                mod_info["plugin_ref"] = plugin_instance
+            else:
+                # V2 Legacy Architecture
+                package_name = f"biopro.plugins.{mod_info['package_name']}"
+                plugin_module = importlib.import_module(package_name)
+
+                # Perform strict contract validation
+                if not isinstance(plugin_module, BioProPlugin):  # type: ignore
+                    msg = f"Module {module_id} failed interface validation. Missing required hooks."
+                    logger.error(msg)
+                    raise TypeError(msg)
+
+                mod_info["plugin_ref"] = plugin_module
+
+            mod_info["loaded"] = True
+            mod_info["status"] = "OK"
+            return mod_info["plugin_ref"].get_panel_class()
+
+        except Exception as e:
+            logger.error(f"Fatal error loading module {module_id}: {e}", exc_info=True)
+            mod_info["loaded"] = False
+            mod_info["status"] = "FAILED"
+            if isinstance(e, (TypeError, ValueError, PermissionError)):
+                raise
+
+            # Exception Containment: Do not crash the application if a plugin fails to initialize
+            return None
 
     def reload_modules(self) -> None:
         """Clears the registry and rescans the disk for new/removed plugins (Hot-Reload)."""
@@ -315,14 +329,14 @@ class ModuleManager:
         return False
 
     def _inject_plugin_path(self, plugin_path: Path):
-        """Prepend plugin's local .plugin_venv site-packages to sys.path if it exists."""
+        """Prepend plugin's local .venv site-packages to sys.path if it exists."""
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         candidate_paths = [
             # Unix/macOS layout: lib/pythonX.Y/site-packages
-            plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages",
+            plugin_path / ".venv" / "lib" / py_ver / "site-packages",
             plugin_path / ".venv" / "lib" / py_ver / "site-packages",
             # Windows layout: Lib/site-packages (no version subdirectory)
-            plugin_path / ".plugin_venv" / "Lib" / "site-packages",
+            plugin_path / ".venv" / "Lib" / "site-packages",
             plugin_path / ".venv" / "Lib" / "site-packages",
         ]
 
@@ -357,7 +371,10 @@ class ModuleManager:
                 if p and str(p).startswith(app_root):
                     insert_index = idx
                     break
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"Failed to find insert index in sys.path: {e}")
             insert_index = 0
 
         if str(selected_path) in sys.path:
@@ -380,19 +397,33 @@ class ModuleManager:
             self._log_plugin_environment(plugin_path, selected_path)
         else:
             sys.path.insert(insert_index, str(selected_path))
+
+        # V3 Architecture: Also inject the plugin's src directory if it exists
+        src_dir = plugin_path / "src"
+        if src_dir.exists() and src_dir.is_dir() and str(src_dir) not in sys.path:
+            sys.path.insert(insert_index, str(src_dir))
             logger.info(
-                "Dynamically injected plugin path to sys.path at index %d: %s",
+                "Dynamically injected plugin src path to sys.path at index %d: %s",
                 insert_index,
-                selected_path,
+                src_dir,
             )
-            logger.debug("sys.path head after injection: %s", sys.path[:12])
-            self._log_plugin_environment(plugin_path, selected_path)
+
+        if not selected_path:
+            return
+
+        logger.info(
+            "Dynamically injected plugin path to sys.path at index %d: %s",
+            insert_index,
+            selected_path,
+        )
+        logger.debug("sys.path head after injection: %s", sys.path[:12])
+        self._log_plugin_environment(plugin_path, selected_path)
 
         # --- Anti-Tamper for Scientific Libraries in PyInstaller ---
         # Bokeh explicitly looks inside sys._MEIPASS for templates if sys.frozen is True.
         # Because our plugin environment is separate from the PyInstaller bundle, we
         # temporarily lie to Python and preload bokeh templates so it binds to the
-        # .plugin_venv correctly!
+        # .venv correctly!
         was_frozen = getattr(sys, "frozen", False)
         if was_frozen:
             try:
@@ -438,13 +469,13 @@ class ModuleManager:
             )
 
     def _cleanup_plugin_paths(self):
-        """Remove any plugin .plugin_venv paths from sys.path."""
+        """Remove any plugin .venv paths from sys.path."""
         target_marker = str(Path(".biopro") / "plugins")
         for path in list(sys.path):
             norm_path = str(Path(path))
             if (
                 target_marker in norm_path
-                and (".plugin_venv" in norm_path or ".venv" in norm_path)
+                and (".venv" in norm_path or ".venv" in norm_path)
                 and ("site-packages" in norm_path)
             ):
                 sys.path.remove(path)

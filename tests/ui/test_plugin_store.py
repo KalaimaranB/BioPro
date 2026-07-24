@@ -12,9 +12,17 @@ from biopro.ui.dialogs.plugin_store import PluginStoreDialog
 
 class TestPluginStore:
     @pytest.fixture
-    def store(self, qtbot):
+    def store(self, qtbot, monkeypatch):
         mock_mm = MagicMock()
         mock_updater = MagicMock()
+        mock_updater.fetch_store_inventory.return_value = {}
+        mock_updater.evaluate_store_state.return_value = {}
+        mock_updater.get_trusted_developers.return_value = []
+
+        # Force QThread to run synchronously for tests
+        from PyQt6.QtCore import QThread
+
+        monkeypatch.setattr(QThread, "start", lambda self: self.run())
 
         dlg = PluginStoreDialog(mock_mm, mock_updater)
         qtbot.addWidget(dlg)
@@ -66,11 +74,17 @@ class TestPluginStore:
         mod_data = {"name": "Test Plugin"}
         store.updater.install_plugin.return_value = (True, "Success")
 
-        with patch.object(store, "_load_store_data") as mock_refresh:
+        with (
+            patch("biopro.ui.dialogs.dependency_installer_dialog.DependencyInstallerDialog"),
+            patch.object(store, "_load_store_data") as mock_refresh,
+        ):
             store._install_module("test_id", mod_data)
 
             # Simulate the "Nervous System" pulse
             event_bus.emit(BioProEvent.PLUGIN_INSTALLED, "test_id")
+            from PyQt6.QtWidgets import QApplication
+
+            QApplication.processEvents()
 
             store.updater.install_plugin.assert_called_with("test_id", mod_data)
             mock_refresh.assert_called_once()
@@ -84,6 +98,9 @@ class TestPluginStore:
 
             # Simulate the "Nervous System" pulse
             event_bus.emit(BioProEvent.PLUGIN_REMOVED, "test_id")
+            from PyQt6.QtWidgets import QApplication
+
+            QApplication.processEvents()
 
             store.updater.remove_plugin.assert_called_with("test_id")
             mock_refresh.assert_called_once()

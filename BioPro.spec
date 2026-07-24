@@ -43,6 +43,13 @@ bloat_modules = [
     'coverage',
 ]
 
+import tomllib
+with open("pyproject.toml", "rb") as f:
+    pyproject = tomllib.load(f)
+    
+deps = pyproject.get("project", {}).get("dependencies", [])
+dynamic_deps = [dep.split("=")[0].split(">")[0].split("<")[0].strip() for dep in deps]
+
 # 3. Hidden Imports (Ensuring dynamic libraries are packed)
 hidden_imports = [
     'biopro_sdk',
@@ -50,21 +57,10 @@ hidden_imports = [
     'biopro_sdk.host',
     'biopro.plugins',
     'matplotlib.backends.backend_qtagg',
-    'matplotlib',
-    'pandas',
-    'numpy',
-    'scipy',
-    'psutil',
-    'requests',
     'PyQt6.QtPrintSupport',
     'PyQt6.QtCore',
-    'PIL',
-    'certifi',
-    'cryptography',
-    'markdown',
     'PyQt6.QtWebEngineWidgets',
     'PyQt6.QtWebEngineCore',
-    'pygments',
     # --- Standard Library Guarantees for Dynamic Plugins ---
     'fileinput',
     'multiprocessing',
@@ -83,7 +79,7 @@ hidden_imports = [
     'csv',
     'json',
     'logging.config',
-] + collect_submodules('biopro')
+] + dynamic_deps + collect_submodules('biopro')
 
 a = Analysis(
     ['biopro/__main__.py'],

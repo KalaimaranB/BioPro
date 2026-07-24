@@ -6,6 +6,8 @@ from PyQt6.QtCore import QRectF, Qt, QTimer
 from PyQt6.QtGui import QBrush, QColor, QPainter
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
+from biopro.ui.theme import theme_manager
+
 
 class BioLoadingOverlay(QWidget):
     """A universal, translucent loader overlay."""
@@ -15,7 +17,7 @@ class BioLoadingOverlay(QWidget):
         self.setParent(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
 
-        self.setStyleSheet("background-color: rgba(15, 23, 42, 220);")
+        theme_manager.apply_style(self, "background-color: rgba(15, 23, 42, 220);")
 
         self.phase = 0.0
         self.timer = QTimer(self)
@@ -25,8 +27,9 @@ class BioLoadingOverlay(QWidget):
         from biopro.ui.theme import Colors
 
         self.lbl_text = QLabel("Loading...")
-        self.lbl_text.setStyleSheet(
-            f"color: {Colors.FG_PRIMARY}; font-size: 18px; font-weight: bold; background: transparent;"
+        theme_manager.apply_style(
+            self.lbl_text,
+            f"color: {Colors.FG_PRIMARY}; font-size: 18px; font-weight: bold; background: transparent;",
         )
         self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
 

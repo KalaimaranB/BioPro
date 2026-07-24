@@ -90,7 +90,7 @@ class TestPluginContract:
         # Create dummy venv to pass dependency check
         import sys
 
-        venv_bin = tmp_path / ".plugin_venv" / ("Scripts" if sys.platform == "win32" else "bin")
+        venv_bin = tmp_path / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")
         venv_bin.mkdir(parents=True)
         (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
 
@@ -117,7 +117,7 @@ class TestPluginContract:
         # Create dummy venv to pass dependency check
         import sys
 
-        venv_bin = tmp_path / ".plugin_venv" / ("Scripts" if sys.platform == "win32" else "bin")
+        venv_bin = tmp_path / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")
         venv_bin.mkdir(parents=True, exist_ok=True)
         (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
 
@@ -135,5 +135,5 @@ class TestPluginContract:
         with pytest.raises(TypeError) as exc:
             mm.load_module_ui("bad_mod")
 
-        assert "does not satisfy BioProPlugin protocol" in str(exc.value)
+        assert "failed interface validation. Missing required hooks" in str(exc.value)
         assert mm.modules["bad_mod"]["loaded"] is False

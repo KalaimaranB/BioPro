@@ -15,6 +15,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from biopro.core.config import AppConfig
 from biopro.core.event_bus import BioProEvent, event_bus
+from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -73,33 +74,15 @@ class PluginInstallerWorker(QThread):
 
         except requests.RequestException as e:
             msg = f"Network error downloading plugin: {e}"
-            logger.error(msg)
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(msg, exception=e)
-            except Exception:
-                pass
+            logger.error(msg, exc_info=True)
             self.finished.emit(False, "Download failed: Check your internet connection.")
-        except zipfile.BadZipFile as e:
+        except zipfile.BadZipFile:
             msg = "Downloaded file is not a valid zip archive."
-            logger.error(msg)
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(msg, exception=e)
-            except Exception:
-                pass
+            logger.error(msg, exc_info=True)
             self.finished.emit(False, "Installation failed: Corrupted zip file.")
         except Exception as e:
             msg = f"Unexpected error installing plugin {self.plugin_id}"
             logger.exception(msg)
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(msg, exception=e)
-            except Exception:
-                pass
             self.finished.emit(False, f"Installation error: {str(e)}")
 
 
@@ -115,8 +98,9 @@ class NetworkUpdater:
         self.local_registry_path = self.plugin_dir / "installed.json"
 
         if not self.local_registry_path.exists():
-            with open(self.local_registry_path, "w") as f:
-                json.dump({}, f)
+            from biopro.core.utils import AtomicJsonFile
+
+            AtomicJsonFile.save(self.local_registry_path, {})
 
         self.setup_developer_tools()
 
@@ -147,34 +131,30 @@ class NetworkUpdater:
         if not self.plugin_dir.exists():
             return local_state
 
+        try:
+            from biopro_sdk.plugin.manifest_parser import ManifestParser
+
+            parser = ManifestParser()
+        except ImportError:
+            parser = None
+
         for item in self.plugin_dir.iterdir():
             if item.is_dir():
-                manifest_path = item / "manifest.json"
-                if manifest_path.exists():
+                manifest_path = item / "pyproject.toml"
+                if manifest_path.exists() and parser:
                     try:
-                        with open(manifest_path) as f:
-                            manifest = json.load(f)
-                            plugin_id = manifest.get("id") or item.name
-                            local_state[plugin_id] = {
-                                "version": manifest.get("version", "0.0.0"),
-                                "name": manifest.get("name", item.name),
-                            }
+                        manifest = parser.parse_file(str(manifest_path))
+                        plugin_id = manifest.get("id") or item.name
+                        local_state[plugin_id] = {
+                            "version": manifest.get("version", "0.0.0"),
+                            "name": manifest.get("name", item.name),
+                        }
                     except Exception as e:
-                        logger.warning(f"Could not read manifest for {item.name}: {e}")
+                        logger.warning(f"Could not read pyproject.toml for {item.name}: {e}")
 
         # 2. Sync back to installed.json for consistency (legacy support)
-        try:
-            with open(self.local_registry_path, "w") as f:
-                json.dump(local_state, f, indent=4)
-        except Exception as e:
-            msg = f"Failed to sync local registry: {e}"
-            logger.error(msg)
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(msg, exception=e)
-            except Exception:
-                pass
+        if not AtomicJsonFile.save(self.local_registry_path, local_state):
+            logger.error("Failed to sync local registry")
 
         return local_state
 
@@ -197,13 +177,7 @@ class NetworkUpdater:
             return response.json()
         except Exception as e:
             msg = f"Network error fetching registry: {e}"
-            logger.error(msg)
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(msg, exception=e)
-            except Exception:
-                pass
+            logger.error(msg, exc_info=True)
             return {}
 
     def fetch_remote_developers(self) -> list:
@@ -406,15 +380,8 @@ class NetworkUpdater:
         if not remote_data:
             return
 
-        # Path for tracking local system asset versions
         local_assets_path = self.plugin_dir / "system_assets.json"
-        local_assets = {}
-        if local_assets_path.exists():
-            try:
-                with open(local_assets_path) as f:
-                    local_assets = json.load(f)
-            except Exception:
-                pass
+        local_assets = AtomicJsonFile.load(local_assets_path, default={})
 
         # Asset types to sync automatically
         system_types = {
@@ -422,6 +389,8 @@ class NetworkUpdater:
             "themes": Path.home() / ".biopro" / "themes",
             "docs": Path.home() / ".biopro" / "docs",
         }
+
+        updated_any = False
 
         for asset_key, local_dir in system_types.items():
             remote_info = remote_data.get(asset_key)
@@ -458,11 +427,13 @@ class NetworkUpdater:
 
                     # Update local tracking
                     local_assets[asset_key] = {"version": remote_v}
-                    with open(local_assets_path, "w") as f:
-                        json.dump(local_assets, f, indent=4)
+                    updated_any = True
                     logger.info(f"Successfully updated {asset_key} to {remote_v} ✅")
                 except Exception as e:
                     logger.error(f"Failed to automatically update {asset_key}: {e}")
+
+        if updated_any:
+            AtomicJsonFile.save(local_assets_path, local_assets)
 
     def check_for_core_updates(self):
         remote_data = self.fetch_remote_registry(self.registry_url)

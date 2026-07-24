@@ -423,7 +423,7 @@ def calculate_band_crop_region(
     # 2. Dynamic Threshold (Otsu) for Vertical Rows
     try:
         thresh_v = threshold_otsu(valid_pixels) * 0.95
-    except Exception:
+    except ValueError:
         thresh_v = float(np.percentile(valid_pixels, 25))
 
     dark_pixels = (image < thresh_v) & valid_mask
@@ -482,7 +482,7 @@ def calculate_band_crop_region(
         try:
             # The * 0.95 strictly isolates the dense cores so they don't merge with shadows
             thresh_h = threshold_otsu(valid_strip_pixels) * 0.95
-        except Exception:
+        except ValueError:
             thresh_h = float(np.percentile(valid_strip_pixels, 20))
 
         binary_strip = (band_strip < thresh_h) & valid_strip_mask
@@ -612,7 +612,7 @@ def calculate_autocrop_region(
         thresh = threshold_otsu(valid_pixels)
         # Make it slightly stricter (5% darker) to avoid capturing background gradients
         thresh = thresh * 0.95
-    except Exception:
+    except ValueError:
         # Fallback if the image is incredibly flat and Otsu fails
         thresh = np.median(valid_pixels) * 0.8
 

@@ -79,12 +79,6 @@ class TaskScheduler(QObject):
             return worker
         except Exception as e:
             logger.error(f"Failed to submit task to scheduler: {e}")
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(f"Failed to submit task to scheduler: {e}", exception=e)
-            except Exception:
-                pass
             raise e
 
     def cancel_all(self) -> None:
@@ -109,12 +103,6 @@ class TaskScheduler(QObject):
     def _on_task_error(self, task_id: str, error_msg: str):
         self.task_error.emit(task_id, error_msg)
         logger.error(f"Background task {task_id} failed: {error_msg}")
-        try:
-            from biopro.core.diagnostics import diagnostics
-
-            diagnostics.report_error(f"Background task failed: {error_msg}")
-        except Exception:
-            pass
         self._cleanup(task_id)
 
     def _cleanup(self, task_id: str):
@@ -130,7 +118,7 @@ class TaskScheduler(QObject):
 
                 if not sip.isdeleted(worker):
                     worker.setParent(None)
-            except Exception:
+            except (ImportError, AttributeError, RuntimeError):
                 pass
             finally:
                 del self._active_workers[task_id]
@@ -156,4 +144,4 @@ class TaskSchedulerProxy:
 
 
 # Singleton proxy instance for application-wide use
-task_scheduler: Any = TaskSchedulerProxy()
+task_scheduler: TaskScheduler = TaskSchedulerProxy()  # type: ignore[assignment]

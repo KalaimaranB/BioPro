@@ -1,4 +1,45 @@
 import json
+import tomllib
+
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    return "\n".join(lines)
+
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -64,7 +105,7 @@ class TestPluginSigner:
             "description": "Valid split-manifest",
             "authors": [{"name": "Dev", "role": "Developer"}],
         }
-        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+        (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest))
         (plugin_dir / "code.py").write_text("print('hello')")
 
         # 3. Sign
@@ -76,7 +117,9 @@ class TestPluginSigner:
         assert (plugin_dir / "trust_chain.json").exists()
 
         # 5. Verify manifest remained pristine (no integrity keys)
-        updated_manifest = json.loads((plugin_dir / "manifest.json").read_text())
+        updated_manifest = tomllib.loads(
+            (plugin_dir / "pyproject.toml").read_text(encoding="utf-8")
+        )
         assert "integrity" not in updated_manifest
         assert "hashes" not in updated_manifest
 
@@ -166,7 +209,7 @@ class TestPluginSigner:
             "description": "Desc",
             "authors": [{"name": "Dev", "role": "Developer"}],
         }
-        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+        (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest))
 
         signer_env.sign_plugin(plugin_dir)
 
@@ -205,7 +248,7 @@ class TestSignPluginCLI:
             "description": "Desc",
             "authors": [{"name": "Dev", "role": "Developer"}],
         }
-        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+        (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest))
 
         with patch("sys.argv", ["sign_plugin", "sign", str(plugin_dir)]):
             from biopro_sdk.host.sign_plugin import main

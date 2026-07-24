@@ -37,7 +37,7 @@ class ModuleHistory:
                 # Deep copy light parameters (thresholds, strings)
                 try:
                     cleaned_state[key] = copy.deepcopy(value)
-                except Exception:
+                except (TypeError, RecursionError):
                     cleaned_state[key] = value
 
         # 2. Re-insert heavy resources into the snapshot by reference
@@ -157,13 +157,7 @@ class HistoryManager:
                 mod_history.load(history_data)
                 self.histories[mod_id] = mod_history
         except Exception as e:
-            logger.error(f"Failed to load history registry: {e}")
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(f"Failed to load history registry: {e}", exception=e)
-            except Exception:
-                pass
+            logger.error(f"Failed to load history registry: {e}", exc_info=True)
 
     def clear_module_history(self, module_id: str, keep_initial: bool = False) -> None:
         """Clears history for a specific module.

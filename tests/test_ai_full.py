@@ -72,8 +72,9 @@ def test_ai_server_manager_port_check(monkeypatch):
 # --- UI Tests ---
 
 
-def test_ai_chat_window_context_defaults(qtbot):
+def test_ai_chat_window_context_defaults(qtbot, monkeypatch):
     """Verify that context checkboxes change based on the active module."""
+    monkeypatch.setattr("biopro.ui.components.ai_panel.ai_manager.is_running", lambda: True)
     # Scenario 1: No module (Project Launcher)
     window_no_mod = AIChatWindow(current_module_id=None)
     qtbot.addWidget(window_no_mod)
@@ -88,8 +89,9 @@ def test_ai_chat_window_context_defaults(qtbot):
     assert window_mod.chk_core.isChecked() is False
 
 
-def test_ai_chat_window_clear_logic(qtbot):
+def test_ai_chat_window_clear_logic(qtbot, monkeypatch):
     """Test that the Clear button resets both UI and backend history."""
+    monkeypatch.setattr("biopro.ui.components.ai_panel.ai_manager.is_running", lambda: True)
     window = AIChatWindow()
     qtbot.addWidget(window)
 
@@ -106,6 +108,7 @@ def test_ai_chat_window_clear_logic(qtbot):
 
 def test_ai_chat_window_send_logic(qtbot, monkeypatch):
     """Ensure the send button triggers the background task correctly."""
+    monkeypatch.setattr("biopro.ui.components.ai_panel.ai_manager.is_running", lambda: True)
     window = AIChatWindow()
     qtbot.addWidget(window)
     window.show()

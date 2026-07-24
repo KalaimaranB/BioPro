@@ -21,6 +21,7 @@ jobs:
     outputs:
       changed: ${{ steps.version-check.outputs.changed }}
       version: ${{ steps.version-check.outputs.version }}
+      prerelease: ${{ steps.version-check.outputs.prerelease }}
     steps:
       - name: Checkout Code
         uses: "actions/checkout@v4"
@@ -32,6 +33,11 @@ jobs:
         run: |
           NEW_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
           echo "version=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          if [[ "$NEW_VERSION" =~ [a-zA-Z] ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
           if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
             if [ $(git rev-list --count HEAD) -eq 1 ]; then
               echo "changed=true" >> $GITHUB_OUTPUT
@@ -87,8 +93,10 @@ jobs:
       - name: Run Mypy Type Checker
         run: mypy --explicit-package-bases biopro tests
 
-      - name: Run Dependency Security Audit
-        run: pip-audit -r requirements.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
+      - name: Security Vulnerability Scan
+        run: |
+          uv export --format requirements-txt > reqs.txt
+          pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
   # Job 3: Cross-platform tests
   test:
@@ -117,7 +125,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          uv pip install -r requirements.txt
+          uv sync
           uv pip install git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install pytest pytest-qt pytest-cov
           uv pip install --no-deps -e .
@@ -169,7 +177,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          uv pip install -r requirements.txt
+          uv sync
           uv pip install git+https://github.com/KalaimaranB/BioPro-SDK.git
           uv pip install pyinstaller pytest
 
@@ -269,6 +277,22 @@ jobs:
         with:
           tag_name: ${{ needs.check-version.outputs.version }}
           name: BioPro ${{ needs.check-version.outputs.version }}
+          body: |
+            ## Welcome to BioPro
+            BioPro is a comprehensive, extensible platform designed to streamline biological data analysis and visualization. By integrating a modular architecture with high-performance computational tools, BioPro empowers scientists to build customized workflows, analyze complex datasets, and share reproducible results across the laboratory.
+            
+            ### 🚀 Getting Started
+            - **Windows**: Download and extract `BioPro-Windows.zip`, then double-click `BioPro.exe` to launch.
+            - **macOS**: Download and extract `BioPro-macOS.tar.gz`, then drag the `BioPro.app` bundle into your Applications folder.
+            
+            ### 🛡️ Security & Supply Chain
+            We provide cryptographic attestations with every release to guarantee the integrity of the executables:
+            - **SBOM (`sbom.json`)**: A complete Software Bill of Materials listing all dependencies. You can verify it via `shasum -a 256 -c sbom.json.sha256`.
+            - **SLSA Provenance (`*.intoto.jsonl`)**: Cryptographic proof of the build origin. Verify the origin using `slsa-verifier verify-artifact BioPro-macOS.tar.gz --provenance-path multiple.intoto.jsonl --source-uri github.com/KalaimaranB/BioPro`.
+            
+            ### 📝 What's New
+            Please see the auto-generated changelog below for full details on merged features, bug fixes, and performance improvements. If you encounter any issues, please report them on the issue tracker!
+          prerelease: ${{ needs.check-version.outputs.prerelease == 'true' }}
           generate_release_notes: true
           files: |
             release_artifacts/*.zip

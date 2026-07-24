@@ -2,7 +2,7 @@ from biopro_sdk.host.ai import AIAssistant
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QCheckBox, QLabel, QLineEdit, QScrollArea, QVBoxLayout, QWidget
 
-from biopro.ui.theme import Colors
+from biopro.ui.theme import Colors, theme_manager
 
 
 class ContextPanel(QWidget):
@@ -24,16 +24,18 @@ class ContextPanel(QWidget):
 
         # Header
         header = QLabel("DOCUMENT CONTEXT")
-        header.setStyleSheet(
-            f"font-weight: bold; color: {Colors.ACCENT_PRIMARY}; font-size: 10px; letter-spacing: 1px;"
+        theme_manager.apply_style(
+            header,
+            f"font-weight: bold; color: {Colors.ACCENT_PRIMARY}; font-size: 10px; letter-spacing: 1px;",
         )
         layout.addWidget(header)
 
         # Search Bar
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Filter docs...")
-        self.search_bar.setStyleSheet(
-            f"background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 4px; font-size: 11px;"
+        theme_manager.apply_style(
+            self.search_bar,
+            f"background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 4px; font-size: 11px;",
         )
         self.search_bar.textChanged.connect(self._filter_files)
         layout.addWidget(self.search_bar)
@@ -41,7 +43,9 @@ class ContextPanel(QWidget):
         # Scroll Area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        theme_manager.apply_style(
+            self.scroll, "QScrollArea { border: none; background: transparent; }"
+        )
 
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
@@ -53,7 +57,7 @@ class ContextPanel(QWidget):
 
         # Footer
         self.stats_lbl = QLabel("Usage: 0KB / 20KB (0%)")
-        self.stats_lbl.setStyleSheet(f"color: {Colors.FG_SECONDARY}; font-size: 10px;")
+        theme_manager.apply_style(self.stats_lbl, f"color: {Colors.FG_SECONDARY}; font-size: 10px;")
         layout.addWidget(self.stats_lbl)
 
     def refresh(self, plugin_id: str, include_core: bool):
@@ -84,8 +88,9 @@ class ContextPanel(QWidget):
             if not docs_list:
                 return
             lbl = QLabel(title)
-            lbl.setStyleSheet(
-                f"color: {Colors.ACCENT_PRIMARY}; font-size: 9px; font-weight: bold; margin-top: 5px; background: {Colors.BG_DARKEST}; padding: 2px;"
+            theme_manager.apply_style(
+                lbl,
+                f"color: {Colors.ACCENT_PRIMARY}; font-size: 9px; font-weight: bold; margin-top: 5px; background: {Colors.BG_DARKEST}; padding: 2px;",
             )
             self.container_layout.addWidget(lbl)
 
@@ -97,8 +102,9 @@ class ContextPanel(QWidget):
                 cb.setProperty("filename", name)
                 cb.setProperty("file_size", d["size"])
                 cb.setChecked(name.lower() in [p.lower() for p in pinned])
-                cb.setStyleSheet(
-                    f"QCheckBox {{ color: {Colors.FG_PRIMARY}; font-size: 11px; padding: 1px; }}"
+                theme_manager.apply_style(
+                    cb,
+                    f"QCheckBox {{ color: {Colors.FG_PRIMARY}; font-size: 11px; padding: 1px; }}",
                 )
                 cb.stateChanged.connect(self._on_selection_changed)
                 self.container_layout.addWidget(cb)
@@ -139,8 +145,9 @@ class ContextPanel(QWidget):
         kb_used = total_bytes / 1024
         percent = min(100, (total_bytes / 20000) * 100)
         self.stats_lbl.setText(f"Usage: {kb_used:.1f}KB / 20KB ({percent:.0f}%)")
-        self.stats_lbl.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY if percent < 90 else 'red'}; font-size: 10px;"
+        theme_manager.apply_style(
+            self.stats_lbl,
+            f"color: {Colors.ACCENT_PRIMARY if percent < 90 else 'red'}; font-size: 10px;",
         )
         self.selection_changed.emit(selected_filenames)
 

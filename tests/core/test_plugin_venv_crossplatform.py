@@ -13,7 +13,46 @@ These tests verify that:
 """
 
 import importlib
-import json
+
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    return "\n".join(lines)
+
+
 import shutil
 import sys
 from pathlib import Path
@@ -57,7 +96,7 @@ class TestVenvPathResolution:
 
     def test_interpreter_path_is_platform_correct(self, tmp_path):
         """PackageManager must resolve the interpreter to the OS-specific location."""
-        venv_dir = tmp_path / ".plugin_venv"
+        venv_dir = tmp_path / ".venv"
         expected = _expected_venv_python(venv_dir)
 
         if sys.platform == "win32":
@@ -69,7 +108,7 @@ class TestVenvPathResolution:
 
     def test_site_packages_path_is_platform_correct(self, tmp_path):
         """The site-packages directory must follow OS conventions."""
-        venv_dir = tmp_path / ".plugin_venv"
+        venv_dir = tmp_path / ".venv"
         sp = _expected_site_packages(venv_dir)
 
         if sys.platform == "win32":
@@ -99,10 +138,10 @@ class TestVenvPathResolution:
             "description": "test",
             "authors": [{"name": "Test", "role": "Developer"}],
         }
-        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+        (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest))
 
         # Simulate Windows venv layout
-        win_sp = plugin_dir / ".plugin_venv" / "Lib" / "site-packages"
+        win_sp = plugin_dir / ".venv" / "Lib" / "site-packages"
         win_sp.mkdir(parents=True)
 
         monkeypatch.setattr(Path, "home", lambda: fake_home)
@@ -141,11 +180,11 @@ class TestVenvPathResolution:
             "description": "test",
             "authors": [{"name": "Test", "role": "Developer"}],
         }
-        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+        (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest))
 
         # Simulate Unix venv layout
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        unix_sp = plugin_dir / ".plugin_venv" / "lib" / py_ver / "site-packages"
+        unix_sp = plugin_dir / ".venv" / "lib" / py_ver / "site-packages"
         unix_sp.mkdir(parents=True)
 
         monkeypatch.setattr(Path, "home", lambda: fake_home)
@@ -199,7 +238,7 @@ class TestRealVenvInstallation:
         import subprocess as sp
 
         uv = sh.which("uv")
-        venv_dir = tmp_path / ".plugin_venv"
+        venv_dir = tmp_path / ".venv"
 
         result = sp.run(
             [uv, "venv", str(venv_dir), "--python", "3.12"],
@@ -223,7 +262,7 @@ class TestRealVenvInstallation:
         uv = sh.which("uv")
         plugin_dir = tmp_path / "cytometrics_integration"
         plugin_dir.mkdir()
-        venv_dir = plugin_dir / ".plugin_venv"
+        venv_dir = plugin_dir / ".venv"
 
         # Create the venv
         result = sp.run(
@@ -281,9 +320,9 @@ class TestRealVenvInstallation:
             "description": "test",
             "authors": [{"name": "Test", "role": "Developer"}],
         }
-        (plugin_dir / "manifest.json").write_text(json.dumps(manifest))
+        (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest))
 
-        venv_dir = plugin_dir / ".plugin_venv"
+        venv_dir = plugin_dir / ".venv"
 
         # Create venv and install package
         sp.run([uv, "venv", str(venv_dir), "--python", "3.12"], capture_output=True, check=True)

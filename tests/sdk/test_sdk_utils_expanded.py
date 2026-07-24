@@ -21,12 +21,10 @@ from biopro.plugins.sdk_utils import (
     import_assets_workflow,
     load_json,
     save_json,
-    show_error,
-    show_info,
-    show_warning,
     validate_file_exists,
     validate_value_range,
 )
+from biopro.shared.ui.alerts import show_error, show_info, show_warning
 
 
 class TestSDKFileDialogs:
@@ -59,20 +57,23 @@ class TestSDKFileDialogs:
 class TestSDKMessaging:
     """Tests for standard message boxes (info, warning, error, questions)."""
 
-    @patch("biopro.plugins.sdk_utils.QMessageBox.information")
+    @patch("biopro.shared.ui.alerts.QMessageBox.information")
     def test_show_info(self, mock_info):
-        show_info(None, "Title", "Msg")
-        mock_info.assert_called_once()
+        """Test show_info dialog."""
+        show_info(None, "Test Info", "Info Message")
+        mock_info.assert_called_once_with(None, "Test Info", "Info Message")
 
-    @patch("biopro.plugins.sdk_utils.QMessageBox.warning")
-    def test_show_warning(self, mock_warn):
-        show_warning(None, "Title", "Msg")
-        mock_warn.assert_called_once()
+    @patch("biopro.shared.ui.alerts.QMessageBox.warning")
+    def test_show_warning(self, mock_warning):
+        """Test show_warning dialog."""
+        show_warning(None, "Test Warning", "Warning Message")
+        mock_warning.assert_called_once_with(None, "Test Warning", "Warning Message")
 
-    @patch("biopro.plugins.sdk_utils.QMessageBox.critical")
-    def test_show_error(self, mock_err):
-        show_error(None, "Title", "Msg")
-        mock_err.assert_called_once()
+    @patch("biopro.shared.ui.alerts.QMessageBox.critical")
+    def test_show_error(self, mock_error):
+        """Test show_error dialog."""
+        show_error(None, "Test Error", "Error Message")
+        mock_error.assert_called_once_with(None, "Test Error", "Error Message")
 
     @patch("biopro.plugins.sdk_utils.QMessageBox.question")
     def test_ask_yes_no(self, mock_quest):

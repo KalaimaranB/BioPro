@@ -36,8 +36,13 @@ def _get_version():
                     version = data.get("project", {}).get("version")
                     if version:
                         return version
-            except Exception:
-                # Silently continue to fallback if one path fails
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).debug(
+                    f"Failed to read version from {pyproject_path}: {e}"
+                )
+                # Continue to fallback if one path fails
                 continue
 
     # 2. Fallback: Try standard metadata (for installed packages)

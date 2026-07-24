@@ -20,14 +20,12 @@ def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
     plugin_dir = tmp_path / "plugin"
     plugin_dir.mkdir()
 
-    manifest = {
-        "id": "my_plugin",
-        "python_dependencies": {
-            "scipy": "1.11.3",
-        },
-    }
-    with open(plugin_dir / "manifest.json", "w") as f:
-        f.write(str(manifest).replace("'", '"'))
+    with open(plugin_dir / "pyproject.toml", "w") as f:
+        f.write(
+            '[project]\nname = "my_plugin"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
+            '[tool.biopro.plugin]\nid = "my_plugin"\nauthors = [{name = "author", role = "Developer"}]\n'
+            '[tool.biopro.plugin.python_dependencies]\nscipy = "1.11.3"\n'
+        )
 
     worker = PluginInstallerWorker(plugin_dir, cache_dir=cache_dir)
     # Run execution directly (synchronous for test)
@@ -41,14 +39,19 @@ def test_worker_manifest_missing(tmp_path):
     with patch.object(PluginInstallerWorker, "finished") as mock_finished:
         worker = PluginInstallerWorker(tmp_path)
         worker.run()
-        mock_finished.emit.assert_called_with(False, "manifest.json missing from plugin directory.")
+        mock_finished.emit.assert_called_with(
+            False, "pyproject.toml missing from plugin directory."
+        )
 
 
 def test_worker_no_deps(tmp_path):
     """Verify worker handles plugins with no dependencies."""
     plugin_dir = tmp_path / "plugin_no_deps"
     plugin_dir.mkdir()
-    (plugin_dir / "manifest.json").write_text('{"id": "test"}')
+    (plugin_dir / "pyproject.toml").write_text(
+        '[project]\nname = "test"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
+        '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
+    )
     with patch.object(PluginInstallerWorker, "finished") as mock_finished:
         worker = PluginInstallerWorker(plugin_dir)
         worker.run()
@@ -59,7 +62,11 @@ def test_worker_exception(tmp_path):
     """Verify worker handles unexpected exceptions during installation."""
     plugin_dir = tmp_path / "plugin_crash"
     plugin_dir.mkdir()
-    (plugin_dir / "manifest.json").write_text('{"id": "test", "python_dependencies": {"a": "1"}}')
+    (plugin_dir / "pyproject.toml").write_text(
+        '[project]\nname = "test"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
+        '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
+        '[tool.biopro.plugin.python_dependencies]\na = "1"\n'
+    )
     with patch.object(PluginInstallerWorker, "finished") as mock_finished:
         worker = PluginInstallerWorker(plugin_dir)
         with patch.object(worker.pm, "resolve_and_install_all", side_effect=Exception("Crash")):
@@ -85,7 +92,7 @@ def test_resolve_bundled_uv_windows(monkeypatch, tmp_path):
     # Create dummy plugin and fake python
     plugin_dir = tmp_path / "test_win_uv"
     plugin_dir.mkdir()
-    venv_python = plugin_dir / ".plugin_venv" / "Scripts" / "python.exe"
+    venv_python = plugin_dir / ".venv" / "Scripts" / "python.exe"
     venv_python.parent.mkdir(parents=True)
     venv_python.touch()
     worker_script = plugin_dir / "analysis" / "fcs_worker.py"
@@ -119,7 +126,7 @@ def test_resolve_bundled_uv_unix(monkeypatch, tmp_path):
     # Create dummy plugin and fake python
     plugin_dir = tmp_path / "test_unix_uv"
     plugin_dir.mkdir()
-    venv_python = plugin_dir / ".plugin_venv" / "bin" / "python3.12"
+    venv_python = plugin_dir / ".venv" / "bin" / "python3.12"
     venv_python.parent.mkdir(parents=True)
     venv_python.touch()
     worker_script = plugin_dir / "analysis" / "fcs_worker.py"

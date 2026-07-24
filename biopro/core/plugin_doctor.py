@@ -85,11 +85,11 @@ class PluginDoctor:
             )
 
         # 2. Manifest present & parseable
-        manifest_file = self.plugin_dir / "manifest.json"
+        manifest_file = self.plugin_dir / "pyproject.toml"
         if not manifest_file.exists():
             self.results["phase1"].append(
                 DiagnosticResult(
-                    "Manifest present & parseable", CheckStatus.FAIL, "manifest.json is missing."
+                    "Manifest present & parseable", CheckStatus.FAIL, "pyproject.toml is missing."
                 )
             )
             return
@@ -121,8 +121,8 @@ class PluginDoctor:
 
             # Try to extract the exact file name that failed the security check for better UX
             failed_file = "Unknown file"
-            if "manifest.json" in err_msg:
-                failed_file = "manifest.json"
+            if "pyproject.toml" in err_msg:
+                failed_file = "pyproject.toml"
             elif "security.json" in err_msg:
                 failed_file = "security.json"
             elif "Unauthorized File:" in err_msg:
@@ -205,7 +205,7 @@ class PluginDoctor:
 
     def _run_phase2_trust(self):
         """Phase 2: Trust & Install State Consistency."""
-        venv_path = self.plugin_dir / ".plugin_venv"
+        venv_path = self.plugin_dir / ".venv"
 
         # 1. Trust cache vs. actual venv presence
         if not venv_path.exists():
@@ -213,13 +213,13 @@ class PluginDoctor:
                 DiagnosticResult(
                     "Trust cache vs actual venv presence",
                     CheckStatus.FAIL,
-                    ".plugin_venv exists = False — installer never ran or was deleted.",
+                    ".venv exists = False — installer never ran or was deleted.",
                 )
             )
         else:
             self.results["phase2"].append(
                 DiagnosticResult(
-                    "Trust cache vs actual venv presence", CheckStatus.OK, ".plugin_venv exists."
+                    "Trust cache vs actual venv presence", CheckStatus.OK, ".venv exists."
                 )
             )
 
@@ -292,7 +292,7 @@ class PluginDoctor:
 
         bad_imports = []
         for root, _, files in os.walk(self.plugin_dir):
-            if ".plugin_venv" in root or ".venv" in root or "tests" in root:
+            if ".venv" in root or ".venv" in root or "tests" in root:
                 continue
             for file in files:
                 if not file.endswith(".py"):
@@ -314,8 +314,10 @@ class PluginDoctor:
                                 bad_imports.append(
                                     f"{py_file.relative_to(self.plugin_dir)}: from {node.module}..."
                                 )
-                except Exception:
-                    pass
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).debug(f"Failed to parse {py_file} for AST: {e}")
 
         if bad_imports:
             sample = ", ".join(bad_imports[:3])
@@ -385,7 +387,10 @@ class PluginDoctor:
                     )
                     if result.returncode != 0:
                         failed_imports.append(pkg_name)
-                except Exception:
+                except Exception as e:
+                    import logging
+
+                    logging.getLogger(__name__).debug(f"Failed to check import {pkg_name}: {e}")
                     failed_imports.append(pkg_name)
 
             if failed_imports:
@@ -425,7 +430,7 @@ class PluginDoctor:
                 import psutil  # type: ignore
 
                 locked_files = []
-                site_packages = self.plugin_dir / ".plugin_venv" / "Lib" / "site-packages"
+                site_packages = self.plugin_dir / ".venv" / "Lib" / "site-packages"
                 target_procs = {"python.exe", "pythonw.exe", "biopro.exe", "code.exe"}
                 for proc in psutil.process_iter(["pid", "name"]):
                     try:

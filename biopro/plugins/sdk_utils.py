@@ -1,12 +1,13 @@
 """Common utilities for plugins — I/O, dialogs, file handling."""
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QFileDialog, QInputDialog, QLabel, QMessageBox, QVBoxLayout
+
+from biopro.core.config import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -112,19 +113,7 @@ def get_directory(parent=None, title: str = "Select Directory", start_dir: str =
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def show_info(parent=None, title: str = "Information", message: str = "") -> None:
-    """Show information dialog."""
-    QMessageBox.information(parent, title, message)
-
-
-def show_warning(parent=None, title: str = "Warning", message: str = "") -> None:
-    """Show warning dialog."""
-    QMessageBox.warning(parent, title, message)
-
-
-def show_error(parent=None, title: str = "Error", message: str = "") -> None:
-    """Show error dialog."""
-    QMessageBox.critical(parent, title, message)
+from biopro.shared.ui.alerts import ask_question  # noqa: E402
 
 
 def ask_yes_no(parent=None, title: str = "", message: str = "") -> bool:
@@ -133,10 +122,7 @@ def ask_yes_no(parent=None, title: str = "", message: str = "") -> bool:
     Returns:
         True if user clicks Yes, False otherwise
     """
-    reply = QMessageBox.question(
-        parent, title, message, QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-    )
-    return reply == QMessageBox.StandardButton.Yes
+    return ask_question(parent, title, message, default_no=True)
 
 
 def ask_ok_cancel(parent=None, title: str = "", message: str = "") -> bool:
@@ -219,7 +205,9 @@ def load_json(path: str) -> dict[str, Any]:
         FileNotFoundError: If file doesn't exist
         json.JSONDecodeError: If JSON is invalid
     """
-    with open(path) as f:
+    import json
+
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -231,9 +219,9 @@ def save_json(path: str, data: dict[str, Any], pretty: bool = True) -> None:
         data: Dictionary to save
         pretty: If True, indent for readability
     """
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2 if pretty else None)
+    from biopro.core.utils import AtomicJsonFile
+
+    AtomicJsonFile.save(path, data, indent=2 if pretty else None)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -255,7 +243,7 @@ class PluginConfig:
 
     def __init__(self, plugin_id: str):
         self.plugin_id = plugin_id
-        self.config_dir = Path.home() / ".biopro" / "plugin_configs"
+        self.config_dir = AppConfig.APP_DATA_DIR / "plugin_configs"
         self.config_file = self.config_dir / f"{plugin_id}.json"
         self.data: dict[str, Any] = {}
         self.load()

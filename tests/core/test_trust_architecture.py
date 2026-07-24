@@ -5,6 +5,50 @@ Chain of Trust verification, and performance optimization.
 """
 
 import hashlib
+
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    if "custom_exclusions" in d:
+        ce_str = '", "'.join(d["custom_exclusions"])
+        lines.append(f'custom_exclusions = ["{ce_str}"]')
+
+    return "\n".join(lines)
+
+
 import json
 import os
 import shutil
@@ -45,9 +89,10 @@ class PluginSigner:
 
     def sign_plugin(self, plugin_dir: Path, dev_cert: dict):
         """Generates split security.json and signs its canonical representation."""
-        manifest_path = plugin_dir / "manifest.json"
-        with open(manifest_path, encoding="utf-8") as f:
-            manifest = json.load(f)
+        manifest_path = plugin_dir / "pyproject.toml"
+        from biopro_sdk.plugin.manifest_parser import ManifestParser
+
+        manifest = ManifestParser().parse_file(manifest_path)
 
         hashes = {}
         for root, _, files in os.walk(plugin_dir):
@@ -56,7 +101,7 @@ class PluginSigner:
                     "signature.bin",
                     "project_signature.bin",
                     "trust_chain.json",
-                    "manifest.json",
+                    "pyproject.toml",
                     "security.json",
                 ]:
                     continue
@@ -138,9 +183,7 @@ def temp_plugin_dir(tmp_path):
         "description": "Standard split manifest plugin.",
         "authors": [{"name": "dev_01", "role": "Lead", "permissions": ["sign_code"]}],
     }
-    (pkg_dir / "manifest.json").write_text(
-        json.dumps(manifest, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-    )
+    (pkg_dir / "pyproject.toml").write_text(_dict_to_toml(manifest), encoding="utf-8")
     (pkg_dir / "__init__.py").write_text("print('Hello Trust')", encoding="utf-8")
     (pkg_dir / "ui").mkdir()
     (pkg_dir / "ui" / "panel.py").write_text("class UI: pass", encoding="utf-8")
@@ -233,15 +276,13 @@ class TestTrustArchitecture:
             "description": "Desc",
             "authors": [{"name": "dev_01", "role": "Lead", "permissions": ["sign_code"]}],
         }
-        (plugin_b / "manifest.json").write_text(
-            json.dumps(manifest_b, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-        )
+        (plugin_b / "pyproject.toml").write_text(_dict_to_toml(manifest_b), encoding="utf-8")
         (plugin_b / "__init__.py").write_text("dangerous code", encoding="utf-8")
 
         # Copy signature, chain, AND THE SIGNED MANIFEST & security ledger from A to B
         shutil.copy(temp_plugin_dir / "signature.bin", plugin_b / "signature.bin")
         shutil.copy(temp_plugin_dir / "trust_chain.json", plugin_b / "trust_chain.json")
-        shutil.copy(temp_plugin_dir / "manifest.json", plugin_b / "manifest.json")
+        shutil.copy(temp_plugin_dir / "pyproject.toml", plugin_b / "pyproject.toml")
         shutil.copy(temp_plugin_dir / "security.json", plugin_b / "security.json")
 
         manager = TrustManager(root_public_key=auth.root_public)
@@ -314,7 +355,7 @@ class TestTrustArchitecture:
             f.write(chain.to_json())
 
         # 4. Sign Plugin Manifest as Dev
-        manifest_path = temp_plugin_dir / "manifest.json"
+        manifest_path = temp_plugin_dir / "pyproject.toml"
 
         # Rewrite manifest to list Dr. Alice as co-signer with sign_code permission
         manifest = {
@@ -325,15 +366,13 @@ class TestTrustArchitecture:
             "description": "Desc",
             "authors": [{"name": "Dr. Alice", "role": "Researcher", "permissions": ["sign_code"]}],
         }
-        manifest_path.write_text(
-            json.dumps(manifest, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-        )
+        manifest_path.write_text(_dict_to_toml(manifest), encoding="utf-8")
 
         # Compile hashes for all source files
         hashes = {}
         for f in temp_plugin_dir.rglob("*"):
             if f.is_file() and f.name not in [
-                "manifest.json",
+                "pyproject.toml",
                 "signature.bin",
                 "trust_chain.json",
                 "security.json",

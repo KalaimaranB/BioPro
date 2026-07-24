@@ -34,7 +34,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from biopro.ui.theme import Colors, Fonts
+from biopro.core.config import AppConfig
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +55,9 @@ class ConsensusTrustWidget(QFrame):
 
         # Header Label
         self.header_lbl = QLabel("🛡️ Consensus Chain of Trust")
-        self.header_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_NORMAL + 2}px; font-weight: 700; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            self.header_lbl,
+            f"font-size: {Fonts.SIZE_NORMAL + 2}px; font-weight: 700; color: {Colors.FG_PRIMARY};",
         )
         layout.addWidget(self.header_lbl)
 
@@ -64,7 +66,9 @@ class ConsensusTrustWidget(QFrame):
         self.tree.setHeaderHidden(True)
         self.tree.setColumnCount(1)
         self.tree.setIconSize(QSize(18, 18))
-        self.tree.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.tree,
+            f"""
             QTreeWidget {{
                 background-color: {Colors.BG_DARKER};
                 border: 1px solid {Colors.BORDER};
@@ -78,14 +82,16 @@ class ConsensusTrustWidget(QFrame):
             QTreeWidget::item:hover {{
                 background-color: {Colors.BG_LIGHT}44;
             }}
-        """)
+        """,
+        )
         layout.addWidget(self.tree)
 
         # Bottom Summary Badge
         self.summary_badge = QLabel("Status: Pending Check")
         self.summary_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.summary_badge.setStyleSheet(
-            f"background-color: {Colors.BG_MEDIUM}; border-radius: 4px; padding: 6px; color: {Colors.FG_SECONDARY}; font-weight: 600;"
+        theme_manager.apply_style(
+            self.summary_badge,
+            f"background-color: {Colors.BG_MEDIUM}; border-radius: 4px; padding: 6px; color: {Colors.FG_SECONDARY}; font-weight: 600;",
         )
         layout.addWidget(self.summary_badge)
 
@@ -96,8 +102,9 @@ class ConsensusTrustWidget(QFrame):
         self.tree.clear()
         if not trust_path:
             self.summary_badge.setText("❌ Untrusted / Unverified")
-            self.summary_badge.setStyleSheet(
-                f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 4px; padding: 6px; color: {Colors.ACCENT_DANGER}; font-weight: 600;"
+            theme_manager.apply_style(
+                self.summary_badge,
+                f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 4px; padding: 6px; color: {Colors.ACCENT_DANGER}; font-weight: 600;",
             )
             return
 
@@ -132,8 +139,9 @@ class ConsensusTrustWidget(QFrame):
 
         # Update Summary Badge to Verified
         self.summary_badge.setText("🛡️ Verified Secure Co-Signing")
-        self.summary_badge.setStyleSheet(
-            f"background-color: {Colors.ACCENT_SUCCESS}33; border: 1px solid {Colors.ACCENT_SUCCESS}; border-radius: 4px; padding: 6px; color: {Colors.ACCENT_SUCCESS}; font-weight: 600;"
+        theme_manager.apply_style(
+            self.summary_badge,
+            f"background-color: {Colors.ACCENT_SUCCESS}33; border: 1px solid {Colors.ACCENT_SUCCESS}; border-radius: 4px; padding: 6px; color: {Colors.ACCENT_SUCCESS}; font-weight: 600;",
         )
 
     def set_untrusted_error(self, error_message: str) -> None:
@@ -151,8 +159,9 @@ class ConsensusTrustWidget(QFrame):
         self.tree.expandAll()
 
         self.summary_badge.setText("❌ Untrusted / Integrity Alert")
-        self.summary_badge.setStyleSheet(
-            f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 4px; padding: 6px; color: {Colors.ACCENT_DANGER}; font-weight: 600;"
+        theme_manager.apply_style(
+            self.summary_badge,
+            f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 4px; padding: 6px; color: {Colors.ACCENT_DANGER}; font-weight: 600;",
         )
 
 
@@ -173,8 +182,9 @@ class TrustDirectoryWidget(QFrame):
 
         # Header Title
         self.title_lbl = QLabel("📂 Personal Trust Directory")
-        self.title_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_NORMAL + 2}px; font-weight: 700; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            self.title_lbl,
+            f"font-size: {Fonts.SIZE_NORMAL + 2}px; font-weight: 700; color: {Colors.FG_PRIMARY};",
         )
         layout.addWidget(self.title_lbl)
 
@@ -182,7 +192,9 @@ class TrustDirectoryWidget(QFrame):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔍 Filter trusted developers...")
         self.search_input.textChanged.connect(self.load_keys)
-        self.search_input.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.search_input,
+            f"""
             QLineEdit {{
                 background-color: {Colors.BG_DARKER};
                 border: 1px solid {Colors.BORDER};
@@ -193,12 +205,15 @@ class TrustDirectoryWidget(QFrame):
             QLineEdit:focus {{
                 border: 1.5px solid {Colors.BORDER_FOCUS};
             }}
-        """)
+        """,
+        )
         layout.addWidget(self.search_input)
 
         # Keys Registry List
         self.list_widget = QListWidget()
-        self.list_widget.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.list_widget,
+            f"""
             QListWidget {{
                 background-color: {Colors.BG_DARKER};
                 border: 1px solid {Colors.BORDER};
@@ -212,42 +227,51 @@ class TrustDirectoryWidget(QFrame):
             QListWidget::item:hover {{
                 background-color: {Colors.BG_LIGHT}33;
             }}
-        """)
+        """,
+        )
         layout.addWidget(self.list_widget)
 
         # --- Manual Key Addition form ---
         form_frame = QFrame()
-        form_frame.setStyleSheet(
-            f"background-color: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 6px;"
+        theme_manager.apply_style(
+            form_frame,
+            f"background-color: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 6px;",
         )
         form_layout = QVBoxLayout(form_frame)
         form_layout.setContentsMargins(10, 10, 10, 10)
         form_layout.setSpacing(6)
 
         form_title = QLabel("➕ Add Trusted Developer Anchor")
-        form_title.setStyleSheet(f"font-weight: 700; color: {Colors.ACCENT_PRIMARY}; border: none;")
+        theme_manager.apply_style(
+            form_title, f"font-weight: 700; color: {Colors.ACCENT_PRIMARY}; border: none;"
+        )
         form_layout.addWidget(form_title)
 
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Developer Name (e.g. Alice Vance)")
-        self.name_input.setStyleSheet(
-            f"background-color: {Colors.BG_DARKER}; border: 1px solid {Colors.BORDER}; padding: 5px; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            self.name_input,
+            f"background-color: {Colors.BG_DARKER}; border: 1px solid {Colors.BORDER}; padding: 5px; color: {Colors.FG_PRIMARY};",
         )
         form_layout.addWidget(self.name_input)
 
         self.key_input = QLineEdit()
         self.key_input.setPlaceholderText("32-byte Ed25519 Public Key Hex...")
-        self.key_input.setStyleSheet(
-            f"background-color: {Colors.BG_DARKER}; border: 1px solid {Colors.BORDER}; padding: 5px; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            self.key_input,
+            f"background-color: {Colors.BG_DARKER}; border: 1px solid {Colors.BORDER}; padding: 5px; color: {Colors.FG_PRIMARY};",
         )
         form_layout.addWidget(self.key_input)
 
         self.add_btn = QPushButton("Add Anchor Key")
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.add_btn.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.add_btn,
+            f"""
             QPushButton {{ background-color: {Colors.ACCENT_SUCCESS}; color: white; border: none; border-radius: 4px; padding: 6px; font-weight: 700; }}
             QPushButton:hover {{ background-color: {Colors.ACCENT_SUCCESS}dd; }}
-        """)
+        """,
+        )
         self.add_btn.clicked.connect(self._add_anchor)
         form_layout.addWidget(self.add_btn)
 
@@ -259,7 +283,7 @@ class TrustDirectoryWidget(QFrame):
         """Loads and lists the manual anchor key files from ~/.biopro/trusted_roots/."""
         self.list_widget.clear()
 
-        roots_dir = Path.home() / ".biopro" / "trusted_roots"
+        roots_dir = AppConfig.APP_DATA_DIR / "trusted_roots"
         if not roots_dir.exists():
             return
 
@@ -283,14 +307,14 @@ class TrustDirectoryWidget(QFrame):
 
                 details_layout = QVBoxLayout()
                 name_lbl = QLabel(f"👤 {name}")
-                name_lbl.setStyleSheet(
-                    f"font-weight: 700; color: {Colors.FG_PRIMARY}; border: none;"
+                theme_manager.apply_style(
+                    name_lbl, f"font-weight: 700; color: {Colors.FG_PRIMARY}; border: none;"
                 )
 
                 short_hex = f"{key_hex[:8]}...{key_hex[-8:]}"
                 key_lbl = QLabel(short_hex)
-                key_lbl.setStyleSheet(
-                    f"font-size: 10px; color: {Colors.FG_SECONDARY}; border: none;"
+                theme_manager.apply_style(
+                    key_lbl, f"font-size: 10px; color: {Colors.FG_SECONDARY}; border: none;"
                 )
 
                 details_layout.addWidget(name_lbl)
@@ -301,18 +325,23 @@ class TrustDirectoryWidget(QFrame):
                 revoke_btn = QPushButton("Revoke")
                 revoke_btn.setFixedSize(65, 24)
                 revoke_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                revoke_btn.setStyleSheet(f"""
+                theme_manager.apply_style(
+                    revoke_btn,
+                    f"""
                     QPushButton {{ background-color: {Colors.BG_LIGHT}; color: {Colors.ACCENT_DANGER}; border: 1px solid {Colors.BORDER}; border-radius: 4px; font-size: 10px; font-weight: 600; }}
                     QPushButton:hover {{ background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; }}
-                """)
+                """,
+                )
                 revoke_btn.clicked.connect(lambda checked, path=key_file: self._revoke_anchor(path))
                 item_layout.addWidget(revoke_btn)
 
                 list_item = QListWidgetItem(self.list_widget)
                 list_item.setSizeHint(item_widget.sizeHint())
                 self.list_widget.setItemWidget(list_item, item_widget)
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).error(f"Failed to load anchor: {e}", exc_info=True)
 
     def _revoke_anchor(self, key_path: Path) -> None:
         """Deletes key file and triggers reload."""
@@ -359,11 +388,11 @@ class PluginDetailPanel(QScrollArea):
         self.setWidgetResizable(True)
         self.setFrameShape(QScrollArea.Shape.NoFrame)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.setStyleSheet(f"background-color: {Colors.BG_DARKER};")
+        theme_manager.apply_style(self, f"background-color: {Colors.BG_DARKER};")
 
         # Container
         self.container = QWidget()
-        self.container.setStyleSheet(f"background-color: {Colors.BG_DARKER};")
+        theme_manager.apply_style(self.container, f"background-color: {Colors.BG_DARKER};")
         self.main_layout = QVBoxLayout(self.container)
         self.main_layout.setContentsMargins(20, 20, 20, 20)
         self.main_layout.setSpacing(15)
@@ -371,24 +400,27 @@ class PluginDetailPanel(QScrollArea):
 
         # Title Card
         self.title_card = QFrame()
-        self.title_card.setStyleSheet(
-            f"background-color: {Colors.BG_DARK}; border: 1.5px solid {Colors.BORDER}; border-radius: 10px;"
+        theme_manager.apply_style(
+            self.title_card,
+            f"background-color: {Colors.BG_DARK}; border: 1.5px solid {Colors.BORDER}; border-radius: 10px;",
         )
         self.title_layout = QVBoxLayout(self.title_card)
         self.title_layout.setContentsMargins(18, 18, 18, 18)
         self.title_layout.setSpacing(8)
 
         self.name_lbl = QLabel("Plugin Details")
-        self.name_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE + 2}px; font-weight: 700; color: {Colors.FG_PRIMARY}; border: none;"
+        theme_manager.apply_style(
+            self.name_lbl,
+            f"font-size: {Fonts.SIZE_LARGE + 2}px; font-weight: 700; color: {Colors.FG_PRIMARY}; border: none;",
         )
         self.title_layout.addWidget(self.name_lbl)
 
         self.desc_lbl = QLabel(
             "Select a plugin to review details and cryptographic trust structures."
         )
-        self.desc_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_NORMAL}px; color: {Colors.FG_SECONDARY}; border: none;"
+        theme_manager.apply_style(
+            self.desc_lbl,
+            f"font-size: {Fonts.SIZE_NORMAL}px; color: {Colors.FG_SECONDARY}; border: none;",
         )
         self.desc_lbl.setWordWrap(True)
         self.title_layout.addWidget(self.desc_lbl)
@@ -411,23 +443,29 @@ class PluginDetailPanel(QScrollArea):
         self.backdoor_warning = QFrame()
         self.backdoor_warning.setObjectName("backdoorWarning")
         self.backdoor_warning.setVisible(False)
-        self.backdoor_warning.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.backdoor_warning,
+            f"""
             QFrame#backdoorWarning {{
                 background-color: {Colors.ACCENT_DANGER}33;
                 border: 2px solid {Colors.ACCENT_DANGER};
                 border-radius: 8px;
             }}
-        """)
+        """,
+        )
         bw_layout = QVBoxLayout(self.backdoor_warning)
         bw_title = QLabel("🚨 SECURITY CRITICAL: UNAUTHORIZED PAYLOAD BLOCKED!")
-        bw_title.setStyleSheet(
-            f"font-weight: 700; color: {Colors.ACCENT_DANGER}; font-size: 14px; border: none;"
+        theme_manager.apply_style(
+            bw_title,
+            f"font-weight: 700; color: {Colors.ACCENT_DANGER}; font-size: 14px; border: none;",
         )
         bw_desc = QLabel(
             "Covert backdoor alert: Found unauthorized Python scripts or executable payloads inside an ignored directory. Standard sandbox security has disabled and locked execution."
         )
         bw_desc.setWordWrap(True)
-        bw_desc.setStyleSheet(f"color: {Colors.FG_PRIMARY}; font-size: 12px; border: none;")
+        theme_manager.apply_style(
+            bw_desc, f"color: {Colors.FG_PRIMARY}; font-size: 12px; border: none;"
+        )
         bw_layout.addWidget(bw_title)
         bw_layout.addWidget(bw_desc)
         self.main_layout.addWidget(self.backdoor_warning)
@@ -442,19 +480,23 @@ class PluginDetailPanel(QScrollArea):
         # Left Avatar Card
         self.avatar_card = QFrame()
         self.avatar_card.setFixedWidth(130)
-        self.avatar_card.setStyleSheet(
-            f"background-color: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px;"
+        theme_manager.apply_style(
+            self.avatar_card,
+            f"background-color: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px;",
         )
         ac_layout = QVBoxLayout(self.avatar_card)
         ac_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_img = QLabel("👤")
         self.avatar_img.setFixedSize(64, 64)
         self.avatar_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_img.setStyleSheet("font-size: 32px; background: transparent; border: none;")
+        theme_manager.apply_style(
+            self.avatar_img, "font-size: 32px; background: transparent; border: none;"
+        )
         self.avatar_name = QLabel("Alice Vance")
         self.avatar_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.avatar_name.setStyleSheet(
-            f"font-weight: 700; color: {Colors.FG_PRIMARY}; font-size: 11px; border: none;"
+        theme_manager.apply_style(
+            self.avatar_name,
+            f"font-weight: 700; color: {Colors.FG_PRIMARY}; font-size: 11px; border: none;",
         )
         ac_layout.addWidget(self.avatar_img)
         ac_layout.addWidget(self.avatar_name)
@@ -462,19 +504,22 @@ class PluginDetailPanel(QScrollArea):
 
         # Right Screenshot Card
         self.screenshot_card = QFrame()
-        self.screenshot_card.setStyleSheet(
-            f"background-color: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px;"
+        theme_manager.apply_style(
+            self.screenshot_card,
+            f"background-color: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px;",
         )
         sc_layout = QVBoxLayout(self.screenshot_card)
         self.screenshot_title = QLabel("🖼️ Plugin Live Preview")
-        self.screenshot_title.setStyleSheet(
-            f"font-weight: 700; color: {Colors.FG_SECONDARY}; font-size: 11px; border: none;"
+        theme_manager.apply_style(
+            self.screenshot_title,
+            f"font-weight: 700; color: {Colors.FG_SECONDARY}; font-size: 11px; border: none;",
         )
         self.screenshot_img = QLabel("No Screenshot")
         self.screenshot_img.setFixedSize(240, 120)
         self.screenshot_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.screenshot_img.setStyleSheet(
-            f"background-color: {Colors.BG_DARKER}; border: 1px dashed {Colors.BORDER}; color: {Colors.FG_SECONDARY}; border-radius: 4px;"
+        theme_manager.apply_style(
+            self.screenshot_img,
+            f"background-color: {Colors.BG_DARKER}; border: 1px dashed {Colors.BORDER}; color: {Colors.FG_SECONDARY}; border-radius: 4px;",
         )
         sc_layout.addWidget(self.screenshot_title)
         sc_layout.addWidget(self.screenshot_img)
@@ -501,12 +546,15 @@ class PluginDetailPanel(QScrollArea):
         if backdoor_detected:
             self.backdoor_warning.setVisible(True)
             self.status_badge.setVisible(True)
-            self.status_badge.setStyleSheet(
-                f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 6px;"
+            theme_manager.apply_style(
+                self.status_badge,
+                f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 6px;",
             )
             self.badge_icon.setText("🚨")
             self.badge_text.setText("SECURITY CRITICAL: BLACKLISTED EXEC PAYLOADS DETECTED")
-            self.badge_text.setStyleSheet(f"color: {Colors.ACCENT_DANGER}; font-weight: 700;")
+            theme_manager.apply_style(
+                self.badge_text, f"color: {Colors.ACCENT_DANGER}; font-weight: 700;"
+            )
             self.asset_row.setVisible(False)
             return
 
@@ -515,19 +563,25 @@ class PluginDetailPanel(QScrollArea):
         # Update Badge Style
         self.status_badge.setVisible(True)
         if trust_status in ["verified_developer", "verified_cache"]:
-            self.status_badge.setStyleSheet(
-                f"background-color: {Colors.ACCENT_SUCCESS}33; border: 1px solid {Colors.ACCENT_SUCCESS}; border-radius: 6px;"
+            theme_manager.apply_style(
+                self.status_badge,
+                f"background-color: {Colors.ACCENT_SUCCESS}33; border: 1px solid {Colors.ACCENT_SUCCESS}; border-radius: 6px;",
             )
             self.badge_icon.setText("🛡️")
             self.badge_text.setText("VERIFIED SECURE DOUBLE-SIGNING CONSENSUS")
-            self.badge_text.setStyleSheet(f"color: {Colors.ACCENT_SUCCESS}; font-weight: 700;")
+            theme_manager.apply_style(
+                self.badge_text, f"color: {Colors.ACCENT_SUCCESS}; font-weight: 700;"
+            )
         else:
-            self.status_badge.setStyleSheet(
-                f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 6px;"
+            theme_manager.apply_style(
+                self.status_badge,
+                f"background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 6px;",
             )
             self.badge_icon.setText("⚠️")
             self.badge_text.setText("UNTRUSTED / INTEGRITY LEDGER CHECK FAILED")
-            self.badge_text.setStyleSheet(f"color: {Colors.ACCENT_DANGER}; font-weight: 700;")
+            theme_manager.apply_style(
+                self.badge_text, f"color: {Colors.ACCENT_DANGER}; font-weight: 700;"
+            )
 
         # Fetch and verify remote assets dynamically in a sandboxed directory
         self.asset_row.setVisible(True)
@@ -559,12 +613,13 @@ class PluginDetailPanel(QScrollArea):
                         Qt.TransformationMode.SmoothTransformation,
                     )
                 )
-                self.avatar_img.setStyleSheet("background: transparent; border: none;")
+                theme_manager.apply_style(self.avatar_img, "background: transparent; border: none;")
             except (AssetVerificationError, Exception) as e:
                 # TAMP WARNING PLACEHOLDER REDBadge
                 self.avatar_img.setText("⚠️")
-                self.avatar_img.setStyleSheet(
-                    f"font-size: 32px; background: transparent; border: 2px solid {Colors.ACCENT_DANGER}; border-radius: 32px; color: {Colors.ACCENT_DANGER};"
+                theme_manager.apply_style(
+                    self.avatar_img,
+                    f"font-size: 32px; background: transparent; border: 2px solid {Colors.ACCENT_DANGER}; border-radius: 32px; color: {Colors.ACCENT_DANGER};",
                 )
                 self.avatar_img.setToolTip(f"Tampered Avatar Blocked: {str(e)}")
         else:
@@ -594,12 +649,15 @@ class PluginDetailPanel(QScrollArea):
                         Qt.TransformationMode.SmoothTransformation,
                     )
                 )
-                self.screenshot_img.setStyleSheet("background: transparent; border: none;")
+                theme_manager.apply_style(
+                    self.screenshot_img, "background: transparent; border: none;"
+                )
             except (AssetVerificationError, Exception) as e:
                 self.screenshot_img.clear()
                 self.screenshot_img.setText("❌ SPOOFED IMAGE BLOCKED")
-                self.screenshot_img.setStyleSheet(
-                    f"background-color: {Colors.ACCENT_DANGER}33; border: 1.5px dashed {Colors.ACCENT_DANGER}; color: {Colors.ACCENT_DANGER}; font-weight: 700; border-radius: 4px;"
+                theme_manager.apply_style(
+                    self.screenshot_img,
+                    f"background-color: {Colors.ACCENT_DANGER}33; border: 1.5px dashed {Colors.ACCENT_DANGER}; color: {Colors.ACCENT_DANGER}; font-weight: 700; border-radius: 4px;",
                 )
                 self.screenshot_img.setToolTip(
                     f"Asset hash mismatched manifest ledger parameters! Spoofed display prevented.\n{str(e)}"

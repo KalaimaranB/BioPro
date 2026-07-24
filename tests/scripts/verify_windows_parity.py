@@ -22,10 +22,12 @@ print("=== STARTING STRICT WINDOWS PARITY VERIFICATION ===")
 # 2. Strict Check: Verify that importing task_scheduler does NOT instantiate C++ QObject
 print("\n[Step 1] Checking lazy module import behavior...")
 try:
+    from typing import Any, cast
+
     from biopro.core.task_scheduler import task_scheduler
 
     # At this point, task_scheduler is a proxy. The underlying C++ QObject should be None.
-    is_lazy = task_scheduler._instance is None
+    is_lazy = cast(Any, task_scheduler)._instance is None
     if is_lazy:
         print(" -> PASS: task_scheduler is perfectly lazy! 0.0ms C++ overhead during imports.")
     else:
@@ -60,8 +62,8 @@ if app is None:
 
 try:
     # Resolve the underlying TaskScheduler instance under the active event loop
-    inst1 = task_scheduler._get_instance()
-    inst2 = task_scheduler._get_instance()
+    inst1 = cast(Any, task_scheduler)._get_instance()
+    inst2 = cast(Any, task_scheduler)._get_instance()
 
     assert inst1 is inst2, "Proxy singleton resolved to different instances!"
     print(" -> PASS: Proxy resolved to the exact same singleton instance.")

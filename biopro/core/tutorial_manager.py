@@ -1,11 +1,10 @@
 """Manages the BioPro Academy state machine, persistence, and event integration."""
 
-import json
 import logging
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
+from biopro.core.config import AppConfig
 from biopro.core.event_bus import BioProEvent, event_bus
 from biopro.core.models.tutorial_models import (
     BaseStep,
@@ -13,6 +12,7 @@ from biopro.core.models.tutorial_models import (
     ForcedInteractionStep,
     WaitForEventStep,
 )
+from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ class AcademyManager:
     """Manages the BioPro Academy state machine and module courses."""
 
     def __init__(self):
-        self.config_dir = Path.home() / ".biopro" / "academy"
+        self.config_dir = AppConfig.APP_DATA_DIR / "academy"
         self.progress_file = self.config_dir / "progress.json"
         self.checkpoints_dir = self.config_dir / "checkpoints"
 
@@ -45,29 +45,22 @@ class AcademyManager:
 
     def _load_progress(self) -> None:
         """Loads progress from disk."""
-        if self.progress_file.exists():
-            try:
-                with open(self.progress_file) as f:
-                    data = json.load(f)
-                    self.completed_courses = data.get("completed_courses", [])
-                    self.badges = data.get("badges", [])
-                    self.prerequisites_met = data.get("prerequisites_met", {})
-            except Exception as e:
-                logger.warning(f"Failed to load academy progress: {e}")
+        data = AtomicJsonFile.load(self.progress_file)
+        if data:
+            self.completed_courses = data.get("completed_courses", [])
+            self.badges = data.get("badges", [])
+            self.prerequisites_met = data.get("prerequisites_met", {})
 
     def _save_progress(self) -> None:
         """Saves current progress to disk."""
-        try:
-            self.config_dir.mkdir(parents=True, exist_ok=True)
-            data = {
-                "completed_courses": self.completed_courses,
-                "badges": self.badges,
-                "prerequisites_met": self.prerequisites_met,
-            }
-            with open(self.progress_file, "w") as f:
-                json.dump(data, f, indent=4)
-        except Exception as e:
-            logger.error(f"Failed to save academy progress: {e}")
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        data = {
+            "completed_courses": self.completed_courses,
+            "badges": self.badges,
+            "prerequisites_met": self.prerequisites_met,
+        }
+        if not AtomicJsonFile.save(self.progress_file, data):
+            logger.error("Failed to save academy progress.")
 
     def register_storyboard(self, module_id: str, course: Course) -> None:
         """Registers a new tutorial course for a specific module."""
@@ -242,18 +235,15 @@ class AcademyManager:
 
     def _save_checkpoint(self, course_id: str) -> None:
         """Saves the current workflow state as a checkpoint."""
-        try:
-            self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
-            checkpoint_path = self.checkpoints_dir / f"{course_id}.json"
-            # In a real app, we would call the workflow_manager.serialize_state() here.
-            # For now we create a dummy file.
-            with open(checkpoint_path, "w") as f:
-                json.dump(
-                    {"checkpoint_for": course_id, "timestamp": datetime.now(UTC).isoformat()}, f
-                )
+        self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
+        checkpoint_path = self.checkpoints_dir / f"{course_id}.json"
+        # In a real app, we would call the workflow_manager.serialize_state() here.
+        # For now we create a dummy file.
+        data = {"checkpoint_for": course_id, "timestamp": datetime.now(UTC).isoformat()}
+        if AtomicJsonFile.save(checkpoint_path, data):
             event_bus.emit(BioProEvent.ACADEMY_CHECKPOINT_SAVED, course_id, str(checkpoint_path))
-        except Exception as e:
-            logger.error(f"Failed to save checkpoint for {course_id}: {e}")
+        else:
+            logger.error(f"Failed to save checkpoint for {course_id}")
 
     def restore_checkpoint(self, course_id: str) -> bool:
         """Restores the workflow state from a checkpoint."""

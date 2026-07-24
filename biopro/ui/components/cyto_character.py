@@ -13,7 +13,6 @@ from PyQt6.QtGui import (
     QRadialGradient,
 )
 from PyQt6.QtWidgets import (
-    QGraphicsDropShadowEffect,
     QGraphicsEllipseItem,
     QGraphicsItemGroup,
     QGraphicsPathItem,
@@ -22,6 +21,7 @@ from PyQt6.QtWidgets import (
     QGraphicsView,
 )
 
+from biopro.shared.ui.effects import apply_glow_effect
 from biopro.ui.components.cyto_costumes import CostumeFactory
 from biopro.ui.theme import theme_manager
 
@@ -66,7 +66,7 @@ class CytoWidget(QGraphicsView):
         self.setWindowFlags(Qt.WindowType.Widget)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
         self.viewport().setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
-        self.setStyleSheet("background: transparent; border: none;")
+        theme_manager.apply_style(self, "background: transparent; border: none;")
         self.setBackgroundBrush(
             QBrush(Qt.BrushStyle.NoBrush)
         )  # critical: prevents QGraphicsView white fill
@@ -165,25 +165,15 @@ class CytoWidget(QGraphicsView):
         self.right_eye = QGraphicsEllipseItem(6, -15, 12, 22)
         eye_brush = QBrush(QColor("#ffffff"))
 
-        eye_glow = QGraphicsDropShadowEffect()
-        eye_glow.setOffset(0, 0)
-        eye_glow.setColor(QColor("#39ff14"))
-        eye_glow.setBlurRadius(10)
-
-        eye_glow2 = QGraphicsDropShadowEffect()
-        eye_glow2.setOffset(0, 0)
-        eye_glow2.setColor(QColor("#39ff14"))
-        eye_glow2.setBlurRadius(10)
-
         self.left_eye.setBrush(eye_brush)
         self.left_eye.setPen(QPen(Qt.PenStyle.NoPen))
-        self.left_eye.setGraphicsEffect(eye_glow)
+        apply_glow_effect(self.left_eye, QColor("#39ff14"), blur_radius=10)
         self.cyto_group.addToGroup(self.left_eye)
         self.left_eye.setZValue(4)
 
         self.right_eye.setBrush(eye_brush)
         self.right_eye.setPen(QPen(Qt.PenStyle.NoPen))
-        self.right_eye.setGraphicsEffect(eye_glow2)
+        apply_glow_effect(self.right_eye, QColor("#39ff14"), blur_radius=10)
         self.cyto_group.addToGroup(self.right_eye)
         self.right_eye.setZValue(4)
 
@@ -194,11 +184,7 @@ class CytoWidget(QGraphicsView):
         self.cyto_group.addToGroup(self.mouth)
         self.mouth.setZValue(4)
 
-        mouth_glow = QGraphicsDropShadowEffect()
-        mouth_glow.setOffset(0, 0)
-        mouth_glow.setColor(QColor("#39ff14"))
-        mouth_glow.setBlurRadius(8)
-        self.mouth.setGraphicsEffect(mouth_glow)
+        apply_glow_effect(self.mouth, QColor("#39ff14"), blur_radius=8)
 
         # 6. Right Arm (Foreground)
         self.right_arm = QGraphicsRectItem(0, -8, 55, 16)

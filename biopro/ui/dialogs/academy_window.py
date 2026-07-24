@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from biopro.ui.theme import Colors, Fonts
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 
 class Particle:
@@ -88,10 +88,10 @@ class AcademyWindow(QDialog):
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        theme_manager.apply_style(self.scroll, "QScrollArea { background: transparent; }")
 
         self.scroll_content = QWidget()
-        self.scroll_content.setStyleSheet("background: transparent;")
+        theme_manager.apply_style(self.scroll_content, "background: transparent;")
         self.cards_layout = QVBoxLayout(self.scroll_content)
         self.cards_layout.setContentsMargins(10, 10, 10, 10)
         self.cards_layout.setSpacing(20)
@@ -111,14 +111,14 @@ class AcademyWindow(QDialog):
 
         self._apply_styles()
 
-        from biopro.ui.theme import theme_manager
-
         theme_manager.theme_changed.connect(self._apply_styles)
 
     def _apply_styles(self):
-        self.header.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY};")
-        self.header_desc.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
-        self.close_btn.setStyleSheet(f"""
+        theme_manager.apply_style(self.header, f"color: {Colors.ACCENT_PRIMARY};")
+        theme_manager.apply_style(self.header_desc, f"color: {Colors.FG_SECONDARY};")
+        theme_manager.apply_style(
+            self.close_btn,
+            f"""
             QPushButton {{
                 background-color: {Colors.BG_MEDIUM};
                 color: {Colors.FG_PRIMARY};
@@ -130,7 +130,8 @@ class AcademyWindow(QDialog):
                 background-color: {Colors.BG_LIGHT};
                 border: 1px solid {Colors.BORDER_FOCUS};
             }}
-        """)
+        """,
+        )
         self._populate_courses()
 
     def _animate_particles(self):
@@ -186,8 +187,10 @@ class AcademyWindow(QDialog):
 
                 if "core" not in self.tutorial_manager.courses_by_module:
                     self.tutorial_manager.register_storyboard("core", core_intro_course)
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).warning(f"Failed to load core intro course: {e}")
 
             # 2. Extract courses from all plugins via the newly exposed 'register_courses' hook
             if hasattr(self.parent(), "module_manager"):
@@ -201,8 +204,12 @@ class AcademyWindow(QDialog):
                         plugin_module = importlib.import_module(package_name)
                         if hasattr(plugin_module, "register_courses"):
                             plugin_module.register_courses(self.tutorial_manager)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        import logging
+
+                        logging.getLogger(__name__).warning(
+                            f"Failed to load courses for {_mod_id}: {e}"
+                        )
         # ------------------------------------
 
         # Badges section for global view
@@ -211,7 +218,9 @@ class AcademyWindow(QDialog):
             if badges:
                 badges_lbl = QLabel("🏆 Earned Badges")
                 badges_lbl.setFont(Fonts.H2)
-                badges_lbl.setStyleSheet(f"color: {Colors.ACCENT_WARNING}; padding-top: 10px;")
+                theme_manager.apply_style(
+                    badges_lbl, f"color: {Colors.ACCENT_WARNING}; padding-top: 10px;"
+                )
                 self.cards_layout.addWidget(badges_lbl)
 
                 badges_container = QWidget()
@@ -232,8 +241,9 @@ class AcademyWindow(QDialog):
                 for b_text in sorted(unique_badges):
                     b_lbl = QLabel(b_text)
                     b_lbl.setFont(Fonts.H3)
-                    b_lbl.setStyleSheet(
-                        f"background-color: {Colors.BG_DARK}; color: {Colors.FG_PRIMARY}; border: 1px solid {Colors.ACCENT_WARNING}; border-radius: 8px; padding: 8px 16px;"
+                    theme_manager.apply_style(
+                        b_lbl,
+                        f"background-color: {Colors.BG_DARK}; color: {Colors.FG_PRIMARY}; border: 1px solid {Colors.ACCENT_WARNING}; border-radius: 8px; padding: 8px 16px;",
                     )
                     badges_layout.addWidget(b_lbl)
                 badges_layout.addStretch()
@@ -243,7 +253,7 @@ class AcademyWindow(QDialog):
         def _add_empty():
             lbl = QLabel("No courses implemented yet. Check back soon!")
             lbl.setFont(Fonts.H2)
-            lbl.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
+            theme_manager.apply_style(lbl, f"color: {Colors.FG_SECONDARY};")
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.cards_layout.addWidget(lbl)
 
@@ -265,7 +275,9 @@ class AcademyWindow(QDialog):
                         continue
                     mod_lbl = QLabel(f"📦 {mod_id.replace('_', ' ').title()}")
                     mod_lbl.setFont(Fonts.H2)
-                    mod_lbl.setStyleSheet(f"color: {Colors.FG_SECONDARY}; padding-top: 10px;")
+                    theme_manager.apply_style(
+                        mod_lbl, f"color: {Colors.FG_SECONDARY}; padding-top: 10px;"
+                    )
                     self.cards_layout.addWidget(mod_lbl)
                     for course in courses:
                         card = self._create_course_card(course, mod_id)
@@ -286,7 +298,9 @@ class AcademyWindow(QDialog):
         bg_dark_rgba = hex_to_rgba(Colors.BG_DARK, 0.85)
         bg_medium_rgba = hex_to_rgba(Colors.BG_MEDIUM, 0.95)
 
-        card.setStyleSheet(f"""
+        theme_manager.apply_style(
+            card,
+            f"""
             QFrame#CourseCard {{
                 background-color: {bg_dark_rgba};
                 border: 1px solid {Colors.BORDER};
@@ -296,7 +310,8 @@ class AcademyWindow(QDialog):
                 border: 1px solid {Colors.BORDER_FOCUS};
                 background-color: {bg_medium_rgba};
             }}
-        """)
+        """,
+        )
 
         layout = QHBoxLayout(card)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -308,13 +323,15 @@ class AcademyWindow(QDialog):
 
         title = QLabel(course.title)
         title.setFont(Fonts.H2)
-        title.setStyleSheet(f"color: {Colors.FG_PRIMARY}; background: transparent;")
+        theme_manager.apply_style(title, f"color: {Colors.FG_PRIMARY}; background: transparent;")
         info_layout.addWidget(title)
 
         if hasattr(course, "description") and course.description:
             desc = QLabel(course.description)
             desc.setFont(Fonts.BODY)
-            desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; background: transparent;")
+            theme_manager.apply_style(
+                desc, f"color: {Colors.FG_SECONDARY}; background: transparent;"
+            )
             desc.setWordWrap(True)
             info_layout.addWidget(desc)
 
@@ -329,39 +346,48 @@ class AcademyWindow(QDialog):
         if progress >= 100.0:
             status_pill.setText(" COMPLETED ")
             success_rgba = hex_to_rgba(Colors.ACCENT_SUCCESS, 0.2)
-            status_pill.setStyleSheet(f"""
+            theme_manager.apply_style(
+                status_pill,
+                f"""
                 background-color: {success_rgba};
                 color: {Colors.ACCENT_SUCCESS};
                 border: 1px solid {Colors.ACCENT_SUCCESS};
                 border-radius: 10px;
                 padding: 4px 8px;
                 font-weight: bold;
-            """)
+            """,
+            )
         else:
             status_pill.setText(" IN PROGRESS " if progress > 0 else " NOT STARTED ")
             secondary_rgba = hex_to_rgba(Colors.FG_SECONDARY, 0.1)
-            status_pill.setStyleSheet(f"""
+            theme_manager.apply_style(
+                status_pill,
+                f"""
                 background-color: {secondary_rgba};
                 color: {Colors.FG_SECONDARY};
                 border: 1px solid {Colors.BORDER};
                 border-radius: 10px;
                 padding: 4px 8px;
                 font-weight: bold;
-            """)
+            """,
+            )
         status_layout.addWidget(status_pill)
 
         if progress >= 100.0 and getattr(course, "badge_reward", None):
             badge = QLabel(f" AWARD: {course.badge_reward} ")
             badge.setFont(Fonts.CAPTION)
             warning_rgba = hex_to_rgba(Colors.ACCENT_WARNING, 0.15)
-            badge.setStyleSheet(f"""
+            theme_manager.apply_style(
+                badge,
+                f"""
                 background-color: {warning_rgba};
                 color: {Colors.ACCENT_WARNING};
                 border: 1px solid {Colors.ACCENT_WARNING};
                 border-radius: 10px;
                 padding: 4px 8px;
                 font-weight: bold;
-            """)
+            """,
+            )
             status_layout.addWidget(badge)
 
         status_layout.addStretch()
@@ -387,7 +413,9 @@ class AcademyWindow(QDialog):
             action_btn.setToolTip(
                 f"Open the {mod_id.replace('_', ' ').title()} module to start this course."
             )
-            action_btn.setStyleSheet(f"""
+            theme_manager.apply_style(
+                action_btn,
+                f"""
                 QPushButton {{
                     background-color: {Colors.BG_MEDIUM};
                     color: {Colors.FG_SECONDARY};
@@ -396,10 +424,13 @@ class AcademyWindow(QDialog):
                     padding: 10px 24px;
                     font-weight: bold;
                 }}
-            """)
+            """,
+            )
         elif progress < 100.0:
             success_hover_rgba = hex_to_rgba(Colors.ACCENT_SUCCESS, 0.8)
-            action_btn.setStyleSheet(f"""
+            theme_manager.apply_style(
+                action_btn,
+                f"""
                 QPushButton {{
                     background-color: {Colors.ACCENT_SUCCESS};
                     color: white;
@@ -409,9 +440,12 @@ class AcademyWindow(QDialog):
                     font-weight: bold;
                 }}
                 QPushButton:hover {{ background-color: {success_hover_rgba}; }}
-            """)
+            """,
+            )
         else:
-            action_btn.setStyleSheet(f"""
+            theme_manager.apply_style(
+                action_btn,
+                f"""
                 QPushButton {{
                     background-color: {Colors.BG_MEDIUM};
                     color: {Colors.FG_PRIMARY};
@@ -421,7 +455,8 @@ class AcademyWindow(QDialog):
                     font-weight: bold;
                 }}
                 QPushButton:hover {{ background-color: {Colors.BORDER_FOCUS}; color: #ffffff; }}
-            """)
+            """,
+            )
 
         action_btn.clicked.connect(lambda _, cid=course.id: self._start_course(cid))
         action_layout.addWidget(action_btn)
@@ -432,7 +467,9 @@ class AcademyWindow(QDialog):
             reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             reset_btn.setFont(Fonts.CAPTION)
             danger_rgba = hex_to_rgba(Colors.ACCENT_DANGER, 0.1)
-            reset_btn.setStyleSheet(f"""
+            theme_manager.apply_style(
+                reset_btn,
+                f"""
                 QPushButton {{
                     background-color: transparent;
                     color: {Colors.ACCENT_DANGER};
@@ -443,7 +480,8 @@ class AcademyWindow(QDialog):
                 QPushButton:hover {{
                     background-color: {danger_rgba};
                 }}
-            """)
+            """,
+            )
             reset_btn.clicked.connect(lambda _, cid=course.id: self._reset_course(cid))
             action_layout.addWidget(reset_btn, alignment=Qt.AlignmentFlag.AlignRight)
 

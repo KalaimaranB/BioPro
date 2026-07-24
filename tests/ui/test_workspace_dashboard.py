@@ -1,7 +1,5 @@
 """Tests for WorkspaceDashboard UI."""
 
-from unittest.mock import patch
-
 import pytest
 
 from biopro.ui.components.cards import DashboardWorkflowCard, ModuleCard
@@ -68,27 +66,18 @@ class TestWorkspaceDashboard:
         dashboard.populate_workflows([])
         assert dashboard.workflows_container.isHidden()
 
-    @patch("biopro.ui.dashboards.workspace_dashboard.QMessageBox.question")
-    def test_workflow_delete_flow(self, mock_quest, dashboard):
-        """Verifies the delete confirmation flow."""
-        workflows = [{"filename": "del.json", "module_id": "m", "name": "Target"}]
+    def test_workflow_settings_flow(self, dashboard):
+        """Verifies the settings request flow."""
+        workflows = [{"filename": "set.json", "module_id": "m", "name": "Target"}]
         dashboard.populate_workflows(workflows)
 
-        from PyQt6.QtWidgets import QMessageBox
-
-        # 1. User says NO
-        mock_quest.return_value = QMessageBox.StandardButton.No
         signal_received = []
-        dashboard.workflow_delete_requested.connect(lambda mid, fn: signal_received.append(fn))
+        dashboard.workflow_settings_requested.connect(lambda mid, fn: signal_received.append(fn))
 
         cards = dashboard.findChildren(DashboardWorkflowCard)
-        cards[0].delete_requested.emit()
-        assert len(signal_received) == 0
+        cards[0].settings_requested.emit()
 
-        # 2. User says YES
-        mock_quest.return_value = QMessageBox.StandardButton.Yes
-        cards[0].delete_requested.emit()
-        assert "del.json" in signal_received
+        assert signal_received == ["set.json"]
 
     def test_galactic_mode_text(self, dashboard):
         """Verifies overrides when Galactic theme is loaded."""

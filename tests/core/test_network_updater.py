@@ -1,4 +1,44 @@
 import io
+
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    return "\n".join(lines)
+
+
 import json
 import zipfile
 from pathlib import Path
@@ -54,8 +94,15 @@ def create_safe_zip() -> bytes:
     with zipfile.ZipFile(buffer, "w") as z:
         z.writestr("test_plugin/config.json", '{"version": "1.0.0"}')
         z.writestr(
-            "test_plugin/manifest.json",
-            '{"id": "test_plugin", "version": "1.2.3", "name": "Test Plugin"}',
+            "test_plugin/pyproject.toml",
+            _dict_to_toml(
+                {
+                    "id": "test_plugin",
+                    "version": "1.2.3",
+                    "name": "Test Plugin",
+                    "authors": [{"name": "A"}],
+                }
+            ),
         )
     return buffer.getvalue()
 
@@ -254,11 +301,15 @@ class TestNetworkUpdaterExpanded:
         """Verifies that corrupted manifest.json files are skipped but others are loaded."""
         plugin_dir = updater.plugin_dir / "bad_plugin"
         plugin_dir.mkdir()
-        (plugin_dir / "manifest.json").write_text("{ invalid }")
+        (plugin_dir / "pyproject.toml").write_text("invalid_toml = [")
 
         good_dir = updater.plugin_dir / "good_plugin"
         good_dir.mkdir()
-        (good_dir / "manifest.json").write_text('{"id": "good", "version": "1.0.0"}')
+        (good_dir / "pyproject.toml").write_text(
+            _dict_to_toml(
+                {"id": "good", "version": "1.0.0", "name": "good", "authors": [{"name": "A"}]}
+            )
+        )
 
         state = updater.get_local_state()
         assert "good" in state

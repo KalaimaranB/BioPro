@@ -1,4 +1,47 @@
-import json
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = "', '".join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    deps = d.get("dependencies") or d.get("python_dependencies")
+    if deps:
+        lines.append("[tool.biopro.plugin.python_dependencies]")
+        for k, v in deps.items():
+            lines.append(f'{k} = "{v}"')
+
+    return "\n".join(lines)
+
+
 import sys
 from io import StringIO
 from pathlib import Path
@@ -23,8 +66,8 @@ def test_evaluate_plugin_no_dependencies(tmp_path: Path):
         "description": "Just a test",
         "authors": [{"name": "BioPro Developer", "role": "Developer"}],
     }
-    with open(tmp_path / "manifest.json", "w") as f:
-        json.dump(manifest, f)
+    with open(tmp_path / "pyproject.toml", "w") as f:
+        f.write(_dict_to_toml(manifest))
 
     # Create a dummy python file to pass structure check
     with open(tmp_path / "main.py", "w") as f:
@@ -56,8 +99,8 @@ def test_evaluate_plugin_pinned_dependencies(tmp_path: Path):
             "opencv-python-headless": "4.8.0.76",
         },
     }
-    with open(tmp_path / "manifest.json", "w") as f:
-        json.dump(manifest, f)
+    with open(tmp_path / "pyproject.toml", "w") as f:
+        f.write(_dict_to_toml(manifest))
 
     with open(tmp_path / "main.py", "w") as f:
         f.write("# AnalysisBase reference")
@@ -89,8 +132,8 @@ def test_evaluate_plugin_unpinned_dependencies(tmp_path: Path):
             "scipy": ">=1.11.3",
         },
     }
-    with open(tmp_path / "manifest.json", "w") as f:
-        json.dump(manifest, f)
+    with open(tmp_path / "pyproject.toml", "w") as f:
+        f.write(_dict_to_toml(manifest))
 
     with open(tmp_path / "main.py", "w") as f:
         f.write("# AnalysisBase reference")

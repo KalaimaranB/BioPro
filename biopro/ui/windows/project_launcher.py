@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from biopro_sdk.plugin import PrimaryButton, SecondaryButton
+from biopro_sdk.plugin import SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
@@ -17,7 +17,6 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
-    QMessageBox,
     QVBoxLayout,
     QWidget,
 )
@@ -26,9 +25,10 @@ from biopro.core.config import AppConfig
 from biopro.core.event_bus import get_event_bus
 from biopro.core.project_manager import ProjectLockedError, ProjectManager
 from biopro.core.update_checker import UpdateChecker
+from biopro.shared.ui.alerts import ask_question, show_about, show_error, show_warning
 from biopro.ui.components.ai_panel import AIChatWindow
 from biopro.ui.components.update_banner import UpdateBannerWidget
-from biopro.ui.theme import Colors, theme_manager
+from biopro.ui.theme import theme_manager
 from biopro.ui.widgets.dna_loader import ProgrammaticLoader
 from biopro.ui.windows.workspace_window import WorkspaceWindow
 
@@ -61,23 +61,6 @@ class ProjectLauncherWindow(QMainWindow):
         if saved_geom:
             self.restoreGeometry(QByteArray.fromHex(saved_geom.encode("ascii")))
 
-        self.setStyleSheet(f"""
-            QMainWindow {{ background-color: {Colors.BG_DARKEST}; }}
-            QWidget {{ color: {Colors.FG_PRIMARY}; }}
-            QLineEdit {{
-                background-color: {Colors.BG_MEDIUM};
-                border: 1px solid {Colors.BORDER};
-                padding: 5px;
-                border-radius: 4px;
-            }}
-            QLabel {{ background: transparent; }}
-            QPushButton {{
-                background-color: {Colors.BG_MEDIUM};
-                border: 1px solid {Colors.BORDER};
-                padding: 8px;
-            }}
-        """)
-
         # Initialize the Logic Engine for the Core App and Store
         from biopro.core.network_updater import NetworkUpdater
 
@@ -89,7 +72,6 @@ class ProjectLauncherWindow(QMainWindow):
 
         self._setup_menu_bar()
         self._setup_ui()
-        self._apply_theme_styles()
 
         # Listen for global theme changes
         theme_manager.theme_changed.connect(self._on_theme_changed)
@@ -143,28 +125,19 @@ class ProjectLauncherWindow(QMainWindow):
 
         # ── Left Panel: Recent Projects ───────────────────────────────────
         self.left_panel = QWidget()
-        self.left_panel.setStyleSheet(
-            f"background-color: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};"
-        )
+        self.left_panel.setObjectName("LauncherLeftPanel")
         self.left_panel.setFixedWidth(280)
         left_layout = QVBoxLayout(self.left_panel)
         left_layout.setContentsMargins(20, 20, 20, 20)
         left_layout.setSpacing(15)
 
         self.lbl_recent = QLabel("Recent Projects")
-        self.lbl_recent.setStyleSheet(
-            f"color: {Colors.FG_PRIMARY}; font-size: 14px; font-weight: bold; border: none;"
-        )
+        self.lbl_recent.setObjectName("LauncherRecentLabel")
         left_layout.addWidget(self.lbl_recent)
 
         self.list_recent = QListWidget()
         self.list_recent.setObjectName("list_recent")
-        self.list_recent.setStyleSheet(
-            f"QListWidget {{ border: none; background: transparent; color: {Colors.FG_SECONDARY}; }}"
-            f"QListWidget::item {{ padding: 10px; border-radius: 5px; }}"
-            f"QListWidget::item:hover {{ background: {Colors.BG_MEDIUM}; }}"
-            f"QListWidget::item:selected {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; font-weight: bold; }}"
-        )
+        self.list_recent.setObjectName("LauncherRecentList")
         self.list_recent.itemDoubleClicked.connect(self._on_recent_double_clicked)
         self.list_recent.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.list_recent.customContextMenuRequested.connect(self._on_recent_context_menu)
@@ -195,16 +168,10 @@ class ProjectLauncherWindow(QMainWindow):
         title_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.lbl_title = QLabel("BioPro")
-        self.lbl_title.setStyleSheet(
-            f"color: {Colors.FG_PRIMARY}; font-size: 42px; font-weight: 900; letter-spacing: 1px;"
-        )
+        self.lbl_title.setObjectName("LauncherTitle")
 
         self.lbl_badge = QLabel("BETA")
-        self.lbl_badge.setStyleSheet(
-            f"color: {Colors.ACCENT_PRIMARY}; background: transparent; "
-            f"border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; "
-            f"padding: 2px 6px; font-size: 10px; font-weight: bold; margin-top: 15px;"
-        )
+        self.lbl_badge.setObjectName("LauncherBadge")
 
         title_layout.addWidget(self.lbl_title)
         title_layout.addWidget(self.lbl_badge)
@@ -213,28 +180,24 @@ class ProjectLauncherWindow(QMainWindow):
         # 3. Broadened Subtitles
         self.lbl_subtitle = QLabel("The Extensible BioPro Analysis Platform")
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_subtitle.setStyleSheet(
-            f"color: {Colors.FG_PRIMARY}; font-size: 16px; font-weight: bold;"
-        )
+        self.lbl_subtitle.setObjectName("LauncherSubtitle")
         right_layout.addWidget(self.lbl_subtitle)
 
         self.lbl_desc = QLabel("Modular · Open-Source · Python-Powered")
         self.lbl_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_desc.setStyleSheet(
-            f"color: {Colors.FG_SECONDARY}; font-size: 13px; margin-bottom: 20px;"
-        )
+        self.lbl_desc.setObjectName("LauncherDesc")
         right_layout.addWidget(self.lbl_desc)
 
         # 4. Action Buttons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(15)
 
-        self.btn_new = PrimaryButton("✨ Create New Project")
+        self.btn_new = SecondaryButton("✨ Create New Project")
         self.btn_new.setProperty("tutorial_id", "btn_new")
         self.btn_new.clicked.connect(self._on_new_project)
         btn_layout.addWidget(self.btn_new)
 
-        self.btn_open = PrimaryButton("📁 Open Project...")
+        self.btn_open = SecondaryButton("📁 Open Project...")
         self.btn_open.setProperty("tutorial_id", "btn_open")
         self.btn_open.clicked.connect(self._on_open_project)
         btn_layout.addWidget(self.btn_open)
@@ -387,7 +350,7 @@ class ProjectLauncherWindow(QMainWindow):
             pm.create_new(name.strip())
             self._launch_workspace(pm)
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not create project:\n{str(e)}")
+            show_error(self, "Error", f"Could not create project:\n{str(e)}")
 
     def _on_academy_project(self):
         """Deprecated — Academy courses are now accessed per-workflow inside the Workspace.
@@ -438,14 +401,11 @@ class ProjectLauncherWindow(QMainWindow):
             config.remove_recent_project(path_str)
             self._load_recent_projects()
         elif action == action_delete:
-            reply = QMessageBox.warning(
+            if ask_question(
                 self,
                 "Delete Project",
                 f"Are you sure you want to permanently delete the project at:\n\n{path_str}\n\nThis cannot be undone!",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            if reply == QMessageBox.StandardButton.Yes:
+            ):
                 try:
                     # Remove from recents list first
                     config.remove_recent_project(path_str)
@@ -457,7 +417,7 @@ class ProjectLauncherWindow(QMainWindow):
 
                     self._load_recent_projects()
                 except Exception as e:
-                    QMessageBox.critical(self, "Error", f"Failed to delete project:\n{str(e)}")
+                    show_error(self, "Error", f"Failed to delete project:\n{str(e)}")
 
     def _attempt_open(self, project_dir: Path):
         try:
@@ -465,9 +425,9 @@ class ProjectLauncherWindow(QMainWindow):
             pm.open_project()
             self._launch_workspace(pm)
         except ProjectLockedError as e:
-            QMessageBox.warning(self, "Project in Use", str(e))
+            show_warning(self, "Project in Use", str(e))
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to open project:\n{str(e)}")
+            show_error(self, "Error", f"Failed to open project:\n{str(e)}")
 
     def _launch_workspace(self, project_manager: ProjectManager):
         """Transition from the Hub to the actual Analysis Workspace."""
@@ -520,18 +480,17 @@ class ProjectLauncherWindow(QMainWindow):
             self.animation_widget.setFixedSize(anim_sz, anim_sz)
 
             # Update Title & Subtitle Colors (This forces them to re-read the theme)
-            self.lbl_title.setStyleSheet(
-                f"color: {Colors.FG_PRIMARY}; font-size: {int(42 * scale)}px; font-weight: 900;"
-            )
-            self.lbl_subtitle.setStyleSheet(
-                f"color: {Colors.FG_PRIMARY}; font-size: {int(16 * scale)}px; font-weight: bold;"
-            )
-            self.lbl_desc.setStyleSheet(
-                f"color: {Colors.FG_SECONDARY}; font-size: {int(13 * scale)}px;"
-            )
+            f = self.lbl_title.font()
+            f.setPixelSize(int(42 * scale))
+            self.lbl_title.setFont(f)
 
-            # Update the Window Background itself
-            self.setStyleSheet(f"QMainWindow {{ background-color: {Colors.BG_DARKEST}; }}")
+            f = self.lbl_subtitle.font()
+            f.setPixelSize(int(16 * scale))
+            self.lbl_subtitle.setFont(f)
+
+            f = self.lbl_desc.font()
+            f.setPixelSize(int(13 * scale))
+            self.lbl_desc.setFont(f)
         except AttributeError:
             pass
 
@@ -626,7 +585,7 @@ class ProjectLauncherWindow(QMainWindow):
     def _show_about(self) -> None:
         from biopro.core.config import AppConfig
 
-        QMessageBox.about(
+        show_about(
             self,
             "About BioPro",
             f"<h2>🧬 BioPro v{AppConfig.CORE_VERSION}</h2>"
@@ -645,57 +604,8 @@ class ProjectLauncherWindow(QMainWindow):
 
     def _on_theme_changed(self):
         """Refreshes the Hub visuals when the theme changes."""
-        self._apply_theme_styles()
-        if hasattr(self, "left_panel"):
-            self.left_panel.setStyleSheet(
-                f"background-color: {Colors.BG_DARK}; border-right: 1px solid {Colors.BORDER};"
-            )
-        if hasattr(self, "lbl_recent"):
-            self.lbl_recent.setStyleSheet(
-                f"color: {Colors.FG_PRIMARY}; font-size: 14px; font-weight: bold; border: none;"
-            )
-        if hasattr(self, "lbl_title"):
-            self.lbl_title.setStyleSheet(
-                f"color: {Colors.FG_PRIMARY}; font-size: 42px; font-weight: 900; letter-spacing: 1px;"
-            )
-        if hasattr(self, "lbl_badge"):
-            self.lbl_badge.setStyleSheet(
-                f"color: {Colors.ACCENT_PRIMARY}; background: transparent; "
-                f"border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; "
-                f"padding: 2px 6px; font-size: 10px; font-weight: bold; margin-top: 15px;"
-            )
-        if hasattr(self, "lbl_subtitle"):
-            self.lbl_subtitle.setStyleSheet(
-                f"color: {Colors.FG_PRIMARY}; font-size: 16px; font-weight: bold;"
-            )
-        if hasattr(self, "lbl_desc"):
-            self.lbl_desc.setStyleSheet(
-                f"color: {Colors.FG_SECONDARY}; font-size: 13px; margin-bottom: 20px;"
-            )
-        # Trigger a resize event to force dynamic elements to redraw
+        # Trigger a resize event to force dynamic font scaling to update
         self.resizeEvent(None)
-
-    def _apply_theme_styles(self):
-        """Sets the styleSheet using the LATEST color values."""
-        self.setStyleSheet(f"""
-            QMainWindow {{ background-color: {Colors.BG_DARKEST}; }}
-            QWidget {{ color: {Colors.FG_PRIMARY}; }}
-            QLineEdit {{
-                background-color: {Colors.BG_MEDIUM};
-                border: 1px solid {Colors.BORDER};
-                padding: 5px;
-                border-radius: 4px;
-            }}
-            QLabel {{ background: transparent; }}
-        """)
-        # Update the left panel specifically if it's already created
-        if hasattr(self, "list_recent"):
-            self.list_recent.setStyleSheet(
-                f"QListWidget {{ border: none; background: transparent; color: {Colors.FG_SECONDARY}; }}"
-                f"QListWidget::item {{ padding: 10px; border-radius: 5px; }}"
-                f"QListWidget::item:hover {{ background: {Colors.BG_MEDIUM}; }}"
-                f"QListWidget::item:selected {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; font-weight: bold; }}"
-            )
 
 
 class ModuleLoaderWorker(QThread):

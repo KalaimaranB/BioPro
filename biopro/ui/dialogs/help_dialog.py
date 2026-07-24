@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.core.config import AppConfig
-from biopro.ui.theme import Colors
+from biopro.ui.theme import Colors, theme_manager
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,9 @@ class HelpCenterDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("BioPro Help Center")
         self.setMinimumSize(1100, 800)
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            self, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
+        )
 
         self.module_manager = module_manager
         self.docs_dir = AppConfig.get_docs_dir()
@@ -68,21 +70,24 @@ class HelpCenterDialog(QDialog):
         # Top Bar
         top_bar = QFrame()
         top_bar.setFixedHeight(50)
-        top_bar.setStyleSheet(
-            f"background: {Colors.BG_DARK}; border-bottom: 1px solid {Colors.BORDER};"
+        theme_manager.apply_style(
+            top_bar, f"background: {Colors.BG_DARK}; border-bottom: 1px solid {Colors.BORDER};"
         )
         top_layout = QHBoxLayout(top_bar)
 
         title = QLabel("📖 BioPro Documentation")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {Colors.ACCENT_PRIMARY};")
+        theme_manager.apply_style(
+            title, f"font-size: 16px; font-weight: 700; color: {Colors.ACCENT_PRIMARY};"
+        )
         top_layout.addWidget(title)
         top_layout.addStretch()
 
         close_btn = QPushButton("✕")
         close_btn.setFixedSize(30, 30)
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.setStyleSheet(
-            "QPushButton { border: none; font-size: 18px; } QPushButton:hover { color: white; }"
+        theme_manager.apply_style(
+            close_btn,
+            "QPushButton { border: none; font-size: 18px; } QPushButton:hover { color: white; }",
         )
         close_btn.clicked.connect(self.close)
         top_layout.addWidget(close_btn)
@@ -92,26 +97,29 @@ class HelpCenterDialog(QDialog):
         # Main Splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(1)
-        splitter.setStyleSheet(f"QSplitter::handle {{ background: {Colors.BORDER}; }}")
+        theme_manager.apply_style(splitter, f"QSplitter::handle {{ background: {Colors.BORDER}; }}")
 
         # Sidebar
         self.tree = QTreeWidget()
         self.tree.setFixedWidth(280)
         self.tree.setHeaderHidden(True)
         self.tree.setIndentation(15)
-        self.tree.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.tree,
+            f"""
             QTreeWidget {{ background: {Colors.BG_DARK}; border: none; padding: 10px; font-size: 13px; }}
             QTreeWidget::item {{ padding: 8px 5px; color: {Colors.FG_SECONDARY}; border-radius: 4px; }}
             QTreeWidget::item:selected {{ background: {Colors.BG_MEDIUM}; color: {Colors.ACCENT_PRIMARY}; font-weight: bold; }}
             QTreeWidget::item:hover {{ background: {Colors.BG_LIGHT}; }}
-        """)
+        """,
+        )
         self.tree.itemClicked.connect(self._on_item_clicked)
         splitter.addWidget(self.tree)
 
         # Content Area
         self.viewer = QWebEngineView()
         self.viewer.setPage(HelpPage(self, self.viewer))
-        self.viewer.setStyleSheet(f"background: {Colors.BG_DARKEST};")
+        theme_manager.apply_style(self.viewer, f"background: {Colors.BG_DARKEST};")
 
         # Optmization: Speed up WebEngine
         settings = self.viewer.settings()

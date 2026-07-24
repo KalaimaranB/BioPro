@@ -1,6 +1,47 @@
 """Verification tests for Phase 5.5: Developer Path Smoothing."""
 
-import json
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    if "custom_exclusions" in d:
+        ce_str = '", "'.join(d["custom_exclusions"])
+        lines.append(f'custom_exclusions = ["{ce_str}"]')
+
+    return "\n".join(lines)
+
 
 from biopro_sdk.host.trust_manager import TrustManager
 from biopro_sdk.plugin.managed_task import FunctionalTask
@@ -33,19 +74,16 @@ def test_integrity_exclusions(tmp_path):
     """Verify that ignored and excluded directories don't break trust."""
     plugin_dir = tmp_path / "excluded_plugin"
     plugin_dir.mkdir()
-    (plugin_dir / "manifest.json").write_text(
-        json.dumps(
-            {
-                "manifest_version": 2,
-                "id": "excluded_plugin",
-                "name": "Excluded Plugin",
-                "version": "1.0.0",
-                "description": "Excluded Plugin desc",
-                "authors": [{"name": "Developer Alice", "role": "Developer"}],
-                "custom_exclusions": ["custom_output/"],
-            }
-        )
-    )
+    manifest_data = {
+        "manifest_version": 2,
+        "id": "excluded_plugin",
+        "name": "Excluded Plugin",
+        "version": "1.0.0",
+        "description": "Excluded Plugin desc",
+        "authors": [{"name": "Developer Alice", "role": "Developer"}],
+        "custom_exclusions": ["custom_output/"],
+    }
+    (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest_data), encoding="utf-8")
     (plugin_dir / "__init__.py").write_text("pass")
 
     # Sign it

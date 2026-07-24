@@ -44,6 +44,37 @@ class BlackBoxHandler(logging.Handler):
         return list(self.records)
 
 
+class AutoReportHandler(logging.Handler):
+    """Intercepts ERROR and CRITICAL logs to automatically route them to the DiagnosticEngine.
+
+    This eliminates the need for manual `try/except: diagnostics.report_error()` blocks
+    scattered throughout the codebase.
+    """
+
+    def __init__(self, engine: "DiagnosticEngine"):
+        super().__init__(level=logging.ERROR)
+        self.engine = engine
+
+    def emit(self, record):
+        # Prevent infinite recursion if the DiagnosticEngine itself logs an error
+        if record.name == "biopro.core.diagnostics":
+            return
+
+        try:
+            msg = self.format(record)
+            fatal = record.levelno >= logging.CRITICAL
+            plugin_id = getattr(record, "plugin_id", None)
+
+            # Auto-extract exception info if provided via exc_info=True
+            exc = None
+            if record.exc_info and record.exc_info[1]:
+                exc = record.exc_info[1]
+
+            self.engine.report_error(message=msg, exception=exc, plugin_id=plugin_id, fatal=fatal)
+        except Exception:
+            self.handleError(record)
+
+
 class DiagnosticEngine:
     """Central nervous system for application health and error reporting."""
 
@@ -66,6 +97,11 @@ class DiagnosticEngine:
 
         # Attach black box to the root logger so it sees everything
         logging.getLogger().addHandler(self.black_box)
+
+        # Attach AutoReportHandler to the root logger to catch and report all errors
+        self.auto_reporter = AutoReportHandler(self)
+        self.auto_reporter.setFormatter(logging.Formatter("%(message)s"))
+        logging.getLogger().addHandler(self.auto_reporter)
 
         # Throttling state
         self._last_error_sig = None

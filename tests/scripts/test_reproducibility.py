@@ -7,7 +7,6 @@ import hashlib
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -95,10 +94,9 @@ def test_determinism():
 
     if not differing:
         print("\n✅ SUCCESS: Builds are bit-for-bit identical!")
-        sys.exit(0)
-    else:
-        print(f"\n❌ FAILURE: {len(differing)} files differ.")
-        sys.exit(1)
+        return
+
+    assert not differing, f"FAILURE: {len(differing)} files differ."
 
 
 if __name__ == "__main__":

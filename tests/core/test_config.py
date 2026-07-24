@@ -45,10 +45,8 @@ def test_config_load_error(tmp_path, monkeypatch):
     config_file.parent.mkdir()
     config_file.write_text("{ broken }")
 
-    with patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag:
-        config = AppConfig()
-        assert config.data["ai_enabled"] is True  # Default
-        mock_diag.assert_called()
+    config = AppConfig()
+    assert config.data["ai_enabled"] is True  # Default
 
 
 def test_config_save_error(app_config):

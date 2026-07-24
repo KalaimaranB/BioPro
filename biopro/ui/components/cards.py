@@ -3,7 +3,7 @@
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout
 
-from biopro.ui.theme import Colors, Fonts
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 
 class ModuleCard(QFrame):
@@ -48,14 +48,15 @@ class ModuleCard(QFrame):
 
         top_row = QHBoxLayout()
         icon_lbl = QLabel(icon)
-        icon_lbl.setStyleSheet("font-size: 26px; background: transparent;")
+        theme_manager.apply_style(icon_lbl, "font-size: 26px; background: transparent;")
         top_row.addWidget(icon_lbl)
         top_row.addStretch()
 
         if badge:
             badge_lbl = QLabel(badge)
-            badge_lbl.setStyleSheet(
-                f"background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 700;"
+            theme_manager.apply_style(
+                badge_lbl,
+                f"background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 700;",
             )
             top_row.addWidget(badge_lbl)
 
@@ -69,23 +70,26 @@ class ModuleCard(QFrame):
 
         if not enabled:
             soon_lbl = QLabel("Coming soon")
-            soon_lbl.setStyleSheet(
-                f"background: {Colors.BG_LIGHT}; color: {Colors.FG_DISABLED}; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 600;"
+            theme_manager.apply_style(
+                soon_lbl,
+                f"background: {Colors.BG_LIGHT}; color: {Colors.FG_DISABLED}; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 600;",
             )
             top_row.addWidget(soon_lbl)
 
         layout.addLayout(top_row)
 
         self.title_lbl = QLabel(title)
-        self.title_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY if enabled else Colors.FG_DISABLED}; background: transparent;"
+        theme_manager.apply_style(
+            self.title_lbl,
+            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY if enabled else Colors.FG_DISABLED}; background: transparent;",
         )
         self.title_lbl.setWordWrap(True)
         layout.addWidget(self.title_lbl)
 
         self.desc_lbl = QLabel(description)
-        self.desc_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_SECONDARY}; background: transparent;"
+        theme_manager.apply_style(
+            self.desc_lbl,
+            f"font-size: {Fonts.SIZE_SMALL}px; color: {Colors.FG_SECONDARY}; background: transparent;",
         )
         self.desc_lbl.setWordWrap(True)
         layout.addWidget(self.desc_lbl)
@@ -98,18 +102,22 @@ class ModuleCard(QFrame):
         if self._trust_level in ["verified_developer", "verified_cache"]:
             self.lock_btn.setText("🛡️")
             self.lock_btn.setToolTip("Verified via Trust Tree. Click to view chain.")
-            self.lock_btn.setStyleSheet("background: transparent; border: none; font-size: 14px;")
+            theme_manager.apply_style(
+                self.lock_btn, "background: transparent; border: none; font-size: 14px;"
+            )
         elif self._trust_level == "verified_local":
             self.lock_btn.setText("🔒")
             self.lock_btn.setToolTip("Verified Local Override (Manual Lock). Click to view.")
-            self.lock_btn.setStyleSheet(
-                f"background: transparent; border: none; font-size: 14px; color: {Colors.ACCENT_SUCCESS};"
+            theme_manager.apply_style(
+                self.lock_btn,
+                f"background: transparent; border: none; font-size: 14px; color: {Colors.ACCENT_SUCCESS};",
             )
         else:
             self.lock_btn.setText("⚠️")
             self.lock_btn.setToolTip("Modified or Untrusted! Click to verify and lock.")
-            self.lock_btn.setStyleSheet(
-                f"background: transparent; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 4px; font-size: 14px;"
+            theme_manager.apply_style(
+                self.lock_btn,
+                f"background: transparent; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 4px; font-size: 14px;",
             )
 
     def _on_lock_clicked(self):
@@ -123,7 +131,15 @@ class ModuleCard(QFrame):
                 )
                 if dialog.exec() and dialog.is_accepted():
                     # Update card state instantly
-                    self._trust_level = "verified_cache"  # Simulated local trust state
+                    self._trust_level = "verified_local"
+                    self._trust_path = [
+                        {"name": "Local System User", "status": "root", "key": "Manual Override"},
+                        {
+                            "name": "Security Check Bypassed",
+                            "status": "anchor",
+                            "key": "Local Machine Policy",
+                        },
+                    ]
                     self._update_trust_ui()
                     self._apply_style(False)
             else:
@@ -137,8 +153,9 @@ class ModuleCard(QFrame):
 
     def _apply_style(self, hovered: bool) -> None:
         if not self._enabled:
-            self.setStyleSheet(
-                f"QFrame#moduleCard {{ background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 10px; }}"
+            theme_manager.apply_style(
+                self,
+                f"QFrame#moduleCard {{ background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 10px; }}",
             )
             return
 
@@ -149,8 +166,9 @@ class ModuleCard(QFrame):
             border = Colors.ACCENT_PRIMARY if hovered else Colors.BORDER
 
         bg = Colors.BG_MEDIUM if hovered else Colors.BG_DARK
-        self.setStyleSheet(
-            f"QFrame#moduleCard {{ background: {bg}; border: 1.5px solid {border}; border-radius: 10px; }}"
+        theme_manager.apply_style(
+            self,
+            f"QFrame#moduleCard {{ background: {bg}; border: 1.5px solid {border}; border-radius: 10px; }}",
         )
 
     def enterEvent(self, event) -> None:
@@ -205,8 +223,9 @@ class DashboardWorkflowCard(QFrame):
         # Top row: Module Name, Academy pill (optional), and Settings Button
         top_row = QHBoxLayout()
         mod_lbl = QLabel(module_name)
-        mod_lbl.setStyleSheet(
-            f"font-size: 10px; font-weight: bold; color: {Colors.ACCENT_PRIMARY}; background: transparent; text-transform: uppercase;"
+        theme_manager.apply_style(
+            mod_lbl,
+            f"font-size: 10px; font-weight: bold; color: {Colors.ACCENT_PRIMARY}; background: transparent; text-transform: uppercase;",
         )
         top_row.addWidget(mod_lbl)
         top_row.addStretch()
@@ -219,7 +238,8 @@ class DashboardWorkflowCard(QFrame):
             )
             self._academy_btn = QPushButton(label)
             self._academy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            self._academy_btn.setStyleSheet(
+            theme_manager.apply_style(
+                self._academy_btn,
                 "QPushButton {"
                 "  background: rgba(31, 111, 235, 0.18);"
                 "  color: #79c0ff;"
@@ -231,7 +251,7 @@ class DashboardWorkflowCard(QFrame):
                 "}"
                 "QPushButton:hover {"
                 "  background: rgba(31, 111, 235, 0.35);"
-                "}"
+                "}",
             )
             self._academy_btn.clicked.connect(self._on_academy_clicked)
             top_row.addWidget(self._academy_btn)
@@ -239,25 +259,30 @@ class DashboardWorkflowCard(QFrame):
         self.btn_settings = QPushButton("⚙️")
         self.btn_settings.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_settings.setFixedSize(24, 24)
-        self.btn_settings.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.btn_settings,
+            f"""
             QPushButton {{ background: transparent; border: none; border-radius: 4px; font-size: 14px; }}
             QPushButton:hover {{ background: {Colors.BG_LIGHT}; border: 1px solid {Colors.BORDER}; }}
-        """)
+        """,
+        )
         self.btn_settings.clicked.connect(self._on_settings_clicked)
         top_row.addWidget(self.btn_settings)
         layout.addLayout(top_row)
 
         self.title_lbl = QLabel(title)
-        self.title_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY}; background: transparent;"
+        theme_manager.apply_style(
+            self.title_lbl,
+            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 700; color: {Colors.FG_PRIMARY}; background: transparent;",
         )
         self.title_lbl.setWordWrap(True)
         layout.addWidget(self.title_lbl)
 
         if description:
             self.desc_lbl = QLabel(description)
-            self.desc_lbl.setStyleSheet(
-                f"font-size: 11px; color: {Colors.FG_SECONDARY}; background: transparent;"
+            theme_manager.apply_style(
+                self.desc_lbl,
+                f"font-size: 11px; color: {Colors.FG_SECONDARY}; background: transparent;",
             )
             self.desc_lbl.setWordWrap(True)
             layout.addWidget(self.desc_lbl)
@@ -265,15 +290,17 @@ class DashboardWorkflowCard(QFrame):
         if tags:
             tag_str = "  ".join([f"#{t}" for t in tags])
             self.tag_lbl = QLabel(tag_str)
-            self.tag_lbl.setStyleSheet(
-                f"color: {Colors.FG_SECONDARY}; font-size: 11px; font-style: italic; background: transparent;"
+            theme_manager.apply_style(
+                self.tag_lbl,
+                f"color: {Colors.FG_SECONDARY}; font-size: 11px; font-style: italic; background: transparent;",
             )
             self.tag_lbl.setWordWrap(True)
             layout.addWidget(self.tag_lbl)
 
         self.date_lbl = QLabel(f"Saved: {date_str}")
-        self.date_lbl.setStyleSheet(
-            f"font-size: 10px; color: {Colors.FG_SECONDARY}; background: transparent;"
+        theme_manager.apply_style(
+            self.date_lbl,
+            f"font-size: 10px; color: {Colors.FG_SECONDARY}; background: transparent;",
         )
         layout.addWidget(self.date_lbl)
 
@@ -293,19 +320,21 @@ class DashboardWorkflowCard(QFrame):
             border_left = "#1f6feb"
             border = "#1f6feb" if hovered else "#1f6feb88"
             bg = Colors.BG_MEDIUM if hovered else Colors.BG_DARK
-            self.setStyleSheet(
+            theme_manager.apply_style(
+                self,
                 f"QFrame#workflowCard {{"
                 f"  background: {bg};"
                 f"  border: 1px solid {border};"
                 f"  border-left: 3px solid {border_left};"
                 f"  border-radius: 8px;"
-                f"}}"
+                f"}}",
             )
         else:
             border = Colors.FG_SECONDARY if hovered else Colors.BORDER
             bg = Colors.BG_MEDIUM if hovered else Colors.BG_DARK
-            self.setStyleSheet(
-                f"QFrame#workflowCard {{ background: {bg}; border: 1px solid {border}; border-radius: 8px; }}"
+            theme_manager.apply_style(
+                self,
+                f"QFrame#workflowCard {{ background: {bg}; border: 1px solid {border}; border-radius: 8px; }}",
             )
 
     def enterEvent(self, event) -> None:
@@ -337,13 +366,14 @@ class DetailedWorkflowCard(QFrame):
         self.metadata = metadata
         self.setFrameShape(QFrame.Shape.StyledPanel)
 
-        self.setStyleSheet(
+        theme_manager.apply_style(
+            self,
             f"QFrame {{ "
             f"  background-color: {Colors.BG_MEDIUM}; "
             f"  border: 1px solid {Colors.BORDER}; "
             f"  border-radius: 8px; "
             f"  margin: 4px; "
-            f"}}"
+            f"}}",
         )
 
         layout = QVBoxLayout(self)
@@ -351,18 +381,20 @@ class DetailedWorkflowCard(QFrame):
         # Header: Name and Module Tag
         header = QHBoxLayout()
         name_lbl = QLabel(metadata.get("name", "Untitled"))
-        name_lbl.setStyleSheet(
-            f"font-weight: bold; font-size: 14px; color: {Colors.FG_PRIMARY}; border: none;"
+        theme_manager.apply_style(
+            name_lbl,
+            f"font-weight: bold; font-size: 14px; color: {Colors.FG_PRIMARY}; border: none;",
         )
 
         mod_lbl = QLabel(metadata.get("module", "").replace("_", " ").upper())
-        mod_lbl.setStyleSheet(
+        theme_manager.apply_style(
+            mod_lbl,
             f"color: {Colors.ACCENT_PRIMARY}; "
             f"font-size: 10px; "
             f"font-weight: bold; "
             f"border: 1px solid {Colors.ACCENT_PRIMARY}; "
             f"border-radius: 4px; "
-            f"padding: 2px 4px;"
+            f"padding: 2px 4px;",
         )
 
         header.addWidget(name_lbl)
@@ -373,7 +405,7 @@ class DetailedWorkflowCard(QFrame):
         # Description
         desc = QLabel(metadata.get("description", "No description provided."))
         desc.setWordWrap(True)
-        desc.setStyleSheet(f"color: {Colors.FG_SECONDARY}; border: none;")
+        theme_manager.apply_style(desc, f"color: {Colors.FG_SECONDARY}; border: none;")
         layout.addWidget(desc)
 
         # Tags
@@ -381,8 +413,9 @@ class DetailedWorkflowCard(QFrame):
         if tags:
             tag_str = "  ".join([f"#{t}" for t in tags])
             tag_lbl = QLabel(tag_str)
-            tag_lbl.setStyleSheet(
-                f"color: {Colors.FG_SECONDARY}; font-size: 11px; font-style: italic; border: none;"
+            theme_manager.apply_style(
+                tag_lbl,
+                f"color: {Colors.FG_SECONDARY}; font-size: 11px; font-style: italic; border: none;",
             )
             layout.addWidget(tag_lbl)
 

@@ -10,6 +10,8 @@ No Qt imports — this class is UI-agnostic and fully testable in isolation.
 import logging
 from typing import Protocol
 
+from biopro.core.event_bus import BioProEvent
+
 logger = logging.getLogger(__name__)
 
 
@@ -71,8 +73,6 @@ class UpdateChecker:
             return
 
         logger.info(f"Core update available: v{remote_version}")
-
-        from biopro.core.event_bus import BioProEvent
 
         self._event_bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, remote_version, download_url)
 

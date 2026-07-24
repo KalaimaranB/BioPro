@@ -14,7 +14,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 from biopro.core.event_bus import BioProEvent, get_event_bus
-from biopro.ui.theme import Colors
+from biopro.ui.theme import Colors, theme_manager
 
 logger = logging.getLogger(__name__)
 
@@ -137,31 +137,35 @@ class UpdateBannerWidget(QWidget):
         self.setFixedHeight(44)
 
     def _apply_styles(self) -> None:
-        self.setStyleSheet(
+        theme_manager.apply_style(
+            self,
             _BANNER_STYLE.format(
                 bg=Colors.ACCENT_WARNING + "22",  # amber at 13% opacity
                 border=Colors.ACCENT_WARNING + "55",
-            )
+            ),
         )
-        self.lbl_message.setStyleSheet(_LABEL_STYLE.format(fg=Colors.FG_PRIMARY))
-        self.btn_download.setStyleSheet(
+        theme_manager.apply_style(self.lbl_message, _LABEL_STYLE.format(fg=Colors.FG_PRIMARY))
+        theme_manager.apply_style(
+            self.btn_download,
             _BTN_DOWNLOAD_STYLE.format(
                 accent=Colors.ACCENT_WARNING,
                 accent_hover=Colors.ACCENT_WARNING + "cc",
-            )
+            ),
         )
-        self.btn_skip.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_skip,
             _BTN_SECONDARY_STYLE.format(
                 fg=Colors.FG_SECONDARY,
                 border=Colors.BORDER,
                 bg_hover=Colors.BG_MEDIUM,
-            )
+            ),
         )
-        self.btn_close.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_close,
             _BTN_CLOSE_STYLE.format(
                 fg=Colors.FG_SECONDARY,
                 danger=Colors.ACCENT_DANGER,
-            )
+            ),
         )
 
     # ── Event Handlers ────────────────────────────────────────────────────────

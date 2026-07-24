@@ -1,7 +1,6 @@
 """AI Chat Interface Floating Window (SOLID Refactored)."""
 
 import logging
-from pathlib import Path
 
 from biopro_sdk.host.ai import ai_manager
 from PyQt6.QtCore import Qt, QTimer
@@ -18,6 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from biopro.core.config import AppConfig
 from biopro.core.sound_manager import sound_manager
 from biopro.ui.ai.context_panel import ContextPanel
 from biopro.ui.ai.service import AIService
@@ -38,7 +38,9 @@ class AIChatWindow(QDialog):
         # Logic Service
         self.service = AIService()
 
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
+        theme_manager.apply_style(
+            self, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
+        )
 
         self._setup_ui()
         self._connect_signals()
@@ -67,7 +69,9 @@ class AIChatWindow(QDialog):
         self.header_layout.setSpacing(10)
 
         self.status_lbl = QLabel("🧠 AI Assistant")
-        self.status_lbl.setStyleSheet(f"font-size: {Fonts.SIZE_LARGE}px; font-weight: bold;")
+        theme_manager.apply_style(
+            self.status_lbl, f"font-size: {Fonts.SIZE_LARGE}px; font-weight: bold;"
+        )
         self.header_layout.addWidget(self.status_lbl)
         self.header_layout.addStretch()
 
@@ -75,32 +79,40 @@ class AIChatWindow(QDialog):
         self.btn_ctx_toggle.setCheckable(True)
         self.btn_ctx_toggle.setChecked(True)
         self.btn_ctx_toggle.setFixedHeight(28)
-        self.btn_ctx_toggle.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.btn_ctx_toggle,
+            f"""
             QPushButton {{ background: transparent; color: {Colors.ACCENT_PRIMARY}; border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; padding: 2px 10px; font-size: 11px; }}
             QPushButton:checked {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; }}
-        """)
+        """,
+        )
         self.header_layout.addWidget(self.btn_ctx_toggle)
 
         self.btn_soul = QPushButton("⚙️")
         self.btn_soul.setFixedHeight(28)
-        self.btn_soul.setStyleSheet(
-            f"background: transparent; color: {Colors.FG_SECONDARY}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 2px 8px;"
+        theme_manager.apply_style(
+            self.btn_soul,
+            f"background: transparent; color: {Colors.FG_SECONDARY}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 2px 8px;",
         )
         self.header_layout.addWidget(self.btn_soul)
 
         self.btn_power = QPushButton("⭕ OFF")
         self.btn_power.setCheckable(True)
         self.btn_power.setFixedHeight(28)
-        self.btn_power.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.btn_power,
+            f"""
             QPushButton {{ background: transparent; color: {Colors.FG_SECONDARY}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 2px 10px; }}
             QPushButton:checked {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; border: none; font-weight: bold; }}
-        """)
+        """,
+        )
         self.header_layout.addWidget(self.btn_power)
 
         self.btn_clear = QPushButton("Clear")
         self.btn_clear.setFixedHeight(28)
-        self.btn_clear.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {Colors.ACCENT_PRIMARY}; border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; padding: 2px 10px; }}"
+        theme_manager.apply_style(
+            self.btn_clear,
+            f"QPushButton {{ background: transparent; color: {Colors.ACCENT_PRIMARY}; border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; padding: 2px 10px; }}",
         )
         self.header_layout.addWidget(self.btn_clear)
 
@@ -118,14 +130,16 @@ class AIChatWindow(QDialog):
 
         self.chat_history = QTextEdit()
         self.chat_history.setReadOnly(True)
-        self.chat_history.setStyleSheet(
-            f"background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px; padding: 10px; font-size: 13px;"
+        theme_manager.apply_style(
+            self.chat_history,
+            f"background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px; padding: 10px; font-size: 13px;",
         )
         self.chat_layout.addWidget(self.chat_history)
 
         self.thinking_indicator = QLabel("<i>The Assistant is thinking...</i>")
-        self.thinking_indicator.setStyleSheet(
-            f"color: {Colors.FG_SECONDARY}; font-size: 11px; margin-left: 5px;"
+        theme_manager.apply_style(
+            self.thinking_indicator,
+            f"color: {Colors.FG_SECONDARY}; font-size: 11px; margin-left: 5px;",
         )
         self.thinking_indicator.hide()
         self.chat_layout.addWidget(self.thinking_indicator)
@@ -143,8 +157,9 @@ class AIChatWindow(QDialog):
         # RIGHT: Context Sidebar
         self.context_sidebar = ContextPanel(self, self.service.assistant)
         self.context_sidebar.setFixedWidth(350)
-        self.context_sidebar.setStyleSheet(
-            f"background: {Colors.BG_DARK}; border-left: 1px solid {Colors.BORDER};"
+        theme_manager.apply_style(
+            self.context_sidebar,
+            f"background: {Colors.BG_DARK}; border-left: 1px solid {Colors.BORDER};",
         )
         self.content_layout.addWidget(self.context_sidebar)
 
@@ -177,35 +192,58 @@ class AIChatWindow(QDialog):
         self.setup_widget.hide()
         layout.addWidget(self.setup_widget)
 
+        # Update initial context UI
+        self.update_module_context(self.current_module_id)
+
+        # Initial state setup
+        if ai_manager.is_running():
+            self._show_chat_ui()
+        else:
+            self._show_download_ui()
+
     def _apply_theme_styles(self):
         """Update window colors and sub-components when theme changes."""
-        self.setStyleSheet(f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};")
-        self.status_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: bold; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            self, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
         )
-        self.chat_history.setStyleSheet(
-            f"background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px; padding: 10px; font-size: 13px; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            self.status_lbl,
+            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: bold; color: {Colors.FG_PRIMARY};",
         )
-        self.thinking_indicator.setStyleSheet(
-            f"color: {Colors.FG_SECONDARY}; font-size: 11px; margin-left: 5px;"
+        theme_manager.apply_style(
+            self.chat_history,
+            f"background: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 8px; padding: 10px; font-size: 13px; color: {Colors.FG_PRIMARY};",
         )
-        self.context_sidebar.setStyleSheet(
-            f"background: {Colors.BG_DARK}; border-left: 1px solid {Colors.BORDER};"
+        theme_manager.apply_style(
+            self.thinking_indicator,
+            f"color: {Colors.FG_SECONDARY}; font-size: 11px; margin-left: 5px;",
+        )
+        theme_manager.apply_style(
+            self.context_sidebar,
+            f"background: {Colors.BG_DARK}; border-left: 1px solid {Colors.BORDER};",
         )
 
-        self.btn_ctx_toggle.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.btn_ctx_toggle,
+            f"""
             QPushButton {{ background: transparent; color: {Colors.ACCENT_PRIMARY}; border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; padding: 2px 10px; font-size: 11px; }}
             QPushButton:checked {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; }}
-        """)
-        self.btn_soul.setStyleSheet(
-            f"background: transparent; color: {Colors.FG_SECONDARY}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 2px 8px;"
+        """,
         )
-        self.btn_power.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self.btn_soul,
+            f"background: transparent; color: {Colors.FG_SECONDARY}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 2px 8px;",
+        )
+        theme_manager.apply_style(
+            self.btn_power,
+            f"""
             QPushButton {{ background: transparent; color: {Colors.FG_SECONDARY}; border: 1px solid {Colors.BORDER}; border-radius: 4px; padding: 2px 10px; }}
             QPushButton:checked {{ background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST}; border: none; font-weight: bold; }}
-        """)
-        self.btn_clear.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {Colors.ACCENT_PRIMARY}; border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; padding: 2px 10px; }}"
+        """,
+        )
+        theme_manager.apply_style(
+            self.btn_clear,
+            f"QPushButton {{ background: transparent; color: {Colors.ACCENT_PRIMARY}; border: 1px solid {Colors.ACCENT_PRIMARY}; border-radius: 4px; padding: 2px 10px; }}",
         )
 
         # Refresh any SDK buttons or custom widgets inside
@@ -408,7 +446,7 @@ class SoulEditorDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Edit AI Personality")
         self.setMinimumSize(400, 300)
-        self.soul_path = Path.home() / ".biopro" / "soul.md"
+        self.soul_path = AppConfig.APP_DATA_DIR / "soul.md"
 
         layout = QVBoxLayout(self)
         self.editor = QTextEdit()

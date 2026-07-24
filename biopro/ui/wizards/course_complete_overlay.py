@@ -14,13 +14,14 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
     QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
+
+from biopro.shared.ui.effects import apply_glow_effect
 
 try:
     from biopro.ui.theme import Colors, Fonts
@@ -182,20 +183,9 @@ class CourseCompleteOverlay(QWidget):
         # Central card
         self._card = QFrame()
         self._card.setObjectName("CompleteCard")
-        self._card.setStyleSheet(f"""
-            QFrame#CompleteCard {{
-                background-color: {Colors.BG_DARK};
-                border: 1px solid {Colors.ACCENT_PRIMARY};
-                border-radius: 12px;
-            }}
-        """)
 
         # Add shadow to card
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(50)
-        shadow.setColor(QColor(Colors.ACCENT_PRIMARY).darker(200))
-        shadow.setOffset(0, 0)
-        self._card.setGraphicsEffect(shadow)
+        apply_glow_effect(self._card, QColor(Colors.ACCENT_PRIMARY).darker(200), blur_radius=50)
 
         self._card.setFixedSize(550, 420)
 
@@ -210,24 +200,13 @@ class CourseCompleteOverlay(QWidget):
 
         # Title
         title = QLabel("MODULE COMPLETED")
-        title.setStyleSheet(f"""
-            font-family: {Fonts.FAMILY_UI};
-            font-size: {Fonts.SIZE_LARGE}px;
-            font-weight: 800;
-            letter-spacing: 2px;
-            color: {Colors.ACCENT_PRIMARY};
-        """)
+        title.setObjectName("CourseCompleteTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(title)
 
         # Subtitle / Message
         self._message_label = QLabel("Course module executed successfully.")
-        self._message_label.setStyleSheet(f"""
-            font-family: {Fonts.FAMILY_UI};
-            font-size: {Fonts.SIZE_NORMAL}px;
-            color: {Colors.FG_PRIMARY};
-            line-height: 1.4;
-        """)
+        self._message_label.setObjectName("CourseCompleteMessage")
         self._message_label.setWordWrap(True)
         self._message_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         card_layout.addWidget(self._message_label)
@@ -235,7 +214,7 @@ class CourseCompleteOverlay(QWidget):
         # Separation line
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet(f"background-color: {Colors.BORDER}; margin: 10px 0px;")
+        sep.setObjectName("HorizontalSeparator")
         card_layout.addWidget(sep)
 
         # Badge display container
@@ -244,25 +223,10 @@ class CourseCompleteOverlay(QWidget):
         badge_layout.setSpacing(10)
 
         cert_label = QLabel("CERTIFICATION ACQUIRED:")
-        cert_label.setStyleSheet(f"""
-            font-family: {Fonts.FAMILY_UI};
-            font-size: 10px;
-            font-weight: bold;
-            color: {Colors.FG_SECONDARY};
-            letter-spacing: 1px;
-        """)
+        cert_label.setObjectName("CourseCompleteCertLabel")
 
         self._badge_label = QLabel("Badge Name")
-        self._badge_label.setStyleSheet(f"""
-            font-family: {Fonts.FAMILY_UI};
-            font-size: {Fonts.SIZE_NORMAL}px;
-            font-weight: bold;
-            color: {Colors.FG_PRIMARY};
-            background-color: {Colors.BG_DARKEST};
-            padding: 8px 16px;
-            border-radius: 4px;
-            border: 1px solid {Colors.BORDER};
-        """)
+        self._badge_label.setObjectName("CourseCompleteBadgeLabel")
 
         badge_info_layout = QVBoxLayout()
         badge_info_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -276,27 +240,7 @@ class CourseCompleteOverlay(QWidget):
         # Continue Button
         self._continue_btn = QPushButton("RETURN TO WORKSPACE")
         self._continue_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._continue_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Colors.ACCENT_PRIMARY};
-                border: 2px solid {Colors.ACCENT_PRIMARY};
-                border-radius: 4px;
-                padding: 12px 24px;
-                font-family: {Fonts.FAMILY_UI};
-                font-size: 12px;
-                font-weight: bold;
-                letter-spacing: 1px;
-            }}
-            QPushButton:hover {{
-                background-color: {Colors.ACCENT_PRIMARY};
-                color: {Colors.BG_DARKEST};
-            }}
-            QPushButton:pressed {{
-                background-color: #00acc1;
-                border-color: #00acc1;
-            }}
-        """)
+        self._continue_btn.setObjectName("CourseCompleteBtn")
         self._continue_btn.clicked.connect(self._on_continue)
         card_layout.addWidget(self._continue_btn, 0, Qt.AlignmentFlag.AlignCenter)
 

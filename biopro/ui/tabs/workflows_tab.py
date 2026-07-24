@@ -2,6 +2,7 @@
 from PyQt6.QtWidgets import QLineEdit, QScrollArea, QVBoxLayout, QWidget
 
 from biopro.ui.components.cards import DetailedWorkflowCard as WorkflowCard
+from biopro.ui.theme import theme_manager
 
 
 class WorkflowsTab(QWidget):
@@ -24,7 +25,9 @@ class WorkflowsTab(QWidget):
         # ── Scrollable Area ──────────────────────────────────────────
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        theme_manager.apply_style(
+            self.scroll, "QScrollArea { border: none; background: transparent; }"
+        )
 
         self.container = QWidget()
         # Use a standard QVBoxLayout instead of the missing QFlowLayout

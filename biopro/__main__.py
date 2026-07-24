@@ -8,6 +8,7 @@ from pathlib import Path
 # This MUST happen before any wasm/biopro imports
 def setup_logging():
     import logging.config
+    from pathlib import Path
 
     log_dir = Path.home() / ".biopro"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -86,6 +87,12 @@ class BioProApp:
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
         self.app = QApplication(sys.argv)
 
+        # CRITICAL: Theme is loaded from preferences BEFORE QApplication exists.
+        # Now that QApplication exists, we must compile and apply the global stylesheet.
+        from biopro.ui.theme import theme_manager
+
+        theme_manager._apply_global_stylesheet()
+
         # --- BRANDING: Set Global Application Icon ---
         from PyQt6.QtGui import QIcon
 
@@ -108,8 +115,10 @@ class BioProApp:
             from biopro_sdk.plugin.components import _apply_global_sdk_styles
 
             _apply_global_sdk_styles()
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning(f"Failed to apply SDK styles: {e}")
 
     def run(self):
         print("4. Showing Hub Window...")

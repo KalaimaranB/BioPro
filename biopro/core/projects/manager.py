@@ -1,14 +1,14 @@
-import json
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from biopro.core.event_bus import BioProEvent, event_bus
 from biopro.core.history_manager import HistoryManager
 from biopro.core.projects.assets import AssetManager
 from biopro.core.projects.locking import ProjectLock
 from biopro.core.projects.workflows import WorkflowManager
+from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -69,16 +69,13 @@ class ProjectManager:
             self.locker.acquire()
 
             try:
-                with open(self.project_file) as f:
-                    self.data = json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError) as e:
-                logger.warning(f"Project file corrupted or missing: {e}. Using default state.")
-                try:
-                    from biopro.core.diagnostics import diagnostics
-
-                    diagnostics.report_error(f"Project file corrupted or missing: {e}", exception=e)
-                except Exception:
-                    pass
+                self.data = AtomicJsonFile.load(self.project_file, default=None)
+                if self.data is None:
+                    raise FileNotFoundError
+            except Exception as e:
+                logger.error(
+                    f"Project file corrupted or missing: {e}. Using default state.", exc_info=True
+                )
                 if not self.data:
                     self.data = {
                         "project_name": self.project_dir.name,
@@ -88,27 +85,16 @@ class ProjectManager:
 
             if self.history_file.exists():
                 try:
-                    with open(self.history_file) as f:
-                        self.history_manager.load_all(json.load(f))
+                    history_data = AtomicJsonFile.load(self.history_file)
+                    if history_data:
+                        self.history_manager.load_all(history_data)
                 except Exception as e:
-                    logger.warning(f"Could not load history.json: {e}")
-                    try:
-                        from biopro.core.diagnostics import diagnostics
-
-                        diagnostics.report_error(f"Could not load history.json: {e}", exception=e)
-                    except Exception:
-                        pass
+                    logger.error(f"Could not load history.json: {e}", exc_info=True)
 
             self.validate_assets()
             logger.info(f"Opened project: {self.project_name}")
         except Exception as e:
-            logger.error(f"Failed to open project: {e}")
-            try:
-                from biopro.core.diagnostics import diagnostics
-
-                diagnostics.report_error(f"Failed to open project: {e}", exception=e, fatal=True)
-            except Exception:
-                pass
+            logger.error(f"Failed to open project: {e}", exc_info=True)
             raise e
 
     def save(self) -> None:
@@ -116,34 +102,21 @@ class ProjectManager:
             self.data["last_modified"] = datetime.now().isoformat()
 
             # Atomic Save for Project File
-            temp_project = self.project_file.with_suffix(".tmp")
-            with open(temp_project, "w") as f:
-                json.dump(self.data, f, indent=4)
-            os.replace(temp_project, self.project_file)
+            if not AtomicJsonFile.save(self.project_file, self.data):
+                raise OSError("Failed to atomically save project data.")
 
             # Atomic Save for History
             try:
                 history_data = self.history_manager.serialize_all()
-                temp_history = self.history_file.with_suffix(".tmp")
-                with open(temp_history, "w") as f:
-                    json.dump(history_data, f, indent=4)
-                os.replace(temp_history, self.history_file)
+                if not AtomicJsonFile.save(self.history_file, history_data):
+                    raise OSError("Failed to atomically save history.")
             except Exception as e:
-                logger.error(f"Failed to save history.json: {e}")
-                try:
-                    from biopro.core.diagnostics import diagnostics
-
-                    diagnostics.report_error(f"Failed to save history.json: {e}", exception=e)
-                except Exception:
-                    pass
+                logger.error(f"Failed to save history.json: {e}", exc_info=True)
         except Exception as e:
-            logger.error(f"Failed to save project: {e}")
-            try:
-                from biopro.core.diagnostics import diagnostics
+            logger.error(f"Failed to save project: {e}", exc_info=True)
+            from biopro.core.diagnostics import diagnostics
 
-                diagnostics.report_error(f"Failed to save project: {e}", exception=e)
-            except Exception:
-                pass
+            diagnostics.report_error(f"Failed to save project: {e}")
             raise e
 
     def close(self) -> None:
@@ -185,13 +158,7 @@ class ProjectManager:
         attachments: list[dict] | None = None,
     ) -> str:
         result = self.workflows.save(module_id, payload, metadata, filename, attachments)
-        # Notify the tutorial engine that a workflow was saved
-        try:
-            from biopro.core.event_bus import BioProEvent, event_bus
-
-            event_bus.emit(BioProEvent.WORKFLOW_SAVED, result)
-        except Exception:
-            pass
+        event_bus.emit(BioProEvent.WORKFLOW_SAVED, result)
         return result
 
     def attach_workflow_file(

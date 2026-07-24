@@ -1,5 +1,44 @@
 import json
 
+
+def _dict_to_toml(d):
+    # Convert flat dict to pyproject.toml format
+    lines = []
+
+    lines.append("[project]")
+    lines.append(f'name = "{d.get("name", "test")}"')
+    lines.append(f'version = "{d.get("version", "1.0.0")}"')
+    if "description" in d:
+        lines.append(f'description = "{d["description"]}"')
+
+    authors = d.get("authors", [])
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            lines.append(f'  {{ name = "{a.get("name", "Test")}" }},')
+        lines.append("]")
+
+    lines.append("")
+    lines.append("[tool.biopro.plugin]")
+    lines.append(f'id = "{d.get("id", "test_id")}"')
+
+    if authors:
+        lines.append("authors = [")
+        for a in authors:
+            role = a.get("role", "Developer")
+            perms = a.get("permissions", [])
+            perms_str = '", "'.join(perms)
+            if perms_str:
+                lines.append(
+                    f'  {{ name = "{a.get("name", "Test")}", role = "{role}", permissions = ["{perms_str}"] }},'
+                )
+            else:
+                lines.append(f'  {{ name = "{a.get("name", "Test")}", role = "{role}" }},')
+        lines.append("]")
+
+    return "\n".join(lines)
+
+
 import pytest
 from biopro_sdk.host.trust_manager import TrustManager
 from biopro_sdk.host.trust_path import TrustChain, TrustLink
@@ -52,10 +91,8 @@ def mock_plugin_dir(tmp_path):
 
 def sign_mock_plugin(plugin_dir, manifest_data, dev_certs, mock_auth):
     """Signs mock plugin generating split-manifest formats for tests."""
-    manifest_file = plugin_dir / "manifest.json"
-    manifest_file.write_text(
-        json.dumps(manifest_data, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-    )
+    manifest_file = plugin_dir / "pyproject.toml"
+    manifest_file.write_text(_dict_to_toml(manifest_data), encoding="utf-8")
 
     # Calculate manifest hash binding
     import hashlib
@@ -66,7 +103,7 @@ def sign_mock_plugin(plugin_dir, manifest_data, dev_certs, mock_auth):
     hashes = {}
     for file in sorted(plugin_dir.glob("*.py")):
         if file.name in [
-            "manifest.json",
+            "pyproject.toml",
             "security.json",
             "signature.bin",
             "project_signature.bin",

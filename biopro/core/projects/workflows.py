@@ -1,8 +1,9 @@
-import json
 import logging
 import os
 import shutil
 from pathlib import Path
+
+from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +48,8 @@ class WorkflowManager:
         if attachments is not None:
             workflow_data["attachments"] = attachments
 
-        temp_filepath = filepath.with_suffix(".tmp")
-        with open(temp_filepath, "w") as f:
-            json.dump(workflow_data, f, indent=4)
-
-        temp_filepath.replace(filepath)
+        if not AtomicJsonFile.save(filepath, workflow_data):
+            raise OSError(f"Failed to atomically save workflow: {filepath.name}")
 
         return str(filepath.name)
 
@@ -110,8 +108,8 @@ class WorkflowManager:
         workflows = []
         for file in self.wf_dir.glob("*.json"):
             try:
-                with open(file) as f:
-                    data = json.load(f)
+                data = AtomicJsonFile.load(file, default=None)
+                if data:
                     meta = data.get("metadata", {})
                     meta["filename"] = file.name
                     workflows.append(meta)
@@ -124,22 +122,18 @@ class WorkflowManager:
     def load_payload(self, filename: str) -> dict:
         """Extracts the exact scientific payload."""
         filepath = self.wf_dir / filename
-        if not filepath.exists():
+        data = AtomicJsonFile.load(filepath, default=None)
+        if not data:
             return {}
-
-        with open(filepath) as f:
-            data = json.load(f)
-            return data.get("payload", {})
+        return data.get("payload", {})
 
     def load_attachments(self, filename: str) -> list[dict]:
         """Extracts the attachments manifest."""
         filepath = self.wf_dir / filename
-        if not filepath.exists():
+        data = AtomicJsonFile.load(filepath, default=None)
+        if not data:
             return []
-
-        with open(filepath) as f:
-            data = json.load(f)
-            return data.get("attachments", [])
+        return data.get("attachments", [])
 
     def get_hash(self, filename: str) -> str | None:
         """Returns the SHA-256 hash of a workflow file."""
@@ -175,13 +169,11 @@ class WorkflowManager:
     def delete_attachment(self, filename: str, key: str) -> bool:
         """Deletes a specific attachment from a workflow and updates its manifest."""
         filepath = self.wf_dir / os.path.basename(filename)
-        if not filepath.exists():
+        data = AtomicJsonFile.load(filepath, default=None)
+        if not data:
             return False
 
         try:
-            with open(filepath) as f:
-                data = json.load(f)
-
             attachments = data.get("attachments", [])
             target_att = None
 
@@ -200,8 +192,8 @@ class WorkflowManager:
             else:
                 data["attachments"] = attachments
 
-            with open(filepath, "w") as f:
-                json.dump(data, f, indent=4)
+            if not AtomicJsonFile.save(filepath, data):
+                raise OSError("Failed to save updated workflow attachments.")
 
             # Delete physical file
             rel_path = target_att.get("relative_path")

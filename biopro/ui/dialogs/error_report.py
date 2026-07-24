@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from biopro.ui.theme import Colors, Fonts
+from biopro.ui.theme import Colors, Fonts, theme_manager
 
 
 class ErrorReportDialog(QDialog):
@@ -104,11 +104,15 @@ class ErrorReportDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _apply_styles(self):
-        self.title_label.setStyleSheet(f"color: {Colors.ACCENT_DANGER};")
-        self.subtitle_label.setStyleSheet(f"color: {Colors.FG_SECONDARY};")
-        self.contact_label.setStyleSheet(f"color: {Colors.FG_SECONDARY}; margin-right: 10px;")
+        theme_manager.apply_style(self.title_label, f"color: {Colors.ACCENT_DANGER};")
+        theme_manager.apply_style(self.subtitle_label, f"color: {Colors.FG_SECONDARY};")
+        theme_manager.apply_style(
+            self.contact_label, f"color: {Colors.FG_SECONDARY}; margin-right: 10px;"
+        )
 
-        self.setStyleSheet(f"""
+        theme_manager.apply_style(
+            self,
+            f"""
             QDialog {{
                 background-color: {Colors.BG_DARKEST};
                 border: 1px solid {Colors.BORDER};
@@ -134,7 +138,8 @@ class ErrorReportDialog(QDialog):
                 background-color: {Colors.BG_MEDIUM};
                 border: 1px solid {Colors.ACCENT_PRIMARY};
             }}
-        """)
+        """,
+        )
 
     def _copy_details(self):
         from PyQt6.QtWidgets import QApplication
@@ -165,6 +170,7 @@ class ErrorReportDialog(QDialog):
         from PyQt6.QtWidgets import QFileDialog
 
         from biopro.core.sbom import SBOMGenerator
+        from biopro.core.utils import AtomicJsonFile
 
         file_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -189,8 +195,12 @@ class ErrorReportDialog(QDialog):
         }
 
         try:
-            with open(file_path, "w") as f:
-                json.dump(pack, f, indent=4)
+            AtomicJsonFile.save(file_path, pack)
             self.export_btn.setText("Pack Exported!")
-        except Exception:
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).error(
+                f"Failed to export diagnostic pack: {e}", exc_info=True
+            )
             self.export_btn.setText("Export Failed")

@@ -5,7 +5,9 @@ between core components and UI. Built on PyQt6 signals.
 """
 
 import logging
+from collections.abc import Callable
 from enum import Enum, auto
+from typing import Any
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -55,12 +57,12 @@ class EventManager(QObject):
     # Internal signal used to route all events through the Qt event loop
     _internal_bus = pyqtSignal(BioProEvent, tuple, dict)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self._listeners = {}
+        self._listeners: dict[BioProEvent, list[Callable[..., Any]]] = {}
         self._internal_bus.connect(self._dispatch)
 
-    def subscribe(self, event_type: BioProEvent, callback):
+    def subscribe(self, event_type: BioProEvent, callback: Callable[..., Any]) -> None:
         """Register a callback for a specific event.
 
         Args:
@@ -75,7 +77,7 @@ class EventManager(QObject):
             self._listeners[event_type].append(callback)
             logger.debug(f"Subscribed to {event_type.name}: {callback}")
 
-    def unsubscribe(self, event_type: BioProEvent, callback):
+    def unsubscribe(self, event_type: BioProEvent, callback: Callable[..., Any]) -> None:
         """Unregister a callback.
 
         Args:
@@ -86,7 +88,7 @@ class EventManager(QObject):
             self._listeners[event_type].remove(callback)
             logger.debug(f"Unsubscribed from {event_type.name}: {callback}")
 
-    def emit(self, event_type: BioProEvent, *args, **kwargs):
+    def emit(self, event_type: BioProEvent, *args: Any, **kwargs: Any) -> None:
         """Broadcast an event to all subscribers.
 
         Safe to call from any thread. Payloads are automatically routed
@@ -102,22 +104,16 @@ class EventManager(QObject):
         # where the EventManager lives (typically the Main UI Thread).
         self._internal_bus.emit(event_type, args, kwargs)
 
-    def _dispatch(self, event_type: BioProEvent, args: tuple, kwargs: dict):
+    def _dispatch(
+        self, event_type: BioProEvent, args: tuple[Any, ...], kwargs: dict[str, Any]
+    ) -> None:
         """Invoke all listeners for the given event."""
         if event_type in self._listeners:
             for callback in self._listeners[event_type]:
                 try:
                     callback(*args, **kwargs)
                 except Exception as e:
-                    logger.error(f"Error in listener for {event_type.name}: {e}")
-                    try:
-                        from biopro.core.diagnostics import diagnostics
-
-                        diagnostics.report_error(
-                            f"Error in listener for {event_type.name}", exception=e
-                        )
-                    except Exception as diag_err:
-                        logger.error(f"Failed to report error to diagnostics: {diag_err}")
+                    logger.error(f"Error in listener for {event_type.name}: {e}", exc_info=True)
 
 
 # Internal singleton instance

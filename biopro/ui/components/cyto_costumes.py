@@ -11,12 +11,13 @@ from PyQt6.QtGui import (
     QRadialGradient,
 )
 from PyQt6.QtWidgets import (
-    QGraphicsDropShadowEffect,
     QGraphicsEllipseItem,
     QGraphicsItemGroup,
     QGraphicsPathItem,
     QGraphicsRectItem,
 )
+
+from biopro.shared.ui.effects import apply_glow_effect
 
 
 def _tapered_ribbon(points, widths):
@@ -89,23 +90,7 @@ class GalacticCostume(CytoCostume):
         self.blade.setParentItem(cyto_widget.right_arm)
         self.items.append(self.blade)
 
-        self.glow_effect = QGraphicsDropShadowEffect()
-        self.glow_effect.setOffset(0, 0)
-        theme_name = (
-            cyto_widget.theme_manager.current_theme_name.lower()
-            if hasattr(cyto_widget, "theme_manager")
-            else ""
-        )
-        if "dark" in theme_name or "imperial" in theme_name:
-            glow_color = QColor(255, 0, 0)
-        elif "light" in theme_name:
-            glow_color = QColor(0, 150, 255)
-        else:
-            glow_color = QColor(57, 255, 20)
-
-        self.glow_effect.setColor(glow_color)
-        self.glow_effect.setBlurRadius(20)
-        self.blade.setGraphicsEffect(self.glow_effect)
+        self.glow_effect = apply_glow_effect(self.blade, QColor("#ffffff"), blur_radius=20)
 
     def detach(self, cyto_widget):
         for item in self.items:
@@ -148,11 +133,7 @@ class MandalorianCostume(CytoCostume):
         self.helmet.setBrush(QBrush(grad))
         self.helmet.setPen(QPen(QColor("#111111"), 2))
 
-        helmet_glow = QGraphicsDropShadowEffect()
-        helmet_glow.setBlurRadius(15)
-        helmet_glow.setColor(QColor(0, 0, 0, 150))
-        helmet_glow.setOffset(0, 3)
-        self.helmet.setGraphicsEffect(helmet_glow)
+        self.helmet_glow = apply_glow_effect(self.helmet, QColor("#111111"), blur_radius=10)
 
         self.helmet.setParentItem(cyto_widget.cyto_group)
         self.helmet.setZValue(5)
@@ -226,11 +207,7 @@ class MandalorianCostume(CytoCostume):
         self.electric_arc = QGraphicsPathItem()
         self.electric_arc.setPen(QPen(QColor(57, 255, 20), 1.5))
         self.electric_arc.setParentItem(cyto_widget.right_arm)
-        arc_glow = QGraphicsDropShadowEffect()
-        arc_glow.setBlurRadius(10)
-        arc_glow.setColor(QColor(57, 255, 20))
-        arc_glow.setOffset(0, 0)
-        self.electric_arc.setGraphicsEffect(arc_glow)
+        apply_glow_effect(self.electric_arc, QColor("#00aaff"), blur_radius=15)
         self.items.append(self.electric_arc)
 
     def detach(self, cyto_widget):
@@ -316,9 +293,7 @@ class TriStateCostume(CytoCostume):
         self.buckle.setPen(QPen(QColor("#ffcc00"), 2))
         self.buckle.setParentItem(self.hat_group)
 
-        hat_glow = QGraphicsDropShadowEffect()
-        hat_glow.setBlurRadius(15)
-        hat_glow.setColor(QColor("#00a896"))
+        hat_glow = apply_glow_effect(self.hat_group, QColor("#111111"), blur_radius=15)
         hat_glow.setOffset(0, 0)
         self.crown.setGraphicsEffect(hat_glow)
 
@@ -358,11 +333,7 @@ class TriStateCostume(CytoCostume):
         self.rim_screw.setParentItem(cyto_widget.right_arm)
         self.items.append(self.rim_screw)
 
-        self.lens_glow = QGraphicsDropShadowEffect()
-        self.lens_glow.setBlurRadius(12)
-        self.lens_glow.setColor(QColor("#00a896"))
-        self.lens_glow.setOffset(0, 0)
-        self.lens.setGraphicsEffect(self.lens_glow)
+        self.lens_glow = apply_glow_effect(self.lens, QColor("#ff0000"), blur_radius=15)
 
     def detach(self, cyto_widget):
         for item in self.items:
@@ -434,11 +405,7 @@ class SubcavernCostume(CytoCostume):
         self.slug.setZValue(1)
         self.items.append(self.slug)
 
-        self.glow_effect = QGraphicsDropShadowEffect()
-        self.glow_effect.setColor(QColor(0, 255, 255))
-        self.glow_effect.setBlurRadius(15)
-        self.glow_effect.setOffset(0, 0)
-        self.chamber.setGraphicsEffect(self.glow_effect)
+        self.glow_effect = apply_glow_effect(self.chamber, QColor(0, 255, 255), blur_radius=15)
 
     def detach(self, cyto_widget):
         for item in self.items:
@@ -509,25 +476,22 @@ class NinjagoCostume(CytoCostume):
             layer.setParentItem(cyto_widget.cyto_group)
             layer.setZValue(-1 + i * 0.1)
 
-            glow = QGraphicsDropShadowEffect()
-            glow.setOffset(0, 0)
-            glow.setBlurRadius(14)
+            apply_glow_effect(
+                layer, QColor(255, 100, 0) if i % 2 == 0 else QColor(255, 200, 0), blur_radius=14
+            )
             if i % 2 == 0:
                 layer.setPen(
                     QPen(
                         QColor(255, 120, 0, 210), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
                     )
                 )
-                glow.setColor(QColor(255, 100, 0))
             else:
                 layer.setPen(
                     QPen(
                         QColor(255, 205, 60, 210), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap
                     )
                 )
-                glow.setColor(QColor(255, 200, 0))
 
-            layer.setGraphicsEffect(glow)
             self.tornado_layers.append(layer)
             self.items.append(layer)
 
@@ -585,11 +549,7 @@ class AvatarAangCostume(CytoCostume):
         self.arrow.setParentItem(cyto_widget.cyto_group)
         self.arrow.setZValue(6)
 
-        glow = QGraphicsDropShadowEffect()
-        glow.setBlurRadius(15)
-        glow.setColor(QColor(135, 206, 235))
-        glow.setOffset(0, 0)
-        self.arrow.setGraphicsEffect(glow)
+        apply_glow_effect(self.arrow, QColor(135, 206, 235), blur_radius=15)
         self.items.append(self.arrow)
 
         self.staff = QGraphicsRectItem(45, -60, 4, 90)
@@ -663,11 +623,7 @@ class AvatarAangCostume(CytoCostume):
             blade.setPen(swirl_pen)
             blade.setParentItem(self.swirl_group)
 
-        swirl_glow = QGraphicsDropShadowEffect()
-        swirl_glow.setBlurRadius(12)
-        swirl_glow.setColor(QColor(135, 206, 235))
-        swirl_glow.setOffset(0, 0)
-        self.swirl_group.setGraphicsEffect(swirl_glow)
+        apply_glow_effect(self.swirl_group, QColor(135, 206, 235), blur_radius=12)
 
     def detach(self, cyto_widget):
         for item in self.items:
@@ -700,11 +656,7 @@ class AvatarKorraCostume(CytoCostume):
             stream.setBrush(QBrush(grad))
             stream.setPen(QPen(QColor(160, 235, 255, 150), 1))
 
-            glow = QGraphicsDropShadowEffect()
-            glow.setBlurRadius(14)
-            glow.setColor(QColor(0, 160, 255))
-            glow.setOffset(0, 0)
-            stream.setGraphicsEffect(glow)
+            apply_glow_effect(stream, QColor(0, 160, 255), blur_radius=14)
 
             stream.setParentItem(cyto_widget.right_arm)
             self.items.append(stream)

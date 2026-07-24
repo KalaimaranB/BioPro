@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 
 from biopro.ui.components.cards import DashboardWorkflowCard as WorkflowCard
 from biopro.ui.components.cards import ModuleCard
-from biopro.ui.theme import Colors, Fonts
+from biopro.ui.theme import Colors, Fonts, theme_manager
 from biopro.ui.widgets.dna_loader import ProgrammaticLoader
 
 
@@ -46,8 +46,9 @@ class WorkspaceDashboard(QWidget):
         # ── Hero banner ───────────────────────────────────────────────
         hero = QWidget()
         hero.setObjectName("heroWidget")
-        hero.setStyleSheet(
-            f"QWidget#heroWidget {{ background: {Colors.BG_DARK}; border-bottom: 1px solid {Colors.BORDER}; }}"
+        theme_manager.apply_style(
+            hero,
+            f"QWidget#heroWidget {{ background: {Colors.BG_DARK}; border-bottom: 1px solid {Colors.BORDER}; }}",
         )
 
         # FIX: Changed from Fixed to Minimum to allow the container to grow with the new text elements
@@ -68,8 +69,9 @@ class WorkspaceDashboard(QWidget):
         title_row.addWidget(self.logo_animation)
 
         name = QLabel("BioPro")
-        name.setStyleSheet(
-            f"font-size: 34px; font-weight: 800; color: {Colors.FG_PRIMARY}; background: transparent; letter-spacing: -1px;"
+        theme_manager.apply_style(
+            name,
+            f"font-size: 34px; font-weight: 800; color: {Colors.FG_PRIMARY}; background: transparent; letter-spacing: -1px;",
         )
         title_row.addWidget(name)
         title_row.addStretch()
@@ -77,9 +79,10 @@ class WorkspaceDashboard(QWidget):
         title_row.addSpacing(20)
         self.btn_store = QPushButton("☁️ Store")
         self.btn_store.setObjectName("btn_store")
-        self.btn_store.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_store,
             f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
-            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
+            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}",
         )
         self.btn_store.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_store.clicked.connect(self.open_store_requested.emit)
@@ -88,9 +91,10 @@ class WorkspaceDashboard(QWidget):
         title_row.addSpacing(10)
         self.btn_ai = QPushButton("🧠 AI Chat")
         self.btn_ai.setObjectName("btn_ai")
-        self.btn_ai.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_ai,
             f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
-            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}"
+            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: {Colors.ACCENT_PRIMARY}; }}",
         )
         self.btn_ai.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_ai.clicked.connect(self.open_ai_requested.emit)
@@ -99,16 +103,18 @@ class WorkspaceDashboard(QWidget):
         title_row.addSpacing(10)
         self.btn_academy = QPushButton("🎓 Academy")
         self.btn_academy.setObjectName("btn_academy")
-        self.btn_academy.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_academy,
             f"QPushButton {{ background: transparent; border: 1px solid {Colors.BORDER}; border-radius: 5px; padding: 6px 14px; color: {Colors.FG_PRIMARY}; font-size: {Fonts.SIZE_SMALL}px; }}"
-            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: #58a6ff; }}"
+            f"QPushButton:hover {{ background: {Colors.BG_MEDIUM}; border-color: #58a6ff; }}",
         )
         self.btn_academy.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_academy.clicked.connect(self.open_academy_requested.emit)
         title_row.addWidget(self.btn_academy)
 
         self.btn_return_hub = QPushButton("🏠 Return to Project Hub")
-        self.btn_return_hub.setStyleSheet(
+        theme_manager.apply_style(
+            self.btn_return_hub,
             f"QPushButton {{"
             f"  background: {Colors.BG_MEDIUM}; border: 1px solid {Colors.BORDER};"
             f"  border-radius: 5px; padding: 6px 14px; margin-left: 20px;"
@@ -116,7 +122,7 @@ class WorkspaceDashboard(QWidget):
             f"}}"
             f"QPushButton:hover {{"
             f"  background: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};"
-            f"}}"
+            f"}}",
         )
         self.btn_return_hub.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_return_hub.clicked.connect(self.return_to_hub_requested.emit)
@@ -129,24 +135,27 @@ class WorkspaceDashboard(QWidget):
         hero_layout.addSpacing(4)
 
         self.lbl_greeting = QLabel("Good morning.")
-        self.lbl_greeting.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            self.lbl_greeting,
+            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};",
         )
         hero_layout.addWidget(self.lbl_greeting)
 
         # 3. Tagline Row
         self.lbl_tagline = QLabel("Bio Analysis Made Simple — designed for modern lab workflows")
-        self.lbl_tagline.setStyleSheet(
-            f"font-size: {Fonts.SIZE_NORMAL}px; color: {Colors.FG_SECONDARY}; background: transparent;"
+        theme_manager.apply_style(
+            self.lbl_tagline,
+            f"font-size: {Fonts.SIZE_NORMAL}px; color: {Colors.FG_SECONDARY}; background: transparent;",
         )
         hero_layout.addWidget(self.lbl_tagline)
 
         # 4. Stats Pill Row
         stats_layout = QHBoxLayout()
         self.stat_modules = QLabel("0 Modules Active")
-        self.stat_modules.setStyleSheet(
+        theme_manager.apply_style(
+            self.stat_modules,
             f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; border: 1px solid {Colors.BORDER}; "
-            f"padding: 4px 10px; border-radius: 12px; background: {Colors.BG_DARKEST}; font-size: 11px;"
+            f"padding: 4px 10px; border-radius: 12px; background: {Colors.BG_DARKEST}; font-size: 11px;",
         )
         stats_layout.addWidget(self.stat_modules)
         stats_layout.addStretch()
@@ -159,7 +168,7 @@ class WorkspaceDashboard(QWidget):
 
         # ── Dashboard Content (Scrollable Area) ───────────────────────────────
         content = QWidget()
-        content.setStyleSheet(f"background: {Colors.BG_DARKEST};")
+        theme_manager.apply_style(content, f"background: {Colors.BG_DARKEST};")
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(56, 36, 56, 36)
         content_layout.setSpacing(30)
@@ -178,8 +187,9 @@ class WorkspaceDashboard(QWidget):
 
         # New Analysis Section
         new_lbl = QLabel("Start New Analysis")
-        new_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            new_lbl,
+            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};",
         )
         content_layout.addWidget(new_lbl)
 
@@ -195,8 +205,9 @@ class WorkspaceDashboard(QWidget):
         wf_layout.setSpacing(14)
 
         wf_lbl = QLabel("Recent Sessions")
-        wf_lbl.setStyleSheet(
-            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};"
+        theme_manager.apply_style(
+            wf_lbl,
+            f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};",
         )
         wf_layout.addWidget(wf_lbl)
 
@@ -212,7 +223,7 @@ class WorkspaceDashboard(QWidget):
         self.main_scroll.setWidgetResizable(True)
         self.main_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.main_scroll.setWidget(content)
-        self.main_scroll.setStyleSheet(scroll_style)
+        theme_manager.apply_style(self.main_scroll, scroll_style)
 
         root.addWidget(self.main_scroll, stretch=1)
 
@@ -227,7 +238,7 @@ class WorkspaceDashboard(QWidget):
 
         if not manifests:
             lbl = QLabel("No analysis modules installed. Use the Store to download plugins.")
-            lbl.setStyleSheet(f"color: {Colors.FG_DISABLED}; font-style: italic;")
+            theme_manager.apply_style(lbl, f"color: {Colors.FG_DISABLED}; font-style: italic;")
             self.modules_layout.addWidget(lbl)
             return
 
@@ -321,15 +332,17 @@ class WorkspaceDashboard(QWidget):
 
         if is_sw:
             greeting = Strings.GREETING
-            self.lbl_greeting.setStyleSheet(
-                f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 900; color: {Colors.ACCENT_PRIMARY}; text-transform: uppercase;"
+            theme_manager.apply_style(
+                self.lbl_greeting,
+                f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 900; color: {Colors.ACCENT_PRIMARY}; text-transform: uppercase;",
             )
         else:
             greeting = (
                 "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
             )
-            self.lbl_greeting.setStyleSheet(
-                f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};"
+            theme_manager.apply_style(
+                self.lbl_greeting,
+                f"font-size: {Fonts.SIZE_LARGE}px; font-weight: 600; color: {Colors.FG_PRIMARY};",
             )
 
         self.lbl_greeting.setText(f"{greeting}.")

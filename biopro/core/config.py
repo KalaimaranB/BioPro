@@ -1,6 +1,7 @@
-import json
 import logging
 from pathlib import Path
+
+from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,10 @@ class AppConfig:
         "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/authorities.json"
     )
 
+    APP_DATA_DIR = Path.home() / ".biopro"
+
     def __init__(self):
+        # We re-evaluate Path.home() here so that pytest monkeypatching works correctly.
         self.config_dir = Path.home() / ".biopro"
         self.config_file = self.config_dir / "config.json"
         self.data = {"recent_projects": [], "ai_enabled": True}
@@ -30,31 +34,20 @@ class AppConfig:
 
     def _load(self) -> None:
         if self.config_file.exists():
-            try:
-                with open(self.config_file) as f:
-                    self.data = json.load(f)
-            except Exception as e:
-                logger.warning(f"Failed to load config file: {e}")
-                try:
-                    from biopro.core.diagnostics import diagnostics
-
-                    diagnostics.report_error(f"Failed to load app config: {e}", exception=e)
-                except Exception:
-                    pass
-
-    def save(self) -> None:
-        try:
-            self.config_dir.mkdir(parents=True, exist_ok=True)
-            with open(self.config_file, "w") as f:
-                json.dump(self.data, f, indent=4)
-        except Exception as e:
-            logger.error(f"Failed to save config file: {e}")
-            try:
+            data = AtomicJsonFile.load(self.config_file, default=None)
+            if data is None:
                 from biopro.core.diagnostics import diagnostics
 
-                diagnostics.report_error(f"Failed to save app config: {e}", exception=e)
-            except Exception:
-                pass
+                diagnostics.report_error(f"Failed to load config from {self.config_file}")
+            else:
+                # Merge the loaded data with defaults instead of overwriting completely
+                self.data.update(data)
+
+    def save(self) -> None:
+        if not AtomicJsonFile.save(self.config_file, self.data):
+            from biopro.core.diagnostics import diagnostics
+
+            diagnostics.report_error(f"Failed to save config to {self.config_file}")
 
     def add_recent_project(self, project_path: Path | str) -> None:
         """Push a project to the top of the recents list."""
