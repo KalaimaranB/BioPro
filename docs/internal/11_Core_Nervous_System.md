@@ -38,6 +38,7 @@ UI components typically register their callbacks during initialization.
 ```python
 from biopro.core.event_bus import event_bus, BioProEvent
 
+
 class MyDashboard(QWidget):
     def __init__(self):
         super().__init__()

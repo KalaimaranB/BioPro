@@ -5,7 +5,7 @@ repos:
         name: Ruff Linter
         entry: uv run ruff check . --fix
         language: system
-        types: [python]
+        types_or: [python, markdown, jupyter]
         pass_filenames: false
         always_run: true
 
@@ -13,7 +13,7 @@ repos:
         name: Ruff Formatter
         entry: uv run ruff format .
         language: system
-        types: [python]
+        types_or: [python, markdown, jupyter]
         pass_filenames: false
         always_run: true
 

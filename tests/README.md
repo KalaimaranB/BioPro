@@ -159,6 +159,7 @@ Example:
 import pytest
 from biopro.core import PluginBase
 
+
 class TestNewFeature:
     """Test the new feature."""
 

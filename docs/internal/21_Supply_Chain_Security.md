@@ -31,8 +31,9 @@ To ensure consistent verification across different environments, BioPro mandates
 ```python
 import json
 
+
 def get_canonical_bytes(data: dict) -> bytes:
-    return json.dumps(data, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    return json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
 ```
 Failure to adhere to these exact serialization rules will alter the byte payload and cause signature verification to fail.
 

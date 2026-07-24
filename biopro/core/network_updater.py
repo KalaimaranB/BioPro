@@ -210,7 +210,13 @@ class NetworkUpdater:
                 return (0, 0, 0)
             # Remove any non-numeric suffixes (like -alpha, -beta) for comparison
             clean_v = v_str.split("-")[0]
-            return tuple(map(int, clean_v.split(".")))
+            parts = []
+            for p in clean_v.split("."):
+                if p.isdigit():
+                    parts.append(int(p))
+                else:
+                    break
+            return tuple(parts) if parts else (0, 0, 0)
         except (ValueError, AttributeError):
             return (0, 0, 0)
 
