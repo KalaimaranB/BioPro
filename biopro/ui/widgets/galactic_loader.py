@@ -27,7 +27,18 @@ class GalacticLoader(QQuickWidget):
 
         # Load the QML file
         qml_path = Path(__file__).parent / "galactic_loader.qml"
+        import logging
+
+        if not qml_path.exists():
+            logging.getLogger(__name__).error(
+                f"CRITICAL: QML file not found at {qml_path}! The loader will fail and transition will freeze."
+            )
+
         self.setSource(QUrl.fromLocalFile(str(qml_path)))
+
+        if self.status() == QQuickWidget.Status.Error:
+            errors = "\n".join([e.toString() for e in self.errors()])
+            logging.getLogger(__name__).error(f"Failed to load QML source: {errors}")
 
         # Connect to theme changes
         theme_manager.theme_changed.connect(self.update_colors)

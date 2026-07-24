@@ -87,6 +87,8 @@ a = Analysis(
     binaries=all_bins,
     datas=[
         ('biopro/themes', 'themes'),
+        ('biopro/ui/styles', 'biopro/ui/styles'),
+        ('biopro/ui/widgets/galactic_loader.qml', 'biopro/ui/widgets'),
         ('biopro/shared', 'biopro/shared'),
         ('biopro/plugins', 'biopro/plugins'),
         ('biopro/tutorials/assets', 'biopro/tutorials/assets'),

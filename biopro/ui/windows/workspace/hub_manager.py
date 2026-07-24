@@ -13,6 +13,7 @@ class HubManager:
 
     def show_home(self) -> None:
         mw = self.main_window
+        logger.info("HubManager: Returning to home screen. Closing any active modules.")
         if mw.wizard_panel and hasattr(mw.wizard_panel, "reset_to_setup"):
             mw.wizard_panel.reset_to_setup()
 

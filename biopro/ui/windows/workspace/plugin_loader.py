@@ -43,6 +43,7 @@ class PluginLoaderManager:
         mw = self.main_window
         module_id = manifest["id"]
         module_name = manifest.get("name", "Analysis Module")
+        logger.info(f"PluginLoader: Starting async load sequence for module '{module_id}'")
 
         from biopro.ui.widgets.galactic_loader import GalacticLoader
 
@@ -85,6 +86,9 @@ class PluginLoaderManager:
     def on_module_loaded(self, manifest: dict, PanelClass: type) -> None:
         mw = self.main_window
         module_id = manifest["id"]
+        logger.info(
+            f"PluginLoader: Successfully loaded UI class for module '{module_id}'. Waiting for GalacticLoader warp out..."
+        )
         mw.current_module_id = module_id
         mw._pending_manifest = manifest
         mw._pending_panel_class = PanelClass
@@ -106,6 +110,7 @@ class PluginLoaderManager:
     def instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:
         mw = self.main_window
         module_id = manifest["id"]
+        logger.info(f"PluginLoader: Instantiating UI panel for '{module_id}' and wiring events.")
         try:
             if mw.wizard_panel is not None:
                 if hasattr(mw.wizard_panel, "cleanup"):
@@ -175,6 +180,7 @@ class PluginLoaderManager:
                 mw._pending_workflow_metadata = None
 
             mw.status_bar.showMessage(f"{manifest.get('name')} — open a file to begin (Ctrl+O)")
+            logger.info(f"PluginLoader: Module '{module_id}' is now fully initialized and active.")
 
         except Exception as e:
             import logging
