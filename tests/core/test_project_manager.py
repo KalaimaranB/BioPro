@@ -211,7 +211,7 @@ class TestProjectManager:
         # Setup with a fixed name for predictable assertion
         proj_dir = empty_project_dir
         proj_dir.mkdir()
-        with open(proj_dir / "project.biopro", "w") as f:
+        with open(proj_dir / "project.biopro", "w", encoding="utf-8") as f:
             f.write('{ "project_name": "Broken", corrupted... }')
 
         pm = ProjectManager(proj_dir)

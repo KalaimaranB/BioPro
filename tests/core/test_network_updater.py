@@ -281,7 +281,7 @@ class TestNetworkUpdaterExpanded:
         (plugin_dir / "some_file.py").write_text("print('hi')")
 
         local_data = {"to_delete": {"version": "1.0.0", "name": "Delete Me"}}
-        with open(updater.local_registry_path, "w") as f:
+        with open(updater.local_registry_path, "w", encoding="utf-8") as f:
             json.dump(local_data, f)
 
         # Execution

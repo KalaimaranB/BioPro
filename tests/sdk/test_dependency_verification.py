@@ -66,11 +66,11 @@ def test_evaluate_plugin_no_dependencies(tmp_path: Path):
         "description": "Just a test",
         "authors": [{"name": "BioPro Developer", "role": "Developer"}],
     }
-    with open(tmp_path / "pyproject.toml", "w") as f:
+    with open(tmp_path / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(_dict_to_toml(manifest))
 
     # Create a dummy python file to pass structure check
-    with open(tmp_path / "main.py", "w") as f:
+    with open(tmp_path / "main.py", "w", encoding="utf-8") as f:
         f.write("# dummy file with AnalysisBase reference")
 
     cli = SDKCLI()
@@ -99,10 +99,10 @@ def test_evaluate_plugin_pinned_dependencies(tmp_path: Path):
             "opencv-python-headless": "4.8.0.76",
         },
     }
-    with open(tmp_path / "pyproject.toml", "w") as f:
+    with open(tmp_path / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(_dict_to_toml(manifest))
 
-    with open(tmp_path / "main.py", "w") as f:
+    with open(tmp_path / "main.py", "w", encoding="utf-8") as f:
         f.write("# AnalysisBase reference")
 
     cli = SDKCLI()
@@ -132,10 +132,10 @@ def test_evaluate_plugin_unpinned_dependencies(tmp_path: Path):
             "scipy": ">=1.11.3",
         },
     }
-    with open(tmp_path / "pyproject.toml", "w") as f:
+    with open(tmp_path / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(_dict_to_toml(manifest))
 
-    with open(tmp_path / "main.py", "w") as f:
+    with open(tmp_path / "main.py", "w", encoding="utf-8") as f:
         f.write("# AnalysisBase reference")
 
     cli = SDKCLI()

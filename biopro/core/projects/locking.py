@@ -22,7 +22,7 @@ class ProjectLock:
         """Create a lock file containing the current Process ID (PID)."""
         if self.lock_file.exists():
             try:
-                with open(self.lock_file) as f:
+                with open(self.lock_file, encoding="utf-8") as f:
                     pid = int(f.read().strip())
                 # Check if process is alive
                 os.kill(pid, 0)
@@ -33,7 +33,7 @@ class ProjectLock:
                 logger.warning("Found stale lock file. Overriding.")
                 self.lock_file.unlink()
 
-        with open(self.lock_file, "w") as f:
+        with open(self.lock_file, "w", encoding="utf-8") as f:
             f.write(str(os.getpid()))
 
     def release(self) -> None:

@@ -26,7 +26,7 @@ def build_mock(name, epoch):
 
     # Create a tiny mock script
     script_path = Path("mock_app.py")  # Use same name for both
-    with open(script_path, "w") as f:
+    with open(script_path, "w", encoding="utf-8") as f:
         f.write("import sys\nprint('Hello Deterministic World')")
 
     cmd = [

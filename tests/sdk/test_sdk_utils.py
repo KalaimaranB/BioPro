@@ -28,7 +28,7 @@ class TestJsonUtilities:
             data = {"key": "value", "nested": {"number": 42}}
             save_json(temp_path, data)
 
-            with open(temp_path) as f:
+            with open(temp_path, encoding="utf-8") as f:
                 loaded = json.load(f)
 
             assert loaded["key"] == "value"
@@ -44,7 +44,7 @@ class TestJsonUtilities:
             save_json(str(nested_path), data)
 
             assert nested_path.exists()
-            with open(nested_path) as f:
+            with open(nested_path, encoding="utf-8") as f:
                 loaded = json.load(f)
             assert loaded["test"] == 123
 

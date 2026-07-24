@@ -84,7 +84,7 @@ def mock_plugin_environment(tmp_path, monkeypatch):
 
     plugin_dir = user_plugins / "test_module_a"
     plugin_dir.mkdir()
-    with open(plugin_dir / "pyproject.toml", "w") as f:
+    with open(plugin_dir / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(_dict_to_toml(make_v2_manifest("test_module_a", "Test Module A")))
 
     monkeypatch.setattr(Path, "home", lambda: fake_home)
@@ -133,7 +133,7 @@ class TestModuleManager:
 
             new_plugin = mock_plugin_environment / "test_module_b"
             new_plugin.mkdir()
-            with open(new_plugin / "pyproject.toml", "w") as f:
+            with open(new_plugin / "pyproject.toml", "w", encoding="utf-8") as f:
                 f.write(_dict_to_toml(make_v2_manifest("test_module_b", "B")))
 
             mm.reload_modules()
@@ -146,7 +146,7 @@ class TestModuleManager:
         """Ensures that invalid JSON in a manifest doesn't crash the discovery process."""
         bad_plugin = mock_plugin_environment / "broken_plugin"
         bad_plugin.mkdir()
-        with open(bad_plugin / "pyproject.toml", "w") as f:
+        with open(bad_plugin / "pyproject.toml", "w", encoding="utf-8") as f:
             f.write("{ invalid json... }")
 
         with patch(

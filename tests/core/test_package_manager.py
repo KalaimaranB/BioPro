@@ -20,7 +20,7 @@ def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
     plugin_dir = tmp_path / "plugin"
     plugin_dir.mkdir()
 
-    with open(plugin_dir / "pyproject.toml", "w") as f:
+    with open(plugin_dir / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(
             '[project]\nname = "my_plugin"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
             '[tool.biopro.plugin]\nid = "my_plugin"\nauthors = [{name = "author", role = "Developer"}]\n'

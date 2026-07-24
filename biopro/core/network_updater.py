@@ -527,7 +527,7 @@ class NetworkUpdater:
             local_data = self.get_local_state()
             local_data[plugin_id] = {"version": remote_info["version"], "name": remote_info["name"]}
 
-            with open(self.local_registry_path, "w") as f:
+            with open(self.local_registry_path, "w", encoding="utf-8") as f:
                 json.dump(local_data, f, indent=4)
 
             # Broadcast the installation success (The Nervous System sends a pulse)
@@ -547,7 +547,7 @@ class NetworkUpdater:
             if plugin_id in local_data:
                 del local_data[plugin_id]
 
-            with open(self.local_registry_path, "w") as f:
+            with open(self.local_registry_path, "w", encoding="utf-8") as f:
                 json.dump(local_data, f, indent=4)
 
             # Broadcast the removal
