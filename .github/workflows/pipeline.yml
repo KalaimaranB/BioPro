@@ -104,7 +104,7 @@ jobs:
 
       - name: Security Vulnerability Scan
         run: |
-          uv export --format requirements-txt > reqs.txt
+          uv export --format requirements-txt --no-emit-project | grep -v "^-e " > reqs.txt
           pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
   # Job 3: Cross-platform tests

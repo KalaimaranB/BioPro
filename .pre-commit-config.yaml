@@ -25,7 +25,7 @@ repos:
 
       - id: pip-audit
         name: Dependency Security Audit
-        entry: uv run --with pip-audit pip-audit --ignore-vuln CVE-2025-69872
+        entry: bash -c 'uv export --format requirements-txt --no-emit-project | grep -v "^-e " > reqs.txt && uv run --with pip-audit pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872'
         language: system
         pass_filenames: false
 
