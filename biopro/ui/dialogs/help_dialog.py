@@ -31,7 +31,7 @@ class HelpPage(QWebEnginePage):
     def __init__(self, dialog, *args, **kwargs):
         """
         Initialize the page with a reference to its owning dialog.
-        
+
         Parameters:
             dialog: The dialog used to handle intercepted navigation requests.
         """
@@ -46,12 +46,12 @@ class HelpPage(QWebEnginePage):
     ) -> bool:
         """
         Intercept clicked Markdown links and route them to the owning help dialog.
-        
+
         Parameters:
             url (QUrl): URL targeted by the navigation request.
             nav_type (QWebEnginePage.NavigationType): Type of navigation request.
             is_main_frame (bool): Whether the request targets the main frame.
-        
+
         Returns:
             bool: `False` for clicked Markdown links, `True` for all other navigation requests.
         """
@@ -162,7 +162,7 @@ class HelpCenterDialog(QDialog):
     def _populate_tree_from_dir(self, directory: Path, parent_item: QTreeWidgetItem):
         """
         Recursively populates a tree item with markdown files and documentation subdirectories.
-        
+
         Parameters:
             directory (Path): Directory to scan.
             parent_item (QTreeWidgetItem): Tree item under which files and subdirectories are added.

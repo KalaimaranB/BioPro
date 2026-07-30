@@ -98,7 +98,7 @@ class BioLoadingOverlay(QWidget):
     def resizeEvent(self, event):  # noqa: N802
         """
         Resize the overlay to match its parent widget.
-        
+
         Parameters:
             event: The resize event being handled.
         """

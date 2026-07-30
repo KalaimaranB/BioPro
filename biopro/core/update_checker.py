@@ -49,12 +49,12 @@ class UpdateChecker:
     def __init__(  # noqa: D107
         self, updater: NetworkUpdaterProtocol, config: AppConfigProtocol, event_bus
     ) -> None:
-        """
-        Initialize the update checker with its network updater, configuration, and event bus dependencies.
-        
+        """Initialize the update checker with network updater and event bus dependencies.
+
         Parameters:
             updater (NetworkUpdaterProtocol): Service used to check for core updates.
-            config (AppConfigProtocol): Configuration service used to manage skipped update versions.
+            config (AppConfigProtocol): Configuration service used to manage skipped update
+            versions.
             event_bus: Event bus used to emit update availability events.
         """
         self._updater = updater

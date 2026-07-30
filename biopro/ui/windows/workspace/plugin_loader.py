@@ -44,9 +44,9 @@ class PluginLoaderManager:
     def open_module(self, manifest: dict) -> None:
         """
         Starts loading a module's user interface after obtaining trust approval when required.
-        
+
         Parameters:
-        	manifest (dict): Module manifest containing the module identifier and optional display name.
+                manifest (dict): Module manifest containing the module identifier and optional display name.
         """
         mw = self.main_window
         module_id = manifest["id"]
@@ -111,7 +111,7 @@ class PluginLoaderManager:
     def on_module_loaded(self, manifest: dict, PanelClass: type) -> None:  # noqa: N803
         """
         Stores the loaded module UI class and starts the loader's warp-out transition.
-        
+
         Parameters:
             manifest (dict): Module manifest containing the module identifier.
             PanelClass (type): Loaded UI panel class.
@@ -132,7 +132,7 @@ class PluginLoaderManager:
     def on_warp_peaked(self) -> None:
         """
         Handles the loader's peak by creating the module panel and starting its initialization.
-        
+
         Panels supporting the asynchronous initialization protocol remain behind the loader until
         their readiness signals allow the final crossfade. Legacy panels receive any pending
         workflow and transition immediately.
@@ -265,7 +265,7 @@ class PluginLoaderManager:
     def _inject_pending_workflow(self, manifest: dict | None = None) -> None:  # noqa: ARG002
         """
         Load the pending workflow payload into the active wizard panel when supported.
-        
+
         The payload is passed with its filename and metadata when the panel accepts
         those arguments. Pending workflow data and associated metadata are cleared
         after processing.
@@ -299,7 +299,7 @@ class PluginLoaderManager:
     def instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:  # noqa: N803
         """
         Instantiates the plugin panel, configures its UI integrations, and emits the module-opened event.
-        
+
         Parameters:
             manifest (dict): Module metadata containing the module identifier and optional display details.
             PanelClass (type): Panel class to instantiate.
@@ -406,7 +406,7 @@ class PluginLoaderManager:
     def on_module_load_error(self, module_id: str, error_msg: str) -> None:
         """
         Handle a module loading failure, including trust approval retries and user-facing error reporting.
-        
+
         Parameters:
             module_id (str): Identifier of the module that failed to load.
             error_msg (str): Traceback or error message describing the failure.

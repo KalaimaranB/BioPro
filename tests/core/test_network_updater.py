@@ -16,10 +16,10 @@ def _dict_to_toml(d):
     # Convert flat dict to pyproject.toml format
     """
     Convert plugin metadata into a pyproject.toml-formatted string.
-    
+
     Parameters:
         d: Flat plugin metadata dictionary.
-    
+
     Returns:
         A TOML string containing project and BioPro plugin metadata.
     """
@@ -190,11 +190,11 @@ class TestNetworkUpdaterExpanded:
     @pytest.fixture
     def updater(self, temp_plugin_dir, monkeypatch):
         """Create a network updater configured to use the temporary plugin directory.
-        
+
         Parameters:
             temp_plugin_dir (Path): Temporary home directory for plugin data.
             monkeypatch: Pytest monkeypatch fixture used to override the home directory.
-        
+
         Returns:
             NetworkUpdater: An updater configured with the temporary plugin directory.
         """

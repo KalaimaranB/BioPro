@@ -77,7 +77,7 @@ class GalacticCostume(CytoCostume):
     def attach(self, cyto_widget):
         """
         Attach a handle and glowing blade accessory to the cyto widget's right arm.
-        
+
         Parameters:
             cyto_widget: Widget whose right arm receives the accessory.
         """
@@ -111,7 +111,7 @@ class GalacticCostume(CytoCostume):
     def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         """
         Updates the costume's glow intensity for the current animation time.
-        
+
         Parameters:
             time_step (float): Current animation time used to vary the blur radius.
         """
@@ -228,7 +228,7 @@ class MandalorianCostume(CytoCostume):
     def detach(self, cyto_widget):
         """
         Detach the costume accessories and restore the widget's facial feature visibility.
-        
+
         Parameters:
             cyto_widget: Widget whose facial features are restored.
         """
@@ -375,7 +375,7 @@ class TriStateCostume(CytoCostume):
     def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         """
         Animate the hat rotation and magnifying-glass lens glow.
-        
+
         Parameters:
             time_step (float): Elapsed time used to calculate animation values.
         """
@@ -395,7 +395,7 @@ class SubcavernCostume(CytoCostume):
         # Blaster pointing forward (horizontal)
         """
         Attach a blaster-like accessory with a glowing chamber to the cyto widget's right arm.
-        
+
         Parameters:
             cyto_widget: Widget whose right arm receives the accessory items.
         """
@@ -546,7 +546,7 @@ class NinjagoCostume(CytoCostume):
     def detach(self, cyto_widget):
         """
         Detach the tornado costume and restore the widget's mouth visibility.
-        
+
         Parameters:
             cyto_widget: Widget whose mouth visibility is restored.
         """
@@ -561,7 +561,7 @@ class NinjagoCostume(CytoCostume):
     def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         """
         Update the tornado layers to reflect the current animation time.
-        
+
         Parameters:
             time_step (float): Elapsed animation time used to position and phase the layers.
         """
@@ -595,7 +595,7 @@ class AvatarAangCostume(CytoCostume):
     def attach(self, cyto_widget):
         """
         Attach the arrow, staff, glider wings, and animated airbending swirl to the widget.
-        
+
         Parameters:
             cyto_widget: Widget whose graphics groups receive the costume elements.
         """
@@ -705,7 +705,7 @@ class AvatarAangCostume(CytoCostume):
     def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         """
         Animate the staff-tip swirl with continuous rotation and periodic scaling.
-        
+
         Parameters:
             time_step (float): Elapsed animation time used to calculate rotation and scale.
         """
@@ -723,7 +723,7 @@ class AvatarKorraCostume(CytoCostume):
     def attach(self, cyto_widget):
         """
         Attach two glowing water-stream graphics to the widget's right arm.
-        
+
         Parameters:
             cyto_widget: Widget whose right arm receives the water streams.
         """
@@ -758,7 +758,7 @@ class AvatarKorraCostume(CytoCostume):
         # tendril would, and stays close to the hand instead of drifting
         # off above the character.
         """Animate the water tendrils with time-varying tapered ribbon shapes.
-        
+
         Parameters:
             time_step (float): Elapsed time used to vary the tendril paths.
         """
@@ -786,7 +786,7 @@ class DefaultCostume(CytoCostume):
     def attach(self, cyto_widget):
         """
         Attach a blue pointer accessory to the widget's right arm.
-        
+
         Parameters:
             cyto_widget: Widget whose right arm receives the pointer.
         """
@@ -811,12 +811,12 @@ class CostumeFactory:
     def get_costume(theme_name: str) -> CytoCostume:
         """
         Select a costume based on the theme name.
-        
+
         Parameters:
-        	theme_name (str): Theme name used to identify the matching costume.
-        
+                theme_name (str): Theme name used to identify the matching costume.
+
         Returns:
-        	CytoCostume: The costume associated with the theme, or the default costume when no theme matches.
+                CytoCostume: The costume associated with the theme, or the default costume when no theme matches.
         """
         name = theme_name.lower()
         if "galactic" in name:

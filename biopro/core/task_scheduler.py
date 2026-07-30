@@ -88,7 +88,7 @@ class TaskScheduler(QObject):
         logger.warning("Task pool cleared. Pending tasks cancelled.")
 
     def shutdown(self) -> None:
-        """Gracefully shut down the scheduler after clearing pending tasks and waiting up to two seconds for running tasks to finish."""
+        """Gracefully shut down the scheduler after clearing pending tasks."""
         logger.info("TaskScheduler shutting down...")
         self.pool.clear()
         # Wait up to 2 seconds for active threads to finish or abort safely
@@ -97,14 +97,14 @@ class TaskScheduler(QObject):
 
     @pyqtSlot(str, dict)
     def _on_task_finished(self, task_id: str, results: dict) -> Any:
-        """Handle successful task completion by emitting its results and releasing its active worker reference."""
+        """Handle successful task completion by emitting results and releasing workers."""
         self.task_finished.emit(task_id, results)
         self._cleanup(task_id)
 
     @pyqtSlot(str, str)
     def _on_task_error(self, task_id: str, error_msg: str) -> Any:
         """Emit a task error signal and release the associated worker reference.
-        
+
         Parameters:
             task_id (str): Identifier of the failed task.
             error_msg (str): Description of the task failure.
@@ -114,9 +114,8 @@ class TaskScheduler(QObject):
         self._cleanup(task_id)
 
     def _cleanup(self, task_id: str) -> Any:
-        """
-        Release the scheduler's reference to a completed worker.
-        
+        """Release the scheduler's reference to a completed worker.
+
         Parameters:
             task_id (str): Identifier of the task whose worker reference should be released.
         """
@@ -150,7 +149,7 @@ class TaskSchedulerProxy:
 
     def _get_instance(self) -> TaskScheduler:
         """Return the lazily initialized task scheduler instance.
-        
+
         Returns:
             TaskScheduler: The shared task scheduler instance.
         """
@@ -160,10 +159,10 @@ class TaskSchedulerProxy:
 
     def __getattr__(self, name: str) -> Any:
         """Forward attribute access to the lazily initialized task scheduler instance.
-        
+
         Parameters:
             name (str): Name of the attribute to retrieve.
-        
+
         Returns:
             Any: Value of the requested attribute.
         """

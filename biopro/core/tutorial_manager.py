@@ -79,12 +79,11 @@ class AcademyManager:
         event_bus.emit(BioProEvent.ACADEMY_COURSE_PREPARE_PROJECT, course_id)
 
     def start_course_confirmed(self, course_id: str) -> bool:
-        """
-        Start a prepared course and activate its initial step.
-        
+        """Start a prepared course and activate its initial step.
+
         Parameters:
             course_id (str): Identifier of the course to start.
-        
+
         Returns:
             bool: `true` if the course was found and started, `false` otherwise.
         """

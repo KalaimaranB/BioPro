@@ -13,12 +13,12 @@ class PluginEnvironmentInjector:
 
     @staticmethod
     def inject_path(plugin_path: Path, internal_plugins_dir: Path) -> None:  # noqa: C901
-        """
-        Inject a plugin's local virtual-environment packages and source directory into `sys.path` when available.
-        
+        """Inject a plugin's local packages and source directory into `sys.path`.
+
         Parameters:
             plugin_path (Path): Path to the plugin directory.
-            internal_plugins_dir (Path): Directory used to position injected paths relative to application paths.
+            internal_plugins_dir (Path): Directory used to position injected paths relative to
+            application paths.
         """
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         candidate_paths = [
@@ -97,7 +97,7 @@ class PluginEnvironmentInjector:
     @staticmethod
     def _log_plugin_environment(plugin_path: Path, site_packages: Path) -> None:
         """Log the installed packages for a plugin environment when available.
-        
+
         Parameters:
             plugin_path (Path): Path identifying the plugin.
             site_packages (Path): Site-packages directory to inspect.

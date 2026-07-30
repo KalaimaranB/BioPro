@@ -19,9 +19,7 @@ class CorePreferenceManager(PreferenceManagerProtocol):
     """
 
     def __init__(self) -> None:
-        """
-        Initialize the preference manager and load persisted preferences.
-        """
+        """Initialize the preference manager and load persisted preferences."""
         self.config_dir = AppConfig.APP_DATA_DIR
         self.config_file = self.config_dir / "preferences.json"
         self.data: dict[str, Any] = {}
@@ -32,44 +30,39 @@ class CorePreferenceManager(PreferenceManagerProtocol):
         self.data = AtomicJsonFile.load(self.config_file, default={})
 
     def save(self) -> None:
-        """
-        Persist the current preferences to the configured file.
-        """
+        """Persist the current preferences to the configured file."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
         if not AtomicJsonFile.save(self.config_file, self.data):
             logger.error("Failed to save preferences.")
 
     def set(self, key: str, value: Any) -> None:
-        """
-        Set a preference value and persist the updated preferences.
-        
+        """Set a preference value and persist the updated preferences.
+
         Parameters:
-        	key (str): The preference key.
-        	value (Any): The value to associate with the key.
+                key (str): The preference key.
+                value (Any): The value to associate with the key.
         """
         self.data[key] = value
         self.save()  # Auto-save for core UI state
 
     def get(self, key: str, default: Any = None) -> Any:
-        """
-        Retrieve a preference value by key.
-        
+        """Retrieve a preference value by key.
+
         Parameters:
-        	key (str): The preference key to retrieve.
-        	default (Any): The value to return when the key is absent.
-        
+                key (str): The preference key to retrieve.
+                default (Any): The value to return when the key is absent.
+
         Returns:
-        	Any: The stored preference value, or `default` when the key is absent.
+                Any: The stored preference value, or `default` when the key is absent.
         """
         return self.data.get(key, default)
 
     def has(self, key: str) -> bool:
-        """
-        Determine whether a preference key exists.
-        
+        """Determine whether a preference key exists.
+
         Parameters:
             key (str): The preference key to check.
-        
+
         Returns:
             bool: `true` if the key exists, `false` otherwise.
         """

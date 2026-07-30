@@ -15,11 +15,10 @@ logger = logging.getLogger(__name__)
 
 @contextlib.contextmanager
 def isolate_frozen_environment() -> Any:
-    """
-    Temporarily disables the PyInstaller frozen state while executing a context.
-    
+    """Temporarily disables the PyInstaller frozen state while executing a context.
+
     The original state is restored when the context exits.
-    
+
     Yields:
         None
     """
@@ -39,17 +38,16 @@ class PluginLoaderFactory:
 
     @staticmethod
     def load_ui(module_id: str, mod_info: dict[str, Any]) -> type[QWidget] | None:
-        """
-        Load a plugin and obtain its UI panel class.
-        
+        """Load a plugin and obtain its UI panel class.
+
         Parameters:
             module_id (str): Identifier used to locate and report the plugin.
             mod_info (dict[str, Any]): Plugin metadata and mutable loading state.
-        
+
         Returns:
             type[QWidget] | None: The plugin's UI panel class, or `None` when initialization
                 fails with an exception that is contained by the loader.
-        
+
         Raises:
             TypeError: If the plugin does not satisfy the required interface.
             ValueError: If plugin metadata or its entry point is invalid.
@@ -125,13 +123,12 @@ class PluginLoaderFactory:
 
     @staticmethod
     def verify_dependencies(plugin_path: Path, manifest: dict) -> None:
-        """
-        Verify that the plugin's isolated Python environment is available.
-        
+        """Verify that the plugin's isolated Python environment is available.
+
         Parameters:
             plugin_path (Path): Path to the plugin directory.
             manifest (dict): Plugin manifest used to identify the plugin in error messages.
-        
+
         Raises:
             RuntimeError: If the plugin's Python environment cannot be found.
         """

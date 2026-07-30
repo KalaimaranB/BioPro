@@ -21,7 +21,7 @@ class GalacticLoader(QQuickWidget):
     def __init__(self, parent=None):
         """
         Initialize the QML-based Galactic loading widget.
-        
+
         Parameters:
             parent: Optional parent widget.
         """
@@ -85,7 +85,7 @@ class GalacticLoader(QQuickWidget):
     def set_module(self, name: str):
         """
         Reset the loader and assign it to a new module.
-        
+
         Parameters:
             name (str): Name of the module to display.
         """
@@ -119,7 +119,7 @@ class GalacticLoader(QQuickWidget):
     def fade_out(self, duration_ms: int = 500):
         """
         Begin the loader's fade-out transition.
-        
+
         Parameters:
             duration_ms (int): Duration of the transition in milliseconds.
         """

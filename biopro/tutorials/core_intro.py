@@ -50,7 +50,7 @@ from biopro.core.models.tutorial_models import (
 
 def _copy_demo_file(main_panel: Any) -> None:  # noqa: ARG001
     """Copy the bundled demo FCS file to the user's Downloads directory.
-    
+
     If an identical demo file already exists, no copy is performed. Existing files
     with different contents are preserved by selecting a unique destination name.
     """

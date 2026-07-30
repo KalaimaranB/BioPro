@@ -119,9 +119,9 @@ class BadgeAwardOverlay(QWidget):
         # Click to dismiss early
         """
         Dismisses the award overlay when it has reached sufficient opacity.
-        
+
         Parameters:
-        	event: The mouse press event.
+                event: The mouse press event.
         """
         if self._bg_alpha > 100:
             self.finish_sequence()

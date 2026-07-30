@@ -58,9 +58,7 @@ class EventManager(QObject):
     _internal_bus = pyqtSignal(BioProEvent, tuple, dict)
 
     def __init__(self) -> None:
-        """
-        Initialize the event manager and connect its internal event bus to dispatch events.
-        """
+        """Initialize the event manager and connect its internal event bus to dispatch events."""
         super().__init__()
         self._listeners: dict[BioProEvent, list[Callable[..., Any]]] = {}
         self._internal_bus.connect(self._dispatch)

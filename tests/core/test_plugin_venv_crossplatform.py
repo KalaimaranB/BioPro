@@ -14,12 +14,12 @@ def _dict_to_toml(d):
     # Convert flat dict to pyproject.toml format
     """
     Convert a flat dictionary into a minimal pyproject.toml configuration string.
-    
+
     Parameters:
-    	d (dict): Configuration values for the project and BioPro plugin.
-    
+        d (dict): Configuration values for the project and BioPro plugin.
+
     Returns:
-    	str: TOML-formatted project and plugin configuration.
+        str: TOML-formatted project and plugin configuration.
     """
     lines = []
     lines.append("[project]")
@@ -37,10 +37,10 @@ def _dict_to_toml(d):
 def _expected_venv_python(venv_dir: Path) -> Path:
     """
     Determine the expected Python interpreter path within a virtual environment.
-    
+
     Parameters:
         venv_dir (Path): Root directory of the virtual environment.
-    
+
     Returns:
         Path: Platform-specific path to the virtual environment's Python interpreter.
     """
@@ -59,9 +59,9 @@ def _expected_site_packages(venv_dir: Path) -> Path:
 
 def _uv_available() -> bool:
     """Determine whether the `uv` executable is available on the system PATH.
-    
+
     Returns:
-    	bool: `True` if `uv` is available, `False` otherwise.
+        bool: `True` if `uv` is available, `False` otherwise.
     """
     return shutil.which("uv") is not None
 
@@ -172,7 +172,7 @@ class TestRealVenvInstallation:
 
     def test_inject_and_import_from_real_venv(self, tmp_path):
         """Verifies that a package installed in a plugin's virtual environment can be imported after its site-packages directory is injected.
-        
+
         Parameters:
             tmp_path: Temporary directory used to create the plugin and virtual environment.
         """

@@ -57,7 +57,7 @@ class TutorialOverlay(QWidget):
     def __init__(self, parent: QWidget | None = None, compact_mode: bool = False) -> None:
         """
         Initialize the tutorial overlay and synchronize it with the current tutorial state.
-        
+
         Parameters:
             compact_mode (bool): Whether to use compact positioning instead of positioning around spotlight targets.
         """
@@ -602,7 +602,7 @@ class TutorialOverlay(QWidget):
 
     def _render_branching_options(self, options: dict) -> None:
         """Render branching-option buttons that advance to their selected tutorial steps.
-        
+
         Parameters:
             options (dict): Mapping of option labels to target step identifiers.
         """

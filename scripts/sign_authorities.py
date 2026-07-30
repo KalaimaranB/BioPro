@@ -13,9 +13,8 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 
 def main():  # noqa: D103
     # 1. Ask for the Hex Private Key
-    """
-    Sign the authorities registry using a supplied Ed25519 private key and save the signature.
-    
+    """Sign the authorities registry using a supplied Ed25519 private key and save the signature.
+
     The function prompts for a hexadecimal private key, creates `authorities.json` when needed,
     signs its authorities data, and writes the updated registry back to disk.
     """

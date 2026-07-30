@@ -542,7 +542,7 @@ class PluginDetailPanel(QScrollArea):
     ) -> None:
         """
         Updates the plugin details view with trust status, security alerts, and verified visual assets.
-        
+
         Parameters:
             name (str): Plugin name.
             description (str): Plugin description.
@@ -550,7 +550,7 @@ class PluginDetailPanel(QScrollArea):
             author_avatar_stub (tuple[str, str, str] | None): Author name, local asset path, and expected asset hash.
             screenshot_stub (tuple[str, str] | None): Local screenshot path and expected asset hash.
             backdoor_detected (bool): Whether unauthorized executable payloads were detected.
-        
+
         """
         self.name_lbl.setText(name)
         self.desc_lbl.setText(description)

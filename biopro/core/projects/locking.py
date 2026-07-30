@@ -17,9 +17,8 @@ class ProjectLock:
     """Handles project-level file locking to prevent concurrent access."""
 
     def __init__(self, project_dir: Path):
-        """
-        Initialize a project lock for the specified directory.
-        
+        """Initialize a project lock for the specified directory.
+
         Parameters:
             project_dir (Path): Directory containing the project's lock file.
         """

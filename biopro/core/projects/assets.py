@@ -14,12 +14,11 @@ class AssetManager:
     """Manages project assets, hashing, and workspace consistency."""
 
     def __init__(self, project_dir: Path, assets_dir: Path):
-        """
-        Initialize an asset manager with the project and asset directory paths.
-        
+        """Initialize an asset manager with the project and asset directory paths.
+
         Parameters:
-        	project_dir (Path): Root directory used to resolve project-relative asset paths.
-        	assets_dir (Path): Directory where workspace assets are stored.
+                project_dir (Path): Root directory used to resolve project-relative asset paths.
+                assets_dir (Path): Directory where workspace assets are stored.
         """
         self.project_dir = project_dir
         self.assets_dir = assets_dir

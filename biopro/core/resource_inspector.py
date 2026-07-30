@@ -29,12 +29,11 @@ class ResourceInspector:
 
     @classmethod
     def get_heavy_resources(cls, obj: Any) -> list[tuple[str, Any]]:
-        """
-        Identify heavy resources among an object's attributes or dictionary entries.
-        
+        """Identify heavy resources among an object's attributes or dictionary entries.
+
         Args:
             obj: The object whose stored attributes or entries should be inspected.
-        
+
         Returns:
             A list of `(name, resource)` tuples for values classified as heavy.
         """
@@ -58,14 +57,15 @@ class ResourceInspector:
 
     @classmethod
     def is_heavy(cls, obj: Any) -> bool:  # noqa: C901
-        """
-        Determines whether an object qualifies as a heavy resource.
-        
+        """Determines whether an object qualifies as a heavy resource.
+
         Parameters:
-        	obj (Any): Object to classify.
-        
+                obj (Any): Object to classify.
+
         Returns:
-        	bool: `true` if the object is a registered heavy resource, a sufficiently large array or CPU tensor, a CUDA tensor, a matplotlib figure, or an open file handle; `false` otherwise.
+                bool: `true` if the object is a registered heavy resource, a sufficiently large
+                array or CPU tensor, a CUDA tensor, a matplotlib figure, or an open file handle;
+                `false` otherwise.
         """
         if obj is None:
             return False

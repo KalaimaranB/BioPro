@@ -154,7 +154,7 @@ class ModuleCard(QFrame):
     def _apply_style(self, hovered: bool) -> None:
         """
         Apply the card's visual styling for its enabled, disabled, hovered, and trust states.
-        
+
         Parameters:
             hovered (bool): Whether the card is currently hovered.
         """
@@ -193,9 +193,9 @@ class ModuleCard(QFrame):
     def mousePressEvent(self, event) -> None:  # noqa: N802
         """
         Emit the card's click signal when the card is enabled.
-        
+
         Parameters:
-        	event: The mouse press event to pass to the base widget implementation.
+                event: The mouse press event to pass to the base widget implementation.
         """
         if self._enabled:
             self.clicked.emit()
@@ -357,9 +357,9 @@ class DashboardWorkflowCard(QFrame):
     def enterEvent(self, event) -> None:  # noqa: N802
         """
         Apply the hovered styling when the pointer enters the card.
-        
+
         Parameters:
-        	event: The pointer-enter event.
+                event: The pointer-enter event.
         """
         self._apply_style(True)
         super().enterEvent(event)

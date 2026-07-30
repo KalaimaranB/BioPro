@@ -72,7 +72,7 @@ class ProgrammaticLoader(QWidget):
     def _update_animation(self):
         """
         Advances the loader animation and updates the binary stream states.
-        
+
         Refreshes glyphs when the active theme changes, moves streams, reinitializes absorbed or off-screen streams, applies occasional flicker, and schedules the widget for repainting.
         """
         self.angle += 0.025

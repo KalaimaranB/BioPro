@@ -17,14 +17,13 @@ class PluginDiscoveryService:
 
     @staticmethod
     def _load_manifest(manifest_path: Path) -> dict[str, Any] | None:
-        """
-        Load and parse a plugin manifest from the specified file.
-        
+        """Load and parse a plugin manifest from the specified file.
+
         Parameters:
-        	manifest_path (Path): Path to the plugin manifest file.
-        
+                manifest_path (Path): Path to the plugin manifest file.
+
         Returns:
-        	dict[str, Any] | None: The parsed manifest, or `None` if parsing fails.
+                dict[str, Any] | None: The parsed manifest, or `None` if parsing fails.
         """
         try:
             parser = ManifestParser()
@@ -34,15 +33,15 @@ class PluginDiscoveryService:
 
     @staticmethod
     def discover_modules(internal_dir: Path, user_dir: Path) -> dict[str, dict[str, Any]]:  # noqa: C901
-        """
-        Discovers plugins in the internal and user directories and collects their manifest and trust metadata.
-        
+        """Discovers plugins in internal and user directories and collects trust metadata.
+
         Parameters:
-        	internal_dir (Path): Directory containing built-in plugins.
-        	user_dir (Path): Directory containing user-installed plugins.
-        
+                internal_dir (Path): Directory containing built-in plugins.
+                user_dir (Path): Directory containing user-installed plugins.
+
         Returns:
-        	dict[str, dict[str, Any]]: Mapping of plugin IDs to manifest, path, loading, and trust metadata.
+                dict[str, dict[str, Any]]: Mapping of plugin IDs to manifest, path, loading, and
+                trust metadata.
         """
         modules: dict[str, dict[str, Any]] = {}
         directories_to_scan = [internal_dir, user_dir]
@@ -119,16 +118,16 @@ class PluginDiscoveryService:
     def _handle_legacy_manifest(
         plugin_path: Path, manifest_file: Path, error_str: str
     ) -> tuple[str, dict] | tuple[None, None]:  # noqa: E501
-        """
-        Create module metadata for a legacy manifest using the outdated V1 author format.
-        
+        """Create module metadata for a legacy manifest using the outdated V1 author format.
+
         Parameters:
             plugin_path (Path): Path to the plugin directory.
             manifest_file (Path): Path to the legacy manifest file.
             error_str (str): Manifest validation error associated with the legacy format.
-        
+
         Returns:
-            tuple[str, dict] | tuple[None, None]: The module identifier and outdated module metadata, or `(None, None)` if the legacy manifest cannot be processed.
+            tuple[str, dict] | tuple[None, None]: The module identifier and outdated module
+            metadata, or `(None, None)` if the legacy manifest cannot be processed.
         """
         try:
             raw_manifest = AtomicJsonFile.load(manifest_file, default={})

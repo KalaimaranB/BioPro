@@ -23,11 +23,11 @@ class ModuleManager:
     """Discovers, manages, and loads BioPro analysis modules dynamically."""
 
     def __init__(self, trust_manager: TrustManager | None = None):
-        """
-        Initialize the module manager with plugin directories, trust management, module discovery, and plugin lifecycle subscriptions.
-        
+        """Initialize module manager with plugin directories and lifecycle subscriptions.
+
         Parameters:
-            trust_manager (TrustManager | None): Trust manager to use, or None to create a default manager.
+            trust_manager (TrustManager | None): Trust manager to use, or None to create a default
+            manager.
         """
         # 1. The built-in plugins (baked into the PyInstaller .app)
         self.internal_plugins_dir = resource_path("biopro/plugins")
@@ -57,24 +57,22 @@ class ModuleManager:
         self.modules.update(discovered)
 
     def get_available_modules(self) -> list[dict]:
-        """
-        Return the manifests for all discovered modules.
-        
+        """Return the manifests for all discovered modules.
+
         Returns:
-        	list[dict]: The available module manifests.
+                list[dict]: The available module manifests.
         """
         return [m["manifest"] for m in self.modules.values()]
 
     def load_module_ui(self, module_id: str) -> type[QWidget] | None:
-        """
-        Load the user interface class for an installed and trusted module.
-        
+        """Load the user interface class for an installed and trusted module.
+
         Parameters:
             module_id (str): Identifier of the module to load.
-        
+
         Returns:
             type[QWidget] | None: The module's UI class, or `None` when no UI class is available.
-        
+
         Raises:
             ValueError: If the module is not installed.
             PermissionError: If the module is untrusted.
@@ -106,9 +104,7 @@ class ModuleManager:
         return PluginLoaderFactory.load_ui(module_id, mod_info)
 
     def reload_modules(self) -> None:
-        """
-        Refreshes the plugin registry to reflect installed, removed, or updated plugins.
-        """
+        """Refreshes the plugin registry to reflect installed, removed, or updated plugins."""
         for mod_info in self.modules.values():
             if mod_info["loaded"]:
                 prefix = f"biopro.plugins.{mod_info['package_name']}"
@@ -124,14 +120,14 @@ class ModuleManager:
         logger.info(f"Hot-reloaded plugins. Currently loaded: {list(self.modules.keys())}")
 
     def trust_module(self, module_id: str) -> bool:
-        """
-        Manually trusts the module's current state.
-        
+        """Manually trusts the module's current state.
+
         Parameters:
-        	module_id (str): Identifier of the module to trust.
-        
+                module_id (str): Identifier of the module to trust.
+
         Returns:
-        	bool: `True` if the module is trusted, `False` if it is unavailable or its state cannot be verified.
+                bool: `True` if the module is trusted, `False` if it is unavailable or its state
+                cannot be verified.
         """
         if module_id not in self.modules:
             return False

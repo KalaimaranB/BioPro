@@ -14,7 +14,7 @@ class ToastNotification(QWidget):
     def __init__(self, message: str, parent=None, duration_ms: int = 4000):
         """
         Create a toast notification displaying the specified message.
-        
+
         Parameters:
             message (str): Text to display in the notification.
             parent: Optional parent widget.
@@ -49,7 +49,7 @@ class ToastNotification(QWidget):
     def setup_ui(self, message: str):
         """
         Build the toast layout and display the warning message with an icon.
-        
+
         Parameters:
             message (str): Warning text to display.
         """
@@ -102,7 +102,7 @@ class ToastManager:
     def __new__(cls):
         """
         Create and return the shared instance of the manager.
-        
+
         Returns:
             ToastManager: The singleton manager instance.
         """

@@ -17,9 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> Any:
-    """
-    Safely extract archive members within the destination directory.
-    
+    """Safely extract archive members within the destination directory.
+
     Parameters:
         zip_ref (zipfile.ZipFile): Archive containing the members to extract.
         dest_dir (Path): Directory into which valid members are extracted.
@@ -40,13 +39,12 @@ def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> Any:
 
 
 def safe_remove(plugin_dir: Path, plugin_folder: Path) -> None:
-    """
-    Safely removes a plugin directory, including directories containing locked files.
-    
+    """Safely removes a plugin directory, including directories containing locked files.
+
     Parameters:
         plugin_dir (Path): Parent directory used to store temporary removal entries.
         plugin_folder (Path): Plugin file or directory to remove.
-    
+
     Raises:
         RuntimeError: If the plugin directory cannot be moved for removal.
     """
@@ -88,9 +86,8 @@ class PluginInstallerWorker(QThread):
     finished = pyqtSignal(bool, str)
 
     def __init__(self, plugin_id: str, download_url: str, plugins_dir: Path):  # noqa: ARG002
-        """
-        Initialize a plugin installation worker using the per-user plugin directory.
-        
+        """Initialize a plugin installation worker using the per-user plugin directory.
+
         Parameters:
             plugin_id (str): Identifier of the plugin to install.
             download_url (str): URL of the plugin archive.
@@ -103,9 +100,8 @@ class PluginInstallerWorker(QThread):
         self.plugins_dir = Path.home() / ".biopro" / "plugins"
 
     def run(self) -> None:
-        """
-        Install the plugin and report progress and completion status.
-        
+        """Install the plugin and report progress and completion status.
+
         Download failures, invalid archives, and unexpected errors are reported through
         the completion signal with an appropriate failure message.
         """

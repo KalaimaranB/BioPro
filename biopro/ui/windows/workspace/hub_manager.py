@@ -141,10 +141,10 @@ class HubManager:
     def on_trust_requested(self, module_id: str) -> bool:
         """
         Trust locally modified plugin files after user confirmation.
-        
+
         Parameters:
             module_id (str): Identifier of the module whose local changes should be trusted.
-        
+
         Returns:
             bool: `True` if the changes were trusted successfully, `False` if the user cancels or trust fails.
         """
@@ -168,7 +168,7 @@ class HubManager:
 
     def refresh_hub_workflows(self) -> None:
         """Populate the dashboard with workflows found in the project's workflows folder.
-        
+
         Workflows are ordered by timestamp with the newest entries first.
         """
         mw = self.main_window

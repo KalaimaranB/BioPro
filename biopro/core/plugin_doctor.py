@@ -31,14 +31,13 @@ class DiagnosticResult:
     """Documentation."""
 
     def __init__(self, check_name: str, status: CheckStatus, message: str, details: str = ""):
-        """
-        Initialize a diagnostic result with its check name, status, message, and optional details.
-        
+        """Initialize a diagnostic result with its check name, status, message, and details.
+
         Parameters:
-        	check_name (str): Name of the diagnostic check
-        	status (CheckStatus): Outcome status of the check
-        	message (str): Human-readable outcome message
-        	details (str): Additional diagnostic information
+                check_name (str): Name of the diagnostic check
+                status (CheckStatus): Outcome status of the check
+                message (str): Human-readable outcome message
+                details (str): Additional diagnostic information
         """
         self.check_name = check_name
         self.status = status
@@ -46,9 +45,8 @@ class DiagnosticResult:
         self.details = details
 
     def to_dict(self) -> dict:
-        """
-        Serialize the diagnostic result as a dictionary.
-        
+        """Serialize the diagnostic result as a dictionary.
+
         Returns:
             dict: A dictionary containing the check name, status value, message, and details.
         """
@@ -64,9 +62,8 @@ class PluginDoctor:
     """Diagnostic tool to inspect a specific installed plugin and identify failure root causes."""
 
     def __init__(self, plugin_id: str, plugin_dir: Path):
-        """
-        Initialize a diagnostic checker for an installed plugin.
-        
+        """Initialize a diagnostic checker for an installed plugin.
+
         Parameters:
             plugin_id (str): Identifier of the plugin to diagnose.
             plugin_dir (Path): Filesystem path to the installed plugin directory.
@@ -82,9 +79,8 @@ class PluginDoctor:
         }
 
     def run_all_checks(self) -> Any:
-        """
-        Run all plugin diagnostics in phase order.
-        
+        """Run all plugin diagnostics in phase order.
+
         Returns:
             dict: Diagnostic results grouped by phases ``phase1`` through ``phase4``.
         """
@@ -101,10 +97,11 @@ class PluginDoctor:
         return self.results
 
     def _run_phase1_integrity(self):  # noqa: C901
-        """
-        Run location, manifest, and trust-integrity checks for the plugin.
-        
-        The phase records diagnostic results and stops when the plugin directory or manifest is unavailable or cannot be parsed. Trust verification results identify manifest and signed-file integrity issues when detected.
+        """Run location, manifest, and trust-integrity checks for the plugin.
+
+        The phase records diagnostic results and stops when the plugin directory or manifest is
+        unavailable or cannot be parsed. Trust verification results identify manifest and signed-
+        file integrity issues when detected.
         """
         # 1. Directory exists
         if not self.plugin_dir.exists():
@@ -240,9 +237,8 @@ class PluginDoctor:
             )
 
     def _run_phase2_trust(self) -> None:
-        """
-        Validate the plugin's virtual environment, platform-specific interpreter, and self-test status.
-        
+        """Validate the plugin's virtual environment, interpreter, and self-test status.
+
         The check records diagnostic results for virtual environment presence, interpreter
         availability, and platform path mismatches. The self-test is reported as not
         implemented.
@@ -322,9 +318,8 @@ class PluginDoctor:
         )
 
     def _run_phase3_dependencies(self):  # noqa: C901, PLR0915
-        """
-        Run dependency completeness checks for the installed plugin.
-        
+        """Run dependency completeness checks for the installed plugin.
+
         The checks cover internal import paths, required package importability,
         manifest version pins, and file-lock conflicts in the virtual environment.
         Diagnostic results are appended to the ``phase3`` results. If no interpreter
@@ -528,9 +523,7 @@ class PluginDoctor:
             )
 
     def _run_phase4_runtime(self) -> None:
-        """
-        Run runtime and process health checks, including network reachability and application location stability.
-        """
+        """Run runtime checks, including network reachability and app location stability."""
         # 1. No stale BioPro/plugin processes holding files (covered in phase 3 locks check partially, but here we can check for other BioPro instances)  # noqa: E501
         self.results["phase4"].append(
             DiagnosticResult(

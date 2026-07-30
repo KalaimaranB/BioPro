@@ -1191,10 +1191,10 @@ class PluginStoreDialog(QDialog):
     def _create_developer_card(self, dev: dict):
         """
         Create a card displaying a trusted developer's profile, trust status, and public-key fingerprint.
-        
+
         Parameters:
             dev (dict): Developer metadata, including the developer ID, public key, profile details, and manual-trust status.
-        
+
         Returns:
             ModuleCard: The populated developer card.
         """

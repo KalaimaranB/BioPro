@@ -194,7 +194,7 @@ class WorkspaceWindow(QMainWindow):
 
     def _on_tutorial_skip(self) -> None:
         """Hide tutorial overlays and stop the active tutorial course.
-        
+
         For the core introductory course, records that the tutorial was dismissed and
         displays a message explaining how to restart it.
         """
@@ -221,9 +221,9 @@ class WorkspaceWindow(QMainWindow):
     def timerEvent(self, event) -> None:  # noqa: N802
         """
         Updates tutorial overlays, advances tutorial steps, validates step conditions, and positions guidance targets during timer events.
-        
+
         Parameters:
-        	event: The Qt timer event that triggered the update.
+                event: The Qt timer event that triggered the update.
         """
         super().timerEvent(event)
         active_overlay = self._active_overlay()
@@ -412,7 +412,7 @@ class WorkspaceWindow(QMainWindow):
     def _on_open_file(self) -> None:
         """
         Handle the open-file request for the active analysis module.
-        
+
         When the home page is active, displays a status message prompting module selection. Otherwise, delegates file opening to the current wizard panel when supported.
         """
         if self.root_stack.currentIndex() == _PAGE_HOME:

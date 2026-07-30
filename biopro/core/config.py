@@ -23,9 +23,7 @@ class AppConfig:
     APP_DATA_DIR = Path.home() / ".biopro"
 
     def __init__(self) -> None:
-        """
-        Initialize application configuration paths and load persisted settings.
-        """
+        """Initialize application configuration paths and load persisted settings."""
         # We re-evaluate Path.home() here so that pytest monkeypatching works correctly.
         self.config_dir = Path.home() / ".biopro"
         self.config_file = self.config_dir / "config.json"
@@ -38,9 +36,8 @@ class AppConfig:
         return Path(__file__).parents[2] / "docs"
 
     def _load(self) -> None:
-        """
-        Load persisted configuration data and merge it with the current defaults.
-        
+        """Load persisted configuration data and merge it with the current defaults.
+
         If the configuration file cannot be loaded, an error is reported.
         """
         if self.config_file.exists():
@@ -61,11 +58,11 @@ class AppConfig:
             diagnostics.report_error(f"Failed to save config to {self.config_file}")
 
     def add_recent_project(self, project_path: Path | str) -> None:
-        """
-        Add a project to the recent-projects list.
-        
-        The project path is stored as an absolute path, moved to the front of the list, and the list is limited to 10 entries.
-        
+        """Add a project to the recent-projects list.
+
+        The project path is stored as an absolute path, moved to the front of the list, and the
+        list is limited to 10 entries.
+
         Parameters:
             project_path (Path | str): Path of the project to add.
         """
@@ -91,9 +88,8 @@ class AppConfig:
         return cast(list[str], self.data.get("recent_projects", []))
 
     def remove_recent_project(self, project_path: Path | str) -> None:
-        """
-        Remove a project from the recent projects list and persist the updated configuration.
-        
+        """Remove a project from the recent projects list and persist the updated configuration.
+
         Parameters:
             project_path (Path | str): Path of the project to remove.
         """
@@ -107,9 +103,8 @@ class AppConfig:
             self.save()
 
     def get_skipped_update_version(self) -> str | None:
-        """
-        Get the version string the user chose to skip.
-        
+        """Get the version string the user chose to skip.
+
         Returns:
             str | None: The skipped update version, or None if no version is set.
         """

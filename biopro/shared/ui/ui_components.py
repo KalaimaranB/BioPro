@@ -15,9 +15,8 @@ class PrimaryButton(QPushButton):
     """The main action button (accent color)."""
 
     def __init__(self, text, parent=None):  # noqa: D107
-        """
-        Initialize a primary-styled button with the specified text and optional parent widget.
-        
+        """Initialize a primary-styled button with the specified text and optional parent widget.
+
         Parameters:
             text: The text displayed on the button.
             parent: The optional parent widget.
@@ -32,7 +31,7 @@ class SecondaryButton(QPushButton):
 
     def __init__(self, text, parent=None):  # noqa: D107
         """Initialize a secondary-styled button with the specified text and parent widget.
-        
+
         Parameters:
             text: The label displayed on the button.
             parent: The optional parent widget.

@@ -232,7 +232,7 @@ class WorkspaceDashboard(QWidget):
     def populate_modules(self, manifests: list[dict]) -> None:
         """
         Dynamically rebuild the module selection grid from installed module manifests.
-        
+
         Parameters:
             manifests (list[dict]): Module manifests containing display and trust information for each installed module.
         """
@@ -271,9 +271,9 @@ class WorkspaceDashboard(QWidget):
     def populate_workflows(self, workflows: list[dict]) -> None:
         """
         Populate the recent sessions grid with workflow cards.
-        
+
         Parameters:
-        	workflows (list[dict]): Workflow records used to create the session cards.
+                workflows (list[dict]): Workflow records used to create the session cards.
         """
         # Lazy import to avoid circular dependency at module level
         from biopro.core.tutorial_manager import global_tutorial_manager

@@ -13,12 +13,11 @@ class ModuleHistory:
     """Manages the undo/redo stacks for a single, specific module."""
 
     def __init__(self, module_id: str, heavy_checker=None) -> None:  # noqa: D107
-        """
-        Initialize history tracking for a module.
-        
+        """Initialize history tracking for a module.
+
         Parameters:
-        	module_id (str): Identifier of the module whose history is managed.
-        	heavy_checker: Optional callable used to identify heavy resources.
+                module_id (str): Identifier of the module whose history is managed.
+                heavy_checker: Optional callable used to identify heavy resources.
         """
         self.module_id = module_id
         self.undo_stack: list[dict[str, Any]] = []
@@ -27,10 +26,10 @@ class ModuleHistory:
 
     def push(self, state: dict) -> None:
         """Add a state snapshot to the undo history and clear redo history.
-        
+
         Duplicate consecutive snapshots are ignored. Heavy resources are retained by
         reference, while other values are copied when possible.
-        
+
         Parameters:
             state (dict): The state to save.
         """
@@ -66,15 +65,15 @@ class ModuleHistory:
         )
 
     def _is_equal(self, state_a: dict, state_b: dict) -> bool:
-        """
-        Compare two state snapshots for equivalent keys and values.
-        
+        """Compare two state snapshots for equivalent keys and values.
+
         Parameters:
-        	state_a (dict): First state snapshot.
-        	state_b (dict): Second state snapshot.
-        
+                state_a (dict): First state snapshot.
+                state_b (dict): Second state snapshot.
+
         Returns:
-        	bool: `True` if the snapshots have matching keys and values, using object identity for heavy resources; `False` otherwise.
+                bool: `True` if the snapshots have matching keys and values, using object identity
+                for heavy resources; `False` otherwise.
         """
         if state_a.keys() != state_b.keys():
             return False

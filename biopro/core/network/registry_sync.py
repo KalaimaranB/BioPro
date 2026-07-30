@@ -16,13 +16,12 @@ class RegistrySync:
 
     @staticmethod
     def get_local_state(plugin_dir: Path, local_registry_path: Path) -> Any:
-        """
-        Build the installed plugin state from manifests in a plugin directory.
-        
+        """Build the installed plugin state from manifests in a plugin directory.
+
         Parameters:
             plugin_dir (Path): Directory containing installed plugin directories.
             local_registry_path (Path): Path where the generated local registry state is saved.
-        
+
         Returns:
             dict: Mapping of plugin identifiers to their names and versions.
         """
@@ -59,12 +58,11 @@ class RegistrySync:
 
     @staticmethod
     def fetch_remote_registry(registry_url: str) -> dict:
-        """
-        Fetch the remote plugin registry data.
-        
+        """Fetch the remote plugin registry data.
+
         Parameters:
             registry_url (str): URL of the remote registry.
-        
+
         Returns:
             dict: Parsed registry data, or an empty dictionary if fetching fails.
         """
@@ -79,12 +77,11 @@ class RegistrySync:
 
     @staticmethod
     def fetch_remote_developers(registry_url: str) -> list:
-        """
-        Load developer profiles from the developers registry associated with the registry URL.
-        
+        """Load developer profiles from the developers registry associated with the registry URL.
+
         Parameters:
             registry_url (str): URL of the remote plugin registry.
-        
+
         Returns:
             list: Developer profiles, or an empty list when the data cannot be loaded.
         """
@@ -111,15 +108,14 @@ class RegistrySync:
     def evaluate_store_state(
         core_version: str, registry_url: str, plugin_dir: Path, local_registry_path: Path
     ):  # noqa: E501
-        """
-        Compare installed plugins with the remote registry and classify their availability and compatibility.
-        
+        """Compare installed plugins with the remote registry and classify their availability.
+
         Parameters:
             core_version (str): Current application core version.
             registry_url (str): URL of the remote plugin registry.
             plugin_dir (Path): Directory containing installed plugins.
             local_registry_path (Path): Path used to store the local registry state.
-        
+
         Returns:
             tuple: Store inventory, trusted developer information, and the remote registry data.
         """

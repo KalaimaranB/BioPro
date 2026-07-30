@@ -19,9 +19,8 @@ class ProjectManager:
     """Orchestrates BioPro project operations by delegating to specialized managers."""
 
     def __init__(self, project_dir: Path | str):
-        """
-        Initialize project state and managers for the specified project directory.
-        
+        """Initialize project state and managers for the specified project directory.
+
         Parameters:
             project_dir (Path | str): Directory containing the BioPro project files.
         """
@@ -41,16 +40,13 @@ class ProjectManager:
 
     @property
     def project_name(self) -> str:
-        """
-        Return the project name, falling back to the project directory name when none is configured.
-        """
+        """Return the project name, falling back to directory name when none is configured."""
         return self.data.get("project_name", self.project_dir.name)
 
     @property
     def config(self) -> dict:
-        """
-        Provide the current project configuration.
-        
+        """Provide the current project configuration.
+
         Returns:
             dict: The in-memory project state.
         """
@@ -59,13 +55,12 @@ class ProjectManager:
     # ── Lifecycle ─────────────────────────────────────────────────────
 
     def create_new(self, project_name: str, is_academy: bool = False) -> None:
-        """
-        Create a new BioPro project with the specified name and academy status.
-        
+        """Create a new BioPro project with the specified name and academy status.
+
         Parameters:
             project_name (str): Name of the project.
             is_academy (bool): Whether the project is an academy project.
-        
+
         Raises:
             FileExistsError: If the project directory already exists.
         """
@@ -89,9 +84,8 @@ class ProjectManager:
         logger.info(f"Created new project: {project_name}")
 
     def open_project(self) -> None:
-        """
-        Open the project, restore its saved state and history, and validate its assets.
-        
+        """Open the project, restore its saved state and history, and validate its assets.
+
         Raises:
             FileNotFoundError: If the project file does not exist.
         """
@@ -131,9 +125,8 @@ class ProjectManager:
             raise e
 
     def save(self) -> None:
-        """
-        Persist the current project state and history to their JSON files.
-        
+        """Persist the current project state and history to their JSON files.
+
         Raises:
             OSError: If the project or history data cannot be saved atomically.
             Exception: Re-raises errors encountered while saving the project state.
@@ -160,9 +153,8 @@ class ProjectManager:
             raise e
 
     def close(self) -> None:
-        """
-        Saves the project and releases its lock.
-        
+        """Saves the project and releases its lock.
+
         The project remains locked if saving fails.
         """
         self.save()
@@ -174,16 +166,15 @@ class ProjectManager:
     def add_image(
         self, filepath: Path | str, copy_to_workspace: bool, subfolder: str | None = None
     ) -> str:
-        """
-        Add an image to the project and persist the updated project state.
-        
+        """Add an image to the project and persist the updated project state.
+
         Parameters:
-        	filepath (Path | str): Path to the image file.
-        	copy_to_workspace (bool): Whether to copy the image into the project workspace.
-        	subfolder (str | None): Optional workspace subfolder for the image.
-        
+                filepath (Path | str): Path to the image file.
+                copy_to_workspace (bool): Whether to copy the image into the project workspace.
+                subfolder (str | None): Optional workspace subfolder for the image.
+
         Returns:
-        	str: Identifier of the added image.
+                str: Identifier of the added image.
         """
         h = self.assets.add_image(self.data, filepath, copy_to_workspace, subfolder)
         self.save()
@@ -192,16 +183,15 @@ class ProjectManager:
     def batch_add_images(
         self, filepaths: list[Path | str], copy_to_workspace: bool, subfolder: str | None = None
     ) -> list[str]:
-        """
-        Add multiple images to the project and persist the updated asset state.
-        
+        """Add multiple images to the project and persist the updated asset state.
+
         Parameters:
-        	filepaths (list[Path | str]): Image files to add.
-        	copy_to_workspace (bool): Whether to copy the images into the project workspace.
-        	subfolder (str | None): Optional workspace subfolder for copied images.
-        
+                filepaths (list[Path | str]): Image files to add.
+                copy_to_workspace (bool): Whether to copy the images into the project workspace.
+                subfolder (str | None): Optional workspace subfolder for copied images.
+
         Returns:
-        	list[str]: Asset identifiers for the added images.
+                list[str]: Asset identifiers for the added images.
         """
         hashes = [
             self.assets.add_image(self.data, fp, copy_to_workspace, subfolder) for fp in filepaths
@@ -210,17 +200,16 @@ class ProjectManager:
         return hashes
 
     def validate_assets(self) -> None:
-        """Validates the project's asset references and saves the project if changes are required."""
+        """Validates the project's asset references and saves if changes are required."""
         if self.assets.validate_assets(self.data):
             self.save()
 
     def get_asset_path(self, file_hash: str) -> Path | None:
-        """
-        Return the filesystem path for a stored asset.
-        
+        """Return the filesystem path for a stored asset.
+
         Parameters:
             file_hash (str): Identifier of the asset.
-        
+
         Returns:
             Path | None: The asset path if it is available, otherwise `None`.
         """
@@ -234,16 +223,15 @@ class ProjectManager:
         filename: str | None = None,
         attachments: list[dict] | None = None,
     ) -> str:
-        """
-        Persist a workflow and notify subscribers that it was saved.
-        
+        """Persist a workflow and notify subscribers that it was saved.
+
         Parameters:
             module_id (str): Identifier of the workflow module.
             payload (dict): Workflow content to persist.
             metadata (dict): Metadata associated with the workflow.
             filename (str | None): Optional workflow filename.
             attachments (list[dict] | None): Optional files associated with the workflow.
-        
+
         Returns:
             str: Identifier of the saved workflow.
         """
@@ -259,29 +247,27 @@ class ProjectManager:
         description: str = "",
         mime_hint: str = "application/octet-stream",
     ) -> dict:
-        """
-        Attach a file to a saved workflow.
-        
+        """Attach a file to a saved workflow.
+
         Parameters:
-        	wf_filename (str): The workflow filename.
-        	source_path (Path | str): The path to the file to attach.
-        	key (str): The attachment key.
-        	description (str): A description of the attachment.
-        	mime_hint (str): The attachment's MIME type hint.
-        
+                wf_filename (str): The workflow filename.
+                source_path (Path | str): The path to the file to attach.
+                key (str): The attachment key.
+                description (str): A description of the attachment.
+                mime_hint (str): The attachment's MIME type hint.
+
         Returns:
-        	dict: Metadata for the attached file.
+                dict: Metadata for the attached file.
         """
         return self.workflows.attach_file(wf_filename, source_path, key, description, mime_hint)
 
     def get_attachment_path(self, wf_filename: str, key: str) -> Path | None:
-        """
-        Locate a workflow attachment by key.
-        
+        """Locate a workflow attachment by key.
+
         Parameters:
             wf_filename (str): Workflow filename containing the attachment.
             key (str): Attachment key to locate.
-        
+
         Returns:
             Path | None: The existing attachment path, or `None` if the attachment is unavailable.
         """
@@ -297,55 +283,52 @@ class ProjectManager:
 
     def list_workflows(self) -> list[dict]:
         """List all saved workflows.
-        
+
         Returns:
-        	list[dict]: Workflow metadata entries.
+                list[dict]: Workflow metadata entries.
         """
         return self.workflows.list_all()
 
     def load_workflow_payload(self, filename: str) -> dict:
         """Load the payload for a saved workflow.
-        
+
         Parameters:
-        	filename (str): The workflow filename.
-        
+                filename (str): The workflow filename.
+
         Returns:
-        	dict: The workflow payload.
+                dict: The workflow payload.
         """
         return self.workflows.load_payload(filename)
 
     def get_workflow_hash(self, filename: str) -> str | None:
-        """
-        Get the content hash for a saved workflow.
-        
+        """Get the content hash for a saved workflow.
+
         Parameters:
             filename (str): The workflow filename.
-        
+
         Returns:
             str | None: The workflow hash, or `None` if no hash is available.
         """
         return self.workflows.get_hash(filename)
 
     def delete_workflow(self, module_id: str, filename: str) -> bool:  # noqa: ARG002
-        """
-        Delete a saved workflow by filename.
-        
+        """Delete a saved workflow by filename.
+
         Parameters:
             filename (str): Name of the workflow file.
-        
+
         Returns:
             bool: `true` if the workflow was deleted, `false` otherwise.
         """
         return self.workflows.delete(filename)
 
     def delete_workflow_attachment(self, filename: str, key: str) -> bool:
-        """
-        Delete an attachment from a saved workflow.
-        
+        """Delete an attachment from a saved workflow.
+
         Parameters:
             filename (str): Workflow filename.
             key (str): Attachment key.
-        
+
         Returns:
             bool: `True` if the attachment was deleted, `False` otherwise.
         """

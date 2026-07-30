@@ -25,10 +25,10 @@ class NetworkUpdater:
     """Facade for network operations, delegating to specialized network packages."""
 
     def __init__(self) -> None:
-        """
-        Initialize network updater configuration and local plugin storage.
-        
-        Creates the plugin directory and initializes the local installed-plugin registry when needed.
+        """Initialize network updater configuration and local plugin storage.
+
+        Creates the plugin directory and initializes the local installed-plugin registry when
+        needed.
         """
         self.core_version = AppConfig.CORE_VERSION
         self.registry_url = AppConfig.REGISTRY_URL
@@ -64,9 +64,8 @@ class NetworkUpdater:
             logger.warning(f"Could not deploy signing tool: {e}")
 
     def get_local_state(self) -> dict:
-        """
-        Retrieve the locally installed plugin registry state.
-        
+        """Retrieve the locally installed plugin registry state.
+
         Returns:
             dict: The current local registry data.
         """
@@ -74,10 +73,10 @@ class NetworkUpdater:
 
     def fetch_remote_registry(self, registry_url: str) -> dict:
         """Fetches registry data from the specified remote URL.
-        
+
         Parameters:
             registry_url (str): URL of the remote registry.
-        
+
         Returns:
             dict: Registry data retrieved from the remote URL.
         """
@@ -85,18 +84,17 @@ class NetworkUpdater:
 
     def fetch_remote_developers(self) -> list:
         """Fetches the developers listed in the remote registry.
-        
+
         Returns:
-        	list: The remote developer records.
+                list: The remote developer records.
         """
         return RegistrySync.fetch_remote_developers(self.registry_url)
 
     def evaluate_store_state(self) -> dict:
-        """
-        Evaluate the current plugin store state and synchronize related trust and system asset data.
-        
+        """Evaluate store state and synchronize related trust and system asset data.
+
         Returns:
-        	dict: The evaluated store inventory.
+                dict: The evaluated store inventory.
         """
         store_inventory, trusted_devs, remote_data = RegistrySync.evaluate_store_state(
             self.core_version, self.registry_url, self.plugin_dir, self.local_registry_path
@@ -111,9 +109,8 @@ class NetworkUpdater:
         TrustSync.fetch_and_sync_authorities(self.authority_url)
 
     def sync_trusted_developers(self, trusted_list: list) -> Any:
-        """
-        Synchronize the configured trusted developer records.
-        
+        """Synchronize the configured trusted developer records.
+
         Parameters:
             trusted_list (list): Trusted developer records to synchronize.
         """
@@ -125,9 +122,8 @@ class NetworkUpdater:
         SystemAssetSync.sync_assets(remote_data, self.plugin_dir)
 
     def check_for_core_updates(self) -> Any:
-        """
-        Determine whether a newer core application version is available.
-        
+        """Determine whether a newer core application version is available.
+
         Returns:
             tuple: A boolean and core application details when an update is available;
                 otherwise, `False` and `None`.
@@ -143,9 +139,8 @@ class NetworkUpdater:
         return False, None
 
     def launch_core_update_page(self) -> bool:
-        """
-        Open the core application's download page when a URL is available.
-        
+        """Open the core application's download page when a URL is available.
+
         Returns:
             bool: `True` if the download page was opened, `False` if no URL is configured.
         """
@@ -159,13 +154,12 @@ class NetworkUpdater:
         return False
 
     def install_plugin(self, plugin_id, remote_info) -> Any:
-        """
-        Download and install a plugin package, then update the local installation registry.
-        
+        """Download and install a plugin package, then update the local installation registry.
+
         Parameters:
             plugin_id: Identifier of the plugin to install.
             remote_info: Plugin metadata containing the download URL, version, and name.
-        
+
         Returns:
             A tuple containing a success flag and a status message.
         """
@@ -209,12 +203,11 @@ class NetworkUpdater:
             return False, f"Failed to install: {e}"
 
     def remove_plugin(self, plugin_id) -> Any:
-        """
-        Remove an installed plugin and update the local registry.
-        
+        """Remove an installed plugin and update the local registry.
+
         Parameters:
             plugin_id: Identifier of the plugin to remove.
-        
+
         Returns:
             A tuple containing a success flag and a status message.
         """

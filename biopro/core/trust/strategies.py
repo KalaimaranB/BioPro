@@ -12,13 +12,12 @@ class ITrustStrategy(abc.ABC):
 
     @abc.abstractmethod
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
-        """
-        Verify a plugin using the trust strategy.
-        
+        """Verify a plugin using the trust strategy.
+
         Parameters:
             manifest (dict[str, Any]): Plugin manifest containing signing metadata.
             plugin_path (str): Filesystem path to the plugin.
-        
+
         Returns:
             VerificationResult: Result of the plugin trust verification.
         """
@@ -29,15 +28,16 @@ class ProjectTrustStrategy(ITrustStrategy):
     """Verifies plugins signed by a CI/CD Project Key."""
 
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
-        """
-        Verify a plugin signed by a project key.
-        
+        """Verify a plugin signed by a project key.
+
         Parameters:
-            manifest (dict[str, Any]): Plugin manifest used to determine the signing entity when filesystem metadata is unavailable.
+            manifest (dict[str, Any]): Plugin manifest used to determine the signing entity when
+            filesystem metadata is unavailable.
             plugin_path (str): Path to the plugin directory.
-        
+
         Returns:
-            VerificationResult: Verification outcome, with successful project verification reported as ``verified_project``.
+            VerificationResult: Verification outcome, with successful project verification reported
+            as ``verified_project``.
         """
         # Load security.json to determine entity type
         entity_type = ""
@@ -85,13 +85,14 @@ class DeveloperTrustStrategy(ITrustStrategy):
 
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
         """Verifies that a plugin is signed by a developer key.
-        
+
         Parameters:
             manifest (dict[str, Any]): Plugin manifest containing signing metadata.
             plugin_path (str): Filesystem path to the plugin.
-        
+
         Returns:
-            VerificationResult: The plugin verification result, or a failed result when the entity type is not ``"developer"``.
+            VerificationResult: The plugin verification result, or a failed result when the entity
+            type is not ``"developer"``.
         """
         # Load security.json to determine entity type
         entity_type = ""
@@ -133,15 +134,15 @@ class TrustStrategyFactory:
 
     @staticmethod
     def get_strategy(manifest: dict[str, Any], plugin_path: str = "") -> ITrustStrategy:
-        """
-        Select a trust verification strategy based on the plugin's signing entity.
-        
+        """Select a trust verification strategy based on the plugin's signing entity.
+
         Parameters:
             manifest (dict[str, Any]): Plugin manifest containing signing metadata.
             plugin_path (str): Optional path used to determine the signing entity from plugin files.
-        
+
         Returns:
-            ITrustStrategy: A project strategy for project-signed plugins; otherwise, a developer strategy.
+            ITrustStrategy: A project strategy for project-signed plugins; otherwise, a developer
+            strategy.
         """
         entity_type = ""
         if plugin_path:

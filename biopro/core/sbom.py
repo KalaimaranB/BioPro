@@ -18,11 +18,11 @@ class SBOMGenerator:
     """Compiles software supply chain inventory for the BioPro core and active plugins."""
 
     def __init__(self, project_root: Path | None = None):
-        """
-        Initialize the SBOM generator with the project and application data directories.
-        
+        """Initialize the SBOM generator with the project and application data directories.
+
         Parameters:
-            project_root (Path | None): Project root directory, or the default project directory when omitted.
+            project_root (Path | None): Project root directory, or the default project directory
+            when omitted.
         """
         self.project_root = project_root or Path(__file__).parent.parent.parent
         self.biopro_dir = AppConfig.APP_DATA_DIR
@@ -57,13 +57,12 @@ class SBOMGenerator:
         }
 
     def compile_sbom(self) -> dict[str, Any]:
-        """
-        Build a CycloneDX-compatible software bill of materials for the project.
-        
+        """Build a CycloneDX-compatible software bill of materials for the project.
+
         The result includes core Python dependencies from ``uv.lock`` and metadata
         for available plugins, including their trust status and integrity file count.
         Plugin collection failures are recorded in ``plugins_error``.
-        
+
         Returns:
             dict[str, Any]: The generated SBOM data.
         """
@@ -141,11 +140,10 @@ class SBOMGenerator:
         return json.dumps(self.compile_sbom(), indent=4)
 
     def to_markdown(self) -> str:
-        """
-        Formats the SBOM as a Markdown report containing system details, installed plugins, trust statuses, and Python dependencies.
-        
+        """Formats the SBOM as a Markdown report containing system details and dependencies.
+
         Returns:
-        	str: The formatted Markdown SBOM report.
+                str: The formatted Markdown SBOM report.
         """
         data = self.compile_sbom()
         md = []

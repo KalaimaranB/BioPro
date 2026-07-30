@@ -197,12 +197,11 @@ def auto_detect_inversion(image: NDArray[np.float64]) -> bool:
 
 
 def invert_image(image: NDArray[np.float64]) -> NDArray[np.float64]:
-    """
-    Invert a normalized image's intensities.
-    
+    """Invert a normalized image's intensities.
+
     Parameters:
         image (NDArray[np.float64]): Image with values in the range [0.0, 1.0].
-    
+
     Returns:
         NDArray[np.float64]: Image with each intensity replaced by 1.0 minus its original value.
     """
@@ -218,9 +217,8 @@ def enhance_for_band_detection(  # noqa: PLR0913
     denoise_median_ksize: int = 0,
     background_kernel_size: int = 0,
 ) -> NDArray[np.float64]:
-    """
-    Enhance an image to emphasize band structure and reduce background variation.
-    
+    """Enhance an image to emphasize band structure and reduce background variation.
+
     Parameters:
         image (NDArray[np.float64]): Grayscale image with intensities expected in
             the range [0.0, 1.0].
@@ -232,7 +230,7 @@ def enhance_for_band_detection(  # noqa: PLR0913
             disable denoising.
         background_kernel_size (int): Gaussian background-estimation kernel size;
             values below 5 disable background subtraction.
-    
+
     Returns:
         NDArray[np.float64]: Enhanced image clipped to [0.0, 1.0].
     """
@@ -335,13 +333,13 @@ def auto_detect_rotation(
     angle_step: float = 0.25,
 ) -> float:
     """Estimate the angle that best aligns horizontal bands in an image.
-    
+
     Parameters:
         image (NDArray[np.float64]): Grayscale image with intensities in the range
             ``[0.0, 1.0]``.
         angle_range (float): Maximum absolute angle to consider, in degrees.
         angle_step (float): Spacing between candidate angles, in degrees.
-    
+
     Returns:
         float: Estimated alignment angle in degrees, or ``0.0`` when the detected
             angle is within one step of horizontal.
@@ -397,9 +395,8 @@ def calculate_band_crop_region(  # noqa: C901, PLR0913, PLR0915
     horizontal_padding_frac: float = 0.10,
     smoothing_window: int = 7,
 ) -> tuple[int, int, int, int] | None:
-    """
-    Compute a padded bounding box containing the densest band content.
-    
+    """Compute a padded bounding box containing the densest band content.
+
     Parameters:
         image (NDArray[np.float64]): Grayscale image to analyze.
         dark_threshold (float | None): Reserved threshold override.
@@ -408,7 +405,7 @@ def calculate_band_crop_region(  # noqa: C901, PLR0913, PLR0915
         vertical_padding_frac (float): Vertical padding fraction around the detected region.
         horizontal_padding_frac (float): Horizontal padding fraction around the detected region.
         smoothing_window (int): Window size for smoothing row content measurements.
-    
+
     Returns:
         tuple[int, int, int, int] | None: Crop bounds as
         `(row_min, row_max, column_min, column_max)`, or `None` when suitable band
@@ -564,9 +561,8 @@ def auto_crop_to_bands(  # noqa: PLR0913
     horizontal_padding_frac: float = 0.10,
     smoothing_window: int = 7,
 ) -> NDArray[np.float64]:
-    """
-    Crop an image to the region containing detected bands with padding.
-    
+    """Crop an image to the region containing detected bands with padding.
+
     Parameters:
         image (NDArray[np.float64]): Grayscale image to crop.
         min_band_width_frac (float): Minimum fraction of image width required for a band row.
@@ -574,7 +570,7 @@ def auto_crop_to_bands(  # noqa: PLR0913
         vertical_padding_frac (float): Fraction of band height to add as vertical padding.
         horizontal_padding_frac (float): Fraction of band width to add as horizontal padding.
         smoothing_window (int): Window size used to smooth row-based band detection.
-    
+
     Returns:
         NDArray[np.float64]: Cropped image, or the original image when no crop region is detected.
     """

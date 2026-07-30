@@ -19,12 +19,12 @@ class TrustSync:
 
     @staticmethod
     def sync_keys(trusted_list: list, prefix: str = "network_") -> Any:
-        """
-        Persist trusted public keys locally and remove stale keys for the specified prefix.
-        
+        """Persist trusted public keys locally and remove stale keys for the specified prefix.
+
         Parameters:
-        	trusted_list (list): Trusted entities containing an identifier and hexadecimal public key.
-        	prefix (str): Filename prefix used to group the synchronized keys.
+                trusted_list (list): Trusted entities containing an identifier and hexadecimal
+                public key.
+                prefix (str): Filename prefix used to group the synchronized keys.
         """
         roots_dir = Path.home() / ".biopro" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
@@ -59,10 +59,10 @@ class TrustSync:
     @staticmethod
     def fetch_and_sync_authorities(authority_url: str) -> Any:
         """Fetch, verify, and locally synchronize authorities from a registry URL.
-        
+
         Parameters:
             authority_url (str): URL of the authorities registry. Empty URLs are ignored.
-        
+
         The registry is synchronized only after its signature is verified with the
         built-in root public key. Missing or invalid registries are skipped.
         """  # noqa: E501
@@ -113,11 +113,11 @@ class TrustSync:
 
     @staticmethod
     def sync_trusted_developers(trusted_list: list) -> Any:
-        """
-        Synchronize trusted developer keys and associated profile data.
-        
+        """Synchronize trusted developer keys and associated profile data.
+
         Parameters:
-            trusted_list (list): Developer records containing public keys and optional profile or avatar information.
+            trusted_list (list): Developer records containing public keys and optional profile or
+            avatar information.
         """
         TrustSync.sync_keys(trusted_list, prefix="network_")
 

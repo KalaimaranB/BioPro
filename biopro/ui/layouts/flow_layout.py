@@ -22,9 +22,9 @@ class FlowLayout(QLayout):
 
     def addItem(self, item):  # noqa: N802
         """Add a layout item to the collection of managed items.
-        
+
         Parameters:
-        	item (QLayoutItem): The layout item to add.
+                item (QLayoutItem): The layout item to add.
         """
         self.itemList.append(item)
 
@@ -35,12 +35,12 @@ class FlowLayout(QLayout):
     def itemAt(self, index):  # noqa: N802
         """
         Return the layout item at the specified index.
-        
+
         Parameters:
-        	index (int): Zero-based position of the item.
-        
+                index (int): Zero-based position of the item.
+
         Returns:
-        	QLayoutItem or None: The item at the index, or `None` when the index is out of bounds.
+                QLayoutItem or None: The item at the index, or `None` when the index is out of bounds.
         """
         if 0 <= index < len(self.itemList):
             return self.itemList[index]
@@ -49,12 +49,12 @@ class FlowLayout(QLayout):
     def takeAt(self, index):  # noqa: N802
         """
         Remove and return the layout item at the specified position.
-        
+
         Parameters:
-        	index (int): Position of the item to remove.
-        
+                index (int): Position of the item to remove.
+
         Returns:
-        	QLayoutItem or None: The removed item, or `None` if the position is outside the list.
+                QLayoutItem or None: The removed item, or `None` if the position is outside the list.
         """
         if 0 <= index < len(self.itemList):
             return self.itemList.pop(index)
@@ -63,7 +63,7 @@ class FlowLayout(QLayout):
     def expandingDirections(self):  # noqa: N802
         """
         Indicate the layout's expansion directions.
-        
+
         Returns:
             Qt.Orientation: No expansion directions.
         """
@@ -72,21 +72,21 @@ class FlowLayout(QLayout):
     def hasHeightForWidth(self):  # noqa: N802
         """
         Indicate that the layout supports height calculations based on its width.
-        
+
         Returns:
-        	bool: Always `True`.
+                bool: Always `True`.
         """
         return True
 
     def heightForWidth(self, width):  # noqa: N802
         """
         Calculate the layout height required for the specified width.
-        
+
         Parameters:
-        	width (int): Available layout width.
-        
+                width (int): Available layout width.
+
         Returns:
-        	int: Required layout height.
+                int: Required layout height.
         """
         height = self.doLayout(QRect(0, 0, width, 0), True)
         return height  # noqa: RET504
@@ -94,7 +94,7 @@ class FlowLayout(QLayout):
     def setGeometry(self, rect):  # noqa: N802
         """
         Apply the layout geometry to the child items within the specified rectangle.
-        
+
         Parameters:
             rect (QRect): Rectangle defining the layout's available area.
         """
@@ -104,7 +104,7 @@ class FlowLayout(QLayout):
     def sizeHint(self):  # noqa: N802
         """
         Return the layout's recommended size.
-        
+
         Returns:
             QSize: The layout's minimum required size.
         """
@@ -113,9 +113,9 @@ class FlowLayout(QLayout):
     def minimumSize(self):  # noqa: N802
         """
         Calculate the minimum size required by all layout items and the layout margins.
-        
+
         Returns:
-        	QSize: The minimum size required by the layout contents and margins.
+                QSize: The minimum size required by the layout contents and margins.
         """
         size = QSize()
         for item in self.itemList:
@@ -127,11 +127,11 @@ class FlowLayout(QLayout):
     def doLayout(self, rect, testOnly):  # noqa: N802, N803
         """
         Lay out child items in wrapped horizontal lines within a rectangle.
-        
+
         Parameters:
             rect (QRect): Rectangle available for the layout.
             testOnly (bool): Whether to calculate dimensions without applying item geometries.
-        
+
         Returns:
             int: Total height required by the laid-out lines.
         """

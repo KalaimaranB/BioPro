@@ -7,9 +7,8 @@ from pathlib import Path
 # --- STABILIZATION: Bootstrap Logging ---
 # This MUST happen before any wasm/biopro imports
 def setup_logging():  # noqa: D103
-    """
-    Configure application logging and create the BioPro log file.
-    
+    """Configure application logging and create the BioPro log file.
+
     Returns:
         Path: The path to the configured log file.
     """
@@ -82,9 +81,8 @@ def install_exception_hook():
 
 class BioProApp:  # noqa: D101
     def __init__(self, module_manager, updater):  # noqa: D107
-        """
-        Initialize the Qt application, apply global UI styling, configure branding, and store the application dependencies.
-        
+        """Initialize the Qt application and store dependencies.
+
         Parameters:
             module_manager: Manager used to load and reload application modules.
             updater: Service used to retrieve and update plugins.
@@ -146,9 +144,7 @@ class BioProApp:  # noqa: D101
         sys.exit(self.app.exec())
 
     def show_hub(self):  # noqa: D102
-        """
-        Display the project launcher window.
-        """
+        """Display the project launcher window."""
         from biopro.ui.windows.project_launcher import ProjectLauncherWindow
 
         self.hub = ProjectLauncherWindow(
@@ -158,7 +154,7 @@ class BioProApp:  # noqa: D101
 
     def open_store(self, parent_window):  # noqa: D102
         """Open the plugin store dialog and refresh the parent window after it closes.
-        
+
         Parameters:
             parent_window: The window that owns the dialog and may be refreshed afterward.
         """
@@ -218,12 +214,11 @@ def bootstrap_sdk():
 
 
 def main():  # noqa: C901, D103, PLR0915
-    """
-    Start the BioPro application or dispatch supported command-line modes.
-    
+    """Start the BioPro application or dispatch supported command-line modes.
+
     Handles SDK and AI server commands, optional plugin smoke tests, normal
     application initialization, and fatal startup errors.
-    
+
     """
     log_file = setup_logging()
     bootstrap_sdk()
