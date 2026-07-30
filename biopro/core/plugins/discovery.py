@@ -17,7 +17,15 @@ class PluginDiscoveryService:
 
     @staticmethod
     def _load_manifest(manifest_path: Path) -> dict[str, Any] | None:
-        """Helper to load and parse a plugin manifest."""
+        """
+        Load and parse a plugin manifest from the specified file.
+        
+        Parameters:
+        	manifest_path (Path): Path to the plugin manifest file.
+        
+        Returns:
+        	dict[str, Any] | None: The parsed manifest, or `None` if parsing fails.
+        """
         try:
             parser = ManifestParser()
             return parser.parse_file(str(manifest_path))
@@ -26,7 +34,16 @@ class PluginDiscoveryService:
 
     @staticmethod
     def discover_modules(internal_dir: Path, user_dir: Path) -> dict[str, dict[str, Any]]:  # noqa: C901
-        """Scans directories for plugins and returns a dictionary of modules."""
+        """
+        Discovers plugins in the internal and user directories and collects their manifest and trust metadata.
+        
+        Parameters:
+        	internal_dir (Path): Directory containing built-in plugins.
+        	user_dir (Path): Directory containing user-installed plugins.
+        
+        Returns:
+        	dict[str, dict[str, Any]]: Mapping of plugin IDs to manifest, path, loading, and trust metadata.
+        """
         modules: dict[str, dict[str, Any]] = {}
         directories_to_scan = [internal_dir, user_dir]
 
@@ -102,7 +119,17 @@ class PluginDiscoveryService:
     def _handle_legacy_manifest(
         plugin_path: Path, manifest_file: Path, error_str: str
     ) -> tuple[str, dict] | tuple[None, None]:  # noqa: E501
-        """Handles PyProject.toml manifests using the outdated V1 author field format."""
+        """
+        Create module metadata for a legacy manifest using the outdated V1 author format.
+        
+        Parameters:
+            plugin_path (Path): Path to the plugin directory.
+            manifest_file (Path): Path to the legacy manifest file.
+            error_str (str): Manifest validation error associated with the legacy format.
+        
+        Returns:
+            tuple[str, dict] | tuple[None, None]: The module identifier and outdated module metadata, or `(None, None)` if the legacy manifest cannot be processed.
+        """
         try:
             raw_manifest = AtomicJsonFile.load(manifest_file, default={})
             mod_id = raw_manifest.get("id", plugin_path.name)

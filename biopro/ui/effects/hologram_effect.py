@@ -22,6 +22,9 @@ class HologramEffect(QWidget):
 
     def _update_animation(self):
         # 1. Update horizontal scanlines
+        """
+        Update the holographic overlay animation state and schedule a repaint.
+        """
         self._offset = (self._offset + 1) % 20
 
         # 2. Update vertical scan beam
@@ -40,6 +43,9 @@ class HologramEffect(QWidget):
         self.update()
 
     def paintEvent(self, event):  # noqa: ARG002, N802
+        """
+        Paints the holographic overlay with a soft vertical depth gradient and current opacity.
+        """
         if Colors.SCANLINE_OPACITY <= 0:
             return
 

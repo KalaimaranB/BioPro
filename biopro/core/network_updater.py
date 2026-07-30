@@ -25,7 +25,11 @@ class NetworkUpdater:
     """Facade for network operations, delegating to specialized network packages."""
 
     def __init__(self) -> None:
-        """Documentation."""
+        """
+        Initialize network updater configuration and local plugin storage.
+        
+        Creates the plugin directory and initializes the local installed-plugin registry when needed.
+        """
         self.core_version = AppConfig.CORE_VERSION
         self.registry_url = AppConfig.REGISTRY_URL
         self.authority_url = AppConfig.AUTHORITY_REGISTRY_URL
@@ -60,19 +64,40 @@ class NetworkUpdater:
             logger.warning(f"Could not deploy signing tool: {e}")
 
     def get_local_state(self) -> dict:
-        """Documentation."""
+        """
+        Retrieve the locally installed plugin registry state.
+        
+        Returns:
+            dict: The current local registry data.
+        """
         return RegistrySync.get_local_state(self.plugin_dir, self.local_registry_path)
 
     def fetch_remote_registry(self, registry_url: str) -> dict:
-        """Documentation."""
+        """Fetches registry data from the specified remote URL.
+        
+        Parameters:
+            registry_url (str): URL of the remote registry.
+        
+        Returns:
+            dict: Registry data retrieved from the remote URL.
+        """
         return RegistrySync.fetch_remote_registry(registry_url)
 
     def fetch_remote_developers(self) -> list:
-        """Documentation."""
+        """Fetches the developers listed in the remote registry.
+        
+        Returns:
+        	list: The remote developer records.
+        """
         return RegistrySync.fetch_remote_developers(self.registry_url)
 
     def evaluate_store_state(self) -> dict:
-        """Documentation."""
+        """
+        Evaluate the current plugin store state and synchronize related trust and system asset data.
+        
+        Returns:
+        	dict: The evaluated store inventory.
+        """
         store_inventory, trusted_devs, remote_data = RegistrySync.evaluate_store_state(
             self.core_version, self.registry_url, self.plugin_dir, self.local_registry_path
         )
@@ -82,20 +107,31 @@ class NetworkUpdater:
         return store_inventory
 
     def fetch_and_sync_authorities(self) -> None:
-        """Documentation."""
+        """Fetch and synchronize authority data from the configured authority service."""
         TrustSync.fetch_and_sync_authorities(self.authority_url)
 
     def sync_trusted_developers(self, trusted_list: list) -> Any:
-        """Documentation."""
+        """
+        Synchronize the configured trusted developer records.
+        
+        Parameters:
+            trusted_list (list): Trusted developer records to synchronize.
+        """
         TrustSync.sync_trusted_developers(trusted_list)
 
     def sync_system_assets(self) -> None:
-        """Documentation."""
+        """Synchronize system assets using the remote registry data."""
         remote_data = self.fetch_remote_registry(self.registry_url)
         SystemAssetSync.sync_assets(remote_data, self.plugin_dir)
 
     def check_for_core_updates(self) -> Any:
-        """Documentation."""
+        """
+        Determine whether a newer core application version is available.
+        
+        Returns:
+            tuple: A boolean and core application details when an update is available;
+                otherwise, `False` and `None`.
+        """
         remote_data = self.fetch_remote_registry(self.registry_url)
         core_info = remote_data.get("core_app", {})
         remote_version = core_info.get("version", "0.0.0")
@@ -107,7 +143,12 @@ class NetworkUpdater:
         return False, None
 
     def launch_core_update_page(self) -> bool:
-        """Documentation."""
+        """
+        Open the core application's download page when a URL is available.
+        
+        Returns:
+            bool: `True` if the download page was opened, `False` if no URL is configured.
+        """
         remote_data = self.fetch_remote_registry(self.registry_url)
         core_info = remote_data.get("core_app", {})
         download_url = core_info.get("download_url")
@@ -118,7 +159,16 @@ class NetworkUpdater:
         return False
 
     def install_plugin(self, plugin_id, remote_info) -> Any:
-        """Downloads a .zip plugin package, extracts it securely, and updates the registry."""
+        """
+        Download and install a plugin package, then update the local installation registry.
+        
+        Parameters:
+            plugin_id: Identifier of the plugin to install.
+            remote_info: Plugin metadata containing the download URL, version, and name.
+        
+        Returns:
+            A tuple containing a success flag and a status message.
+        """
         import io
         import zipfile
 
@@ -159,7 +209,15 @@ class NetworkUpdater:
             return False, f"Failed to install: {e}"
 
     def remove_plugin(self, plugin_id) -> Any:
-        """Documentation."""
+        """
+        Remove an installed plugin and update the local registry.
+        
+        Parameters:
+            plugin_id: Identifier of the plugin to remove.
+        
+        Returns:
+            A tuple containing a success flag and a status message.
+        """
         try:
             plugin_folder = self.plugin_dir / plugin_id
             safe_remove(self.plugin_dir, plugin_folder)

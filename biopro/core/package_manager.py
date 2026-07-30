@@ -19,7 +19,11 @@ class PackageManager:
     """Manages the global pre-compiled package cache and user-space symlinking."""
 
     def __init__(self, cache_dir: Path | None = None):
-        """Initialize PackageManager with a global package cache folder."""
+        """Initialize the package manager with the specified or default cache directory.
+        
+        Parameters:
+            cache_dir (Path | None): Directory used to cache packages. Defaults to the application package cache directory.
+        """
         if cache_dir is None:
             self.cache_dir = AppConfig.APP_DATA_DIR / "cache" / "packages"
         else:
@@ -29,7 +33,20 @@ class PackageManager:
     def resolve_and_install_all(  # noqa: C901, PLR0915
         self, dependencies: dict[str, str], plugin_dir: Path, progress_callback=None
     ):
-        """Batch install all dependencies natively using uv into a standalone plugin venv."""
+        """
+        Install the plugin's dependencies into its standalone virtual environment.
+        
+        Parameters:
+            dependencies (dict[str, str]): Dependency names mapped to versions or version
+                constraints.
+            plugin_dir (Path): Directory containing the plugin.
+            progress_callback (callable, optional): Callback receiving installation progress
+                percentages.
+        
+        Raises:
+            RuntimeError: If `uv` is unavailable or environment creation, dependency
+                installation, interpreter discovery, or the plugin self-test fails.
+        """
         if not dependencies:
             if progress_callback:
                 progress_callback(100)
@@ -137,7 +154,13 @@ class PluginInstallerWorker(QThread):
     finished = pyqtSignal(bool, str)
 
     def __init__(self, plugin_dir: Path | str, cache_dir: Path | None = None):
-        """Documentation."""
+        """
+        Initialize the worker for installing dependencies in a plugin directory.
+        
+        Parameters:
+            plugin_dir (Path | str): Directory containing the plugin.
+            cache_dir (Path | None): Optional directory for the package cache.
+        """
         super().__init__()
         self.plugin_dir = Path(plugin_dir)
         self.pm = PackageManager(cache_dir=cache_dir)
@@ -148,7 +171,13 @@ class PluginInstallerWorker(QThread):
         )
 
     def run(self) -> Any:
-        """Documentation."""
+        """
+        Parse the plugin manifest and install its declared Python dependencies.
+        
+        Emits progress updates during installation and signals completion with success
+        or failure status. Missing or invalid manifests and installation errors are
+        reported through the completion signal.
+        """
         try:
             import logging
 

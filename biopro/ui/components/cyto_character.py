@@ -207,7 +207,7 @@ class CytoWidget(QGraphicsView):
         self.current_costume.attach(self)
 
     def speak(self, text: str):  # noqa: ARG002
-        """Triggers the talking animation sequence. (Text rendering handled by overlay)"""
+        """Starts the character's talking animation."""
         self.is_talking = True
         self.talking_timer = 150  # Roughly 4 seconds of lip flap
 
@@ -233,6 +233,7 @@ class CytoWidget(QGraphicsView):
     # --- Internal Animation Loop ---
 
     def update_body_path(self):
+        """Update the character body's animated outline."""
         path = QPainterPath()
         base_radius = 45
         points = 40

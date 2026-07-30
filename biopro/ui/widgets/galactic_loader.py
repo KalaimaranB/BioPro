@@ -19,6 +19,12 @@ class GalacticLoader(QQuickWidget):
     fade_out_finished = pyqtSignal()
 
     def __init__(self, parent=None):
+        """
+        Initialize the QML-based Galactic loading widget.
+        
+        Parameters:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
 
         # Transparent background for the widget itself
@@ -54,7 +60,9 @@ class GalacticLoader(QQuickWidget):
             self.update_colors()
 
     def update_colors(self):
-        """Update QML properties with current theme colors."""
+        """
+        Update the QML loader colors to reflect the current application theme.
+        """
         root = self.rootObject()
         if not root:
             return
@@ -75,7 +83,12 @@ class GalacticLoader(QQuickWidget):
         root.setProperty("textColor", text_color)
 
     def set_module(self, name: str):
-        """Reset the loader for a new module."""
+        """
+        Reset the loader and assign it to a new module.
+        
+        Parameters:
+            name (str): Name of the module to display.
+        """
         root = self.rootObject()
         if root:
             root.setProperty("moduleName", name)
@@ -104,7 +117,12 @@ class GalacticLoader(QQuickWidget):
             QtCore.QMetaObject.invokeMethod(root, "warpOut")
 
     def fade_out(self, duration_ms: int = 500):
-        """Begin hardware-accelerated fade out transition to transparent."""
+        """
+        Begin the loader's fade-out transition.
+        
+        Parameters:
+            duration_ms (int): Duration of the transition in milliseconds.
+        """
         root = self.rootObject()
         if root:
             import PyQt6.QtCore as QtCore

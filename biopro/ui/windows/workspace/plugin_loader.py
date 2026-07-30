@@ -23,6 +23,9 @@ class PluginUIWorker(QObject):
 
     @pyqtSlot()
     def run(self):
+        """
+        Load the module UI class and emit either the result or a formatted error traceback.
+        """
         try:
             PanelClass = self.module_manager.load_module_ui(self.module_id)  # noqa: N806
             self.finished.emit(PanelClass)
@@ -39,7 +42,12 @@ class PluginLoaderManager:
         self.main_window = main_window
 
     def open_module(self, manifest: dict) -> None:
-        """Triggers the Galactic transition and starts async module loading."""
+        """
+        Starts loading a module's user interface after obtaining trust approval when required.
+        
+        Parameters:
+        	manifest (dict): Module manifest containing the module identifier and optional display name.
+        """
         mw = self.main_window
         module_id = manifest["id"]
         module_name = manifest.get("display_name", "Analysis Module")
@@ -101,6 +109,13 @@ class PluginLoaderManager:
         mw._module_thread.start()
 
     def on_module_loaded(self, manifest: dict, PanelClass: type) -> None:  # noqa: N803
+        """
+        Stores the loaded module UI class and starts the loader's warp-out transition.
+        
+        Parameters:
+            manifest (dict): Module manifest containing the module identifier.
+            PanelClass (type): Loaded UI panel class.
+        """
         mw = self.main_window
         module_id = manifest["id"]
         logger.info(
@@ -115,13 +130,12 @@ class PluginLoaderManager:
             mw.loader_widget.warp_out()
 
     def on_warp_peaked(self) -> None:
-        """Invoked when the GalacticLoader warp animation reaches its peak.
-
-        Instantiates the skeleton panel, then checks for the Phase 2 async-init
-        protocol (Proposal A).  If the panel exposes ``begin_async_init`` and
-        ``panel_ready``, the loader stays visible while heavy widgets are built;
-        only when ``panel_ready`` fires does the loader cross-fade away.  Legacy
-        panels without the protocol fall back to an immediate crossfade.
+        """
+        Handles the loader's peak by creating the module panel and starting its initialization.
+        
+        Panels supporting the asynchronous initialization protocol remain behind the loader until
+        their readiness signals allow the final crossfade. Legacy panels receive any pending
+        workflow and transition immediately.
         """
         mw = self.main_window
         manifest = mw._pending_manifest
@@ -181,7 +195,7 @@ class PluginLoaderManager:
             self.crossfade_to_analysis()
 
     def _on_panel_ready(self) -> None:
-        """Phase 2 complete: heavy widgets built."""
+        """Handles completion of asynchronous panel construction and advances to data loading or the final UI transition."""
         mw = self.main_window
         panel = mw.wizard_panel
 
@@ -208,7 +222,9 @@ class PluginLoaderManager:
             self._trigger_crossfade()
 
     def _on_data_ready(self) -> None:
-        """Data loaded and graphs rendered — now safe to crossfade."""
+        """
+        Marks the active panel's data as ready and starts the final transition when the panel is ready for display.
+        """
         logger.info("PluginLoader: data_ready signal received from active panel!")
         mw = self.main_window
         panel = mw.wizard_panel
@@ -237,7 +253,7 @@ class PluginLoaderManager:
         self._trigger_crossfade()
 
     def _trigger_crossfade(self) -> None:
-        """Helper to set status message and initiate crossfade."""
+        """Updates the status message and transitions to the analysis page."""
         logger.info("PluginLoader: Triggering crossfade_to_analysis()...")
         mw = self.main_window
         manifest = getattr(mw, "_active_manifest", {})
@@ -247,10 +263,12 @@ class PluginLoaderManager:
         self.crossfade_to_analysis()
 
     def _inject_pending_workflow(self, manifest: dict | None = None) -> None:  # noqa: ARG002
-        """Inject ``mw._pending_workflow_payload`` into the active wizard_panel.
-
-        Extracted from ``instantiate_module_panel`` so it can be called at the
-        right moment in both the legacy (Phase 1 only) and new (Phase 2) paths.
+        """
+        Load the pending workflow payload into the active wizard panel when supported.
+        
+        The payload is passed with its filename and metadata when the panel accepts
+        those arguments. Pending workflow data and associated metadata are cleared
+        after processing.
         """
         mw = self.main_window
         panel = mw.wizard_panel
@@ -279,6 +297,13 @@ class PluginLoaderManager:
         mw._pending_workflow_metadata = None
 
     def instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:  # noqa: N803
+        """
+        Instantiates the plugin panel, configures its UI integrations, and emits the module-opened event.
+        
+        Parameters:
+            manifest (dict): Module metadata containing the module identifier and optional display details.
+            PanelClass (type): Panel class to instantiate.
+        """
         mw = self.main_window
         module_id = manifest["id"]
         logger.info(f"PluginLoader: Instantiating UI panel for '{module_id}' and wiring events.")
@@ -347,6 +372,9 @@ class PluginLoaderManager:
             self.on_module_load_error(module_id, traceback.format_exc())
 
     def crossfade_to_analysis(self) -> None:
+        """
+        Switches to the analysis page and fades out the loading overlay.
+        """
         mw = self.main_window
         # Switch the stack to the analysis page
         mw.root_stack.setCurrentIndex(1)  # _PAGE_ANALYSIS = 1
@@ -358,6 +386,9 @@ class PluginLoaderManager:
             loader.raise_()
 
             def on_fade_done():
+                """
+                Remove the completed loader overlay when it is still the active loader widget.
+                """
                 if hasattr(mw, "loader_widget") and mw.loader_widget == loader:
                     mw.loader_widget.deleteLater()
                     mw.loader_widget = None
@@ -373,6 +404,13 @@ class PluginLoaderManager:
                 QTimer.singleShot(700, on_fade_done)
 
     def on_module_load_error(self, module_id: str, error_msg: str) -> None:
+        """
+        Handle a module loading failure, including trust approval retries and user-facing error reporting.
+        
+        Parameters:
+            module_id (str): Identifier of the module that failed to load.
+            error_msg (str): Traceback or error message describing the failure.
+        """
         mw = self.main_window
 
         # Cleanup loader

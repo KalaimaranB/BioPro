@@ -15,16 +15,13 @@ logger = logging.getLogger(__name__)
 
 @contextlib.contextmanager
 def isolate_frozen_environment() -> Any:
-    """Temporarily suspends the PyInstaller 'frozen' state during dynamic imports.
-
-    This is a fundamental fix for scientific libraries (Bokeh, Matplotlib, SciPy, etc.)
-    that explicitly look inside the PyInstaller `sys._MEIPASS` bundle for their static
-    assets (templates, DLLs, CSS) when `sys.frozen` is True.
-
-    Because our plugins live in external, isolated `.venv` directories, those libraries
-    crash when looking in the wrong place. By temporarily setting `sys.frozen = False`,
-    we force all imported libraries to use standard `__file__` relative paths, correctly
-    locating their assets inside the plugin's `.venv`.
+    """
+    Temporarily disables the PyInstaller frozen state while executing a context.
+    
+    The original state is restored when the context exits.
+    
+    Yields:
+        None
     """
     was_frozen = getattr(sys, "frozen", False)
     if was_frozen:
@@ -42,7 +39,22 @@ class PluginLoaderFactory:
 
     @staticmethod
     def load_ui(module_id: str, mod_info: dict[str, Any]) -> type[QWidget] | None:
-        """Dynamically imports the package and returns the UI class."""
+        """
+        Load a plugin and obtain its UI panel class.
+        
+        Parameters:
+            module_id (str): Identifier used to locate and report the plugin.
+            mod_info (dict[str, Any]): Plugin metadata and mutable loading state.
+        
+        Returns:
+            type[QWidget] | None: The plugin's UI panel class, or `None` when initialization
+                fails with an exception that is contained by the loader.
+        
+        Raises:
+            TypeError: If the plugin does not satisfy the required interface.
+            ValueError: If plugin metadata or its entry point is invalid.
+            PermissionError: If loading is denied.
+        """
         if mod_info["loaded"]:
             return mod_info["plugin_ref"].get_panel_class()
 
@@ -113,7 +125,16 @@ class PluginLoaderFactory:
 
     @staticmethod
     def verify_dependencies(plugin_path: Path, manifest: dict) -> None:
-        """Verifies if the virtual environment exists before attempting to load."""
+        """
+        Verify that the plugin's isolated Python environment is available.
+        
+        Parameters:
+            plugin_path (Path): Path to the plugin directory.
+            manifest (dict): Plugin manifest used to identify the plugin in error messages.
+        
+        Raises:
+            RuntimeError: If the plugin's Python environment cannot be found.
+        """
         venv = plugin_path / ".venv"
         deps_missing = True
         candidates = []

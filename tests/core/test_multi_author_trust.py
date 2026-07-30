@@ -74,6 +74,15 @@ class MockAuthorityAndSigner:
 
 @pytest.fixture
 def trust_env(tmp_path):
+    """
+    Create a mock authority and signer for trust-related tests.
+    
+    Parameters:
+    	tmp_path: Temporary path fixture included for pytest compatibility.
+    
+    Returns:
+    	MockAuthorityAndSigner: Mock authority with a generated root key pair.
+    """
     mock_auth = MockAuthorityAndSigner()
     return mock_auth  # noqa: RET504
 

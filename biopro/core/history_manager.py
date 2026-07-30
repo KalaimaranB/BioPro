@@ -13,16 +13,26 @@ class ModuleHistory:
     """Manages the undo/redo stacks for a single, specific module."""
 
     def __init__(self, module_id: str, heavy_checker=None) -> None:  # noqa: D107
+        """
+        Initialize history tracking for a module.
+        
+        Parameters:
+        	module_id (str): Identifier of the module whose history is managed.
+        	heavy_checker: Optional callable used to identify heavy resources.
+        """
         self.module_id = module_id
         self.undo_stack: list[dict[str, Any]] = []
         self.redo_stack: list[dict[str, Any]] = []
         self.heavy_checker = heavy_checker
 
     def push(self, state: dict) -> None:
-        """Saves a new state snapshot and clears the redo stack.
-
-        This implementation uses Structural Sharing for heavy resources (like numpy arrays)
-        to prevent memory explosion during undo/redo storage.
+        """Add a state snapshot to the undo history and clear redo history.
+        
+        Duplicate consecutive snapshots are ignored. Heavy resources are retained by
+        reference, while other values are copied when possible.
+        
+        Parameters:
+            state (dict): The state to save.
         """
         # 1. Identify heavy objects in the state
         heavy_resources = {}
@@ -56,7 +66,16 @@ class ModuleHistory:
         )
 
     def _is_equal(self, state_a: dict, state_b: dict) -> bool:
-        """Optimized equality check that handles numpy arrays by identity."""
+        """
+        Compare two state snapshots for equivalent keys and values.
+        
+        Parameters:
+        	state_a (dict): First state snapshot.
+        	state_b (dict): Second state snapshot.
+        
+        Returns:
+        	bool: `True` if the snapshots have matching keys and values, using object identity for heavy resources; `False` otherwise.
+        """
         if state_a.keys() != state_b.keys():
             return False
 

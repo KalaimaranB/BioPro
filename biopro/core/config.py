@@ -23,7 +23,9 @@ class AppConfig:
     APP_DATA_DIR = Path.home() / ".biopro"
 
     def __init__(self) -> None:
-        """Documentation."""
+        """
+        Initialize application configuration paths and load persisted settings.
+        """
         # We re-evaluate Path.home() here so that pytest monkeypatching works correctly.
         self.config_dir = Path.home() / ".biopro"
         self.config_file = self.config_dir / "config.json"
@@ -36,6 +38,11 @@ class AppConfig:
         return Path(__file__).parents[2] / "docs"
 
     def _load(self) -> None:
+        """
+        Load persisted configuration data and merge it with the current defaults.
+        
+        If the configuration file cannot be loaded, an error is reported.
+        """
         if self.config_file.exists():
             data = AtomicJsonFile.load(self.config_file, default=None)
             if data is None:
@@ -47,14 +54,21 @@ class AppConfig:
                 self.data.update(data)
 
     def save(self) -> None:
-        """Documentation."""
+        """Persist the application configuration to disk."""
         if not AtomicJsonFile.save(self.config_file, self.data):
             from biopro.core.diagnostics import diagnostics
 
             diagnostics.report_error(f"Failed to save config to {self.config_file}")
 
     def add_recent_project(self, project_path: Path | str) -> None:
-        """Push a project to the top of the recents list."""
+        """
+        Add a project to the recent-projects list.
+        
+        The project path is stored as an absolute path, moved to the front of the list, and the list is limited to 10 entries.
+        
+        Parameters:
+            project_path (Path | str): Path of the project to add.
+        """
         path_str = str(Path(project_path).absolute())
         from typing import cast
 
@@ -77,7 +91,12 @@ class AppConfig:
         return cast(list[str], self.data.get("recent_projects", []))
 
     def remove_recent_project(self, project_path: Path | str) -> None:
-        """Remove a project from the recents list."""
+        """
+        Remove a project from the recent projects list and persist the updated configuration.
+        
+        Parameters:
+            project_path (Path | str): Path of the project to remove.
+        """
         path_str = str(Path(project_path).absolute())
         from typing import cast
 
@@ -88,12 +107,17 @@ class AppConfig:
             self.save()
 
     def get_skipped_update_version(self) -> str | None:
-        """Return the version string the user last chose to skip, or None."""
+        """
+        Get the version string the user chose to skip.
+        
+        Returns:
+            str | None: The skipped update version, or None if no version is set.
+        """
         from typing import cast
 
         return cast(str | None, self.data.get("skipped_update_version"))
 
     def set_skipped_update_version(self, version: str) -> None:
-        """Persist the version the user wants to skip so the banner won't re-appear."""
+        """Persist the update version to skip."""
         self.data["skipped_update_version"] = version
         self.save()

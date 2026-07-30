@@ -14,6 +14,15 @@ MOCK_TRUST_RESULT = VerificationResult(success=True, trust_level="verified_mock"
 
 def _dict_to_toml(d):  # noqa: C901
     # Convert flat dict to pyproject.toml format
+    """
+    Convert plugin metadata into a pyproject.toml-formatted string.
+    
+    Parameters:
+        d (dict): Flat plugin metadata containing project and plugin configuration fields.
+    
+    Returns:
+        str: TOML-formatted project and plugin configuration.
+    """
     lines = []
 
     lines.append("[project]")

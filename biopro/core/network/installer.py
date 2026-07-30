@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> Any:
-    """Safely extract zip files preventing Zip Slip (path traversal) vulnerabilities."""
+    """
+    Safely extract archive members within the destination directory.
+    
+    Parameters:
+        zip_ref (zipfile.ZipFile): Archive containing the members to extract.
+        dest_dir (Path): Directory into which valid members are extracted.
+    """
     dest_dir_str = os.path.abspath(dest_dir)
     for member in zip_ref.infolist():
         # Get absolute path of extracted file
@@ -34,9 +40,15 @@ def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> Any:
 
 
 def safe_remove(plugin_dir: Path, plugin_folder: Path) -> None:
-    """Safely removes a plugin directory on Windows where files may be locked.
-
-    Uses a .trash renaming strategy to prevent WinError 32 crashes during updates.
+    """
+    Safely removes a plugin directory, including directories containing locked files.
+    
+    Parameters:
+        plugin_dir (Path): Parent directory used to store temporary removal entries.
+        plugin_folder (Path): Plugin file or directory to remove.
+    
+    Raises:
+        RuntimeError: If the plugin directory cannot be moved for removal.
     """
     if not plugin_folder.exists():
         return
@@ -76,7 +88,13 @@ class PluginInstallerWorker(QThread):
     finished = pyqtSignal(bool, str)
 
     def __init__(self, plugin_id: str, download_url: str, plugins_dir: Path):  # noqa: ARG002
-        """Documentation."""
+        """
+        Initialize a plugin installation worker using the per-user plugin directory.
+        
+        Parameters:
+            plugin_id (str): Identifier of the plugin to install.
+            download_url (str): URL of the plugin archive.
+        """
         super().__init__()
         self.plugin_id = plugin_id
         self.download_url = download_url
@@ -85,7 +103,12 @@ class PluginInstallerWorker(QThread):
         self.plugins_dir = Path.home() / ".biopro" / "plugins"
 
     def run(self) -> None:
-        """Documentation."""
+        """
+        Install the plugin and report progress and completion status.
+        
+        Download failures, invalid archives, and unexpected errors are reported through
+        the completion signal with an appropriate failure message.
+        """
         try:
             # 1. Ensure the user plugin directory exists
             self.plugins_dir.mkdir(parents=True, exist_ok=True)

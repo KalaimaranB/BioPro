@@ -58,6 +58,16 @@ def build_mock(name, epoch):
 
 
 def compare_dirs(dir1, dir2):
+    """
+    Compare the files and contents of two directories.
+    
+    Parameters:
+    	dir1 (Path): First directory to compare.
+    	dir2 (Path): Second directory to compare.
+    
+    Returns:
+    	False if the directories contain different file paths; otherwise, a list of relative paths whose file contents differ.
+    """
     files1 = set(p.relative_to(dir1) for p in dir1.rglob("*") if p.is_file())  # noqa: C401
     files2 = set(p.relative_to(dir2) for p in dir2.rglob("*") if p.is_file())  # noqa: C401
 

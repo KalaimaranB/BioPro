@@ -63,6 +63,12 @@ class _Fonts:
     # Standardized QFont Objects (initialized on first access or manually)
     @property
     def H1(self):  # noqa: N802
+        """
+        Create the primary heading font.
+        
+        Returns:
+        	QFont: A bold font using the heading family and extra-large size.
+        """
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_HEADINGS, self.SIZE_XLARGE, QFont.Weight.Bold)
@@ -70,6 +76,12 @@ class _Fonts:
 
     @property
     def H2(self):  # noqa: N802
+        """
+        Create a bold large-sized heading font using the configured heading font family.
+        
+        Returns:
+        	QFont: A bold font configured for large headings.
+        """
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_HEADINGS, self.SIZE_LARGE, QFont.Weight.Bold)
@@ -77,6 +89,11 @@ class _Fonts:
 
     @property
     def H3(self):  # noqa: N802
+        """Create the standard third-level heading font.
+        
+        Returns:
+            QFont: A bold heading font at the normal size.
+        """
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_HEADINGS, self.SIZE_NORMAL, QFont.Weight.Bold)
@@ -84,6 +101,12 @@ class _Fonts:
 
     @property
     def BODY(self):  # noqa: N802
+        """
+        Create the standard body font using the configured UI font family and normal size.
+        
+        Returns:
+        	QFont: A font configured for body text.
+        """
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_UI, self.SIZE_NORMAL)
@@ -91,6 +114,7 @@ class _Fonts:
 
     @property
     def CAPTION(self):  # noqa: N802
+        """Create a font for caption text using the standard UI family and small size."""
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_UI, self.SIZE_SMALL)

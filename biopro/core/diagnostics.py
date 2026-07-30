@@ -20,11 +20,18 @@ class BlackBoxHandler(logging.Handler):
     """
 
     def __init__(self, capacity: int = 100):  # noqa: D107
+        """Initialize a log handler that retains up to ``capacity`` records."""
         super().__init__()
         self.capacity = capacity
         self.records: deque[dict[str, Any]] = deque(maxlen=capacity)
 
     def emit(self, record):  # noqa: D102
+        """
+        Store a formatted log record in the in-memory history.
+        
+        Parameters:
+        	record: The log record to format and store.
+        """
         try:
             msg = self.format(record)
             self.records.append(
@@ -52,11 +59,21 @@ class AutoReportHandler(logging.Handler):
     """
 
     def __init__(self, engine: "DiagnosticEngine"):  # noqa: D107
+        """Initialize the handler to forward error-level records to a diagnostic engine.
+        
+        Parameters:
+        	engine (DiagnosticEngine): Diagnostic engine that receives reported errors.
+        """
         super().__init__(level=logging.ERROR)
         self.engine = engine
 
     def emit(self, record):  # noqa: D102
         # Prevent infinite recursion if the DiagnosticEngine itself logs an error
+        """
+        Forward a log record to the diagnostic engine for reporting.
+        
+        Records emitted by the diagnostic logger are ignored to prevent recursive reporting.
+        """
         if record.name == "biopro.core.diagnostics":
             return
 
@@ -81,12 +98,21 @@ class DiagnosticEngine:
     _instance = None
 
     def __new__(cls):  # noqa: D102
+        """
+        Create and return the class's shared singleton instance.
+        
+        Returns:
+            DiagnosticEngine: The shared instance of the class.
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):  # noqa: D107
+        """
+        Initialize the diagnostic engine with logging handlers and error-reporting state.
+        """
         if self._initialized:
             return
 

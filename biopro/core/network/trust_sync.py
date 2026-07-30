@@ -19,7 +19,13 @@ class TrustSync:
 
     @staticmethod
     def sync_keys(trusted_list: list, prefix: str = "network_") -> Any:
-        """Generic key syncing logic used by both plugins and authority registries."""
+        """
+        Persist trusted public keys locally and remove stale keys for the specified prefix.
+        
+        Parameters:
+        	trusted_list (list): Trusted entities containing an identifier and hexadecimal public key.
+        	prefix (str): Filename prefix used to group the synchronized keys.
+        """
         roots_dir = Path.home() / ".biopro" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
 
@@ -52,7 +58,14 @@ class TrustSync:
 
     @staticmethod
     def fetch_and_sync_authorities(authority_url: str) -> Any:
-        """Pulls the separate authorities JSON, cryptographically verifies its signature using the root key, and syncs them."""  # noqa: E501
+        """Fetch, verify, and locally synchronize authorities from a registry URL.
+        
+        Parameters:
+            authority_url (str): URL of the authorities registry. Empty URLs are ignored.
+        
+        The registry is synchronized only after its signature is verified with the
+        built-in root public key. Missing or invalid registries are skipped.
+        """  # noqa: E501
         if not authority_url:
             return
 
@@ -100,7 +113,12 @@ class TrustSync:
 
     @staticmethod
     def sync_trusted_developers(trusted_list: list) -> Any:
-        """Maintained for backward compatibility but routes to generic sync."""
+        """
+        Synchronize trusted developer keys and associated profile data.
+        
+        Parameters:
+            trusted_list (list): Developer records containing public keys and optional profile or avatar information.
+        """
         TrustSync.sync_keys(trusted_list, prefix="network_")
 
         # Integrate centralized profile caching and image download

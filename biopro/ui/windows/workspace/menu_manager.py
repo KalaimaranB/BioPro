@@ -13,6 +13,9 @@ class MenuManager:
         self.main_window = main_window
 
     def setup_menu_bar(self) -> None:
+        """
+        Builds and attaches the application's File, Edit, Theme, and Help menus to the main window.
+        """
         mw = self.main_window
         menubar = mw.menuBar()
         assert menubar is not None

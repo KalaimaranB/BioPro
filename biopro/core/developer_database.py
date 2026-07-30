@@ -16,7 +16,12 @@ class DeveloperProfileDatabase:
     """Manages parsing, disk serialization, and query lookups for trusted developers."""
 
     def __init__(self, db_file: Path | str | None = None):
-        """Documentation."""
+        """
+        Initialize the developer profile database and load cached profiles from disk.
+        
+        Parameters:
+        	db_file (Path | str | None): Optional path to the profile database file. Defaults to the application's trusted developer cache.
+        """
         if db_file is None:
             self.db_file = AppConfig.APP_DATA_DIR / "trusted_developers.json"
         else:
@@ -44,7 +49,15 @@ class DeveloperProfileDatabase:
             logger.error("Failed to write trusted developer database to disk.")
 
     def get_profile(self, developer_id: str) -> dict:
-        """Retrieves a developer profile, or returns a safe structural fallback."""
+        """
+        Retrieve a developer profile by identifier, providing a safe default profile when no match exists.
+        
+        Parameters:
+        	developer_id (str): Identifier of the developer to retrieve.
+        
+        Returns:
+        	dict: The matching profile, or a fallback profile containing the identifier and safe default metadata.
+        """
         if developer_id in self.profiles:
             return self.profiles[developer_id]
 
@@ -63,7 +76,12 @@ class AvatarManager:
     """Downloads and caches developer JPG/PNG avatar images locally for offline availability."""
 
     def __init__(self, avatar_dir: Path | str | None = None):
-        """Documentation."""
+        """
+        Initialize the avatar storage directory.
+        
+        Parameters:
+        	avatar_dir (Path | str | None): Directory for cached avatars. Defaults to the application's avatar directory.
+        """
         if avatar_dir is None:
             self.avatar_dir = AppConfig.APP_DATA_DIR / "avatars"
         else:
