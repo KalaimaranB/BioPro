@@ -102,14 +102,16 @@ class AvatarManager:
         cached_file = self.avatar_dir / f"{developer_id}.{file_ext}"
 
         try:
+            import shutil
+
             logger.debug("Downloading avatar image from remote source...")
-            response = requests.get(avatar_url, timeout=10, verify=certifi.where())
+            response = requests.get(avatar_url, stream=True, timeout=10, verify=certifi.where())
             response.raise_for_status()
 
             # Save the raw image binary bytes
             with open(cached_file, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                response.raw.decode_content = True
+                shutil.copyfileobj(response.raw, f)
 
             logger.info("Successfully cached avatar image locally.")
             return str(cached_file.absolute())
