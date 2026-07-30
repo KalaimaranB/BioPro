@@ -78,6 +78,7 @@ class TestDeveloperDatabase:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..."  # Dummy PNG bytes
+        mock_response.iter_content.return_value = [mock_response.content]
         mock_get.return_return = mock_response
         mock_get.return_value = mock_response
 
