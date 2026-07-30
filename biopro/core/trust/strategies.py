@@ -35,11 +35,11 @@ class ProjectTrustStrategy(ITrustStrategy):
 
                         sec_data = AtomicJsonFile.load(security_file, default={})
                         entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                    except Exception as e:
+                    except Exception:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            f"Failed to load security file {security_file}: {e}"
+                            f"Failed to load security file {security_file}", exc_info=True
                         )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)
@@ -81,11 +81,11 @@ class DeveloperTrustStrategy(ITrustStrategy):
 
                         sec_data = AtomicJsonFile.load(security_file, default={})
                         entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                    except Exception as e:
+                    except Exception:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            f"Failed to load security file {security_file}: {e}"
+                            f"Failed to load security file {security_file}", exc_info=True
                         )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)
@@ -123,11 +123,11 @@ class TrustStrategyFactory:
 
                             sec_data = AtomicJsonFile.load(security_file, default={})
                             entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                        except Exception as e:
+                        except Exception:
                             import logging
 
                             logging.getLogger(__name__).debug(
-                                f"Failed to load security file {security_file}: {e}"
+                                f"Failed to load security file {security_file}", exc_info=True
                             )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)

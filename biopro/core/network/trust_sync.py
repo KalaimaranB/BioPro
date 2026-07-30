@@ -86,9 +86,10 @@ class TrustSync:
                 try:
                     root_public_key.verify(bytes.fromhex(sig_hex), canonical_bytes)
                     logger.info("Successfully verified authorities registry signature ✅")
-                except Exception as e:
+                except Exception:
                     logger.error(
-                        f"CRITICAL SECURITY ALERT: Authorities registry signature verification failed! {e}"  # noqa: E501
+                        "CRITICAL SECURITY ALERT: Authorities registry signature verification failed!",  # noqa: E501
+                        exc_info=True,
                     )
                     return
 
