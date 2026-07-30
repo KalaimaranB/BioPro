@@ -1,6 +1,3 @@
-version: 2
-language: "en-US"
-tone: "professional, encouraging, and constructive"
 reviews:
   profile: "assertive"
   request_changes_workflow: false

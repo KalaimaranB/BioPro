@@ -41,8 +41,8 @@ class TrustSync:
                 # Save raw bytes
                 with open(filename, "wb") as f:
                     f.write(bytes.fromhex(pub_hex))
-            except Exception as e:
-                logger.error(f"Failed to sync key for {entity_id}: {e}")
+            except Exception:
+                logger.error("Failed to sync trusted key entry", exc_info=True)
 
         # 2. Cleanup old keys that were revoked/removed from registry
         for old_key in existing_keys:
