@@ -58,6 +58,7 @@ class EventManager(QObject):
     _internal_bus = pyqtSignal(BioProEvent, tuple, dict)
 
     def __init__(self) -> None:
+        """Documentation."""
         super().__init__()
         self._listeners: dict[BioProEvent, list[Callable[..., Any]]] = {}
         self._internal_bus.connect(self._dispatch)

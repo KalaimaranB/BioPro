@@ -32,8 +32,11 @@ class HelpPage(QWebEnginePage):
         super().__init__(*args, **kwargs)
         self.dialog = dialog
 
-    def acceptNavigationRequest(
-        self, url: QUrl, nav_type: QWebEnginePage.NavigationType, is_main_frame: bool
+    def acceptNavigationRequest(  # noqa: N802
+        self,
+        url: QUrl,
+        nav_type: QWebEnginePage.NavigationType,
+        is_main_frame: bool,  # noqa: ARG002
     ) -> bool:
         if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
             url_str = url.toString()
@@ -142,7 +145,7 @@ class HelpCenterDialog(QDialog):
     def _populate_tree_from_dir(self, directory: Path, parent_item: QTreeWidgetItem):
         """Recursively scan for .md files and build tree structure."""
         # 1. Add files in this directory
-        for f in sorted(list(directory.glob("*.md"))):
+        for f in sorted(list(directory.glob("*.md"))):  # noqa: C414
             name = f.stem
             # Clean up display name: remove leading numbers and underscores
             display_name = (
@@ -160,7 +163,7 @@ class HelpCenterDialog(QDialog):
             self.lookup_table[f.name] = item
 
         # 2. Add subdirectories recursively
-        for d in sorted(list(directory.iterdir())):
+        for d in sorted(list(directory.iterdir())):  # noqa: C414
             if d.is_dir() and not d.name.startswith(".") and d.name != "images":
                 sub_item = QTreeWidgetItem(parent_item, [d.name.title()])
                 sub_item.setFlags(sub_item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
@@ -215,7 +218,7 @@ class HelpCenterDialog(QDialog):
                     found_plugins = True
                     manifest = mod_info["manifest"]
                     plugin_root = QTreeWidgetItem(
-                        self.plugin_group, [f"📦 {manifest.get('name', mod_id)}"]
+                        self.plugin_group, [f"📦 {manifest.get('display_name', mod_id)}"]
                     )
                     plugin_root.setFlags(plugin_root.flags() & ~Qt.ItemFlag.ItemIsSelectable)
 

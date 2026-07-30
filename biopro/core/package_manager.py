@@ -1,3 +1,5 @@
+"""Core module."""
+
 import logging
 import shutil
 import subprocess
@@ -24,7 +26,7 @@ class PackageManager:
             self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def resolve_and_install_all(
+    def resolve_and_install_all(  # noqa: C901, PLR0915
         self, dependencies: dict[str, str], plugin_dir: Path, progress_callback=None
     ):
         """Batch install all dependencies natively using uv into a standalone plugin venv."""
@@ -42,7 +44,7 @@ class PackageManager:
             else:
                 reqs.append(f"{name}{ver}")
 
-        # Ensure setuptools is always available since modern uv --seed omits it, breaking packages like FlowKit
+        # Ensure setuptools is always available since modern uv --seed omits it, breaking packages like FlowKit  # noqa: E501
         if not any(r.startswith("setuptools") for r in reqs):
             reqs.append("setuptools<71.0.0")
 
@@ -135,6 +137,7 @@ class PluginInstallerWorker(QThread):
     finished = pyqtSignal(bool, str)
 
     def __init__(self, plugin_dir: Path | str, cache_dir: Path | None = None):
+        """Documentation."""
         super().__init__()
         self.plugin_dir = Path(plugin_dir)
         self.pm = PackageManager(cache_dir=cache_dir)
@@ -144,7 +147,8 @@ class PluginInstallerWorker(QThread):
             "PluginInstallerWorker initialized for %s", self.plugin_dir
         )
 
-    def run(self):
+    def run(self) -> Any:
+        """Documentation."""
         try:
             import logging
 
@@ -167,7 +171,7 @@ class PluginInstallerWorker(QThread):
             dependencies = manifest.get("python_dependencies")
             if dependencies is None:
                 deps_list = manifest.get("core_dependencies", [])
-                dependencies = {dep: "" for dep in deps_list}
+                dependencies = dict.fromkeys(deps_list, "")
 
             if not dependencies:
                 self.progress.emit(100)

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class ModuleHistory:
     """Manages the undo/redo stacks for a single, specific module."""
 
-    def __init__(self, module_id: str, heavy_checker=None):
+    def __init__(self, module_id: str, heavy_checker=None) -> None:  # noqa: D107
         self.module_id = module_id
         self.undo_stack: list[dict[str, Any]] = []
         self.redo_stack: list[dict[str, Any]] = []
@@ -52,7 +52,7 @@ class ModuleHistory:
         self.undo_stack.append(cleaned_state)
         self.redo_stack.clear()
         logger.debug(
-            f"[{self.module_id}] State pushed with Structural Sharing. Depth: {len(self.undo_stack)}"
+            f"[{self.module_id}] State pushed with Structural Sharing. Depth: {len(self.undo_stack)}"  # noqa: E501
         )
 
     def _is_equal(self, state_a: dict, state_b: dict) -> bool:
@@ -130,9 +130,9 @@ class ModuleHistory:
 class HistoryManager:
     """Central registry that holds independent histories for every module in a project."""
 
-    def __init__(self, heavy_checker=None):
+    def __init__(self, heavy_checker=None) -> None:  # noqa: D107
         # Dictionary mapping: module_id -> ModuleHistory instance
-        self.histories = {}
+        self.histories: dict = {}
         self.heavy_checker = heavy_checker
 
     def get_module_history(self, module_id: str) -> ModuleHistory:

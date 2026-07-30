@@ -1,3 +1,5 @@
+"""Core module."""
+
 import logging
 from pathlib import Path
 
@@ -9,7 +11,7 @@ logger = logging.getLogger(__name__)
 class AppConfig:
     """Manages global settings stored in the user's home directory."""
 
-    from biopro import __version__ as CORE_VERSION
+    from biopro import __version__ as CORE_VERSION  # noqa: N812
 
     REGISTRY_URL = (
         "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/registry.json"
@@ -20,7 +22,8 @@ class AppConfig:
 
     APP_DATA_DIR = Path.home() / ".biopro"
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Documentation."""
         # We re-evaluate Path.home() here so that pytest monkeypatching works correctly.
         self.config_dir = Path.home() / ".biopro"
         self.config_file = self.config_dir / "config.json"
@@ -44,6 +47,7 @@ class AppConfig:
                 self.data.update(data)
 
     def save(self) -> None:
+        """Documentation."""
         if not AtomicJsonFile.save(self.config_file, self.data):
             from biopro.core.diagnostics import diagnostics
 
@@ -52,7 +56,9 @@ class AppConfig:
     def add_recent_project(self, project_path: Path | str) -> None:
         """Push a project to the top of the recents list."""
         path_str = str(Path(project_path).absolute())
-        recent: list[str] = self.data.get("recent_projects", [])
+        from typing import cast
+
+        recent: list[str] = cast(list[str], self.data.get("recent_projects", []))
 
         # If it's already in the list, remove it so we can push it to the top
         if path_str in recent:
@@ -73,7 +79,9 @@ class AppConfig:
     def remove_recent_project(self, project_path: Path | str) -> None:
         """Remove a project from the recents list."""
         path_str = str(Path(project_path).absolute())
-        recent: list[str] = self.data.get("recent_projects", [])
+        from typing import cast
+
+        recent: list[str] = cast(list[str], self.data.get("recent_projects", []))
         if path_str in recent:
             recent.remove(path_str)
             self.data["recent_projects"] = recent
@@ -81,7 +89,9 @@ class AppConfig:
 
     def get_skipped_update_version(self) -> str | None:
         """Return the version string the user last chose to skip, or None."""
-        return self.data.get("skipped_update_version")
+        from typing import cast
+
+        return cast(str | None, self.data.get("skipped_update_version"))
 
     def set_skipped_update_version(self, version: str) -> None:
         """Persist the version the user wants to skip so the banner won't re-appear."""

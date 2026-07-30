@@ -69,7 +69,7 @@ class HexagonBadge(QWidget):
 
     glow = pyqtProperty(float, _get_glow, _set_glow)
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):  # noqa: ARG002, N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -257,7 +257,7 @@ class CourseCompleteOverlay(QWidget):
                 n["vy"] *= -1
         self.update()
 
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, event) -> None:  # noqa: ARG002, N802
         """Draw a sleek, dark tech overlay background with floating network nodes."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

@@ -107,6 +107,13 @@ jobs:
           uv export --format requirements-txt --no-emit-project | grep -v "^-e " > reqs.txt
           pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        continue-on-error: true
+
   # Job 3: Cross-platform tests
   test:
     name: Run Tests (${{ matrix.os }})
@@ -211,6 +218,14 @@ jobs:
 
       - name: Run PyInstaller Build
         run: uv run pyinstaller BioPro.spec
+
+      - name: Run E2E Smoke Test (macOS)
+        if: runner.os == 'macOS'
+        run: ./dist/BioPro.app/Contents/MacOS/BioPro --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
+
+      - name: Run E2E Smoke Test (Windows)
+        if: runner.os == 'Windows'
+        run: .\dist\BioPro\BioPro.exe --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
 
       - name: Compress Artifacts (Windows)
         if: runner.os == 'Windows'

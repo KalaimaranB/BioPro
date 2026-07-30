@@ -29,7 +29,8 @@ class TaskScheduler(QObject):
     task_error = pyqtSignal(str, str)  # task_id, error_message
     task_progress = pyqtSignal(str, int)  # task_id, progress (0-100)
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Documentation."""
         super().__init__()
         self.pool: Any = QThreadPool.globalInstance()
         assert self.pool is not None
@@ -95,17 +96,17 @@ class TaskScheduler(QObject):
         self._active_workers.clear()
 
     @pyqtSlot(str, dict)
-    def _on_task_finished(self, task_id: str, results: dict):
+    def _on_task_finished(self, task_id: str, results: dict) -> Any:
         self.task_finished.emit(task_id, results)
         self._cleanup(task_id)
 
     @pyqtSlot(str, str)
-    def _on_task_error(self, task_id: str, error_msg: str):
+    def _on_task_error(self, task_id: str, error_msg: str) -> Any:
         self.task_error.emit(task_id, error_msg)
         logger.error(f"Background task {task_id} failed: {error_msg}")
         self._cleanup(task_id)
 
-    def _cleanup(self, task_id: str):
+    def _cleanup(self, task_id: str) -> Any:
         """Release worker reference so it can be garbage collected."""
         if task_id in self._active_workers:
             # We explicitly do NOT call worker.finished.disconnect() here because
@@ -131,7 +132,8 @@ class TaskSchedulerProxy:
     instance is fully initialized.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Documentation."""
         self._instance: TaskScheduler | None = None
 
     def _get_instance(self) -> TaskScheduler:
@@ -140,6 +142,7 @@ class TaskSchedulerProxy:
         return self._instance
 
     def __getattr__(self, name: str) -> Any:
+        """Documentation."""
         return getattr(self._get_instance(), name)
 
 

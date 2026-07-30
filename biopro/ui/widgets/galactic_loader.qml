@@ -10,6 +10,9 @@ Rectangle {
     property string textColor: "#FFFFFF"
     property string moduleName: "Analysis Module"
     
+    // Phase 2 status line — updated by Python's set_status_message()
+    property string statusMessage: "STATUS: HYPERDRIVE ENGAGED"
+    
     property real speed: 0.0
     property real targetSpeed: 0.05
     property real accel: 0.0004
@@ -20,6 +23,24 @@ Rectangle {
     property string message: "Traveling to " + moduleName + "..."
     
     signal warpOutFinished()
+    signal fadeOutFinished()
+    
+    NumberAnimation {
+        id: fadeOutAnim
+        target: root
+        property: "opacity"
+        from: 1.0
+        to: 0.0
+        duration: 500
+        onStopped: root.fadeOutFinished()
+    }
+    
+    function fadeOut(durationMs) {
+        if (durationMs !== undefined && durationMs > 0) {
+            fadeOutAnim.duration = durationMs
+        }
+        fadeOutAnim.start()
+    }
     
     color: bgColor
     
@@ -46,6 +67,7 @@ Rectangle {
     
     function reset() {
         message = "Traveling to " + moduleName + "..."
+        statusMessage = "STATUS: HYPERDRIVE ENGAGED"
         speed = 0.0
         globalOpacity = 0.0
         phase = 0
@@ -173,7 +195,7 @@ Rectangle {
             ctx.globalAlpha = 0.5;
             ctx.fillStyle = root.textColor;
             ctx.font = "12px 'Courier New'";
-            ctx.fillText("STATUS: HYPERDRIVE ENGAGED", cx, h * 0.75 + 75);
+            ctx.fillText(root.statusMessage, cx, h * 0.75 + 75);
             
             ctx.globalAlpha = 1.0;
         }

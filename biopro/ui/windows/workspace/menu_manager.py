@@ -72,9 +72,9 @@ class MenuManager:
         for name, path in available_themes:
             action = QAction(name, mw)
             if hasattr(mw, "theme_manager"):
-                action.triggered.connect(lambda checked, p=path: mw.theme_manager.switch_theme(p))
+                action.triggered.connect(lambda checked, p=path: mw.theme_manager.switch_theme(p))  # noqa: ARG005
             else:
-                action.triggered.connect(lambda checked, p=path: mw._switch_theme(p))
+                action.triggered.connect(lambda checked, p=path: mw._switch_theme(p))  # noqa: ARG005
             theme_menu.addAction(action)
 
         # Help Menu

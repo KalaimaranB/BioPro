@@ -16,6 +16,7 @@ class DeveloperProfileDatabase:
     """Manages parsing, disk serialization, and query lookups for trusted developers."""
 
     def __init__(self, db_file: Path | str | None = None):
+        """Documentation."""
         if db_file is None:
             self.db_file = AppConfig.APP_DATA_DIR / "trusted_developers.json"
         else:
@@ -53,7 +54,7 @@ class DeveloperProfileDatabase:
             "name": f"Developer '{developer_id}'",
             "role": "Verified Contributor",
             "avatar_url": None,
-            "description": "Verified independent developer contributing safe computational plugins to BioPro.",
+            "description": "Verified independent developer contributing safe computational plugins to BioPro.",  # noqa: E501
             "public_key": "",
         }
 
@@ -62,6 +63,7 @@ class AvatarManager:
     """Downloads and caches developer JPG/PNG avatar images locally for offline availability."""
 
     def __init__(self, avatar_dir: Path | str | None = None):
+        """Documentation."""
         if avatar_dir is None:
             self.avatar_dir = AppConfig.APP_DATA_DIR / "avatars"
         else:

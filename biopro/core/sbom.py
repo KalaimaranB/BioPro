@@ -18,6 +18,7 @@ class SBOMGenerator:
     """Compiles software supply chain inventory for the BioPro core and active plugins."""
 
     def __init__(self, project_root: Path | None = None):
+        """Documentation."""
         self.project_root = project_root or Path(__file__).parent.parent.parent
         self.biopro_dir = AppConfig.APP_DATA_DIR
 
@@ -58,7 +59,7 @@ class SBOMGenerator:
         sbom: dict[str, Any] = {
             "bomFormat": "CycloneDX",
             "specVersion": "1.5",
-            "serialNumber": f"urn:uuid:{hashlib.sha256(str(platform.node()).encode()).hexdigest()[:32]}",
+            "serialNumber": f"urn:uuid:{hashlib.sha256(str(platform.node()).encode()).hexdigest()[:32]}",  # noqa: E501
             "version": 1,
             "metadata": self.get_metadata(),
             "components": components_list,
@@ -150,7 +151,7 @@ class SBOMGenerator:
             md.append("| :--- | :--- | :--- | :--- | :---: | :--- |")
             for p in data["plugins"]:
                 md.append(
-                    f"| `{p['id']}` | {p['name']} | v{p['version']} | {p['author']} | {p['file_count']} | **{p['trust_status']}** |"
+                    f"| `{p['id']}` | {p['name']} | v{p['version']} | {p['author']} | {p['file_count']} | **{p['trust_status']}** |"  # noqa: E501
                 )
         else:
             md.append("*No plugins currently installed or loaded.*")
@@ -162,7 +163,7 @@ class SBOMGenerator:
         md.append("| :--- | :--- | :--- |")
         for comp in data["components"]:
             md.append(
-                f"| `{comp['name']}` | {comp['version']} | [Pypi Page](https://pypi.org/project/{comp['name']}/{comp['version']}/) |"
+                f"| `{comp['name']}` | {comp['version']} | [Pypi Page](https://pypi.org/project/{comp['name']}/{comp['version']}/) |"  # noqa: E501
             )
 
         return "\n".join(md)

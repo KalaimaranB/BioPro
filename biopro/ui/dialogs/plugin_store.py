@@ -649,7 +649,7 @@ class PluginStoreDialog(QDialog):
         """React to external plugin changes."""
         self._load_store_data()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event):  # noqa: N802
         """Cleanup subscriptions on close."""
         import logging
 
@@ -830,10 +830,10 @@ class PluginStoreDialog(QDialog):
         self.status_lbl.hide()
         layout.addWidget(self.status_lbl)
 
-    def _on_search_changed(self, text: str):
+    def _on_search_changed(self, text: str):  # noqa: ARG002
         self._load_store_data()
 
-    def _on_filter_changed(self, row: int):
+    def _on_filter_changed(self, row: int):  # noqa: ARG002
         self._load_store_data()
 
     def _load_store_data(self):
@@ -1104,7 +1104,7 @@ class PluginStoreDialog(QDialog):
 
         menu.exec(card.mapToGlobal(pos))
 
-    def _view_plugin_diagnostics(self, plugin_id: str, data: dict):
+    def _view_plugin_diagnostics(self, plugin_id: str, data: dict):  # noqa: ARG002
         from biopro.ui.dialogs.plugin_doctor_dialog import PluginDoctorDialog
 
         plugin_dir = self.updater.plugin_dir / plugin_id
@@ -1182,7 +1182,7 @@ class PluginStoreDialog(QDialog):
         pub_key = dev.get("public_key", "")
 
         # Rich local default cache fallback profiles
-        DEFAULT_DEV_INFO = {
+        DEFAULT_DEV_INFO = {  # noqa: N806
             "Kalaimaran": {
                 "name": "Kalaimaran Balasothy",
                 "role": "Founder & Lead Architect",

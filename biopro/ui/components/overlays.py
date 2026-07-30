@@ -55,7 +55,7 @@ class BioLoadingOverlay(QWidget):
         self.phase += 0.15
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):  # noqa: N802
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -91,7 +91,7 @@ class BioLoadingOverlay(QWidget):
         painter.setBrush(QBrush(accent))
         painter.drawEllipse(QRectF(cx - nucleus_r, cy - nucleus_r, nucleus_r * 2, nucleus_r * 2))
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event):  # noqa: N802
         if self.parent():
             self.resize(self.parent().size())
         super().resizeEvent(event)

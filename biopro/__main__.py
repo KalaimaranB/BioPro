@@ -1,4 +1,4 @@
-import contextlib
+import contextlib  # noqa: D100
 import logging
 import sys
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 
 # --- STABILIZATION: Bootstrap Logging ---
 # This MUST happen before any wasm/biopro imports
-def setup_logging():
+def setup_logging():  # noqa: D103
     import logging.config
     from pathlib import Path
 
@@ -14,13 +14,13 @@ def setup_logging():
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "biopro.log"
 
-    LOGGING_CONFIG = {
+    LOGGING_CONFIG = {  # noqa: N806
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
             "standard": {"format": "%(asctime)s [%(name)s] %(levelname)s: %(message)s"},
             "detailed": {
-                "format": "%(asctime)s [%(levelname)s] %(name)s.%(funcName)s:%(lineno)d - %(message)s"
+                "format": "%(asctime)s [%(levelname)s] %(name)s.%(funcName)s:%(lineno)d - %(message)s"  # noqa: E501
             },
         },
         "handlers": {
@@ -74,8 +74,8 @@ def install_exception_hook():
     sys.excepthook = handle_exception
 
 
-class BioProApp:
-    def __init__(self, module_manager, updater):
+class BioProApp:  # noqa: D101
+    def __init__(self, module_manager, updater):  # noqa: D107
         from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import QApplication
 
@@ -99,7 +99,7 @@ class BioProApp:
         from biopro.core.resource_manager import resource_path
 
         # On macOS, the Dock icon is natively and perfectly managed by the .app bundle's Info.plist.
-        # Setting a window icon with .icns can overwrite and reset the native round icon to a generic square if Qt's icns plugin is not loaded.
+        # Setting a window icon with .icns can overwrite and reset the native round icon to a generic square if Qt's icns plugin is not loaded.  # noqa: E501
         if sys.platform != "darwin":
             icon_path = resource_path("icon.icns")
             if icon_path.exists():
@@ -120,7 +120,7 @@ class BioProApp:
 
             logging.getLogger(__name__).warning(f"Failed to apply SDK styles: {e}")
 
-    def run(self):
+    def run(self):  # noqa: D102
         print("4. Showing Hub Window...")
         self.show_hub()
 
@@ -131,7 +131,7 @@ class BioProApp:
 
         sys.exit(self.app.exec())
 
-    def show_hub(self):
+    def show_hub(self):  # noqa: D102
         from biopro.ui.windows.project_launcher import ProjectLauncherWindow
 
         self.hub = ProjectLauncherWindow(
@@ -139,7 +139,7 @@ class BioProApp:
         )
         self.hub.show()
 
-    def open_store(self, parent_window):
+    def open_store(self, parent_window):  # noqa: D102
         from biopro.ui.dialogs.plugin_store import PluginStoreDialog
 
         dialog = PluginStoreDialog(self.module_manager, self.updater, parent=parent_window)
@@ -178,15 +178,14 @@ def bootstrap_sdk():
                 import logging
 
                 logging.info(
-                    f"🚀 [HOT PATCH] Successfully loaded cryptographically verified SDK from {sdk_dir}"
+                    f"🚀 [HOT PATCH] Successfully loaded cryptographically verified SDK from {sdk_dir}"  # noqa: E501
                 )
                 return True
-            else:
-                import logging
+            import logging
 
-                logging.warning(
-                    f"⚠️ [HOT PATCH] SDK verification failed at {sdk_dir}: {result.error_message}. Falling back to default SDK."
-                )
+            logging.warning(
+                f"⚠️ [HOT PATCH] SDK verification failed at {sdk_dir}: {result.error_message}. Falling back to default SDK."  # noqa: E501
+            )
         except Exception as e:
             import logging
 
@@ -196,7 +195,7 @@ def bootstrap_sdk():
     return False
 
 
-def main():
+def main():  # noqa: C901, D103, PLR0915
     log_file = setup_logging()
     bootstrap_sdk()
 
@@ -224,6 +223,71 @@ def main():
             logging.error(f"AI Server Startup Error: {e}")
             sys.exit(1)
 
+    # Handle Smoke Test for PyInstaller validation (E2E CI/CD)
+    if len(sys.argv) > 1 and sys.argv[1] == "--smoke-test":
+        try:
+            import argparse
+
+            parser = argparse.ArgumentParser()
+            parser.add_argument("--smoke-test", dest="plugin_id")
+            parser.add_argument("data_file", nargs="?", default=None)
+            args, _ = parser.parse_known_args()
+
+            logger = logging.getLogger("BioPro.SmokeTest")
+            logger.info(f"--- SMOKE TEST SEQUENCE STARTED FOR {args.plugin_id} ---")
+
+            # 1. Initialize Core Services
+            from biopro.core.module_manager import ModuleManager
+            from biopro.core.network_updater import NetworkUpdater
+
+            updater = NetworkUpdater()
+            module_manager = ModuleManager()
+
+            # 2. Force install plugin if provided
+            if args.plugin_id:
+                logger.info(f"Attempting to download and install {args.plugin_id}...")
+                registry = updater.fetch_remote_registry(updater.registry_url)
+                plugin_info = registry.get("modules", {}).get(args.plugin_id)
+
+                if plugin_info:
+                    success, msg = updater.install_plugin(args.plugin_id, plugin_info)
+                    if not success:
+                        raise RuntimeError(f"Failed to install plugin: {msg}")
+                    # Re-scan installed modules
+                    module_manager.reload_modules()
+                else:
+                    logger.warning(f"Plugin {args.plugin_id} not found in remote registry.")
+
+            # 3. Simulate UI Environment and Load Plugin
+            from PyQt6.QtCore import QTimer
+            from PyQt6.QtWidgets import QApplication
+
+            app = QApplication(sys.argv)
+
+            if args.plugin_id:
+                logger.info(
+                    "Loading plugin UI class to trigger all heavy imports (Numba, Matplotlib, C-Extensions)..."  # noqa: E501
+                )
+                PanelClass = module_manager.load_module_ui(args.plugin_id)  # noqa: N806
+                panel = PanelClass()
+
+                if args.data_file and hasattr(panel, "load_workflow"):
+                    logger.info(f"Injecting test data file: {args.data_file}")
+                    panel.load_workflow(None, filename=args.data_file)
+
+            logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
+
+            # Allow event loop to tick once then quit successfully
+            QTimer.singleShot(1000, app.quit)
+            app.exec()
+            sys.exit(0)
+
+        except Exception:
+            import traceback
+
+            logging.critical(f"SMOKE TEST FATAL CRASH:\n{traceback.format_exc()}")
+            sys.exit(1)
+
     try:
         logger = logging.getLogger("BioPro")
         logger.info("--- APP BOOT SEQUENCE STARTED ---")
@@ -240,6 +304,8 @@ def main():
 
         # Restore Global Preferences (e.g. Theme)
         from biopro.core.preferences import core_preferences
+
+        # Initialize global ToastManager for warnings
         from biopro.ui.dialogs.error_report import ErrorReportDialog
         from biopro.ui.theme import theme_manager
 

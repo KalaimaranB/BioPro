@@ -195,10 +195,10 @@ class UpdateBannerWidget(QWidget):
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
 
-    def hideEvent(self, event) -> None:
+    def hideEvent(self, event) -> None:  # noqa: N802
         super().hideEvent(event)
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event) -> None:  # noqa: N802
         """Unsubscribe from event bus to prevent dangling listeners."""
         self._bus.unsubscribe(BioProEvent.CORE_UPDATE_AVAILABLE, self._on_update_available)
         super().closeEvent(event)

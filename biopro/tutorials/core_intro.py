@@ -48,7 +48,7 @@ from biopro.core.models.tutorial_models import (
 )
 
 
-def _copy_demo_file(main_panel: Any) -> None:
+def _copy_demo_file(main_panel: Any) -> None:  # noqa: ARG001
     import contextlib
     import shutil
     from pathlib import Path
@@ -73,7 +73,7 @@ def _copy_demo_file(main_panel: Any) -> None:
 
     with contextlib.suppress(Exception):
         if dest_file.exists():
-            # Check if sizes match to avoid overwriting a user's differently sized file of the same name
+            # Check if sizes match to avoid overwriting a user's differently sized file of the same name  # noqa: E501
             if dest_file.stat().st_size == src_file.stat().st_size:
                 return  # It's already our demo file
 
@@ -100,7 +100,7 @@ _steps = [
     InfoStep(
         id="hub_welcome",
         text=(
-            "Hello! I'm Cyto 👋 — your intelligent assistant. Let's take a quick tour of BioPro before we dive into your analysis."
+            "Hello! I'm Cyto 👋 — your intelligent assistant. Let's take a quick tour of BioPro before we dive into your analysis."  # noqa: E501
         ),
         cyto_emotion="cheering",
         cyto_animation="cheering",
@@ -109,7 +109,7 @@ _steps = [
     InfoStep(
         id="hub_orientation",
         text=(
-            "This is the Hub — BioPro's central dashboard. Your recent projects are listed on the left, and the primary actions to start new work are in the center."
+            "This is the Hub — BioPro's central dashboard. Your recent projects are listed on the left, and the primary actions to start new work are in the center."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["list_recent", "btn_new", "btn_open"],
@@ -118,7 +118,7 @@ _steps = [
     InfoStep(
         id="hub_what_is_project",
         text=(
-            "In BioPro, all your work is organized into Projects. A project is a secure, isolated directory on your local machine that contains your raw data, analysis workflows, and results. This ensures your datasets remain neatly separated."
+            "In BioPro, all your work is organized into Projects. A project is a secure, isolated directory on your local machine that contains your raw data, analysis workflows, and results. This ensures your datasets remain neatly separated."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="hub_project_storage",
@@ -126,7 +126,7 @@ _steps = [
     InfoStep(
         id="hub_project_storage",
         text=(
-            "Within a project folder, you'll find: the `project.biopro` configuration file, an `assets/` directory for imported data, and your saved workflow files. BioPro operates strictly within this boundary to maintain data integrity."
+            "Within a project folder, you'll find: the `project.biopro` configuration file, an `assets/` directory for imported data, and your saved workflow files. BioPro operates strictly within this boundary to maintain data integrity."  # noqa: E501
         ),
         cyto_emotion="idle",
         next_step_id="hub_create_project_action",
@@ -134,7 +134,7 @@ _steps = [
     WaitForEventStep(
         id="hub_create_project_action",
         text=(
-            "Let's create your first project. 👉 Click ✨ Create New Project, assign it a name, and select a destination folder."
+            "Let's create your first project. 👉 Click ✨ Create New Project, assign it a name, and select a destination folder."  # noqa: E501
         ),
         cyto_emotion="pointing",
         target_widget_names=["btn_new"],
@@ -146,7 +146,7 @@ _steps = [
     InfoStep(
         id="ws_landed",
         text=(
-            "🎉 Project successfully created! You are now in your Workspace — the command center for all activity within this specific project."
+            "🎉 Project successfully created! You are now in your Workspace — the command center for all activity within this specific project."  # noqa: E501
         ),
         cyto_emotion="happy",
         next_step_id="ws_header_bar",
@@ -154,7 +154,7 @@ _steps = [
     InfoStep(
         id="ws_header_bar",
         text=(
-            "The header bar provides quick access to core utilities: the ☁️ Store for installing new modules, 🧠 AI Chat for your built-in scientific assistant, and 🎓 Academy for guided analysis tutorials."
+            "The header bar provides quick access to core utilities: the ☁️ Store for installing new modules, 🧠 AI Chat for your built-in scientific assistant, and 🎓 Academy for guided analysis tutorials."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["btn_store", "btn_ai", "btn_academy"],
@@ -163,7 +163,7 @@ _steps = [
     InfoStep(
         id="ws_ai_chat_intro",
         text=(
-            "The AI Chat utilizes a local Gemma model running directly on your machine, ensuring complete privacy — your data never leaves your computer. It serves as an intelligent assistant to help you navigate BioPro and consult documentation."
+            "The AI Chat utilizes a local Gemma model running directly on your machine, ensuring complete privacy — your data never leaves your computer. It serves as an intelligent assistant to help you navigate BioPro and consult documentation."  # noqa: E501
         ),
         cyto_emotion="happy",
         target_widget_names=["btn_ai"],
@@ -172,7 +172,7 @@ _steps = [
     InfoStep(
         id="ws_academy_intro",
         text=(
-            "The Academy is your learning center for BioPro. The global hub displays all available courses across your installed modules, along with the badges you've earned. You can launch tutorials directly from the hub or from within specific modules."
+            "The Academy is your learning center for BioPro. The global hub displays all available courses across your installed modules, along with the badges you've earned. You can launch tutorials directly from the hub or from within specific modules."  # noqa: E501
         ),
         cyto_emotion="pointing",
         target_widget_names=["btn_academy"],
@@ -181,7 +181,7 @@ _steps = [
     InfoStep(
         id="ws_store_intro",
         text=(
-            "Let's explore the Store. BioPro is built with a modular architecture — you only install the specific tools you need. Modules are updated independently of the core application, ensuring you always have access to the latest features."
+            "Let's explore the Store. BioPro is built with a modular architecture — you only install the specific tools you need. Modules are updated independently of the core application, ensuring you always have access to the latest features."  # noqa: E501
         ),
         cyto_emotion="happy",
         next_step_id="ws_store_open_action",
@@ -198,7 +198,7 @@ _steps = [
     InfoStep(
         id="ws_store_inside_catalog",
         text=(
-            "The Store catalog lists all available modules. Modules with the 🛡️ VERIFIED badge have passed a rigorous security and code-quality review."
+            "The Store catalog lists all available modules. Modules with the 🛡️ VERIFIED badge have passed a rigorous security and code-quality review."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["store_card_flow_cytometry"],
@@ -207,7 +207,7 @@ _steps = [
     InfoStep(
         id="ws_store_security",
         text=(
-            "Security is a core principle: BioPro verifies the module developer's identity against our Root CA and validates the code signature to prevent tampering. For custom in-house tools, a manual trust override is available."
+            "Security is a core principle: BioPro verifies the module developer's identity against our Root CA and validates the code signature to prevent tampering. For custom in-house tools, a manual trust override is available."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="ws_store_updates",
@@ -215,7 +215,7 @@ _steps = [
     InfoStep(
         id="ws_store_updates",
         text=(
-            "The Store also tracks updates for your installed modules. When an update is available, clicking 'Update' will automatically download, verify, and seamlessly install the new version."
+            "The Store also tracks updates for your installed modules. When an update is available, clicking 'Update' will automatically download, verify, and seamlessly install the new version."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="ws_store_flow_details_action",
@@ -234,7 +234,7 @@ _steps = [
     InfoStep(
         id="ws_store_details_explain",
         text=(
-            "The details panel provides a comprehensive overview of the module's capabilities, along with information about its authors and contributors."
+            "The details panel provides a comprehensive overview of the module's capabilities, along with information about its authors and contributors."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["ModuleDetailsPanel"],
@@ -243,7 +243,7 @@ _steps = [
     WaitForEventStep(
         id="ws_store_install_action",
         text=(
-            "Ensure you have the latest version installed, and then close the Marketplace to return to your workspace."
+            "Ensure you have the latest version installed, and then close the Marketplace to return to your workspace."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["store_card_flow_cytometry"],
@@ -254,7 +254,7 @@ _steps = [
     InfoStep(
         id="ws_layout_top",
         text=(
-            "At the top of the dashboard, you will find your module cards. Each card acts as a gateway to a specialized analysis environment."
+            "At the top of the dashboard, you will find your module cards. Each card acts as a gateway to a specialized analysis environment."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["moduleCard"],
@@ -263,7 +263,7 @@ _steps = [
     InfoStep(
         id="ws_layout_bottom",
         text=(
-            "Below are your Recent Sessions. All saved analysis workflows for the current project are displayed here, allowing you to resume your work with a single click."
+            "Below are your Recent Sessions. All saved analysis workflows for the current project are displayed here, allowing you to resume your work with a single click."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["workflows_container"],
@@ -272,7 +272,7 @@ _steps = [
     InfoStep(
         id="ws_module_card_explain",
         text=(
-            "Notice that the Flow Cytometry module card is now available in your workspace. Each card displays the module's name, icon, and security trust level. Click the card to launch the analysis environment."
+            "Notice that the Flow Cytometry module card is now available in your workspace. Each card displays the module's name, icon, and security trust level. Click the card to launch the analysis environment."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["module_card_flow_cytometry_workspace"],
@@ -291,7 +291,7 @@ _steps = [
     InfoStep(
         id="analysis_landed",
         text=(
-            "Welcome to the Flow Cytometry analysis environment! 🧬 Each module provides a dedicated, purpose-built workspace like this one."
+            "Welcome to the Flow Cytometry analysis environment! 🧬 Each module provides a dedicated, purpose-built workspace like this one."  # noqa: E501
         ),
         cyto_emotion="cheering",
         next_step_id="analysis_toolbar",
@@ -299,7 +299,7 @@ _steps = [
     InfoStep(
         id="analysis_toolbar",
         text=(
-            "The top toolbar allows you to navigate ← Home to the dashboard, close the current project, or access the AI Chat at any time."
+            "The top toolbar allows you to navigate ← Home to the dashboard, close the current project, or access the AI Chat at any time."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["analysisToolBar"],
@@ -308,7 +308,7 @@ _steps = [
     InfoStep(
         id="analysis_data_integrity",
         text=(
-            "Before importing data, it's important to understand BioPro's approach to data integrity. Your raw files are never modified. Upon import, files are cryptographically hashed (SHA-256) and copied to the project's `assets/` directory, leaving the original source files completely untouched."
+            "Before importing data, it's important to understand BioPro's approach to data integrity. Your raw files are never modified. Upon import, files are cryptographically hashed (SHA-256) and copied to the project's `assets/` directory, leaving the original source files completely untouched."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="analysis_import_explain",
@@ -316,7 +316,7 @@ _steps = [
     InfoStep(
         id="analysis_import_explain",
         text=(
-            "This means your analysis is always reproducible. If someone else opens your project, BioPro will verify the file hash matches — instantly flagging any data corruption."
+            "This means your analysis is always reproducible. If someone else opens your project, BioPro will verify the file hash matches — instantly flagging any data corruption."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="analysis_import_auto_download",
@@ -330,9 +330,9 @@ _steps = [
     InfoStep(
         id="analysis_import_copy_warning",
         text=(
-            "Time to import data! A demo file (`demo_tutorial.fcs`) has been automatically placed in your Downloads folder.\n\n"
-            "When prompted to copy the file to your workspace, click Yes to ensure data portability. "
-            "While you can opt to skip copying for very large files, doing so links the original file to your project. If that original file is subsequently moved, BioPro will lose track of it."
+            "Time to import data! A demo file (`demo_tutorial.fcs`) has been automatically placed in your Downloads folder.\n\n"  # noqa: E501
+            "When prompted to copy the file to your workspace, click Yes to ensure data portability. "  # noqa: E501
+            "While you can opt to skip copying for very large files, doing so links the original file to your project. If that original file is subsequently moved, BioPro will lose track of it."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="analysis_import_action",
@@ -340,7 +340,7 @@ _steps = [
     InteractionStep(
         id="analysis_import_action",
         text=(
-            "Let's load the demo data.\n\nClick ➕ Add Samples in the workspace ribbon and select the demo `.fcs` file from your Downloads folder."
+            "Let's load the demo data.\n\nClick ➕ Add Samples in the workspace ribbon and select the demo `.fcs` file from your Downloads folder."  # noqa: E501
         ),
         target_widget_name="ImportDataButton",
         event_trigger="clicked",
@@ -358,7 +358,7 @@ _steps = [
     InfoStep(
         id="analysis_workflow_intro",
         text=(
-            "Your file is now loaded. A Workflow is a saved snapshot of your entire analysis session — all your settings, gates, and parameters. It lets you pick up exactly where you left off."
+            "Your file is now loaded. A Workflow is a saved snapshot of your entire analysis session — all your settings, gates, and parameters. It lets you pick up exactly where you left off."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="analysis_save_action",
@@ -386,7 +386,7 @@ _steps = [
     InfoStep(
         id="analysis_saved_confirm_spotlight",
         text=(
-            "You have successfully returned to the dashboard. Notice that your saved session now appears under Recent Sessions. You can restore your analysis state with a single click."
+            "You have successfully returned to the dashboard. Notice that your saved session now appears under Recent Sessions. You can restore your analysis state with a single click."  # noqa: E501
         ),
         cyto_emotion="happy",
         target_widget_names=["workflows_container"],
@@ -396,7 +396,7 @@ _steps = [
     InfoStep(
         id="cleanup_explain",
         text=(
-            "To manage a previous session — such as renaming or deleting it — click the ⚙️ gear icon on its Dashboard card. To delete an entire project, simply right-click it in the Hub's Recent Projects list."
+            "To manage a previous session — such as renaming or deleting it — click the ⚙️ gear icon on its Dashboard card. To delete an entire project, simply right-click it in the Hub's Recent Projects list."  # noqa: E501
         ),
         cyto_emotion="talking",
         next_step_id="graduation",
@@ -404,7 +404,7 @@ _steps = [
     InfoStep(
         id="graduation",
         text=(
-            "🏆 That concludes the tour! You are now equipped to create projects, install modules via the Store, import data securely, and manage your analysis workflows."
+            "🏆 That concludes the tour! You are now equipped to create projects, install modules via the Store, import data securely, and manage your analysis workflows."  # noqa: E501
         ),
         cyto_emotion="cheering",
         cyto_animation="cheering",
@@ -413,7 +413,7 @@ _steps = [
     BranchingStep(
         id="finish",
         text=(
-            "You have successfully earned the 🧭 BioPro Explorer badge! Click below to begin your independent exploration."
+            "You have successfully earned the 🧭 BioPro Explorer badge! Click below to begin your independent exploration."  # noqa: E501
         ),
         cyto_emotion="happy",
         options={

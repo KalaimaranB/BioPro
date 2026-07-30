@@ -92,7 +92,7 @@ class TutorialOverlay(QWidget):
         else:
             self.hide()
 
-    def _cleanup(self, *args) -> None:
+    def _cleanup(self, *args) -> None:  # noqa: ARG002
         """Unsubscribe from event bus when the C++ object is deleted."""
         event_bus.unsubscribe(BioProEvent.ACADEMY_STEP_CHANGED, self._render_step_cb)
         event_bus.unsubscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
@@ -143,10 +143,10 @@ class TutorialOverlay(QWidget):
             self.btn_close,
             f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;",
         )
-        self.btn_close.enterEvent = lambda e: self.btn_close.setStyleSheet(
+        self.btn_close.enterEvent = lambda e: self.btn_close.setStyleSheet(  # noqa: ARG005
             f"color: {Colors.FG_PRIMARY}; border: none; font-size: 16px; font-weight: bold;"
         )
-        self.btn_close.leaveEvent = lambda e: self.btn_close.setStyleSheet(
+        self.btn_close.leaveEvent = lambda e: self.btn_close.setStyleSheet(  # noqa: ARG005
             f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;"
         )
         header.addWidget(self.lbl_progress)
@@ -481,7 +481,7 @@ class TutorialOverlay(QWidget):
 
     # ── Painting & masking ────────────────────────────────────────────────────
 
-    def paintEvent(self, event) -> None:  # noqa: N802
+    def paintEvent(self, event) -> None:  # noqa: N802, ARG002
         """Draw the dim overlay and cyan spotlight borders."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -606,7 +606,7 @@ class TutorialOverlay(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             # Use default argument capture for target_id inside the lambda
             btn.clicked.connect(
-                lambda checked, tid=target_id: global_tutorial_manager.next_step(tid)
+                lambda checked, tid=target_id: global_tutorial_manager.next_step(tid)  # noqa: ARG005
             )
             self.btn_layout.addWidget(btn)
 

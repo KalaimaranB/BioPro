@@ -1,4 +1,4 @@
-import logging
+import logging  # noqa: D100
 
 from biopro_sdk.host.trust_manager import TrustManager
 

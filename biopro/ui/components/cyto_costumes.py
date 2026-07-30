@@ -92,14 +92,14 @@ class GalacticCostume(CytoCostume):
 
         self.glow_effect = apply_glow_effect(self.blade, QColor("#ffffff"), blur_radius=20)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget):  # noqa: ARG002
         for item in self.items:
             item.setParentItem(None)
             if item.scene():
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         if self.glow_effect:
             hum_blur = 20 + math.sin(time_step * 15) * 6
             self.glow_effect.setBlurRadius(hum_blur)
@@ -221,7 +221,7 @@ class MandalorianCostume(CytoCostume):
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         if self.electric_arc:
             path = QPainterPath()
             path.moveTo(80, -5)
@@ -335,14 +335,14 @@ class TriStateCostume(CytoCostume):
 
         self.lens_glow = apply_glow_effect(self.lens, QColor("#ff0000"), blur_radius=15)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget):  # noqa: ARG002
         for item in self.items:
             item.setParentItem(None)
             if item.scene():
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         if self.hat_group:
             angle = math.sin(time_step) * 5
             self.hat_group.setRotation(angle)
@@ -407,14 +407,14 @@ class SubcavernCostume(CytoCostume):
 
         self.glow_effect = apply_glow_effect(self.chamber, QColor(0, 255, 255), blur_radius=15)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget):  # noqa: ARG002
         for item in self.items:
             item.setParentItem(None)
             if item.scene():
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         if self.glow_effect:
             radius = 15 + math.sin(time_step * 8) * 5
             self.glow_effect.setBlurRadius(radius)
@@ -504,7 +504,7 @@ class NinjagoCostume(CytoCostume):
         self.items.clear()
         self.tornado_layers.clear()
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         base_y, top_y = 34, -58
         turns, segments = 2.2, 22
         layer_count = max(len(self.tornado_layers), 1)
@@ -625,7 +625,7 @@ class AvatarAangCostume(CytoCostume):
 
         apply_glow_effect(self.swirl_group, QColor(135, 206, 235), blur_radius=12)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget):  # noqa: ARG002
         for item in self.items:
             item.setParentItem(None)
             if item.scene():
@@ -633,7 +633,7 @@ class AvatarAangCostume(CytoCostume):
         self.items.clear()
         self.swirl_group = None
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         if self.swirl_group:
             self.swirl_group.setRotation((time_step * 140) % 360)
             pulse = 1.0 + math.sin(time_step * 4) * 0.08
@@ -662,7 +662,7 @@ class AvatarKorraCostume(CytoCostume):
             self.items.append(stream)
             self.water_streams.append(stream)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget):  # noqa: ARG002
         for item in self.items:
             item.setParentItem(None)
             if item.scene():
@@ -670,7 +670,7 @@ class AvatarKorraCostume(CytoCostume):
         self.items.clear()
         self.water_streams.clear()
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
         # A tapered, filled ribbon (built by _tapered_ribbon) instead of a
         # thin stroked cubic — it bulges and tapers the way a real water
         # tendril would, and stays close to the hand instead of drifting
@@ -702,7 +702,7 @@ class DefaultCostume(CytoCostume):
         self.pointer.setParentItem(cyto_widget.right_arm)
         self.items.append(self.pointer)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget):  # noqa: ARG002
         for item in self.items:
             item.setParentItem(None)
             if item.scene():
@@ -716,17 +716,16 @@ class CostumeFactory:
         name = theme_name.lower()
         if "galactic" in name:
             return GalacticCostume()
-        elif "guild tracker" in name or "mandalorian" in name:
+        if "guild tracker" in name or "mandalorian" in name:
             return MandalorianCostume()
-        elif "tri-state" in name or "innovation" in name:
+        if "tri-state" in name or "innovation" in name:
             return TriStateCostume()
-        elif "subcavern" in name or "slugterra" in name:
+        if "subcavern" in name or "slugterra" in name:
             return SubcavernCostume()
-        elif "vortex kinetics" in name or "ninjago" in name:
+        if "vortex kinetics" in name or "ninjago" in name:
             return NinjagoCostume()
-        elif "aeroflow" in name or "zen" in name or "aang" in name:
+        if "aeroflow" in name or "zen" in name or "aang" in name:
             return AvatarAangCostume()
-        elif "hydroflow" in name or "polar" in name or "korra" in name:
+        if "hydroflow" in name or "polar" in name or "korra" in name:
             return AvatarKorraCostume()
-        else:
-            return DefaultCostume()
+        return DefaultCostume()

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """BioPro End-to-End Integration Test.
+
 ====================================
 Simulates a clean end-user installation of the BioPro app + the Flow Cytometry
 plugin and validates that the entire pipeline (dependency install → FCS load →
@@ -64,7 +65,7 @@ RESET = "\033[0m"
 # Result tracking
 # ─────────────────────────────────────────────────────────────────────────────
 @dataclass
-class PhaseResult:
+class PhaseResult:  # noqa: D101
     name: str
     passed: bool
     message: str = ""
@@ -168,7 +169,7 @@ def _write_synthetic_fcs(path: Path, n_events: int = 2000, n_channels: int = 4) 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
-def main():
+def main():  # noqa: D103
     parser = argparse.ArgumentParser(description="BioPro E2E Integration Test")
     parser.add_argument(
         "--fcs", type=Path, default=None, help="Path to an FCS file to use for testing"
@@ -231,7 +232,7 @@ def main():
     _print_report()
 
 
-def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
+def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901, PLR0915
     site_packages: Path | None = None
     fcs_data = None  # shared across phases
 

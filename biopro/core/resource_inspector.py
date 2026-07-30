@@ -21,7 +21,7 @@ class ResourceInspector:
     _custom_checkers: list[Any] = []
 
     @classmethod
-    def register_heavy_checker(cls, checker_func):
+    def register_heavy_checker(cls, checker_func) -> Any:
         """Registers a custom function for evaluating if an object is heavy."""
         if checker_func not in cls._custom_checkers:
             cls._custom_checkers.append(checker_func)
@@ -56,7 +56,7 @@ class ResourceInspector:
         return heavy
 
     @classmethod
-    def is_heavy(cls, obj: Any) -> bool:
+    def is_heavy(cls, obj: Any) -> bool:  # noqa: C901
         """Determines if a single object is considered a heavy resource."""
         if obj is None:
             return False

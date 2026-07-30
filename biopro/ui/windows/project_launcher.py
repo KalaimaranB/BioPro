@@ -468,7 +468,7 @@ class ProjectLauncherWindow(QMainWindow):
         self._ai_window.raise_()
         self._ai_window.activateWindow()
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event):  # noqa: N802
         super().resizeEvent(event)
         self._sync_hub_overlay_geometry()
         scale = max(1.0, min(self.width() / 800.0, 1.8))
@@ -494,7 +494,7 @@ class ProjectLauncherWindow(QMainWindow):
         except AttributeError:
             pass
 
-    def closeEvent(self, event):
+    def closeEvent(self, event):  # noqa: N802
         """Save window geometry before closing."""
         self._hub_poll_timer.stop()
         from biopro.core.preferences import core_preferences
@@ -516,7 +516,7 @@ class ProjectLauncherWindow(QMainWindow):
         available_themes = theme_manager.discover_themes()
         for name, path in available_themes:
             action = QAction(name, self)
-            action.triggered.connect(lambda checked, p=path: self._switch_theme(p))
+            action.triggered.connect(lambda checked, p=path: self._switch_theme(p))  # noqa: ARG005
             theme_menu.addAction(action)
 
         # HELP MENU

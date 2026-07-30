@@ -39,7 +39,7 @@ class HologramEffect(QWidget):
 
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):  # noqa: ARG002, N802
         if Colors.SCANLINE_OPACITY <= 0:
             return
 

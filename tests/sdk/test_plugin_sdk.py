@@ -176,7 +176,7 @@ class TestWizardStep:
 
         def build_page(self, panel) -> QWidget:
             page = QWidget()
-            return page
+            return page  # noqa: RET504
 
         def on_next(self, panel) -> bool:
             return True

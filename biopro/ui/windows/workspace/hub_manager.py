@@ -155,8 +155,7 @@ class HubManager:
                 # Refresh dashboard
                 mw.home_screen.populate_modules(mw.module_manager.get_available_modules())
                 return True
-            else:
-                show_error(mw, "Error", "Failed to trust module. Could not calculate hashes.")
+            show_error(mw, "Error", "Failed to trust module. Could not calculate hashes.")
         return False
 
     def refresh_hub_workflows(self) -> None:

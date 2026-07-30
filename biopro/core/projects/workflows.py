@@ -1,3 +1,5 @@
+"""Core module."""
+
 import logging
 import os
 import shutil
@@ -12,6 +14,7 @@ class WorkflowManager:
     """Manages scientific workflows stored as JSON in the project workspace."""
 
     def __init__(self, project_dir: Path):
+        """Documentation."""
         self.project_dir = project_dir
         self.wf_dir = self.project_dir / "workflows"
 

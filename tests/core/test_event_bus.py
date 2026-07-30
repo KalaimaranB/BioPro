@@ -13,7 +13,7 @@ class TestEventBus:
     def bus(self, qtbot):
         """Dedicated EventManager instance for testing."""
         manager = EventManager()
-        return manager
+        return manager  # noqa: RET504
 
     def test_emit_receive(self, bus):
         """Verify basic publish/subscribe functionality."""

@@ -24,7 +24,7 @@ class PluginUIWorker(QObject):
     @pyqtSlot()
     def run(self):
         try:
-            PanelClass = self.module_manager.load_module_ui(self.module_id)
+            PanelClass = self.module_manager.load_module_ui(self.module_id)  # noqa: N806
             self.finished.emit(PanelClass)
         except Exception as e:
             import logging
@@ -42,8 +42,25 @@ class PluginLoaderManager:
         """Triggers the Galactic transition and starts async module loading."""
         mw = self.main_window
         module_id = manifest["id"]
-        module_name = manifest.get("name", "Analysis Module")
+        module_name = manifest.get("display_name", "Analysis Module")
         logger.info(f"PluginLoader: Starting async load sequence for module '{module_id}'")
+
+        # --- Trust Gate ---
+        # Check trust BEFORE showing the loading screen. An untrusted module must
+        # never begin loading; prompt the user to accept it first and abort here.
+        mod_info = mw.module_manager.modules.get(module_id, {})
+        trust_level = mod_info.get("trust_level", "verified")
+        if trust_level == "untrusted":
+            logger.warning(
+                f"PluginLoader: Blocked load of untrusted module '{module_id}' — prompting user."
+            )
+            if mw.hub_manager.on_trust_requested(module_id):
+                # User accepted: reload the (now-trusted) manifest and continue
+                manifests = mw.module_manager.get_available_modules()
+                manifest = next((m for m in manifests if m["id"] == module_id), manifest)
+            else:
+                # User declined — do not load
+                return
 
         from biopro.ui.widgets.galactic_loader import GalacticLoader
 
@@ -73,7 +90,7 @@ class PluginLoaderManager:
 
         mw._module_thread.started.connect(mw._module_worker.run)
         mw._module_worker.finished.connect(
-            lambda PanelClass: self.on_module_loaded(manifest, PanelClass)
+            lambda PanelClass: self.on_module_loaded(manifest, PanelClass)  # noqa: N803
         )
         mw._module_worker.error.connect(lambda err: self.on_module_load_error(module_id, err))
 
@@ -83,7 +100,7 @@ class PluginLoaderManager:
 
         mw._module_thread.start()
 
-    def on_module_loaded(self, manifest: dict, PanelClass: type) -> None:
+    def on_module_loaded(self, manifest: dict, PanelClass: type) -> None:  # noqa: N803
         mw = self.main_window
         module_id = manifest["id"]
         logger.info(
@@ -98,16 +115,170 @@ class PluginLoaderManager:
             mw.loader_widget.warp_out()
 
     def on_warp_peaked(self) -> None:
+        """Invoked when the GalacticLoader warp animation reaches its peak.
+
+        Instantiates the skeleton panel, then checks for the Phase 2 async-init
+        protocol (Proposal A).  If the panel exposes ``begin_async_init`` and
+        ``panel_ready``, the loader stays visible while heavy widgets are built;
+        only when ``panel_ready`` fires does the loader cross-fade away.  Legacy
+        panels without the protocol fall back to an immediate crossfade.
+        """
         mw = self.main_window
         manifest = mw._pending_manifest
-        PanelClass = mw._pending_panel_class
+        PanelClass = mw._pending_panel_class  # noqa: N806
         mw._pending_manifest = None
         mw._pending_panel_class = None
-
         self.instantiate_module_panel(manifest, PanelClass)
+        panel = mw.wizard_panel
+
+        # ── Ready Gate protocol ─────────────────────────────────────────
+        if (
+            panel is not None
+            and hasattr(panel, "panel_ready")
+            and hasattr(panel, "begin_async_init")
+        ):
+            # Store manifest so the ready callbacks can read the module name
+            mw._active_manifest = manifest
+
+            # ── Hand off the pending workflow to the panel ──────────────────
+            if (
+                hasattr(mw, "_pending_workflow_payload")
+                and mw._pending_workflow_payload is not None
+            ):
+                panel._deferred_workflow_payload = mw._pending_workflow_payload
+                panel._deferred_workflow_filename = getattr(mw, "_pending_workflow_filename", None)
+                panel._deferred_workflow_metadata = getattr(mw, "_pending_workflow_metadata", None)
+                mw._pending_workflow_payload = None
+                mw._pending_workflow_filename = None
+                mw._pending_workflow_metadata = None
+
+            # Update the loader’s secondary status line while Phase 2 builds
+            if hasattr(mw, "loader_widget") and mw.loader_widget:
+                mw.loader_widget.set_status_message("Rendering workspace…")
+
+            self._panel_ready_received = False
+            self._data_ready_received = False
+
+            # Connect BOTH signals upfront so no signal is EVER missed
+            panel.panel_ready.connect(self._on_panel_ready)
+            if hasattr(panel, "data_ready"):
+                panel.data_ready.connect(self._on_data_ready)
+
+                from PyQt6.QtCore import QTimer
+
+                self._data_ready_safety = QTimer(mw)
+                self._data_ready_safety.setSingleShot(True)
+                self._data_ready_safety.timeout.connect(self._on_data_ready_timeout)
+                self._data_ready_safety.start(45_000)  # 45 s covers Numba JIT cold-start
+
+            panel.begin_async_init()
+        else:
+            # ── Legacy fallback ─────────────────────────────────────────
+            self._inject_pending_workflow(manifest)
+            mw.status_bar.showMessage(
+                f"{manifest.get('display_name', 'Analysis')} — open a file to begin (Ctrl+O)"
+            )
+            self.crossfade_to_analysis()
+
+    def _on_panel_ready(self) -> None:
+        """Phase 2 complete: heavy widgets built."""
+        mw = self.main_window
+        panel = mw.wizard_panel
+
+        if panel is None:
+            return
+
+        # One-shot disconnect
+        try:  # noqa: SIM105
+            panel.panel_ready.disconnect(self._on_panel_ready)
+        except Exception:
+            pass
+
+        self._panel_ready_received = True
+
+        # Update loader message to reflect data loading phase
+        if hasattr(mw, "loader_widget") and mw.loader_widget:
+            mw.loader_widget.set_status_message("Loading workspace data…")
+
+        if not hasattr(panel, "data_ready"):
+            # Simple protocol: crossfade immediately
+            self._trigger_crossfade()
+        elif getattr(self, "_data_ready_received", False):
+            # data_ready was already received! Crossfade immediately
+            self._trigger_crossfade()
+
+    def _on_data_ready(self) -> None:
+        """Data loaded and graphs rendered — now safe to crossfade."""
+        logger.info("PluginLoader: data_ready signal received from active panel!")
+        mw = self.main_window
+        panel = mw.wizard_panel
+
+        if panel is not None and hasattr(panel, "data_ready"):
+            try:  # noqa: SIM105
+                panel.data_ready.disconnect(self._on_data_ready)
+            except Exception:
+                pass
+
+        if hasattr(self, "_data_ready_safety") and self._data_ready_safety:
+            self._data_ready_safety.stop()
+            self._data_ready_safety = None
+
+        self._data_ready_received = True
+
+        if getattr(self, "_panel_ready_received", False) or not hasattr(panel, "panel_ready"):
+            self._trigger_crossfade()
+
+    def _on_data_ready_timeout(self) -> None:
+        """Safety net: force crossfade if data_ready never fires within the timeout."""
+        logger.warning(
+            "PluginLoader: data_ready signal not received within 45 s — forcing crossfade."
+        )
+        self._data_ready_safety = None
+        self._trigger_crossfade()
+
+    def _trigger_crossfade(self) -> None:
+        """Helper to set status message and initiate crossfade."""
+        logger.info("PluginLoader: Triggering crossfade_to_analysis()...")
+        mw = self.main_window
+        manifest = getattr(mw, "_active_manifest", {})
+        mw.status_bar.showMessage(
+            f"{manifest.get('display_name', 'Analysis')} — open a file to begin (Ctrl+O)"
+        )
         self.crossfade_to_analysis()
 
-    def instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:
+    def _inject_pending_workflow(self, manifest: dict | None = None) -> None:  # noqa: ARG002
+        """Inject ``mw._pending_workflow_payload`` into the active wizard_panel.
+
+        Extracted from ``instantiate_module_panel`` so it can be called at the
+        right moment in both the legacy (Phase 1 only) and new (Phase 2) paths.
+        """
+        mw = self.main_window
+        panel = mw.wizard_panel
+        if panel is None:
+            return
+        if not (
+            hasattr(mw, "_pending_workflow_payload") and mw._pending_workflow_payload is not None
+        ):
+            return
+
+        if hasattr(panel, "load_workflow"):
+            import inspect
+
+            sig = inspect.signature(panel.load_workflow)
+            kwargs = {}
+            if "filename" in sig.parameters:
+                kwargs["filename"] = getattr(mw, "_pending_workflow_filename", None)
+            if "metadata" in sig.parameters:
+                kwargs["metadata"] = getattr(mw, "_pending_workflow_metadata", None)
+
+            panel.load_workflow(mw._pending_workflow_payload, **kwargs)
+            mw.status_bar.showMessage("Successfully loaded workflow payload.")
+
+        mw._pending_workflow_payload = None
+        mw._pending_workflow_filename = None
+        mw._pending_workflow_metadata = None
+
+    def instantiate_module_panel(self, manifest: dict, PanelClass: type) -> None:  # noqa: N803
         mw = self.main_window
         module_id = manifest["id"]
         logger.info(f"PluginLoader: Instantiating UI panel for '{module_id}' and wiring events.")
@@ -136,7 +307,7 @@ class PluginLoaderManager:
                 )
 
             mw.analysis_toolbar.set_title(
-                manifest.get("icon", "📦"), manifest.get("name", "Analysis")
+                manifest.get("icon", "📦"), manifest.get("display_name", "Analysis")
             )
 
             if "Galactic" in theme_manager.current_theme_name:
@@ -158,29 +329,15 @@ class PluginLoaderManager:
             # Emit MODULE_OPENED for WaitForEventStep(MODULE_OPENED)
             event_bus.emit(BioProEvent.MODULE_OPENED, module_id)
 
-            # Inject any pending workflow payload
-            if (
-                hasattr(mw, "_pending_workflow_payload")
-                and mw._pending_workflow_payload is not None
-            ):
-                if hasattr(mw.wizard_panel, "load_workflow"):
-                    import inspect
+            # NOTE: Workflow injection is intentionally NOT done here.
+            # For panels supporting the Phase 2 protocol (begin_async_init / panel_ready),
+            # injection is deferred to _inject_pending_workflow() which is called from
+            # _on_panel_ready() after heavy widgets are fully built.
+            # For legacy panels, on_warp_peaked() calls _inject_pending_workflow() directly.
 
-                    sig = inspect.signature(mw.wizard_panel.load_workflow)
-                    kwargs = {}
-                    if "filename" in sig.parameters:
-                        kwargs["filename"] = getattr(mw, "_pending_workflow_filename", None)
-                    if "metadata" in sig.parameters:
-                        kwargs["metadata"] = getattr(mw, "_pending_workflow_metadata", None)
-
-                    mw.wizard_panel.load_workflow(mw._pending_workflow_payload, **kwargs)
-                    mw.status_bar.showMessage("Successfully loaded workflow payload.")
-                mw._pending_workflow_payload = None
-                mw._pending_workflow_filename = None
-                mw._pending_workflow_metadata = None
-
-            mw.status_bar.showMessage(f"{manifest.get('name')} — open a file to begin (Ctrl+O)")
-            logger.info(f"PluginLoader: Module '{module_id}' is now fully initialized and active.")
+            logger.info(
+                f"PluginLoader: Module '{module_id}' skeleton initialised — Phase 2 pending."
+            )
 
         except Exception as e:
             import logging
@@ -191,29 +348,29 @@ class PluginLoaderManager:
 
     def crossfade_to_analysis(self) -> None:
         mw = self.main_window
-        # Switch the stack to the analysis page — it appears instantly underneath
+        # Switch the stack to the analysis page
         mw.root_stack.setCurrentIndex(1)  # _PAGE_ANALYSIS = 1
 
-        # Fade out QML widget smoothly
+        # Smooth hardware-accelerated QML opacity fade-out
         if hasattr(mw, "loader_widget") and mw.loader_widget:
-            from PyQt6.QtCore import QPropertyAnimation
-            from PyQt6.QtWidgets import QGraphicsOpacityEffect
-
-            effect = QGraphicsOpacityEffect(mw.loader_widget)
-            mw.loader_widget.setGraphicsEffect(effect)
-
-            mw.loader_anim = QPropertyAnimation(effect, b"opacity")
-            mw.loader_anim.setDuration(500)
-            mw.loader_anim.setStartValue(1.0)
-            mw.loader_anim.setEndValue(0.0)
+            loader = mw.loader_widget
+            # Ensure the loader stays ON TOP of Page 1 while fading out
+            loader.raise_()
 
             def on_fade_done():
-                if hasattr(mw, "loader_widget") and mw.loader_widget:
+                if hasattr(mw, "loader_widget") and mw.loader_widget == loader:
                     mw.loader_widget.deleteLater()
                     mw.loader_widget = None
 
-            mw.loader_anim.finished.connect(on_fade_done)
-            mw.loader_anim.start()
+            if hasattr(loader, "fade_out_finished"):
+                loader.fade_out_finished.connect(on_fade_done)
+
+            if hasattr(loader, "fade_out"):
+                loader.fade_out(700)
+            else:
+                from PyQt6.QtCore import QTimer
+
+                QTimer.singleShot(700, on_fade_done)
 
     def on_module_load_error(self, module_id: str, error_msg: str) -> None:
         mw = self.main_window
@@ -255,5 +412,10 @@ class PluginLoaderManager:
             # uninstall a plugin without removing the hub metadata cache.
             # But we DO surface it if it's some other exception so they know it failed.
             if "ModuleNotFoundError" not in exc_msg:
-                dialog = ErrorReportDialog(f"Failed to load module '{module_id}'", error_msg, mw)
+                error_data = {
+                    "plugin_id": module_id,
+                    "message": f"Failed to load module '{module_id}'",
+                    "traceback": error_msg,
+                }
+                dialog = ErrorReportDialog(error_data, mw)
                 dialog.exec()

@@ -247,7 +247,7 @@ class WorkspaceDashboard(QWidget):
         for _i, manifest in enumerate(manifests):
             card = ModuleCard(
                 icon=manifest.get("icon", "📦"),
-                title=manifest.get("name", "Unknown Module"),
+                title=manifest.get("display_name", "Unknown Module"),
                 description=manifest.get("description", ""),
                 badge="Installed",
                 enabled=True,
@@ -256,10 +256,10 @@ class WorkspaceDashboard(QWidget):
                 developer_name=manifest.get("developer_name"),
                 developer_key=manifest.get("developer_key"),
             )
-            card.clicked.connect(lambda *args, m=manifest: self.module_selected.emit(m))
+            card.clicked.connect(lambda *args, m=manifest: self.module_selected.emit(m))  # noqa: ARG005
             mid_val = manifest.get("id")
             card.trust_requested.connect(
-                lambda *args, mid=mid_val: self.trust_module_requested.emit(mid)
+                lambda *args, mid=mid_val: self.trust_module_requested.emit(mid)  # noqa: ARG005
             )
             self.modules_layout.addWidget(card)
 
@@ -308,15 +308,15 @@ class WorkspaceDashboard(QWidget):
 
             # THE LAMBDA FIX: We are now explicitly locking 't=title' into memory!
             card.clicked.connect(
-                lambda *args, mid=module_id, fn=filename: self.workflow_selected.emit(mid, fn)
+                lambda *args, mid=module_id, fn=filename: self.workflow_selected.emit(mid, fn)  # noqa: ARG005
             )
             card.settings_requested.connect(
-                lambda *args, mid=module_id, fn=filename: self.workflow_settings_requested.emit(
+                lambda *args, mid=module_id, fn=filename: self.workflow_settings_requested.emit(  # noqa: ARG005
                     mid, fn
                 )
             )
             card.academy_requested.connect(
-                lambda *args, mid=module_id: self.open_academy_for_module_requested.emit(mid)
+                lambda *args, mid=module_id: self.open_academy_for_module_requested.emit(mid)  # noqa: ARG005
             )
 
             self.workflows_layout.addWidget(card)

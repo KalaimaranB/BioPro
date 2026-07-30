@@ -140,7 +140,7 @@ class AcademyWindow(QDialog):
             p.update(w, h)
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):  # noqa: ARG002, N802
         """Draw deep background and techy biology particles."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

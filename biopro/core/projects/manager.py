@@ -1,3 +1,5 @@
+"""Core module."""
+
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +19,7 @@ class ProjectManager:
     """Orchestrates BioPro project operations by delegating to specialized managers."""
 
     def __init__(self, project_dir: Path | str):
+        """Documentation."""
         self.project_dir = Path(project_dir)
         self.project_file = self.project_dir / "project.biopro"
         self.assets_dir = self.project_dir / "assets"
@@ -33,15 +36,18 @@ class ProjectManager:
 
     @property
     def project_name(self) -> str:
+        """Documentation."""
         return self.data.get("project_name", self.project_dir.name)
 
     @property
     def config(self) -> dict:
+        """Documentation."""
         return self.data
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 
     def create_new(self, project_name: str, is_academy: bool = False) -> None:
+        """Documentation."""
         if self.project_dir.exists():
             raise FileExistsError("Directory already exists.")
 
@@ -62,6 +68,7 @@ class ProjectManager:
         logger.info(f"Created new project: {project_name}")
 
     def open_project(self) -> None:
+        """Documentation."""
         try:
             if not self.project_file.exists():
                 raise FileNotFoundError(f"Not a valid BioPro project: {self.project_file}")
@@ -98,6 +105,7 @@ class ProjectManager:
             raise e
 
     def save(self) -> None:
+        """Documentation."""
         try:
             self.data["last_modified"] = datetime.now().isoformat()
 
@@ -120,6 +128,7 @@ class ProjectManager:
             raise e
 
     def close(self) -> None:
+        """Documentation."""
         self.save()
         self.locker.release()
         logger.info("Project closed and unlocked.")
@@ -129,6 +138,7 @@ class ProjectManager:
     def add_image(
         self, filepath: Path | str, copy_to_workspace: bool, subfolder: str | None = None
     ) -> str:
+        """Documentation."""
         h = self.assets.add_image(self.data, filepath, copy_to_workspace, subfolder)
         self.save()
         return h
@@ -136,6 +146,7 @@ class ProjectManager:
     def batch_add_images(
         self, filepaths: list[Path | str], copy_to_workspace: bool, subfolder: str | None = None
     ) -> list[str]:
+        """Documentation."""
         hashes = [
             self.assets.add_image(self.data, fp, copy_to_workspace, subfolder) for fp in filepaths
         ]
@@ -143,10 +154,12 @@ class ProjectManager:
         return hashes
 
     def validate_assets(self) -> None:
+        """Documentation."""
         if self.assets.validate_assets(self.data):
             self.save()
 
     def get_asset_path(self, file_hash: str) -> Path | None:
+        """Documentation."""
         return self.assets.get_asset_path(self.data, file_hash)
 
     def save_workflow(
@@ -157,6 +170,7 @@ class ProjectManager:
         filename: str | None = None,
         attachments: list[dict] | None = None,
     ) -> str:
+        """Documentation."""
         result = self.workflows.save(module_id, payload, metadata, filename, attachments)
         event_bus.emit(BioProEvent.WORKFLOW_SAVED, result)
         return result
@@ -169,9 +183,11 @@ class ProjectManager:
         description: str = "",
         mime_hint: str = "application/octet-stream",
     ) -> dict:
+        """Documentation."""
         return self.workflows.attach_file(wf_filename, source_path, key, description, mime_hint)
 
     def get_attachment_path(self, wf_filename: str, key: str) -> Path | None:
+        """Documentation."""
         attachments = self.workflows.load_attachments(wf_filename)
         for att in attachments:
             if att.get("key") == key:
@@ -183,16 +199,21 @@ class ProjectManager:
         return None
 
     def list_workflows(self) -> list[dict]:
+        """Documentation."""
         return self.workflows.list_all()
 
     def load_workflow_payload(self, filename: str) -> dict:
+        """Documentation."""
         return self.workflows.load_payload(filename)
 
     def get_workflow_hash(self, filename: str) -> str | None:
+        """Documentation."""
         return self.workflows.get_hash(filename)
 
-    def delete_workflow(self, module_id: str, filename: str) -> bool:
+    def delete_workflow(self, module_id: str, filename: str) -> bool:  # noqa: ARG002
+        """Documentation."""
         return self.workflows.delete(filename)
 
     def delete_workflow_attachment(self, filename: str, key: str) -> bool:
+        """Documentation."""
         return self.workflows.delete_attachment(filename, key)

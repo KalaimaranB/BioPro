@@ -332,7 +332,7 @@ class TrustDirectoryWidget(QFrame):
                     QPushButton:hover {{ background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; }}
                 """,
                 )
-                revoke_btn.clicked.connect(lambda checked, path=key_file: self._revoke_anchor(path))
+                revoke_btn.clicked.connect(lambda checked, path=key_file: self._revoke_anchor(path))  # noqa: ARG005
                 item_layout.addWidget(revoke_btn)
 
                 list_item = QListWidgetItem(self.list_widget)
@@ -533,7 +533,7 @@ class PluginDetailPanel(QScrollArea):
         name: str,
         description: str,
         trust_status: str,
-        required_cosigners: list[str] | None = None,
+        required_cosigners: list[str] | None = None,  # noqa: ARG002
         author_avatar_stub: tuple[str, str, str] | None = None,  # (name, local_file_or_url, hash)
         screenshot_stub: tuple[str, str] | None = None,  # (local_file_or_url, hash)
         backdoor_detected: bool = False,

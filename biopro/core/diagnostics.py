@@ -19,12 +19,12 @@ class BlackBoxHandler(logging.Handler):
     just before a crash.
     """
 
-    def __init__(self, capacity: int = 100):
+    def __init__(self, capacity: int = 100):  # noqa: D107
         super().__init__()
         self.capacity = capacity
         self.records: deque[dict[str, Any]] = deque(maxlen=capacity)
 
-    def emit(self, record):
+    def emit(self, record):  # noqa: D102
         try:
             msg = self.format(record)
             self.records.append(
@@ -51,11 +51,11 @@ class AutoReportHandler(logging.Handler):
     scattered throughout the codebase.
     """
 
-    def __init__(self, engine: "DiagnosticEngine"):
+    def __init__(self, engine: "DiagnosticEngine"):  # noqa: D107
         super().__init__(level=logging.ERROR)
         self.engine = engine
 
-    def emit(self, record):
+    def emit(self, record):  # noqa: D102
         # Prevent infinite recursion if the DiagnosticEngine itself logs an error
         if record.name == "biopro.core.diagnostics":
             return
@@ -80,13 +80,13 @@ class DiagnosticEngine:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls):  # noqa: D102
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self):  # noqa: D107
         if self._initialized:
             return
 

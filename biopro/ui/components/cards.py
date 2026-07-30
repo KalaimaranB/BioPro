@@ -171,16 +171,16 @@ class ModuleCard(QFrame):
             f"QFrame#moduleCard {{ background: {bg}; border: 1.5px solid {border}; border-radius: 10px; }}",
         )
 
-    def enterEvent(self, event) -> None:
+    def enterEvent(self, event) -> None:  # noqa: N802
         if self._enabled:
             self._apply_style(True)
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event) -> None:  # noqa: N802
         self._apply_style(False)
         super().leaveEvent(event)
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event) -> None:  # noqa: N802
         if self._enabled:
             self.clicked.emit()
         super().mousePressEvent(event)
@@ -337,15 +337,15 @@ class DashboardWorkflowCard(QFrame):
                 f"QFrame#workflowCard {{ background: {bg}; border: 1px solid {border}; border-radius: 8px; }}",
             )
 
-    def enterEvent(self, event) -> None:
+    def enterEvent(self, event) -> None:  # noqa: N802
         self._apply_style(True)
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event) -> None:  # noqa: N802
         self._apply_style(False)
         super().leaveEvent(event)
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event) -> None:  # noqa: N802
         pos = event.position().toPoint()
         # Ignore clicks on overlay buttons — they handle their own signals
         if self.btn_settings.geometry().contains(pos):

@@ -16,12 +16,14 @@ class GalacticLoader(QQuickWidget):
     """
 
     warp_out_finished = pyqtSignal()
+    fade_out_finished = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         # Transparent background for the widget itself
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_AlwaysStackOnTop)
         self.setClearColor(Qt.GlobalColor.transparent)
         self.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
 
@@ -47,6 +49,8 @@ class GalacticLoader(QQuickWidget):
         root = self.rootObject()
         if root:
             root.warpOutFinished.connect(self.warp_out_finished.emit)
+            if hasattr(root, "fadeOutFinished"):
+                root.fadeOutFinished.connect(self.fade_out_finished.emit)
             self.update_colors()
 
     def update_colors(self):
@@ -79,6 +83,18 @@ class GalacticLoader(QQuickWidget):
 
             QtCore.QMetaObject.invokeMethod(root, "reset")
 
+    def set_status_message(self, msg: str) -> None:
+        """Update the secondary status line during Phase 2.
+
+        Called by PluginLoaderManager once the skeleton panel is built and
+        Phase 2 (heavy widget construction) is about to begin. The message
+        replaces the default 'STATUS: HYPERDRIVE ENGAGED' text so the user
+        sees a meaningful progress indicator while the loader is still visible.
+        """
+        root = self.rootObject()
+        if root:
+            root.setProperty("statusMessage", msg)
+
     def warp_out(self):
         """Begin the cinematic warp-out sequence."""
         root = self.rootObject()
@@ -86,6 +102,16 @@ class GalacticLoader(QQuickWidget):
             import PyQt6.QtCore as QtCore
 
             QtCore.QMetaObject.invokeMethod(root, "warpOut")
+
+    def fade_out(self, duration_ms: int = 500):
+        """Begin hardware-accelerated fade out transition to transparent."""
+        root = self.rootObject()
+        if root:
+            import PyQt6.QtCore as QtCore
+
+            QtCore.QMetaObject.invokeMethod(
+                root, "fadeOut", QtCore.Q_ARG(QtCore.QVariant, duration_ms)
+            )
 
 
 if __name__ == "__main__":

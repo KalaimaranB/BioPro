@@ -114,7 +114,7 @@ class BadgeAwardOverlay(QWidget):
         self.confetti = alive
         self.update()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event):  # noqa: ARG002, N802
         # Click to dismiss early
         if self._bg_alpha > 100:
             self.finish_sequence()
@@ -137,7 +137,7 @@ class BadgeAwardOverlay(QWidget):
         self._badge_scale = value
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):  # noqa: ARG002, N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 

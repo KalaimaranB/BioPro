@@ -208,7 +208,7 @@ def invert_image(image: NDArray[np.float64]) -> NDArray[np.float64]:
     return 1.0 - image
 
 
-def enhance_for_band_detection(
+def enhance_for_band_detection(  # noqa: PLR0913
     image: NDArray[np.float64],
     *,
     apply_clahe: bool = True,
@@ -399,9 +399,9 @@ def auto_detect_rotation(
     return round(best_angle, 2)
 
 
-def calculate_band_crop_region(
+def calculate_band_crop_region(  # noqa: C901, PLR0913, PLR0915
     image: NDArray[np.float64],
-    dark_threshold: float | None = None,
+    dark_threshold: float | None = None,  # noqa: ARG001
     min_band_width_frac: float = 0.025,
     min_band_height_frac: float = 0.01,
     vertical_padding_frac: float = 0.15,
@@ -550,9 +550,9 @@ def calculate_band_crop_region(
     return (int(final_r_min), int(final_r_max), int(final_c_min), int(final_c_max))
 
 
-def auto_crop_to_bands(
+def auto_crop_to_bands(  # noqa: PLR0913
     image: NDArray[np.float64],
-    dark_threshold: float | None = None,
+    dark_threshold: float | None = None,  # noqa: ARG001
     min_band_width_frac: float = 0.025,
     min_band_height_frac: float = 0.01,
     vertical_padding_frac: float = 0.15,

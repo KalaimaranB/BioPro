@@ -1,3 +1,5 @@
+"""Core module."""
+
 import abc
 from pathlib import Path
 from typing import Any
@@ -10,6 +12,7 @@ class ITrustStrategy(abc.ABC):
 
     @abc.abstractmethod
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
+        """Documentation."""
         pass
 
 
@@ -17,6 +20,7 @@ class ProjectTrustStrategy(ITrustStrategy):
     """Verifies plugins signed by a CI/CD Project Key."""
 
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
+        """Documentation."""
         # Load security.json to determine entity type
         entity_type = ""
         path_obj = Path(plugin_path)
@@ -62,6 +66,7 @@ class DeveloperTrustStrategy(ITrustStrategy):
     """Verifies plugins signed by an individual Developer Key."""
 
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
+        """Documentation."""
         # Load security.json to determine entity type
         entity_type = ""
         path_obj = Path(plugin_path)
@@ -94,8 +99,7 @@ class DeveloperTrustStrategy(ITrustStrategy):
 
         # Wrap the legacy TrustManager logic
         manager = TrustManager()
-        result = manager.verify_plugin(Path(plugin_path))
-        return result
+        return manager.verify_plugin(Path(plugin_path))
 
 
 class TrustStrategyFactory:
@@ -103,6 +107,7 @@ class TrustStrategyFactory:
 
     @staticmethod
     def get_strategy(manifest: dict[str, Any], plugin_path: str = "") -> ITrustStrategy:
+        """Documentation."""
         entity_type = ""
         if plugin_path:
             path_obj = Path(plugin_path)

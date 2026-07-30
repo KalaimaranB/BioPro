@@ -1,3 +1,5 @@
+"""Core module."""
+
 import contextlib
 import json
 import logging

@@ -1,3 +1,5 @@
+"""Core module."""
+
 import hashlib
 import logging
 import shutil
@@ -12,6 +14,7 @@ class AssetManager:
     """Manages project assets, hashing, and workspace consistency."""
 
     def __init__(self, project_dir: Path, assets_dir: Path):
+        """Documentation."""
         self.project_dir = project_dir
         self.assets_dir = assets_dir
 

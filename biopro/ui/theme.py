@@ -62,39 +62,39 @@ class _Fonts:
 
     # Standardized QFont Objects (initialized on first access or manually)
     @property
-    def H1(self):
+    def H1(self):  # noqa: N802
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_HEADINGS, self.SIZE_XLARGE, QFont.Weight.Bold)
-        return f
+        return f  # noqa: RET504
 
     @property
-    def H2(self):
+    def H2(self):  # noqa: N802
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_HEADINGS, self.SIZE_LARGE, QFont.Weight.Bold)
-        return f
+        return f  # noqa: RET504
 
     @property
-    def H3(self):
+    def H3(self):  # noqa: N802
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_HEADINGS, self.SIZE_NORMAL, QFont.Weight.Bold)
-        return f
+        return f  # noqa: RET504
 
     @property
-    def BODY(self):
+    def BODY(self):  # noqa: N802
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_UI, self.SIZE_NORMAL)
-        return f
+        return f  # noqa: RET504
 
     @property
-    def CAPTION(self):
+    def CAPTION(self):  # noqa: N802
         from PyQt6.QtGui import QFont
 
         f = QFont(self.FAMILY_UI, self.SIZE_SMALL)
-        return f
+        return f  # noqa: RET504
 
 
 # Create singleton instances for static-like access

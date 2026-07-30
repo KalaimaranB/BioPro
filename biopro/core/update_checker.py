@@ -30,9 +30,9 @@ class NetworkUpdaterProtocol(Protocol):
 class AppConfigProtocol(Protocol):
     """Structural protocol for the config dependency."""
 
-    def get_skipped_update_version(self) -> str | None: ...
+    def get_skipped_update_version(self) -> str | None: ...  # noqa: D102
 
-    def set_skipped_update_version(self, version: str) -> None: ...
+    def set_skipped_update_version(self, version: str) -> None: ...  # noqa: D102
 
 
 class UpdateChecker:
@@ -46,7 +46,9 @@ class UpdateChecker:
       new event subscribers, not changes here.
     """
 
-    def __init__(self, updater: NetworkUpdaterProtocol, config: AppConfigProtocol, event_bus):
+    def __init__(  # noqa: D107
+        self, updater: NetworkUpdaterProtocol, config: AppConfigProtocol, event_bus
+    ) -> None:
         self._updater = updater
         self._config = config
         self._event_bus = event_bus

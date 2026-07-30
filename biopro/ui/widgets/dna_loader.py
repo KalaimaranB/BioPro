@@ -99,7 +99,7 @@ class ProgrammaticLoader(QWidget):
 
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):  # noqa: ARG002, N802
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)

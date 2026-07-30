@@ -383,7 +383,7 @@ class ProgressDialog(QDialog):
 
         self.value = 0
 
-    def setValue(self, value: int) -> None:
+    def setValue(self, value: int) -> None:  # noqa: N802
         """Set progress (0-100)."""
         self.value = max(0, min(100, value))
         self.label.setText(f"{self.value}%")

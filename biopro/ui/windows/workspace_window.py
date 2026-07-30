@@ -219,7 +219,7 @@ class WorkspaceWindow(QMainWindow):
                 if hasattr(canvas, "set_guide_polygon"):
                     canvas.set_guide_polygon(None)
 
-    def timerEvent(self, event) -> None:
+    def timerEvent(self, event) -> None:  # noqa: N802
         super().timerEvent(event)
         active_overlay = self._active_overlay()
         if hasattr(self, "home_tutorial_overlay") and self.home_tutorial_overlay.isVisible():
@@ -411,7 +411,7 @@ class WorkspaceWindow(QMainWindow):
         if self.wizard_panel and hasattr(self.wizard_panel, "_open_file"):
             self.wizard_panel._open_file()
 
-    def resizeEvent(self, event):
+    def resizeEvent(self, event):  # noqa: N802
         super().resizeEvent(event)
         if hasattr(self, "hologram_overlay") and self.hologram_overlay.isVisible():
             self.hologram_overlay.setGeometry(self.root_stack.geometry())
@@ -421,7 +421,7 @@ class WorkspaceWindow(QMainWindow):
             self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
         self._update_loader_geom()
 
-    def moveEvent(self, event):
+    def moveEvent(self, event):  # noqa: N802
         super().moveEvent(event)
         self._update_loader_geom()
 
@@ -435,7 +435,7 @@ class WorkspaceWindow(QMainWindow):
             x, y, w, h = (geo.x(), geo.y(), self.root_stack.width(), self.root_stack.height())
             self.loader_process.write(f"GEOM {x} {y} {w} {h}\n".encode())
 
-    def closeEvent(self, event):
+    def closeEvent(self, event):  # noqa: N802
         """Ensures all projects and plugins release resources before exit."""
         if (
             hasattr(self, "loader_process")
@@ -471,6 +471,12 @@ class WorkspaceWindow(QMainWindow):
 
         geom_hex = self.saveGeometry().toHex().data().decode("ascii")
         core_preferences.set("workspace_window_geometry", geom_hex)
+        try:
+            from biopro.ui.theme import theme_manager
+
+            theme_manager.theme_changed.disconnect(self.theme_manager.on_theme_changed)
+        except TypeError:
+            pass
         super().closeEvent(event)
 
     def return_to_hub(self):

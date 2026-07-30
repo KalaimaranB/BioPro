@@ -1,7 +1,7 @@
-import warnings
+import warnings  # noqa: D100
 
 warnings.warn(
-    "Importing UI components from `biopro.shared.ui.ui_components` is deprecated and will be removed in a future version. "
+    "Importing UI components from `biopro.shared.ui.ui_components` is deprecated and will be removed in a future version. "  # noqa: E501
     "Please import from `biopro_sdk.plugin.components` instead.",
     DeprecationWarning,
     stacklevel=2,
@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import QFrame, QLabel, QPushButton  # noqa: E402
 class PrimaryButton(QPushButton):
     """The main action button (accent color)."""
 
-    def __init__(self, text, parent=None):
+    def __init__(self, text, parent=None):  # noqa: D107
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("PrimaryButton")
@@ -23,7 +23,7 @@ class PrimaryButton(QPushButton):
 class SecondaryButton(QPushButton):
     """The standard outline/cancel button."""
 
-    def __init__(self, text, parent=None):
+    def __init__(self, text, parent=None):  # noqa: D107
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("SecondaryButton")
@@ -32,7 +32,7 @@ class SecondaryButton(QPushButton):
 class ModuleCard(QFrame):
     """A standardized, interactive card for lists and grids."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None):  # noqa: D107
         super().__init__(parent)
         self.setObjectName("BioCard")
         self.setObjectName("BioCard")
@@ -41,7 +41,7 @@ class ModuleCard(QFrame):
 class HeaderLabel(QLabel):
     """Standardized H1 Header."""
 
-    def __init__(self, text, parent=None):
+    def __init__(self, text, parent=None):  # noqa: D107
         super().__init__(text, parent)
         self.setObjectName("HeaderLabel")
 
@@ -49,7 +49,7 @@ class HeaderLabel(QLabel):
 class DangerButton(QPushButton):
     """The standard destructive/remove button."""
 
-    def __init__(self, text, parent=None):
+    def __init__(self, text, parent=None):  # noqa: D107
         super().__init__(text, parent)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setObjectName("DangerButton")

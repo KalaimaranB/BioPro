@@ -1,0 +1,18 @@
+version: 2
+language: "en-US"
+tone: "professional, encouraging, and constructive"
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "**/*.py"
+      instructions: |
+        Ensure all Python code adheres to strict type hinting (Mypy) and avoids God Classes. 
+        BioPro Core must not import from UI frameworks directly; UI separation is critical.
+        Check that all new functions are modular, have a McCabe complexity under 10, and do not use magic numbers.
+        Encourage the use of the centralized `biopro.core.logging` and `biopro.core.diagnostics` instead of standard `print()`.

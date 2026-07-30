@@ -75,7 +75,7 @@ class MockAuthorityAndSigner:
 @pytest.fixture
 def trust_env(tmp_path):
     mock_auth = MockAuthorityAndSigner()
-    return mock_auth
+    return mock_auth  # noqa: RET504
 
 
 @pytest.fixture
