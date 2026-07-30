@@ -55,6 +55,12 @@ class TutorialOverlay(QWidget):
     """
 
     def __init__(self, parent: QWidget | None = None, compact_mode: bool = False) -> None:
+        """
+        Initialize the tutorial overlay and synchronize it with the current tutorial state.
+        
+        Parameters:
+            compact_mode (bool): Whether to use compact positioning instead of positioning around spotlight targets.
+        """
         super().__init__(parent)
         # Allow mouse events; masking handles the passthrough behaviour.
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
@@ -112,6 +118,9 @@ class TutorialOverlay(QWidget):
         self.cyto = CytoWidget(self)
 
     def _build_bubble(self) -> None:
+        """
+        Builds the overlay's instructional bubble and its progress and navigation controls.
+        """
         self.bubble_container = QWidget(self)
         self.bubble_container.setObjectName("BubbleContainer")
         theme_manager.apply_style(
@@ -482,7 +491,7 @@ class TutorialOverlay(QWidget):
     # ── Painting & masking ────────────────────────────────────────────────────
 
     def paintEvent(self, event) -> None:  # noqa: N802, ARG002
-        """Draw the dim overlay and cyan spotlight borders."""
+        """Paints the dimmed overlay and spotlight borders around target regions."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -592,7 +601,11 @@ class TutorialOverlay(QWidget):
             self.btn_next.show()
 
     def _render_branching_options(self, options: dict) -> None:
-        """Render branch buttons and connect them to next_step."""
+        """Render branching-option buttons that advance to their selected tutorial steps.
+        
+        Parameters:
+            options (dict): Mapping of option labels to target step identifiers.
+        """
         self._clear_buttons()
         btn_style = (
             "background-color: #1f6feb; color: white; border: none;"

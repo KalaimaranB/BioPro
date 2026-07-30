@@ -13,7 +13,13 @@ class PluginEnvironmentInjector:
 
     @staticmethod
     def inject_path(plugin_path: Path, internal_plugins_dir: Path) -> None:  # noqa: C901
-        """Prepend plugin's local .venv site-packages to sys.path if it exists."""
+        """
+        Inject a plugin's local virtual-environment packages and source directory into `sys.path` when available.
+        
+        Parameters:
+            plugin_path (Path): Path to the plugin directory.
+            internal_plugins_dir (Path): Directory used to position injected paths relative to application paths.
+        """
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         candidate_paths = [
             # Unix/macOS layout: lib/pythonX.Y/site-packages
@@ -90,7 +96,12 @@ class PluginEnvironmentInjector:
 
     @staticmethod
     def _log_plugin_environment(plugin_path: Path, site_packages: Path) -> None:
-        """Log the plugin virtual environment package list and summary."""
+        """Log the installed packages for a plugin environment when available.
+        
+        Parameters:
+            plugin_path (Path): Path identifying the plugin.
+            site_packages (Path): Site-packages directory to inspect.
+        """
         try:
             distributions = list(metadata.distributions(path=[str(site_packages)]))
             packages = sorted(
@@ -111,7 +122,7 @@ class PluginEnvironmentInjector:
 
     @staticmethod
     def cleanup_paths() -> None:
-        """Remove any plugin .venv paths from sys.path."""
+        """Remove plugin virtual-environment site-packages entries from sys.path."""
         target_marker = str(Path(".biopro") / "plugins")
         for path in list(sys.path):
             norm_path = str(Path(path))

@@ -253,6 +253,9 @@ class AIChatWindow(QDialog):
                 widget.refresh_styles()
 
     def _connect_signals(self):
+        """
+        Connects application, context, chat, download, and server-control signals to their handlers.
+        """
         ai_manager.signals.prompt_download.connect(self._show_download_ui)
         ai_manager.signals.server_started.connect(self._show_chat_ui)
         ai_manager.signals.download_progress.connect(self.progress_bar.setValue)
@@ -303,6 +306,7 @@ class AIChatWindow(QDialog):
         self.service.selected_context_files = selected_files
 
     def _send_message(self):
+        """Submits the entered message and starts streaming the assistant's response."""
         text = self.input_field.text().strip()
         logger.info(f"AI Message Send clicked. Text length: {len(text)}")
 

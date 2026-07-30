@@ -135,13 +135,14 @@ class AcademyWindow(QDialog):
         self._populate_courses()
 
     def _animate_particles(self):
+        """Update particle positions to match the dialog's current dimensions and trigger a repaint."""
         w, h = self.width(), self.height()
         for p in self.particles:
             p.update(w, h)
         self.update()
 
     def paintEvent(self, event):  # noqa: ARG002, N802
-        """Draw deep background and techy biology particles."""
+        """Render the dialog background with connected, colored particles."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 

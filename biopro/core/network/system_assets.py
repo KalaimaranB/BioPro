@@ -18,6 +18,15 @@ class SystemAssetSync:
 
     @staticmethod
     def _parse_version(v_str: str) -> tuple:
+        """
+        Parse a version string into a tuple of integer components.
+        
+        Parameters:
+            v_str (str): Version string, optionally containing a suffix after a hyphen.
+        
+        Returns:
+            tuple: Parsed version components, or `(0, 0, 0)` when no numeric components can be parsed.
+        """
         try:
             if not v_str or not isinstance(v_str, str):
                 return (0, 0, 0)
@@ -34,7 +43,13 @@ class SystemAssetSync:
 
     @staticmethod
     def sync_assets(remote_data: dict, plugin_dir: Path) -> None:
-        """Pulls latest SDK, themes, and docs updates from registry.json and installs them if versions differ."""  # noqa: E501
+        """
+        Synchronize newer SDK, theme, and documentation assets from remote registry metadata.
+        
+        Parameters:
+            remote_data (dict): Remote asset metadata containing versions and download URLs.
+            plugin_dir (Path): Directory containing the local system asset version tracking file.
+        """  # noqa: E501
         if not remote_data:
             return
 

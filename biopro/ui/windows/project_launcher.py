@@ -469,6 +469,9 @@ class ProjectLauncherWindow(QMainWindow):
         self._ai_window.activateWindow()
 
     def resizeEvent(self, event):  # noqa: N802
+        """
+        Updates the hub layout and typography to match the window size.
+        """
         super().resizeEvent(event)
         self._sync_hub_overlay_geometry()
         scale = max(1.0, min(self.width() / 800.0, 1.8))
@@ -508,7 +511,9 @@ class ProjectLauncherWindow(QMainWindow):
         pass
 
     def _setup_menu_bar(self):
-        """Adds the Theme menu to the Hub so you can switch before entering a project."""
+        """
+        Builds the window's Theme and Help menus with actions for theme selection, help resources, onboarding, and log viewing.
+        """
         menubar = self.menuBar()
         theme_menu = menubar.addMenu("&Theme")
 

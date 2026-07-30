@@ -193,11 +193,10 @@ class WorkspaceWindow(QMainWindow):
             global_tutorial_manager.next_step()
 
     def _on_tutorial_skip(self) -> None:
-        """Hide the active overlay and stop the current course.
-
-        For the core intro specifically, sets a preference flag so the
-        tour is not re-triggered on the next launch (user can still
-        restart it from Help → Restart Onboarding Tour).
+        """Hide tutorial overlays and stop the active tutorial course.
+        
+        For the core introductory course, records that the tutorial was dismissed and
+        displays a message explaining how to restart it.
         """
         from biopro.core.tutorial_manager import global_tutorial_manager
 
@@ -220,6 +219,12 @@ class WorkspaceWindow(QMainWindow):
                     canvas.set_guide_polygon(None)
 
     def timerEvent(self, event) -> None:  # noqa: N802
+        """
+        Updates tutorial overlays, advances tutorial steps, validates step conditions, and positions guidance targets during timer events.
+        
+        Parameters:
+        	event: The Qt timer event that triggered the update.
+        """
         super().timerEvent(event)
         active_overlay = self._active_overlay()
         if hasattr(self, "home_tutorial_overlay") and self.home_tutorial_overlay.isVisible():
@@ -405,6 +410,11 @@ class WorkspaceWindow(QMainWindow):
         )
 
     def _on_open_file(self) -> None:
+        """
+        Handle the open-file request for the active analysis module.
+        
+        When the home page is active, displays a status message prompting module selection. Otherwise, delegates file opening to the current wizard panel when supported.
+        """
         if self.root_stack.currentIndex() == _PAGE_HOME:
             self.status_bar.showMessage("Please select an analysis module first.")
             return
@@ -412,6 +422,7 @@ class WorkspaceWindow(QMainWindow):
             self.wizard_panel._open_file()
 
     def resizeEvent(self, event):  # noqa: N802
+        """Updates overlay and loader geometry after the workspace window is resized."""
         super().resizeEvent(event)
         if hasattr(self, "hologram_overlay") and self.hologram_overlay.isVisible():
             self.hologram_overlay.setGeometry(self.root_stack.geometry())
@@ -422,10 +433,12 @@ class WorkspaceWindow(QMainWindow):
         self._update_loader_geom()
 
     def moveEvent(self, event):  # noqa: N802
+        """Updates the loader geometry after the workspace window moves."""
         super().moveEvent(event)
         self._update_loader_geom()
 
     def _update_loader_geom(self):
+        """Updates the running loader process with the workspace geometry."""
         if (
             hasattr(self, "loader_process")
             and self.loader_process
@@ -436,7 +449,7 @@ class WorkspaceWindow(QMainWindow):
             self.loader_process.write(f"GEOM {x} {y} {w} {h}\n".encode())
 
     def closeEvent(self, event):  # noqa: N802
-        """Ensures all projects and plugins release resources before exit."""
+        """Releases active resources and persists the workspace window state before closing."""
         if (
             hasattr(self, "loader_process")
             and self.loader_process
@@ -480,7 +493,7 @@ class WorkspaceWindow(QMainWindow):
         super().closeEvent(event)
 
     def return_to_hub(self):
-        """Safely closes the active data and launches the main Project Hub window."""
+        """Closes the active project and returns to the main Project Hub window."""
         if hasattr(self, "project_manager") and self.project_manager:
             try:
                 self.project_manager.close()

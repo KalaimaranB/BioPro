@@ -16,7 +16,16 @@ class RegistrySync:
 
     @staticmethod
     def get_local_state(plugin_dir: Path, local_registry_path: Path) -> Any:
-        """Scans the plugin directory for actual manifest files to determine current state."""
+        """
+        Build the installed plugin state from manifests in a plugin directory.
+        
+        Parameters:
+            plugin_dir (Path): Directory containing installed plugin directories.
+            local_registry_path (Path): Path where the generated local registry state is saved.
+        
+        Returns:
+            dict: Mapping of plugin identifiers to their names and versions.
+        """
         local_state: dict = {}
 
         if not plugin_dir.exists():
@@ -50,7 +59,15 @@ class RegistrySync:
 
     @staticmethod
     def fetch_remote_registry(registry_url: str) -> dict:
-        """Pulls the master JSON from GitHub repository."""
+        """
+        Fetch the remote plugin registry data.
+        
+        Parameters:
+            registry_url (str): URL of the remote registry.
+        
+        Returns:
+            dict: Parsed registry data, or an empty dictionary if fetching fails.
+        """
         try:
             response = NetworkClient.get(registry_url)
             response.raise_for_status()
@@ -62,7 +79,15 @@ class RegistrySync:
 
     @staticmethod
     def fetch_remote_developers(registry_url: str) -> list:
-        """Fetches developer profiles from separate developers.json or falls back gracefully."""
+        """
+        Load developer profiles from the developers registry associated with the registry URL.
+        
+        Parameters:
+            registry_url (str): URL of the remote plugin registry.
+        
+        Returns:
+            list: Developer profiles, or an empty list when the data cannot be loaded.
+        """
         dev_url = registry_url.replace("registry.json", "developers.json")
         try:
             response = NetworkClient.get(dev_url)
@@ -86,7 +111,18 @@ class RegistrySync:
     def evaluate_store_state(
         core_version: str, registry_url: str, plugin_dir: Path, local_registry_path: Path
     ):  # noqa: E501
-        """Compares local state with remote registry to determine updates and compatibility."""
+        """
+        Compare installed plugins with the remote registry and classify their availability and compatibility.
+        
+        Parameters:
+            core_version (str): Current application core version.
+            registry_url (str): URL of the remote plugin registry.
+            plugin_dir (Path): Directory containing installed plugins.
+            local_registry_path (Path): Path used to store the local registry state.
+        
+        Returns:
+            tuple: Store inventory, trusted developer information, and the remote registry data.
+        """
         remote_data = RegistrySync.fetch_remote_registry(registry_url)
         local_data = RegistrySync.get_local_state(plugin_dir, local_registry_path)
         store_inventory = {}

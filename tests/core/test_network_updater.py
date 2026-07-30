@@ -14,6 +14,15 @@ from biopro.core.network_updater import NetworkUpdater, PluginInstallerWorker
 
 def _dict_to_toml(d):
     # Convert flat dict to pyproject.toml format
+    """
+    Convert plugin metadata into a pyproject.toml-formatted string.
+    
+    Parameters:
+        d: Flat plugin metadata dictionary.
+    
+    Returns:
+        A TOML string containing project and BioPro plugin metadata.
+    """
     lines = []
 
     lines.append("[project]")
@@ -180,12 +189,21 @@ class TestNetworkUpdaterExpanded:
 
     @pytest.fixture
     def updater(self, temp_plugin_dir, monkeypatch):
+        """Create a network updater configured to use the temporary plugin directory.
+        
+        Parameters:
+            temp_plugin_dir (Path): Temporary home directory for plugin data.
+            monkeypatch: Pytest monkeypatch fixture used to override the home directory.
+        
+        Returns:
+            NetworkUpdater: An updater configured with the temporary plugin directory.
+        """
         monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
         return NetworkUpdater()
 
     @patch("biopro.core.network.client.requests.get")
     def test_evaluate_store_state_scenarios(self, mock_get, updater):
-        """Tests the logic for categorizing plugins as INSTALL, UPDATE, or INCOMPATIBLE."""
+        """Classify plugins as INSTALL, UPDATE, UP_TO_DATE, or INCOMPATIBLE based on local and remote state."""
         mock_response = mock_get.return_value
         mock_response.json.return_value = {"authorities": []}
         mock_response.raise_for_status.return_value = None
@@ -361,7 +379,7 @@ class TestNetworkUpdaterExpanded:
                 mock_sync.assert_not_called()
 
     def test_sync_system_assets_logic(self, updater):
-        """Tests the automatic update logic for system assets (SDK, docs)."""
+        """Verify that newer system assets are downloaded and recorded in local metadata."""
         remote_data = {"sdk": {"version": "2.0.0", "download_url": "http://sdk.zip"}, "plugins": {}}
         local_assets = {"sdk": {"version": "1.0.0"}}
 

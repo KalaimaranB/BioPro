@@ -107,6 +107,7 @@ class BadgeAwardOverlay(QWidget):
         self.animation_finished.emit()
 
     def animate_frame(self):
+        """Advance the confetti animation by one frame and refresh the overlay."""
         alive = []
         for c in self.confetti:
             if c.update():
@@ -116,6 +117,12 @@ class BadgeAwardOverlay(QWidget):
 
     def mousePressEvent(self, event):  # noqa: ARG002, N802
         # Click to dismiss early
+        """
+        Dismisses the award overlay when it has reached sufficient opacity.
+        
+        Parameters:
+        	event: The mouse press event.
+        """
         if self._bg_alpha > 100:
             self.finish_sequence()
 
@@ -134,10 +141,14 @@ class BadgeAwardOverlay(QWidget):
 
     @badge_scale.setter
     def badge_scale(self, value):
+        """Set the badge display scale and refresh the overlay."""
         self._badge_scale = value
         self.update()
 
     def paintEvent(self, event):  # noqa: ARG002, N802
+        """
+        Render the dimmed award overlay, confetti, and animated badge artwork.
+        """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 

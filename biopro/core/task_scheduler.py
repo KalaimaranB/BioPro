@@ -30,7 +30,7 @@ class TaskScheduler(QObject):
     task_progress = pyqtSignal(str, int)  # task_id, progress (0-100)
 
     def __init__(self) -> None:
-        """Documentation."""
+        """Initialize the scheduler with the global thread pool and active-worker tracking."""
         super().__init__()
         self.pool: Any = QThreadPool.globalInstance()
         assert self.pool is not None
@@ -88,7 +88,7 @@ class TaskScheduler(QObject):
         logger.warning("Task pool cleared. Pending tasks cancelled.")
 
     def shutdown(self) -> None:
-        """Gracefully shutdown the scheduler, waiting for active tasks."""
+        """Gracefully shut down the scheduler after clearing pending tasks and waiting up to two seconds for running tasks to finish."""
         logger.info("TaskScheduler shutting down...")
         self.pool.clear()
         # Wait up to 2 seconds for active threads to finish or abort safely
@@ -97,17 +97,29 @@ class TaskScheduler(QObject):
 
     @pyqtSlot(str, dict)
     def _on_task_finished(self, task_id: str, results: dict) -> Any:
+        """Handle successful task completion by emitting its results and releasing its active worker reference."""
         self.task_finished.emit(task_id, results)
         self._cleanup(task_id)
 
     @pyqtSlot(str, str)
     def _on_task_error(self, task_id: str, error_msg: str) -> Any:
+        """Emit a task error signal and release the associated worker reference.
+        
+        Parameters:
+            task_id (str): Identifier of the failed task.
+            error_msg (str): Description of the task failure.
+        """
         self.task_error.emit(task_id, error_msg)
         logger.error(f"Background task {task_id} failed: {error_msg}")
         self._cleanup(task_id)
 
     def _cleanup(self, task_id: str) -> Any:
-        """Release worker reference so it can be garbage collected."""
+        """
+        Release the scheduler's reference to a completed worker.
+        
+        Parameters:
+            task_id (str): Identifier of the task whose worker reference should be released.
+        """
         if task_id in self._active_workers:
             # We explicitly do NOT call worker.finished.disconnect() here because
             # this method is called *during* the finished signal emission.
@@ -133,16 +145,28 @@ class TaskSchedulerProxy:
     """
 
     def __init__(self) -> None:
-        """Documentation."""
+        """Initialize the proxy without creating the scheduler instance."""
         self._instance: TaskScheduler | None = None
 
     def _get_instance(self) -> TaskScheduler:
+        """Return the lazily initialized task scheduler instance.
+        
+        Returns:
+            TaskScheduler: The shared task scheduler instance.
+        """
         if self._instance is None:
             self._instance = TaskScheduler()
         return self._instance
 
     def __getattr__(self, name: str) -> Any:
-        """Documentation."""
+        """Forward attribute access to the lazily initialized task scheduler instance.
+        
+        Parameters:
+            name (str): Name of the attribute to retrieve.
+        
+        Returns:
+            Any: Value of the requested attribute.
+        """
         return getattr(self._get_instance(), name)
 
 

@@ -12,6 +12,14 @@ class ToastNotification(QWidget):
     """A single non-intrusive toast notification popup."""
 
     def __init__(self, message: str, parent=None, duration_ms: int = 4000):
+        """
+        Create a toast notification displaying the specified message.
+        
+        Parameters:
+            message (str): Text to display in the notification.
+            parent: Optional parent widget.
+            duration_ms (int): Time in milliseconds before the notification begins fading out.
+        """
         super().__init__(parent)
 
         self.setWindowFlags(
@@ -39,6 +47,12 @@ class ToastNotification(QWidget):
         self.anim.start()
 
     def setup_ui(self, message: str):
+        """
+        Build the toast layout and display the warning message with an icon.
+        
+        Parameters:
+            message (str): Warning text to display.
+        """
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -72,6 +86,9 @@ class ToastNotification(QWidget):
         self.adjustSize()
 
     def fade_out(self):
+        """
+        Fade out the toast notification and close it when the animation finishes.
+        """
         self.anim.setDirection(QPropertyAnimation.Direction.Backward)
         self.anim.start()
         self.anim.finished.connect(self.close)
@@ -83,12 +100,21 @@ class ToastManager:
     _instance = None
 
     def __new__(cls):
+        """
+        Create and return the shared instance of the manager.
+        
+        Returns:
+            ToastManager: The singleton manager instance.
+        """
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
+        """
+        Initialize the toast manager and subscribe it to system warning events.
+        """
         if self._initialized:
             return
 
@@ -99,7 +125,7 @@ class ToastManager:
 
     @pyqtSlot(str)
     def _on_system_warning(self, message: str):
-        """Handle a system warning event."""
+        """Display a system warning as a bottom-right toast notification, stacking it above visible toasts."""
         # Ensure we have a QApplication instance
         app = QApplication.instance()
         if not app:

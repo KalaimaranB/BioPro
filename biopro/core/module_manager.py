@@ -23,7 +23,12 @@ class ModuleManager:
     """Discovers, manages, and loads BioPro analysis modules dynamically."""
 
     def __init__(self, trust_manager: TrustManager | None = None):
-        """Documentation."""
+        """
+        Initialize the module manager with plugin directories, trust management, module discovery, and plugin lifecycle subscriptions.
+        
+        Parameters:
+            trust_manager (TrustManager | None): Trust manager to use, or None to create a default manager.
+        """
         # 1. The built-in plugins (baked into the PyInstaller .app)
         self.internal_plugins_dir = resource_path("biopro/plugins")
 
@@ -45,18 +50,36 @@ class ModuleManager:
         event_bus.subscribe(BioProEvent.PLUGIN_REMOVED, lambda _: self.reload_modules())
 
     def _discover_modules(self) -> None:
-        """Scan directories for valid manifests and verify trust."""
+        """Discover available modules from the internal and user plugin directories."""
         discovered = PluginDiscoveryService.discover_modules(
             self.internal_plugins_dir, self.user_plugins_dir
         )
         self.modules.update(discovered)
 
     def get_available_modules(self) -> list[dict]:
-        """Return a list of manifests so the UI can build the 'Home Screen' grid."""
+        """
+        Return the manifests for all discovered modules.
+        
+        Returns:
+        	list[dict]: The available module manifests.
+        """
         return [m["manifest"] for m in self.modules.values()]
 
     def load_module_ui(self, module_id: str) -> type[QWidget] | None:
-        """Dynamically import the Python package and extract the main UI class."""
+        """
+        Load the user interface class for an installed and trusted module.
+        
+        Parameters:
+            module_id (str): Identifier of the module to load.
+        
+        Returns:
+            type[QWidget] | None: The module's UI class, or `None` when no UI class is available.
+        
+        Raises:
+            ValueError: If the module is not installed.
+            PermissionError: If the module is untrusted.
+            RuntimeError: If the module is outdated.
+        """
         if module_id not in self.modules:
             raise ValueError(f"Module {module_id} is not installed.")
 
@@ -83,7 +106,9 @@ class ModuleManager:
         return PluginLoaderFactory.load_ui(module_id, mod_info)
 
     def reload_modules(self) -> None:
-        """Clears the registry and rescans the disk for new/removed plugins (Hot-Reload)."""
+        """
+        Refreshes the plugin registry to reflect installed, removed, or updated plugins.
+        """
         for mod_info in self.modules.values():
             if mod_info["loaded"]:
                 prefix = f"biopro.plugins.{mod_info['package_name']}"
@@ -99,7 +124,15 @@ class ModuleManager:
         logger.info(f"Hot-reloaded plugins. Currently loaded: {list(self.modules.keys())}")
 
     def trust_module(self, module_id: str) -> bool:
-        """Manually trust the current state of a module (Verified Lock)."""
+        """
+        Manually trusts the module's current state.
+        
+        Parameters:
+        	module_id (str): Identifier of the module to trust.
+        
+        Returns:
+        	bool: `True` if the module is trusted, `False` if it is unavailable or its state cannot be verified.
+        """
         if module_id not in self.modules:
             return False
 

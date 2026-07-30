@@ -139,7 +139,15 @@ class HubManager:
             self.main_window.close()
 
     def on_trust_requested(self, module_id: str) -> bool:
-        """Handle the user clicking the '⚠️ Lock' button on an untrusted plugin."""
+        """
+        Trust locally modified plugin files after user confirmation.
+        
+        Parameters:
+            module_id (str): Identifier of the module whose local changes should be trusted.
+        
+        Returns:
+            bool: `True` if the changes were trusted successfully, `False` if the user cancels or trust fails.
+        """
         mw = self.main_window
         if ask_question(
             mw,
@@ -159,7 +167,10 @@ class HubManager:
         return False
 
     def refresh_hub_workflows(self) -> None:
-        """Scans the project workflows folder and populates the dashboard."""
+        """Populate the dashboard with workflows found in the project's workflows folder.
+        
+        Workflows are ordered by timestamp with the newest entries first.
+        """
         mw = self.main_window
         workflows = []
         if mw.project_manager and mw.project_manager.project_dir:

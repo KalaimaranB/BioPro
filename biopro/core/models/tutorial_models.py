@@ -127,7 +127,15 @@ class Course:
     steps: list[BaseStep] = field(default_factory=list)
 
     def get_step(self, step_id: str) -> BaseStep | None:
-        """Documentation."""
+        """
+        Finds a course step by its identifier.
+        
+        Parameters:
+        	step_id (str): Identifier of the step to find.
+        
+        Returns:
+        	BaseStep | None: The matching step, or `None` if no step has the specified identifier.
+        """
         for step in self.steps:
             if step.id == step_id:
                 return step

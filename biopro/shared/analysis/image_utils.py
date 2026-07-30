@@ -197,13 +197,14 @@ def auto_detect_inversion(image: NDArray[np.float64]) -> bool:
 
 
 def invert_image(image: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Invert a normalized float64 image (1.0 - image).
-
-    Args:
-        image: Float64 image in [0.0, 1.0].
-
+    """
+    Invert a normalized image's intensities.
+    
+    Parameters:
+        image (NDArray[np.float64]): Image with values in the range [0.0, 1.0].
+    
     Returns:
-        Inverted image.
+        NDArray[np.float64]: Image with each intensity replaced by 1.0 minus its original value.
     """
     return 1.0 - image
 
@@ -217,27 +218,23 @@ def enhance_for_band_detection(  # noqa: PLR0913
     denoise_median_ksize: int = 0,
     background_kernel_size: int = 0,
 ) -> NDArray[np.float64]:
-    """Enhance contrast and flatten background for band detection.
-
-    This function is intended to be used *after* polarity normalization so that
-    bands are peaks (higher intensity) and background is lower intensity.
-
-    Steps (all optional):
-    - CLAHE (local contrast enhancement)
-    - Median denoise (speckle/dust suppression)
-    - Large-kernel background estimation + subtraction (gradient flattening)
-
-    Args:
-        image: Grayscale float64 in [0, 1].
-        apply_clahe: Apply CLAHE to boost local contrast.
-        clahe_clip_limit: CLAHE clip limit (higher = more contrast).
-        clahe_tile_grid_size: CLAHE tile grid size in pixels (OpenCV uses (n,n)).
-        denoise_median_ksize: Median blur kernel size (odd int). 0 disables.
-        background_kernel_size: Gaussian blur kernel size (odd int) used to
-            estimate background. 0 disables.
-
+    """
+    Enhance an image to emphasize band structure and reduce background variation.
+    
+    Parameters:
+        image (NDArray[np.float64]): Grayscale image with intensities expected in
+            the range [0.0, 1.0].
+        apply_clahe (bool): Whether to apply local contrast enhancement.
+        clahe_clip_limit (float): Contrast limit used for local histogram
+            equalization.
+        clahe_tile_grid_size (int): Tile size for local contrast enhancement.
+        denoise_median_ksize (int): Median-filter kernel size; values below 3
+            disable denoising.
+        background_kernel_size (int): Gaussian background-estimation kernel size;
+            values below 5 disable background subtraction.
+    
     Returns:
-        Enhanced float64 image in [0, 1].
+        NDArray[np.float64]: Enhanced image clipped to [0.0, 1.0].
     """
     out = np.clip(image, 0.0, 1.0)
 
@@ -337,25 +334,17 @@ def auto_detect_rotation(
     angle_range: float = 15.0,
     angle_step: float = 0.25,
 ) -> float:
-    """Detect the tilt angle of horizontal bands in a western blot image.
-
-    Strategy:
-        1. Contrast-stretch so bands are visible.
-        2. Compute horizontal Sobel edges — band edges are strong
-           horizontal features.
-        3. Sweep candidate angles; pick the one that maximises the
-           variance of the vertical projection of the edge image.
-           When bands are perfectly horizontal each band collapses to
-           a sharp spike in the projection → variance is maximised.
-
-    Args:
-        image: Grayscale float64 image in [0.0, 1.0].
-        angle_range: Search ±angle_range degrees from zero.
-        angle_step: Angular resolution in degrees.
-
+    """Estimate the angle that best aligns horizontal bands in an image.
+    
+    Parameters:
+        image (NDArray[np.float64]): Grayscale image with intensities in the range
+            ``[0.0, 1.0]``.
+        angle_range (float): Maximum absolute angle to consider, in degrees.
+        angle_step (float): Spacing between candidate angles, in degrees.
+    
     Returns:
-        Estimated correction angle in degrees (positive = counter-clockwise).
-        Returns 0.0 if no clear tilt is found.
+        float: Estimated alignment angle in degrees, or ``0.0`` when the detected
+            angle is within one step of horizontal.
     """
     from scipy.ndimage import sobel
     from skimage.transform import rotate as sk_rotate
@@ -408,7 +397,23 @@ def calculate_band_crop_region(  # noqa: C901, PLR0913, PLR0915
     horizontal_padding_frac: float = 0.10,
     smoothing_window: int = 7,
 ) -> tuple[int, int, int, int] | None:
-    """Compute the 2D bounding box crop region containing the bands."""
+    """
+    Compute a padded bounding box containing the densest band content.
+    
+    Parameters:
+        image (NDArray[np.float64]): Grayscale image to analyze.
+        dark_threshold (float | None): Reserved threshold override.
+        min_band_width_frac (float): Minimum dark-pixel fraction required for a row.
+        min_band_height_frac (float): Minimum selected band height relative to the image.
+        vertical_padding_frac (float): Vertical padding fraction around the detected region.
+        horizontal_padding_frac (float): Horizontal padding fraction around the detected region.
+        smoothing_window (int): Window size for smoothing row content measurements.
+    
+    Returns:
+        tuple[int, int, int, int] | None: Crop bounds as
+        `(row_min, row_max, column_min, column_max)`, or `None` when suitable band
+        content cannot be identified.
+    """
     h, w = image.shape[:2]
     if h < 2 or w < 2:
         return None
@@ -559,7 +564,20 @@ def auto_crop_to_bands(  # noqa: PLR0913
     horizontal_padding_frac: float = 0.10,
     smoothing_window: int = 7,
 ) -> NDArray[np.float64]:
-    """Crop the image in 2D to the region containing bands with ample padding."""
+    """
+    Crop an image to the region containing detected bands with padding.
+    
+    Parameters:
+        image (NDArray[np.float64]): Grayscale image to crop.
+        min_band_width_frac (float): Minimum fraction of image width required for a band row.
+        min_band_height_frac (float): Minimum fraction of image height required for the band region.
+        vertical_padding_frac (float): Fraction of band height to add as vertical padding.
+        horizontal_padding_frac (float): Fraction of band width to add as horizontal padding.
+        smoothing_window (int): Window size used to smooth row-based band detection.
+    
+    Returns:
+        NDArray[np.float64]: Cropped image, or the original image when no crop region is detected.
+    """
     region = calculate_band_crop_region(
         image,
         min_band_width_frac=min_band_width_frac,

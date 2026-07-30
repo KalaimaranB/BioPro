@@ -26,7 +26,18 @@ class NetworkClient:
         timeout: int = DEFAULT_TIMEOUT,
         extra_headers: dict | None = None,
     ) -> requests.Response:  # noqa: E501
-        """Perform a GET request with standard BioPro settings."""
+        """
+        Perform an HTTP GET request using BioPro's standard headers and TLS verification.
+        
+        Parameters:
+        	url (str): The URL to request.
+        	stream (bool): Whether to stream the response content.
+        	timeout (int): Maximum time in seconds to wait for the request.
+        	extra_headers (dict | None): Optional headers that override the standard headers.
+        
+        Returns:
+        	requests.Response: The HTTP response.
+        """
         headers = cls.DEFAULT_HEADERS.copy()
         if extra_headers:
             headers.update(extra_headers)
