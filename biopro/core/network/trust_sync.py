@@ -45,7 +45,7 @@ class TrustSync:
             # Sanitize the entity_id to prevent path traversal
             sanitized_id = sanitize_identifier(entity_id)
             if not sanitized_id:
-                logger.warning(f"Skipping invalid entity_id: {entity_id}")
+                logger.warning("Skipping invalid entity_id (redacted)")
                 continue
 
             filename = roots_dir / f"{prefix}{sanitized_id}.pub"
@@ -55,10 +55,10 @@ class TrustSync:
                 resolved = filename.resolve()
                 roots_resolved = roots_dir.resolve()
                 if not str(resolved).startswith(str(roots_resolved) + os.sep):
-                    logger.warning(f"Path traversal detected for entity_id: {entity_id}")
+                    logger.warning("Path traversal detected for entity_id (redacted)")
                     continue
             except Exception:
-                logger.warning(f"Failed to resolve path for entity_id: {entity_id}")
+                logger.warning("Failed to resolve path for entity_id (redacted)")
                 continue
 
             new_filenames.append(filename)
