@@ -8,38 +8,13 @@ from pathlib import Path
 
 from biopro.core.network.client import NetworkClient
 from biopro.core.network.installer import safe_extract
-from biopro.core.utils import AtomicJsonFile
+from biopro.core.utils import AtomicJsonFile, parse_version
 
 logger = logging.getLogger(__name__)
 
 
 class SystemAssetSync:
     """Manages background syncing of non-plugin assets."""
-
-    @staticmethod
-    def _parse_version(v_str: str) -> tuple:
-        """Parse a version string into a tuple of integer components.
-
-        Parameters:
-            v_str (str): Version string, optionally containing a suffix after a hyphen.
-
-        Returns:
-            tuple: Parsed version components, or `(0, 0, 0)` when no numeric components can be
-            parsed.
-        """
-        try:
-            if not v_str or not isinstance(v_str, str):
-                return (0, 0, 0)
-            clean_v = v_str.split("-")[0]
-            parts = []
-            for p in clean_v.split("."):
-                if p.isdigit():
-                    parts.append(int(p))
-                else:
-                    break
-            return tuple(parts) if parts else (0, 0, 0)
-        except (ValueError, AttributeError):
-            return (0, 0, 0)
 
     @staticmethod
     def sync_assets(remote_data: dict, plugin_dir: Path) -> None:
@@ -72,7 +47,7 @@ class SystemAssetSync:
             remote_v = remote_info.get("version", "0.0.0")
             local_v = local_assets.get(asset_key, {}).get("version", "0.0.0")
 
-            if SystemAssetSync._parse_version(local_v) < SystemAssetSync._parse_version(remote_v):
+            if parse_version(local_v) < parse_version(remote_v):
                 download_url = remote_info.get("download_url")
                 if not download_url:
                     continue

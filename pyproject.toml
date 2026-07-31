@@ -95,7 +95,7 @@ max-complexity = 10
 "tests/*" = ["D", "E501", "E402", "PLR0915", "PLR0913", "ARG"]
 "tests/**/*.py" = ["D", "E501", "E402", "PLR0915", "PLR0913", "ARG"]
 "biopro/ui/**/*.py" = ["D", "E501", "C90", "PLR"]
-"biopro/plugins/**/*.py" = ["D", "E501", "C90", "PLR"]
+"biopro/plugins/**/*.py" = ["D", "E501", "PLR"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

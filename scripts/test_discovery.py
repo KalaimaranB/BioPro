@@ -1,4 +1,6 @@
-import logging  # noqa: D100
+"""Plugin discovery test script for BioPro."""
+
+import logging
 
 from biopro_sdk.host.trust_manager import TrustManager
 

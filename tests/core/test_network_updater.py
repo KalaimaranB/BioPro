@@ -9,7 +9,8 @@ import pytest
 from biopro.core.network.trust_sync import TrustSync
 
 # Import from the facade and new network modules
-from biopro.core.network_updater import NetworkUpdater, PluginInstallerWorker
+from biopro.core.network_updater import NetworkUpdater
+from biopro.ui.workers.plugin_installer import PluginInstallerWorker
 
 
 def _dict_to_toml(d):
@@ -245,11 +246,12 @@ class TestNetworkUpdaterExpanded:
 
         with (
             patch(
-                "biopro.core.network_updater.RegistrySync.fetch_remote_registry",
+                "biopro.core.network.registry_sync.RegistrySync.fetch_remote_registry",
                 return_value=remote_registry,
             ),
             patch(
-                "biopro.core.network_updater.RegistrySync.get_local_state", return_value=local_data
+                "biopro.core.network.registry_sync.RegistrySync.get_local_state",
+                return_value=local_data,
             ),
         ):
             inventory = updater.evaluate_store_state()
@@ -352,12 +354,46 @@ class TestNetworkUpdaterExpanded:
         TrustSync.sync_keys([], prefix="network_")
         assert not old_key.exists()
 
-    def test_authority_sync_404_ignored(self, updater):
+    def test_sync_keys_rejects_traversal_attack(self, updater, temp_plugin_dir, monkeypatch):
+        """Verify that sync_keys rejects path traversal attempts in entity IDs."""
+        monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
+        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
+        roots_dir.mkdir(parents=True, exist_ok=True)
+
+        # Attempt to write outside trusted_roots via path traversal
+        malicious_entities = [
+            {"id": "../../../tmp/evil", "public_key": "aabbcc"},
+            {"id": "..\\..\\..\\tmp\\evil2", "public_key": "ddeeff"},
+            {"id": "normal_id/../../../evil3", "public_key": "112233"},
+        ]
+
+        # Should not raise but should skip invalid entries
+        TrustSync.sync_keys(malicious_entities, prefix="network_")
+
+        # Verify no files were created outside roots_dir
+        parent_dir = roots_dir.parent
+        for item in parent_dir.rglob("*evil*"):
+            # If any evil files exist, fail the test
+            raise AssertionError(f"Malicious file created: {item}")
+
+        # Verify only valid files (none in this case) exist in roots_dir
+        created_files = list(roots_dir.glob("network_*.pub"))
+        assert len(created_files) == 0, "No files should have been created for invalid IDs"
+
+    def test_authority_sync_404_ignored(self, updater, temp_plugin_dir, monkeypatch):
         """Ensures that a 404 on the authority registry is handled silently."""
+        monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
+        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
+        roots_dir.mkdir(parents=True, exist_ok=True)
+
         with patch("biopro.core.network.client.requests.get") as mock_get:
             mock_get.return_value.status_code = 404
             # Should not raise
             updater.fetch_and_sync_authorities()
+
+            # Verify no authority keys were synchronized
+            auth_keys = list(roots_dir.glob("auth_*.pub"))
+            assert len(auth_keys) == 0, "No authority keys should be synchronized after 404"
 
     @patch("biopro.core.network.trust_sync.BIOPRO_ROOT_PUBLIC_KEY_HEX", "0" * 64)
     def test_authority_sync_signature_verification_failure(self, updater):
@@ -406,7 +442,7 @@ class TestNetworkUpdaterExpanded:
 
     def test_plugin_installer_worker_exceptions(self):
         """Verify exception handling in the PluginInstallerWorker thread."""
-        from biopro.core.network_updater import PluginInstallerWorker
+        from biopro.ui.workers.plugin_installer import PluginInstallerWorker
 
         # Patch the signal on the class before instantiation
         with patch.object(PluginInstallerWorker, "finished") as mock_finished:

@@ -10,15 +10,20 @@ from typing import Any
 from biopro.core.config import AppConfig
 from biopro.core.event_bus import BioProEvent, event_bus
 from biopro.core.network.client import NetworkClient
-from biopro.core.network.installer import PluginInstallerWorker, safe_extract, safe_remove
+from biopro.core.network.installer import safe_extract, safe_remove
 from biopro.core.network.registry_sync import RegistrySync
 from biopro.core.network.system_assets import SystemAssetSync
 from biopro.core.network.trust_sync import TrustSync
+from biopro.core.utils import parse_version
 
 logger = logging.getLogger(__name__)
 
-# Re-export for backward compatibility
-PluginInstallerWorker = PluginInstallerWorker
+# Re-export for backward compatibility (now from UI layer)
+try:
+    from biopro.ui.workers.plugin_installer import PluginInstallerWorker
+except ImportError:
+    # Fallback if UI is not available (e.g., in tests or headless mode)
+    PluginInstallerWorker = None  # type: ignore[misc, assignment]
 
 
 class NetworkUpdater:
@@ -132,7 +137,7 @@ class NetworkUpdater:
         core_info = remote_data.get("core_app", {})
         remote_version = core_info.get("version", "0.0.0")
 
-        if SystemAssetSync._parse_version(self.core_version) < SystemAssetSync._parse_version(
+        if parse_version(self.core_version) < parse_version(
             remote_version
         ):  # noqa: E501
             return True, core_info

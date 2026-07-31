@@ -3,6 +3,7 @@
 import contextlib
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ from biopro_sdk.host import BIOPRO_ROOT_PUBLIC_KEY_HEX
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from biopro.core.network.client import NetworkClient
+from biopro.core.utils import sanitize_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,25 @@ class TrustSync:
             if not entity_id or not pub_hex:
                 continue
 
-            filename = roots_dir / f"{prefix}{entity_id}.pub"
+            # Sanitize the entity_id to prevent path traversal
+            sanitized_id = sanitize_identifier(entity_id)
+            if not sanitized_id:
+                logger.warning(f"Skipping invalid entity_id: {entity_id}")
+                continue
+
+            filename = roots_dir / f"{prefix}{sanitized_id}.pub"
+
+            # Verify the resolved filename is within roots_dir
+            try:
+                resolved = filename.resolve()
+                roots_resolved = roots_dir.resolve()
+                if not str(resolved).startswith(str(roots_resolved) + os.sep):
+                    logger.warning(f"Path traversal detected for entity_id: {entity_id}")
+                    continue
+            except Exception:
+                logger.warning(f"Failed to resolve path for entity_id: {entity_id}")
+                continue
+
             new_filenames.append(filename)
 
             try:

@@ -1,22 +1,15 @@
 """Plugin installation and extraction logic."""
 
-import io
 import logging
 import os
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Any
-
-import requests
-from PyQt6.QtCore import QThread, pyqtSignal
-
-from biopro.core.network.client import NetworkClient
 
 logger = logging.getLogger(__name__)
 
 
-def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> Any:
+def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> None:
     """Safely extract archive members within the destination directory.
 
     Parameters:
@@ -77,60 +70,3 @@ def safe_remove(plugin_dir: Path, plugin_folder: Path) -> None:
     # Self-cleaning loop: Try to clean up any past trashed folders that are no longer locked
     for item in trash_dir.iterdir():
         shutil.rmtree(item, ignore_errors=True)
-
-
-class PluginInstallerWorker(QThread):
-    """Downloads, extracts, and installs a plugin into the user directory."""
-
-    progress = pyqtSignal(int, str)
-    finished = pyqtSignal(bool, str)
-
-    def __init__(self, plugin_id: str, download_url: str, plugins_dir: Path):  # noqa: ARG002
-        """Initialize a plugin installation worker using the per-user plugin directory.
-
-        Parameters:
-            plugin_id (str): Identifier of the plugin to install.
-            download_url (str): URL of the plugin archive.
-        """
-        super().__init__()
-        self.plugin_id = plugin_id
-        self.download_url = download_url
-
-        # Override plugins_dir to strictly use the safe user folder
-        self.plugins_dir = Path.home() / ".biopro" / "plugins"
-
-    def run(self) -> None:
-        """Install the plugin and report progress and completion status.
-
-        Download failures, invalid archives, and unexpected errors are reported through
-        the completion signal with an appropriate failure message.
-        """
-        try:
-            # 1. Ensure the user plugin directory exists
-            self.plugins_dir.mkdir(parents=True, exist_ok=True)
-
-            # 2. Download the Zip File
-            self.progress.emit(10, f"Downloading {self.plugin_id}...")
-            response = NetworkClient.get(self.download_url, stream=True)
-            response.raise_for_status()
-
-            # 3. Extract the Zip (Safely!)
-            self.progress.emit(60, "Extracting plugin files...")
-            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                safe_extract(z, self.plugins_dir)
-
-            self.progress.emit(100, "Installation complete!")
-            self.finished.emit(True, f"Successfully installed {self.plugin_id}")
-
-        except requests.RequestException as e:
-            msg = f"Network error downloading plugin: {e}"
-            logger.error(msg, exc_info=True)
-            self.finished.emit(False, "Download failed: Check your internet connection.")
-        except zipfile.BadZipFile:
-            msg = "Downloaded file is not a valid zip archive."
-            logger.error(msg, exc_info=True)
-            self.finished.emit(False, "Installation failed: Corrupted zip file.")
-        except Exception as e:
-            msg = f"Unexpected error installing plugin {self.plugin_id}"
-            logger.exception(msg)
-            self.finished.emit(False, f"Installation error: {str(e)}")

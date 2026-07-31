@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from biopro.core.network.client import NetworkClient
-from biopro.core.network.system_assets import SystemAssetSync
-from biopro.core.utils import AtomicJsonFile
+from biopro.core.utils import AtomicJsonFile, parse_version, sanitize_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +35,8 @@ class RegistrySync:
             parser = ManifestParser()
         except ImportError:
             parser = None
+            # When parser is unavailable, return existing local registry state
+            return AtomicJsonFile.load(local_registry_path, default={})
 
         for item in plugin_dir.iterdir():
             if item.is_dir():
@@ -85,6 +86,9 @@ class RegistrySync:
         Returns:
             list: Developer profiles, or an empty list when the data cannot be loaded.
         """
+        # Only derive developers.json URL if registry.json is present in the URL
+        if "registry.json" not in registry_url:
+            return []
         dev_url = registry_url.replace("registry.json", "developers.json")
         try:
             response = NetworkClient.get(dev_url)
@@ -125,14 +129,14 @@ class RegistrySync:
         plugins_data = remote_data.get("plugins", {})
 
         # Use the parse_version utility
-        app_v = SystemAssetSync._parse_version(core_version)
+        app_v = parse_version(core_version)
 
         logger.info(f"Checking Store State. App Version: {core_version} (Parsed: {app_v})")
 
         for plugin_id, remote_info in plugins_data.items():
             state = "INSTALL"
             min_core_str = remote_info.get("min_core_version", "0.0.0")
-            min_core_v = SystemAssetSync._parse_version(min_core_str)
+            min_core_v = parse_version(min_core_str)
 
             logger.info(
                 f"Plugin {plugin_id}: MinCoreReq={min_core_str} ({min_core_v}), AppVersion={core_version} ({app_v})"  # noqa: E501
@@ -142,10 +146,10 @@ class RegistrySync:
                 state = "INCOMPATIBLE"
                 logger.warning(f"MARKING {plugin_id} AS INCOMPATIBLE: {app_v} < {min_core_v}")
             elif plugin_id in local_data:
-                local_v = SystemAssetSync._parse_version(
+                local_v = parse_version(
                     local_data[plugin_id].get("version", "0.0.0")
                 )  # noqa: E501
-                remote_v = SystemAssetSync._parse_version(remote_info.get("version", "0.0.0"))
+                remote_v = parse_version(remote_info.get("version", "0.0.0"))
 
                 state = "UPDATE" if local_v < remote_v else "UP_TO_DATE"
 
@@ -153,9 +157,11 @@ class RegistrySync:
             is_verified = False
             author_id = remote_info.get("author_id", remote_info.get("author"))
             if author_id:
-                roots_dir = Path.home() / ".biopro" / "trusted_roots"
-                if (roots_dir / f"network_{author_id}.pub").exists():
-                    is_verified = True
+                sanitized_author_id = sanitize_identifier(author_id)
+                if sanitized_author_id:
+                    roots_dir = Path.home() / ".biopro" / "trusted_roots"
+                    if (roots_dir / f"network_{sanitized_author_id}.pub").exists():
+                        is_verified = True
 
             store_inventory[plugin_id] = {
                 "info": remote_info,

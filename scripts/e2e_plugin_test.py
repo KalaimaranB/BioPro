@@ -169,7 +169,7 @@ def _write_synthetic_fcs(path: Path, n_events: int = 2000, n_channels: int = 4) 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
-def main():  # noqa: D103
+def main() -> None:  # noqa: D103
     parser = argparse.ArgumentParser(description="BioPro E2E Integration Test")
     parser.add_argument(
         "--fcs", type=Path, default=None, help="Path to an FCS file to use for testing"
@@ -232,7 +232,7 @@ def main():  # noqa: D103
     _print_report()
 
 
-def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901, PLR0915
+def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PLR0915
     site_packages: Path | None = None
     fcs_data = None  # shared across phases
 
@@ -496,7 +496,7 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901, PLR0915
 # ─────────────────────────────────────────────────────────────────────────────
 # Report
 # ─────────────────────────────────────────────────────────────────────────────
-def _print_report():
+def _print_report() -> None:
     total = len(results)
     passed = sum(r.passed for r in results)
     failed = total - passed

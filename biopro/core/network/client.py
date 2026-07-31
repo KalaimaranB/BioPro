@@ -1,6 +1,7 @@
 """Centralized HTTP client for BioPro."""
 
 import logging
+from collections.abc import Mapping
 
 import certifi
 import requests
@@ -24,7 +25,7 @@ class NetworkClient:
         url: str,
         stream: bool = False,
         timeout: int = DEFAULT_TIMEOUT,
-        extra_headers: dict | None = None,
+        extra_headers: Mapping[str, str] | None = None,
     ) -> requests.Response:  # noqa: E501
         """Perform an HTTP GET request using BioPro's standard headers and TLS verification.
 
@@ -32,7 +33,8 @@ class NetworkClient:
                 url (str): The URL to request.
                 stream (bool): Whether to stream the response content.
                 timeout (int): Maximum time in seconds to wait for the request.
-                extra_headers (dict | None): Optional headers that override the standard headers.
+                extra_headers (Mapping[str, str] | None): Optional headers that override
+                    the standard headers.
 
         Returns:
                 requests.Response: The HTTP response.

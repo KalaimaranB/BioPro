@@ -16,23 +16,73 @@ class PluginDiscoveryService:
     """Handles directory scanning, manifest validation, and trust verification."""
 
     @staticmethod
-    def _load_manifest(manifest_path: Path) -> dict[str, Any] | None:
-        """Load and parse a plugin manifest from the specified file.
+    def _process_plugin_dir(
+        plugin_path: Path, parser: ManifestParser
+    ) -> tuple[str, dict[str, Any]] | None:
+        """Process a single plugin directory and extract its metadata.
 
         Parameters:
-                manifest_path (Path): Path to the plugin manifest file.
+            plugin_path (Path): Path to the plugin directory.
+            parser (ManifestParser): Parser instance for manifest validation.
 
         Returns:
-                dict[str, Any] | None: The parsed manifest, or `None` if parsing fails.
+            tuple[str, dict[str, Any]] | None: Plugin ID and metadata, or None if processing fails.
         """
-        try:
-            parser = ManifestParser()
-            return parser.parse_file(str(manifest_path))
-        except Exception:
+        manifest_file = plugin_path / "pyproject.toml"
+        if not manifest_file.exists():
             return None
 
+        try:
+            manifest = parser.parse_file(str(manifest_file))
+        except ManifestValidationError as e:
+            error_str = str(e)
+            if "Legacy 'author' field" in error_str:
+                return PluginDiscoveryService._handle_legacy_manifest(
+                    plugin_path, manifest_file, error_str
+                )
+
+            msg = f"Plugin {plugin_path.name} failed manifest validation: {e}"
+            logger.warning(msg)
+            return None
+        except Exception as e:
+            logger.error(f"Failed to read manifest for {plugin_path.name}: {e}", exc_info=True)
+            return None
+
+        mod_id = manifest.get("id")
+        if not mod_id:
+            return None
+
+        # Dispatch to the correct trust strategy
+        strategy = TrustStrategyFactory.get_strategy(manifest, str(plugin_path))
+        trust_result = strategy.verify(manifest, str(plugin_path))
+
+        mod_info = {
+            "manifest": manifest,
+            "path": plugin_path,
+            "package_name": plugin_path.name,
+            "loaded": False,
+            "plugin_ref": None,
+            "trust_level": trust_result.trust_level,
+            "trust_error": trust_result.error_message,
+            "trust_path": trust_result.trust_path,
+            "calculated_hashes": trust_result.calculated_hashes,
+        }
+
+        # Add metadata for UI
+        manifest["trust_level"] = trust_result.trust_level
+        manifest["trust_path"] = trust_result.trust_path
+        manifest["developer_name"] = trust_result.developer_name
+        manifest["developer_key"] = trust_result.developer_key
+
+        if not trust_result.success:
+            logger.warning(
+                f"Plugin {mod_id} discovered in UNTRUSTED state: {trust_result.error_message}"
+            )
+
+        return mod_id, mod_info
+
     @staticmethod
-    def discover_modules(internal_dir: Path, user_dir: Path) -> dict[str, dict[str, Any]]:  # noqa: C901
+    def discover_modules(internal_dir: Path, user_dir: Path) -> dict[str, dict[str, Any]]:
         """Discovers plugins in internal and user directories and collects trust metadata.
 
         Parameters:
@@ -46,78 +96,27 @@ class PluginDiscoveryService:
         modules: dict[str, dict[str, Any]] = {}
         directories_to_scan = [internal_dir, user_dir]
 
+        parser = ManifestParser()
+
         for directory in directories_to_scan:
             if not directory.exists():
                 continue
 
             for plugin_path in directory.iterdir():
-                if plugin_path.is_dir():
-                    manifest_file = plugin_path / "pyproject.toml"
-                    if not manifest_file.exists():
-                        continue
+                if not plugin_path.is_dir():
+                    continue
 
-                    try:
-                        parser = ManifestParser()
-                        try:
-                            manifest = parser.parse_file(str(manifest_file))
-                        except ManifestValidationError as e:
-                            error_str = str(e)
-                            if "Legacy 'author' field" in error_str:
-                                mod_id, mod_info = PluginDiscoveryService._handle_legacy_manifest(
-                                    plugin_path, manifest_file, error_str
-                                )
-                                if mod_id and mod_info:
-                                    from typing import cast
-
-                                    modules[mod_id] = cast(dict[str, Any], mod_info)
-                                continue
-
-                            msg = f"Plugin {plugin_path.name} failed manifest validation: {e}"
-                            logger.warning(msg)
-                            continue
-
-                        mod_id = manifest.get("id")
-                        if not mod_id:
-                            continue
-
-                        # Dispatch to the correct trust strategy
-                        strategy = TrustStrategyFactory.get_strategy(manifest, str(plugin_path))
-                        trust_result = strategy.verify(manifest, str(plugin_path))
-
-                        modules[mod_id] = {
-                            "manifest": manifest,
-                            "path": plugin_path,
-                            "package_name": plugin_path.name,
-                            "loaded": False,
-                            "plugin_ref": None,
-                            "trust_level": trust_result.trust_level,
-                            "trust_error": trust_result.error_message,
-                            "trust_path": trust_result.trust_path,
-                            "calculated_hashes": trust_result.calculated_hashes,
-                        }
-
-                        # Add metadata for UI
-                        manifest["trust_level"] = trust_result.trust_level
-                        manifest["trust_path"] = trust_result.trust_path
-                        manifest["developer_name"] = trust_result.developer_name
-                        manifest["developer_key"] = trust_result.developer_key
-
-                        if not trust_result.success:
-                            logger.warning(
-                                f"Plugin {mod_id} discovered in UNTRUSTED state: {trust_result.error_message}"  # noqa: E501
-                            )
-
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to read manifest for {plugin_path.name}: {e}", exc_info=True
-                        )
+                result = PluginDiscoveryService._process_plugin_dir(plugin_path, parser)
+                if result:
+                    mod_id, mod_info = result
+                    modules[mod_id] = mod_info
 
         return modules
 
     @staticmethod
     def _handle_legacy_manifest(
         plugin_path: Path, manifest_file: Path, error_str: str
-    ) -> tuple[str, dict] | tuple[None, None]:  # noqa: E501
+    ) -> tuple[str, dict[str, Any]] | None:
         """Create module metadata for a legacy manifest using the outdated V1 author format.
 
         Parameters:
@@ -126,8 +125,8 @@ class PluginDiscoveryService:
             error_str (str): Manifest validation error associated with the legacy format.
 
         Returns:
-            tuple[str, dict] | tuple[None, None]: The module identifier and outdated module
-            metadata, or `(None, None)` if the legacy manifest cannot be processed.
+            tuple[str, dict[str, Any]] | None: The module identifier and outdated module
+            metadata, or None if the legacy manifest cannot be processed.
         """
         try:
             raw_manifest = AtomicJsonFile.load(manifest_file, default={})
@@ -158,4 +157,4 @@ class PluginDiscoveryService:
             return mod_id, mod_info
         except Exception as inner_e:
             logger.error(f"Failed to parse outdated manifest: {inner_e}")
-            return None, None
+            return None
