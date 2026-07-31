@@ -137,9 +137,7 @@ class NetworkUpdater:
         core_info = remote_data.get("core_app", {})
         remote_version = core_info.get("version", "0.0.0")
 
-        if parse_version(self.core_version) < parse_version(
-            remote_version
-        ):  # noqa: E501
+        if parse_version(self.core_version) < parse_version(remote_version):  # noqa: E501
             return True, core_info
         return False, None
 

@@ -107,6 +107,20 @@ jobs:
           uv export --format requirements-txt --no-emit-project | grep -v "^-e " > reqs.txt
           pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
+      - name: Install Test Dependencies
+        run: |
+          uv pip install pytest pytest-qt pytest-cov
+
+      - name: Run Tests with Coverage
+        run: |
+          uv run pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
+            tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
+            --tb=short -q \
+            --cov=biopro --cov-report=xml --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
+          DISPLAY: ":99"
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:

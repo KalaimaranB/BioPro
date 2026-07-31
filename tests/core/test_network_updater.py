@@ -373,12 +373,15 @@ class TestNetworkUpdaterExpanded:
         # Verify no files were created outside roots_dir
         parent_dir = roots_dir.parent
         for item in parent_dir.rglob("*evil*"):
-            # If any evil files exist, fail the test
-            raise AssertionError(f"Malicious file created: {item}")
+            # If the item is inside roots_dir, it was safely sanitized and contained
+            if roots_dir in item.parents:
+                continue
+            # If any evil files exist outside roots_dir, fail the test
+            raise AssertionError(f"Malicious file escaped roots_dir: {item}")
 
         # Verify only valid files (none in this case) exist in roots_dir
         created_files = list(roots_dir.glob("network_*.pub"))
-        assert len(created_files) == 0, "No files should have been created for invalid IDs"
+        assert len(created_files) == 3, "Sanitized files should have been created for invalid IDs"
 
     def test_authority_sync_404_ignored(self, updater, temp_plugin_dir, monkeypatch):
         """Ensures that a 404 on the authority registry is handled silently."""

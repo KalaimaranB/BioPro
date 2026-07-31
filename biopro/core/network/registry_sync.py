@@ -146,9 +146,7 @@ class RegistrySync:
                 state = "INCOMPATIBLE"
                 logger.warning(f"MARKING {plugin_id} AS INCOMPATIBLE: {app_v} < {min_core_v}")
             elif plugin_id in local_data:
-                local_v = parse_version(
-                    local_data[plugin_id].get("version", "0.0.0")
-                )  # noqa: E501
+                local_v = parse_version(local_data[plugin_id].get("version", "0.0.0"))  # noqa: E501
                 remote_v = parse_version(remote_info.get("version", "0.0.0"))
 
                 state = "UPDATE" if local_v < remote_v else "UP_TO_DATE"

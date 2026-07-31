@@ -83,9 +83,7 @@ class PackageManager:
         return uv_path
 
     @staticmethod
-    def _create_venv(
-        uv_path: str, venv_dir: Path, sp_kwargs: dict[str, Any]
-    ) -> Path:
+    def _create_venv(uv_path: str, venv_dir: Path, sp_kwargs: dict[str, Any]) -> Path:
         """Create a virtual environment for the plugin.
 
         Parameters:
@@ -119,9 +117,7 @@ class PackageManager:
         return venv_python
 
     @staticmethod
-    def _run_selftest(
-        venv_python: Path, plugin_dir: Path, sp_kwargs: dict[str, Any]
-    ) -> None:
+    def _run_selftest(venv_python: Path, plugin_dir: Path, sp_kwargs: dict[str, Any]) -> None:
         """Run the plugin's self-test if available.
 
         Parameters:
@@ -253,7 +249,7 @@ class PluginInstallerWorker(QThread):
 
             try:
                 parser = ManifestParser()
-                manifest = parser.parse_file(manifest_path)
+                manifest = parser.parse_file(str(manifest_path))
             except Exception as e:
                 self.finished.emit(False, f"Failed to parse pyproject.toml: {e}")
                 return

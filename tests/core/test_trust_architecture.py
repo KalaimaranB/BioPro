@@ -92,7 +92,7 @@ class PluginSigner:
         manifest_path = plugin_dir / "pyproject.toml"
         from biopro_sdk.plugin.manifest_parser import ManifestParser
 
-        manifest = ManifestParser().parse_file(manifest_path)
+        manifest = ManifestParser().parse_file(str(manifest_path))
 
         hashes = {}
         for root, _, files in os.walk(plugin_dir):
