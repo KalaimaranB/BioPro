@@ -167,11 +167,7 @@ class TrustSync:
 
                 parsed_url = urlparse(avatar_url)
                 if parsed_url.scheme != "https" or parsed_url.hostname not in allowed_hosts:
-                    logger.warning(
-                        "Blocked unauthorized avatar URL for developer_id=%s (host=%s)",
-                        sanitized_id,
-                        parsed_url.hostname or "unknown",
-                    )
+                    logger.warning("Blocked unauthorized avatar URL")
                     continue
 
                 avatar_mgr.fetch_and_cache_avatar(sanitized_id, avatar_url)

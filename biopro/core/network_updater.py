@@ -20,13 +20,6 @@ from biopro.core.utils import AtomicJsonFile, parse_version
 
 logger = logging.getLogger(__name__)
 
-# Re-export for backward compatibility (now from UI layer)
-try:
-    from biopro.ui.workers.plugin_installer import PluginInstallerWorker
-except ImportError:
-    # Fallback if UI is not available (e.g., in tests or headless mode)
-    PluginInstallerWorker = None  # type: ignore[misc, assignment]
-
 
 class NetworkUpdater:
     """Facade for network operations, delegating to specialized network packages."""
