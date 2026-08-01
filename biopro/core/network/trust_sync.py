@@ -62,14 +62,20 @@ class TrustSync:
                 logger.warning("Failed to resolve path for entity_id (redacted)")
                 continue
 
-            new_filenames.append(filename)
-
             try:
-                # Save raw bytes
-                with open(filename, "wb") as f:
+                # Save raw bytes atomically
+                import shutil
+                import tempfile
+
+                with tempfile.NamedTemporaryFile("wb", delete=False, dir=roots_dir) as f:
                     f.write(bytes.fromhex(pub_hex))
+                    tmp_name = f.name
+                shutil.move(tmp_name, filename)
+                new_filenames.append(filename)
             except Exception:
                 logger.error("Failed to sync trusted key entry", exc_info=True)
+                if "tmp_name" in locals() and os.path.exists(tmp_name):
+                    os.unlink(tmp_name)
 
         # 2. Cleanup old keys that were revoked/removed from registry
         for old_key in existing_keys:
@@ -78,7 +84,7 @@ class TrustSync:
                     old_key.unlink()
 
     @staticmethod
-    def fetch_and_sync_authorities(authority_url: str) -> Any:
+    def fetch_and_sync_authorities(authority_url: str) -> None:
         """Fetch, verify, and locally synchronize authorities from a registry URL.
 
         Parameters:
@@ -92,11 +98,26 @@ class TrustSync:
 
         try:
             import time
+            from http import HTTPStatus
+            from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-            busted_url = f"{authority_url}?t={int(time.time())}"
+            parsed = urlparse(authority_url)
+            query = parse_qsl(parsed.query)
+            query.append(("t", str(int(time.time()))))
+            busted_url = urlunparse(
+                (
+                    parsed.scheme,
+                    parsed.netloc,
+                    parsed.path,
+                    parsed.params,
+                    urlencode(query),
+                    parsed.fragment,
+                )
+            )
+
             response = NetworkClient.get(busted_url)
 
-            if response.status_code == 404:
+            if response.status_code == HTTPStatus.NOT_FOUND:
                 return
 
             response.raise_for_status()
@@ -151,13 +172,20 @@ class TrustSync:
 
             # Asynchronously download/cache avatars in background
             avatar_mgr = AvatarManager()
+        except Exception as e:
+            logger.warning(f"Could not sync developer profile database: {e}")
+            return
 
-            allowed_hosts = {"avatars.githubusercontent.com", "secure.gravatar.com"}
+        allowed_hosts = {"avatars.githubusercontent.com", "secure.gravatar.com"}
 
-            for dev in trusted_list:
+        for dev in trusted_list:
+            try:
                 dev_id = dev.get("developer_id")
                 avatar_url = dev.get("avatar_url")
+
                 if not dev_id or not avatar_url:
+                    continue
+                if not isinstance(dev_id, str) or not isinstance(avatar_url, str):
                     continue
 
                 sanitized_id = sanitize_identifier(dev_id)
@@ -171,5 +199,5 @@ class TrustSync:
                     continue
 
                 avatar_mgr.fetch_and_cache_avatar(sanitized_id, avatar_url)
-        except Exception as e:
-            logger.warning(f"Could not sync developer profile database/avatars: {e}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch avatar for developer: {e}")
