@@ -19,7 +19,7 @@ class PluginInstallerWorker(QThread):
     progress = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
 
-    def __init__(self, plugin_id: str, download_url: str, plugins_dir: Path):
+    def __init__(self, plugin_id: str, download_url: str, plugins_dir: Path) -> None:
         """Initialize a plugin installation worker using the per-user plugin directory.
 
         Parameters:
@@ -50,8 +50,13 @@ class PluginInstallerWorker(QThread):
             # 3. Stream the file to disk to bound memory usage
             # Fixes CodeRabbit comment about response.content loading entire file into memory
             zip_path = self.plugins_dir / f"{self.plugin_id}.zip"
+            max_download_size = 500 * 1024 * 1024  # 500 MB limit
+            downloaded = 0
             with open(zip_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
+                    downloaded += len(chunk)
+                    if downloaded > max_download_size:
+                        raise RuntimeError("Download exceeded maximum size limit.")
                     f.write(chunk)
 
             # 4. Extract the Zip (Safely!)

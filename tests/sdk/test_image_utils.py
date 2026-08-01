@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from biopro.shared.analysis.image_utils import (
+    BandCropConfig,
     auto_crop_to_bands,
     auto_detect_inversion,
     crop_to_content,
@@ -165,7 +166,9 @@ class TestCropToContent:
         image[140:160, 50:250] = np.random.normal(0.1, 0.01, (20, 200))
         image = np.clip(image, 0.0, 1.0)
 
-        cropped = auto_crop_to_bands(image, vertical_padding_frac=0, horizontal_padding_frac=0)
+        cropped = auto_crop_to_bands(
+            image, config=BandCropConfig(vertical_padding_frac=0.0, horizontal_padding_frac=0.0)
+        )
         # It should be much shorter than 300
         assert 10 < cropped.shape[0] < 100
 

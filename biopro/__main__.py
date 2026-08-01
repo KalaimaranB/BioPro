@@ -133,7 +133,7 @@ class BioProApp:
 
             logging.getLogger(__name__).warning(f"Failed to apply SDK styles: {e}")
 
-    def run(self):
+    def run(self) -> None:
         """Display the project hub and start the PyQt event loop."""
         print("4. Showing Hub Window...")
         self.show_hub()
@@ -145,7 +145,7 @@ class BioProApp:
 
         sys.exit(self.app.exec())
 
-    def show_hub(self):
+    def show_hub(self) -> None:
         """Display the project launcher window."""
         from biopro.ui.windows.project_launcher import ProjectLauncherWindow
 
@@ -154,7 +154,7 @@ class BioProApp:
         )
         self.hub.show()
 
-    def open_store(self, parent_window):
+    def open_store(self, parent_window) -> None:
         """Open the plugin store dialog and refresh the parent window after it closes.
 
         Parameters:

@@ -13,6 +13,7 @@ Design Notes:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +30,28 @@ from skimage.filters import threshold_otsu
 from skimage.measure import label, regionprops
 from skimage.transform import rotate
 from skimage.util import img_as_float64
+
+
+@dataclass
+class BandEnhancementConfig:
+    """Configuration options for band enhancement."""
+
+    apply_clahe: bool = True
+    clahe_clip_limit: float = 2.0
+    clahe_tile_grid_size: int = 8
+    denoise_median_ksize: int = 0
+    background_kernel_size: int = 0
+
+
+@dataclass
+class BandCropConfig:
+    """Configuration options for band crop calculation."""
+
+    min_band_width_frac: float = 0.025
+    min_band_height_frac: float = 0.01
+    vertical_padding_frac: float = 0.15
+    horizontal_padding_frac: float = 0.10
+    smoothing_window: int = 7
 
 
 def adjust_contrast(
@@ -386,56 +409,21 @@ def auto_detect_rotation(
     return round(best_angle, 2)
 
 
-def calculate_band_crop_region(  # noqa: C901, PLR0913, PLR0915
-    image: NDArray[np.float64],
-    dark_threshold: float | None = None,  # noqa: ARG001
-    min_band_width_frac: float = 0.025,
-    min_band_height_frac: float = 0.01,
-    vertical_padding_frac: float = 0.15,
-    horizontal_padding_frac: float = 0.10,
-    smoothing_window: int = 7,
-) -> tuple[int, int, int, int] | None:
-    """Compute a padded bounding box containing the densest band content.
-
-    Parameters:
-        image (NDArray[np.float64]): Grayscale image to analyze.
-        dark_threshold (float | None): Reserved threshold override.
-        min_band_width_frac (float): Minimum dark-pixel fraction required for a row.
-        min_band_height_frac (float): Minimum selected band height relative to the image.
-        vertical_padding_frac (float): Vertical padding fraction around the detected region.
-        horizontal_padding_frac (float): Horizontal padding fraction around the detected region.
-        smoothing_window (int): Window size for smoothing row content measurements.
-
-    Returns:
-        tuple[int, int, int, int] | None: Crop bounds as
-        `(row_min, row_max, column_min, column_max)`, or `None` when suitable band
-        content cannot be identified.
-    """
-    h, w = image.shape[:2]
-    if h < 2 or w < 2:
-        return None
-
-    # 1. Ignore rotation padding (pure white pixels)
-    valid_mask = image < 0.99
-    valid_pixels = image[valid_mask]
-
-    if len(valid_pixels) < 100:
-        return None
-
-    # 2. Dynamic Threshold (Otsu) for Vertical Rows
+def _calculate_vertical_threshold(valid_pixels: NDArray[np.float64]) -> float:
+    """Calculate a dynamic threshold using Otsu's method with a fallback."""
     try:
-        thresh_v = threshold_otsu(valid_pixels) * 0.95
+        return threshold_otsu(valid_pixels) * 0.95
     except ValueError:
-        thresh_v = float(np.percentile(valid_pixels, 25))
+        return float(np.percentile(valid_pixels, 25))
 
-    dark_pixels = (image < thresh_v) & valid_mask
 
-    # --- 3. Vertical (Row) Calculation ---
-    dark_frac_rows = np.mean(dark_pixels, axis=1)
-
-    if smoothing_window > 1:
-        dark_frac_rows = uniform_filter1d(dark_frac_rows, size=smoothing_window, mode="nearest")
-
+def _detect_row_region(
+    dark_frac_rows: NDArray[np.float64],
+    min_band_width_frac: float,
+    min_required_height: int,
+    image_height: int,
+) -> tuple[int, int] | None:
+    """Find the best row region containing dense band content."""
     row_mask = dark_frac_rows >= min_band_width_frac
     if not np.any(row_mask):
         return None
@@ -457,90 +445,77 @@ def calculate_band_crop_region(  # noqa: C901, PLR0913, PLR0915
                 best_r_region = (start, i)
 
     if in_region:
-        size = h - start
+        size = image_height - start
         if size > best_size:
             best_size = size
-            best_r_region = (start, h)
+            best_r_region = (start, image_height)
 
-    if best_size < max(2, int(h * min_band_height_frac)):
+    if best_size < min_required_height:
         return None
+    return best_r_region
 
-    r_min, r_max = best_r_region
 
-    # --- 4. Horizontal (Column) Calculation: Adaptive Geometry ---
-
-    band_strip = image[r_min:r_max, :]
-    h_strip, w_strip = band_strip.shape
-
-    if h_strip < 2 or w_strip < 2:
-        return None
-
-    valid_strip_mask = band_strip < 0.99
+def _detect_component_columns(
+    band_strip: NDArray[np.float64],
+    valid_strip_mask: NDArray[np.bool_],
+    w_strip: int,
+) -> tuple[int, int]:
+    """Detect the left and right column boundaries of the band region."""
     valid_strip_pixels = band_strip[valid_strip_mask]
-
     if len(valid_strip_pixels) < 100:
-        c_min, c_max = 0, w_strip
-    else:
-        try:
-            # The * 0.95 strictly isolates the dense cores so they don't merge with shadows
-            thresh_h = threshold_otsu(valid_strip_pixels) * 0.95
-        except ValueError:
-            thresh_h = float(np.percentile(valid_strip_pixels, 20))
+        return 0, w_strip
 
-        binary_strip = (band_strip < thresh_h) & valid_strip_mask
+    try:
+        thresh_h = threshold_otsu(valid_strip_pixels) * 0.95
+    except ValueError:
+        thresh_h = float(np.percentile(valid_strip_pixels, 20))
 
-        labeled_strip = label(binary_strip)
-        props = regionprops(labeled_strip)
+    binary_strip = (band_strip < thresh_h) & valid_strip_mask
+    labeled_strip = label(binary_strip)
+    props = regionprops(labeled_strip)
 
-        accepted_bboxes = []
-        core_widths = []
+    accepted_bboxes = []
+    core_widths = []
+    min_band_w = max(5, int(w_strip * 0.015))
 
-        min_band_w = max(5, int(w_strip * 0.015))
+    for p in props:
+        min_row, min_col, max_row, max_col = p.bbox
+        bw = max_col - min_col
+        bh = max_row - min_row
 
-        # A. Collect all legitimate band cores
-        for p in props:
-            min_row, min_col, max_row, max_col = p.bbox
-            bw = max_col - min_col
-            bh = max_row - min_row
+        if bh == 0:
+            continue
+        aspect_ratio = bw / float(bh)
 
-            if bh == 0:
-                continue
-            aspect_ratio = bw / float(bh)
+        if aspect_ratio > 1.25 and bw >= min_band_w and bw < (w_strip * 0.9):
+            accepted_bboxes.append(p.bbox)
+            core_widths.append(bw)
 
-            # Rule: Must be wider than it is tall, and ignore tiny dust/giant background blocks
-            if aspect_ratio > 1.25 and bw >= min_band_w and bw < (w_strip * 0.9):
-                accepted_bboxes.append(p.bbox)
-                core_widths.append(bw)
+    if not accepted_bboxes:
+        return 0, w_strip
 
-        # B. Calculate Adaptive Lane Edges based on Core Dimensions
-        if not accepted_bboxes:
-            c_min, c_max = 0, w_strip
-        else:
-            # Find the absolute left/right extremes of the dense cores
-            core_c_min = min([bbox[1] for bbox in accepted_bboxes])
-            core_c_max = max([bbox[3] for bbox in accepted_bboxes])
+    core_c_min = min([bbox[1] for bbox in accepted_bboxes])
+    core_c_max = max([bbox[3] for bbox in accepted_bboxes])
+    median_core_width = float(np.median(core_widths))
+    lane_expansion = int(median_core_width * 0.50)
 
-            # Calculate the median physical width of the bands in THIS specific image
-            median_core_width = float(np.median(core_widths))
+    return max(0, core_c_min - lane_expansion), min(w_strip, core_c_max + lane_expansion)
 
-            # The physical lane fade out is usually ~50% of the core width.
-            # This scales perfectly whether the bands are 20px wide or 200px wide!
-            lane_expansion = int(median_core_width * 0.50)
 
-            # Expand the bounds outward to the true fade-out edge
-            c_min = max(0, core_c_min - lane_expansion)
-            c_max = min(w_strip, core_c_max + lane_expansion)
-
-    # --- 5. Apply Proportional Buffering ---
+def _apply_padding(
+    bbox: tuple[int, int, int, int],
+    image_shape: tuple[int, int],
+    config: BandCropConfig,
+) -> tuple[int, int, int, int]:
+    """Apply proportional padding to the detected bounding box."""
+    r_min, r_max, c_min, c_max = bbox
+    h, w = image_shape
     band_height = max(r_max - r_min, 1)
     band_width = max(c_max - c_min, 1)
 
-    # We now purely rely on the fractional padding (default 10%) for breathing room,
-    # because the physical edges have already been adaptively calculated.
-    v_pad = int(band_height * vertical_padding_frac)
-    h_pad = int(band_width * horizontal_padding_frac)
+    v_pad = int(band_height * config.vertical_padding_frac)
+    h_pad = int(band_width * config.horizontal_padding_frac)
 
-    # Safe minimums just so the box never touches the absolute pixel edge on tight crops
     v_pad = max(v_pad, 20)
     h_pad = max(h_pad, 10)
 
@@ -549,46 +524,84 @@ def calculate_band_crop_region(  # noqa: C901, PLR0913, PLR0915
     final_c_min = max(0, c_min - h_pad)
     final_c_max = min(w, c_max + h_pad)
 
-    return (int(final_r_min), int(final_r_max), int(final_c_min), int(final_c_max))
+    return final_r_min, final_r_max, final_c_min, final_c_max
 
 
-def auto_crop_to_bands(  # noqa: PLR0913
+def calculate_band_crop_region(
     image: NDArray[np.float64],
-    dark_threshold: float | None = None,  # noqa: ARG001
-    min_band_width_frac: float = 0.025,
-    min_band_height_frac: float = 0.01,
-    vertical_padding_frac: float = 0.15,
-    horizontal_padding_frac: float = 0.10,
-    smoothing_window: int = 7,
+    config: BandCropConfig | None = None,
+) -> tuple[int, int, int, int] | None:
+    """Compute a padded bounding box containing the densest band content.
+
+    Parameters:
+        image (NDArray[np.float64]): Grayscale image to analyze.
+        config (BandCropConfig | None): Configuration options for band detection.
+
+    Returns:
+        tuple[int, int, int, int] | None: Crop bounds as
+        `(row_min, row_max, column_min, column_max)`, or `None` when suitable band
+        content cannot be identified.
+    """
+    if config is None:
+        config = BandCropConfig()
+
+    h, w = image.shape[:2]
+    if h < 2 or w < 2:
+        return None
+
+    valid_mask = image < 0.99
+    valid_pixels = image[valid_mask]
+    if len(valid_pixels) < 100:
+        return None
+
+    thresh_v = _calculate_vertical_threshold(valid_pixels)
+    dark_pixels = (image < thresh_v) & valid_mask
+    dark_frac_rows = np.mean(dark_pixels, axis=1)
+
+    if config.smoothing_window > 1:
+        dark_frac_rows = uniform_filter1d(
+            dark_frac_rows, size=config.smoothing_window, mode="nearest"
+        )
+
+    min_required_height = max(2, int(h * config.min_band_height_frac))
+    row_region = _detect_row_region(
+        dark_frac_rows, config.min_band_width_frac, min_required_height, h
+    )
+    if not row_region:
+        return None
+
+    r_min, r_max = row_region
+    band_strip = image[r_min:r_max, :]
+    h_strip, w_strip = band_strip.shape
+
+    if h_strip < 2 or w_strip < 2:
+        return None
+
+    valid_strip_mask = band_strip < 0.99
+    c_min, c_max = _detect_component_columns(band_strip, valid_strip_mask, w_strip)
+
+    return _apply_padding((r_min, r_max, c_min, c_max), (h, w), config)
+
+
+def auto_crop_to_bands(
+    image: NDArray[np.float64],
+    config: BandCropConfig | None = None,
 ) -> NDArray[np.float64]:
     """Crop an image to the region containing detected bands with padding.
 
     Parameters:
         image (NDArray[np.float64]): Grayscale image to crop.
-        min_band_width_frac (float): Minimum fraction of image width required for a band row.
-        min_band_height_frac (float): Minimum fraction of image height required for the band region.
-        vertical_padding_frac (float): Fraction of band height to add as vertical padding.
-        horizontal_padding_frac (float): Fraction of band width to add as horizontal padding.
-        smoothing_window (int): Window size used to smooth row-based band detection.
+        config (BandCropConfig | None): Configuration options for band detection.
 
     Returns:
         NDArray[np.float64]: Cropped image, or the original image when no crop region is detected.
     """
-    region = calculate_band_crop_region(
-        image,
-        min_band_width_frac=min_band_width_frac,
-        min_band_height_frac=min_band_height_frac,
-        vertical_padding_frac=vertical_padding_frac,
-        horizontal_padding_frac=horizontal_padding_frac,
-        smoothing_window=smoothing_window,
-    )
+    region = calculate_band_crop_region(image, config=config)
 
     if region is None:
         return image
 
     r_min, r_max, c_min, c_max = region
-
-    # Perform the 2D crop!
     return image[r_min:r_max, c_min:c_max]
 
 

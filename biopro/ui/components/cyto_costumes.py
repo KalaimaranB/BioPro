@@ -1,5 +1,9 @@
 import math
 import random
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from biopro.ui.components.cyto_character import CytoWidget
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import (
@@ -59,13 +63,13 @@ def _tapered_ribbon(points, widths):
 class CytoCostume:
     """Base interface for Cyto's theme-dependent accessories/costumes."""
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         pass
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget: "CytoWidget") -> None:
         pass
 
-    def animate(self, cyto_widget, time_step: float):
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:
         pass
 
 

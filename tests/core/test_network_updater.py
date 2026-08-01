@@ -285,6 +285,7 @@ class TestNetworkUpdaterExpanded:
         zip_bytes = create_safe_zip()
         mock_response.content = zip_bytes
         mock_response.raw = io.BytesIO(zip_bytes)
+        mock_response.iter_content.return_value = [zip_bytes]
         mock_response.raise_for_status.return_value = None
 
         plugin_info = {"version": "1.2.3", "name": "Test Plugin", "download_url": "http://fake.url"}

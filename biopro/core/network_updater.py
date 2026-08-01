@@ -2,7 +2,6 @@
 
 import logging
 import os
-import shutil
 import tempfile
 import webbrowser
 import zipfile
@@ -168,7 +167,13 @@ class NetworkUpdater:
             response.raise_for_status()
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
-                shutil.copyfileobj(response.raw, tmp)
+                max_download_size = 500 * 1024 * 1024  # 500 MB limit
+                downloaded = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    downloaded += len(chunk)
+                    if downloaded > max_download_size:
+                        raise RuntimeError("Download exceeded maximum size limit.")
+                    tmp.write(chunk)
                 tmp_path = tmp.name
 
             try:
