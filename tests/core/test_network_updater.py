@@ -423,7 +423,15 @@ class TestNetworkUpdaterExpanded:
 
     def test_sync_system_assets_logic(self, updater):
         """Verify that newer system assets are downloaded and recorded in local metadata."""
-        remote_data = {"sdk": {"version": "2.0.0", "download_url": "http://sdk.zip"}, "plugins": {}}
+        import hashlib
+
+        fake_content = b"zipdata"
+        fake_hash = hashlib.sha256(fake_content).hexdigest()
+
+        remote_data = {
+            "sdk": {"version": "2.0.0", "download_url": "http://sdk.zip", "sha256": fake_hash},
+            "plugins": {},
+        }
         local_assets = {"sdk": {"version": "1.0.0"}}
 
         assets_json = updater.plugin_dir / "system_assets.json"
@@ -437,7 +445,7 @@ class TestNetworkUpdaterExpanded:
             patch("biopro.core.network.system_assets.safe_extract"),
         ):
             mock_get.return_value.raise_for_status.return_value = None
-            mock_get.return_value.content = b"zipdata"
+            mock_get.return_value.content = fake_content
 
             updater.sync_system_assets()
 

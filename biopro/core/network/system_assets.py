@@ -88,16 +88,20 @@ class SystemAssetSync:
 
             content_bytes = response.content
 
-            # Optional hash verification
             expected_hash = remote_info.get("sha256")
-            if expected_hash:
-                actual_hash = hashlib.sha256(content_bytes).hexdigest()
-                if actual_hash != expected_hash:
-                    logger.error(
-                        f"Hash mismatch for {asset_key}. "
-                        f"Expected: {expected_hash}, got: {actual_hash}"
-                    )
-                    return False
+            if not expected_hash:
+                logger.error(
+                    f"Security Block: No sha256 hash provided for {asset_key}. "
+                    "Refusing to extract unverified archive."
+                )
+                return False
+
+            actual_hash = hashlib.sha256(content_bytes).hexdigest()
+            if actual_hash != expected_hash:
+                logger.error(
+                    f"Hash mismatch for {asset_key}. Expected: {expected_hash}, got: {actual_hash}"
+                )
+                return False
 
             staging_dir = local_dir.with_name(f"{local_dir.name}.staging")
             if staging_dir.exists():

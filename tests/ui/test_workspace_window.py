@@ -27,9 +27,12 @@ class TestWorkspaceWindow:
         hub_cb = MagicMock()
         store_cb = MagicMock()
 
-        win = WorkspaceWindow(pm, mm, up, store_cb, hub_cb)
-        qtbot.addWidget(win)
-        return win
+        store_cb = MagicMock()
+
+        with patch("biopro.ui.windows.workspace.hub_manager.HubManager.maybe_start_core_intro"):
+            win = WorkspaceWindow(pm, mm, up, store_cb, hub_cb)
+            qtbot.addWidget(win)
+            return win
 
     def test_initialization(self, window):
         assert "Unit Testing" in window.windowTitle()

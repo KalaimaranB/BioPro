@@ -42,12 +42,21 @@ class AppConfig:
         """
         if self.config_file.exists():
             data = AtomicJsonFile.load(self.config_file, default=None)
-            if data is None:
+            if data is None or not isinstance(data, dict):
                 from biopro.core.diagnostics import diagnostics
 
                 diagnostics.report_error(f"Failed to load config from {self.config_file}")
             else:
-                # Merge the loaded data with defaults instead of overwriting completely
+                # Normalize loaded fields before merging
+                recent = data.get("recent_projects", [])
+                data["recent_projects"] = (
+                    [str(x) for x in recent] if isinstance(recent, list) else []
+                )
+
+                skipped = data.get("skipped_update_version")
+                if "skipped_update_version" in data:
+                    data["skipped_update_version"] = str(skipped) if skipped is not None else None
+
                 self.data.update(data)
 
     def save(self) -> None:
@@ -67,9 +76,10 @@ class AppConfig:
             project_path (Path | str): Path of the project to add.
         """
         path_str = str(Path(project_path).absolute())
-        from typing import cast
 
-        recent: list[str] = cast(list[str], self.data.get("recent_projects", []))
+        recent = self.data.get("recent_projects", [])
+        if not isinstance(recent, list):
+            recent = []
 
         # If it's already in the list, remove it so we can push it to the top
         if path_str in recent:
@@ -78,14 +88,15 @@ class AppConfig:
         recent.insert(0, path_str)
 
         # Keep only the top 10 recent projects
-        self.data["recent_projects"] = recent[:10]
+        self.data["recent_projects"] = [str(x) for x in recent[:10]]
         self.save()
 
     def get_recent_projects(self) -> list[str]:
         """Return a list of absolute paths to recent projects."""
-        from typing import cast
-
-        return cast(list[str], self.data.get("recent_projects", []))
+        recent = self.data.get("recent_projects", [])
+        if isinstance(recent, list):
+            return [str(x) for x in recent]
+        return []
 
     def remove_recent_project(self, project_path: Path | str) -> None:
         """Remove a project from the recent projects list and persist the updated configuration.
@@ -94,12 +105,14 @@ class AppConfig:
             project_path (Path | str): Path of the project to remove.
         """
         path_str = str(Path(project_path).absolute())
-        from typing import cast
 
-        recent: list[str] = cast(list[str], self.data.get("recent_projects", []))
+        recent = self.data.get("recent_projects", [])
+        if not isinstance(recent, list):
+            return
+
         if path_str in recent:
             recent.remove(path_str)
-            self.data["recent_projects"] = recent
+            self.data["recent_projects"] = [str(x) for x in recent]
             self.save()
 
     def get_skipped_update_version(self) -> str | None:
@@ -108,9 +121,8 @@ class AppConfig:
         Returns:
             str | None: The skipped update version, or None if no version is set.
         """
-        from typing import cast
-
-        return cast(str | None, self.data.get("skipped_update_version"))
+        skipped = self.data.get("skipped_update_version")
+        return str(skipped) if skipped is not None else None
 
     def set_skipped_update_version(self, version: str) -> None:
         """Persist the update version to skip."""

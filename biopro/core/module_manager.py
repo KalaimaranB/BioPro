@@ -1,12 +1,16 @@
 """Dynamic Plugin/Module Loader for BioPro (Facade)."""
 
+from __future__ import annotations
+
 import logging
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from biopro_sdk.host import TrustManager
-from PyQt6.QtWidgets import QWidget
+
+if TYPE_CHECKING:
+    from PyQt6.QtWidgets import QWidget
 
 # HACK: Import the base plugins namespace so we can expand it
 import biopro.plugins
@@ -83,9 +87,6 @@ class ModuleManager:
 
         mod_info = self.modules[module_id]
 
-        # Verify Environment Exists
-        PluginLoaderFactory.verify_dependencies(Path(mod_info["path"]), mod_info["manifest"])
-
         # Hard check: Prevent execution of untrusted code
         if mod_info["trust_level"] == "untrusted":
             raise PermissionError(
@@ -96,6 +97,9 @@ class ModuleManager:
             raise RuntimeError(
                 f"OutdatedModuleError: The module '{mod_info['manifest'].get('name', mod_info['package_name'])}' is outdated and must be updated to work with this version of BioPro."  # noqa: E501
             )
+
+        # Verify Environment Exists
+        PluginLoaderFactory.verify_dependencies(Path(mod_info["path"]), mod_info["manifest"])
 
         # Inject path dynamically before loading
         PluginEnvironmentInjector.inject_path(Path(mod_info["path"]), self.internal_plugins_dir)

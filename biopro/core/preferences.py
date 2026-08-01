@@ -27,7 +27,12 @@ class CorePreferenceManager(PreferenceManagerProtocol):
 
     def load(self) -> None:
         """Load preferences from the configured preferences file into the manager."""
-        self.data = AtomicJsonFile.load(self.config_file, default={})
+        loaded = AtomicJsonFile.load(self.config_file, default={})
+        if isinstance(loaded, dict):
+            self.data = loaded
+        else:
+            logger.warning("Invalid preferences format loaded; resetting to defaults.")
+            self.data = {}
 
     def save(self) -> None:
         """Persist the current preferences to the configured file."""
