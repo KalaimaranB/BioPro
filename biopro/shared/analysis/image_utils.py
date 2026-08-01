@@ -309,7 +309,7 @@ def rotate_image(
 
     return rotate(
         image,
-        angle=angle,
+        angle,
         resize=True,
         mode="constant",
         cval=fill_value,
