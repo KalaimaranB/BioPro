@@ -4,6 +4,8 @@ import contextlib
 import json
 import logging
 import os
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -63,12 +65,12 @@ class TrustSync:
                 continue
 
             try:
-                # Save raw bytes atomically
-                import shutil
-                import tempfile
+                # Decode first to avoid leaving an empty temp file on error
+                pub_bytes = bytes.fromhex(pub_hex)
 
+                # Save raw bytes atomically
                 with tempfile.NamedTemporaryFile("wb", delete=False, dir=roots_dir) as f:
-                    f.write(bytes.fromhex(pub_hex))
+                    f.write(pub_bytes)
                     tmp_name = f.name
                 shutil.move(tmp_name, filename)
                 new_filenames.append(filename)

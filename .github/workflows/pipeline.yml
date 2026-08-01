@@ -91,6 +91,7 @@ jobs:
 
       - name: Install Linting & Security Tools
         run: |
+          uv venv
           uv pip install ruff mypy pip-audit types-requests types-Markdown types-Pygments types-psutil requests markdown Pygments psutil
 
       - name: Run Ruff Linter
@@ -118,6 +119,7 @@ jobs:
 
       - name: Install Test Dependencies
         run: |
+          if [ ! -d ".venv" ]; then uv venv; fi
           uv pip install pytest pytest-qt pytest-cov
 
       - name: Run Tests with Coverage

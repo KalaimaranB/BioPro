@@ -455,13 +455,13 @@ class TestNetworkUpdaterExpanded:
             updated_assets = json.loads(assets_json.read_text())
             assert updated_assets["sdk"]["version"] == "2.0.0"
 
-    def test_plugin_installer_worker_exceptions(self):
+    def test_plugin_installer_worker_exceptions(self, tmp_path):
         """Verify exception handling in the PluginInstallerWorker thread."""
         from biopro.ui.workers.plugin_installer import PluginInstallerWorker
 
         # Patch the signal on the class before instantiation
         with patch.object(PluginInstallerWorker, "finished") as mock_finished:
-            worker = PluginInstallerWorker("test", "url", Path("/tmp"))
+            worker = PluginInstallerWorker("test", "url", tmp_path)
             with patch("biopro.core.network.client.requests.get", side_effect=Exception("Crash")):
                 worker.run()
                 mock_finished.emit.assert_called_with(False, "Installation error: Crash")

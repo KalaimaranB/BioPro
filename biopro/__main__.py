@@ -222,7 +222,7 @@ def _run_smoke_test(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--smoke-test", dest="plugin_id")
     parser.add_argument("data_file", nargs="?", default=None)
-    args, _ = parser.parse_known_args(argv)
+    args, _ = parser.parse_known_args(argv[1:])
 
     logger = logging.getLogger("BioPro.SmokeTest")
     logger.info(f"--- SMOKE TEST SEQUENCE STARTED FOR {args.plugin_id} ---")
