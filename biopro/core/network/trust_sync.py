@@ -162,12 +162,16 @@ class TrustSync:
 
                 sanitized_id = sanitize_identifier(dev_id)
                 if not sanitized_id:
-                    logger.warning(f"Skipping invalid developer_id for avatar: {dev_id}")
+                    logger.warning("Skipping avatar sync for record with invalid developer_id")
                     continue
 
                 parsed_url = urlparse(avatar_url)
                 if parsed_url.scheme != "https" or parsed_url.hostname not in allowed_hosts:
-                    logger.warning(f"Blocked unauthorized avatar URL: {avatar_url}")
+                    logger.warning(
+                        "Blocked unauthorized avatar URL for developer_id=%s (host=%s)",
+                        sanitized_id,
+                        parsed_url.hostname or "unknown",
+                    )
                     continue
 
                 avatar_mgr.fetch_and_cache_avatar(sanitized_id, avatar_url)
