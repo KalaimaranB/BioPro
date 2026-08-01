@@ -1,9 +1,11 @@
 """Background network fetcher and plugin installer for BioPro (Facade)."""
 
-import json
 import logging
 import os
+import shutil
+import tempfile
 import webbrowser
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +16,7 @@ from biopro.core.network.installer import safe_extract, safe_remove
 from biopro.core.network.registry_sync import RegistrySync
 from biopro.core.network.system_assets import SystemAssetSync
 from biopro.core.network.trust_sync import TrustSync
-from biopro.core.utils import parse_version
+from biopro.core.utils import AtomicJsonFile, parse_version
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +47,6 @@ class NetworkUpdater:
         self.local_registry_path = self.plugin_dir / "installed.json"
 
         if not self.local_registry_path.exists():
-            from biopro.core.utils import AtomicJsonFile
-
             AtomicJsonFile.save(self.local_registry_path, {})
 
         self.setup_developer_tools()
@@ -68,7 +68,7 @@ class NetworkUpdater:
         except Exception as e:
             logger.warning(f"Could not deploy signing tool: {e}")
 
-    def get_local_state(self) -> dict:
+    def get_local_state(self) -> dict[str, Any]:
         """Retrieve the locally installed plugin registry state.
 
         Returns:
@@ -76,7 +76,7 @@ class NetworkUpdater:
         """
         return RegistrySync.get_local_state(self.plugin_dir, self.local_registry_path)
 
-    def fetch_remote_registry(self, registry_url: str) -> dict:
+    def fetch_remote_registry(self, registry_url: str) -> dict[str, Any]:
         """Fetches registry data from the specified remote URL.
 
         Parameters:
@@ -87,7 +87,7 @@ class NetworkUpdater:
         """
         return RegistrySync.fetch_remote_registry(registry_url)
 
-    def fetch_remote_developers(self) -> list:
+    def fetch_remote_developers(self) -> list[dict[str, Any]]:
         """Fetches the developers listed in the remote registry.
 
         Returns:
@@ -113,7 +113,7 @@ class NetworkUpdater:
         """Fetch and synchronize authority data from the configured authority service."""
         TrustSync.fetch_and_sync_authorities(self.authority_url)
 
-    def sync_trusted_developers(self, trusted_list: list) -> Any:
+    def sync_trusted_developers(self, trusted_list: list[dict[str, Any]]) -> None:
         """Synchronize the configured trusted developer records.
 
         Parameters:
@@ -126,7 +126,7 @@ class NetworkUpdater:
         remote_data = self.fetch_remote_registry(self.registry_url)
         SystemAssetSync.sync_assets(remote_data, self.plugin_dir)
 
-    def check_for_core_updates(self) -> Any:
+    def check_for_core_updates(self) -> tuple[bool, dict[str, Any] | None]:
         """Determine whether a newer core application version is available.
 
         Returns:
@@ -156,7 +156,7 @@ class NetworkUpdater:
             return True
         return False
 
-    def install_plugin(self, plugin_id, remote_info) -> Any:
+    def install_plugin(self, plugin_id: str, remote_info: dict[str, Any]) -> tuple[bool, str]:
         """Download and install a plugin package, then update the local installation registry.
 
         Parameters:
@@ -166,36 +166,39 @@ class NetworkUpdater:
         Returns:
             A tuple containing a success flag and a status message.
         """
-        import io
-        import zipfile
-
         try:
-            response = NetworkClient.get(remote_info["download_url"], timeout=15)
+            response = NetworkClient.get(
+                remote_info["download_url"],
+                timeout=NetworkClient.DEFAULT_TIMEOUT,
+                stream=True,
+            )
             response.raise_for_status()
-            zip_bytes = response.content
 
-            plugin_folder = self.plugin_dir / plugin_id
-            safe_remove(self.plugin_dir, plugin_folder)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+                shutil.copyfileobj(response.raw, tmp)
+                tmp_path = tmp.name
 
-            with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-                has_nested_folder = False
-                namelist = z.namelist()
-                if namelist:
-                    first_member = namelist[0]
-                    if first_member.startswith(plugin_id + "/") or first_member.startswith(
-                        plugin_id + os.sep
-                    ):  # noqa: E501
-                        has_nested_folder = True
+            try:
+                plugin_folder = self.plugin_dir / plugin_id
+                safe_remove(self.plugin_dir, plugin_folder)
 
-                extract_target = self.plugin_dir if has_nested_folder else plugin_folder
-                extract_target.mkdir(parents=True, exist_ok=True)
-                safe_extract(z, extract_target)
+                with zipfile.ZipFile(tmp_path) as z:
+                    namelist = [n for n in z.namelist() if not n.startswith("__MACOSX/")]
+                    prefixes = (plugin_id + "/", plugin_id + "\\")
+                    has_nested_folder = bool(namelist) and all(
+                        name.startswith(prefixes) for name in namelist
+                    )
+
+                    extract_target = self.plugin_dir if has_nested_folder else plugin_folder
+                    extract_target.mkdir(parents=True, exist_ok=True)
+                    safe_extract(z, extract_target)
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
 
             local_data = self.get_local_state()
             local_data[plugin_id] = {"version": remote_info["version"], "name": remote_info["name"]}
 
-            with open(self.local_registry_path, "w", encoding="utf-8") as f:
-                json.dump(local_data, f, indent=4)
+            AtomicJsonFile.save(self.local_registry_path, local_data)
 
             # Broadcast the installation success
             event_bus.emit(BioProEvent.PLUGIN_INSTALLED, plugin_id)
@@ -205,7 +208,7 @@ class NetworkUpdater:
             logger.error(f"Failed to install {plugin_id}: {e}")
             return False, f"Failed to install: {e}"
 
-    def remove_plugin(self, plugin_id) -> Any:
+    def remove_plugin(self, plugin_id: str) -> tuple[bool, str]:
         """Remove an installed plugin and update the local registry.
 
         Parameters:
@@ -222,8 +225,7 @@ class NetworkUpdater:
             if plugin_id in local_data:
                 del local_data[plugin_id]
 
-            with open(self.local_registry_path, "w", encoding="utf-8") as f:
-                json.dump(local_data, f, indent=4)
+            AtomicJsonFile.save(self.local_registry_path, local_data)
 
             # Broadcast the removal
             event_bus.emit(BioProEvent.PLUGIN_REMOVED, plugin_id)

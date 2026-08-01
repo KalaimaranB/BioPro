@@ -8,6 +8,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+MAX_EXTRACT_MEMBERS = 10000
+MAX_UNCOMPRESSED_SIZE = 500 * 1024 * 1024  # 500 MB
+
 
 def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> None:
     """Safely extract archive members within the destination directory.
@@ -17,7 +20,18 @@ def safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path) -> None:
         dest_dir (Path): Directory into which valid members are extracted.
     """
     dest_dir_str = os.path.abspath(dest_dir)
-    for member in zip_ref.infolist():
+    infolist = zip_ref.infolist()
+
+    if len(infolist) > MAX_EXTRACT_MEMBERS:
+        raise ValueError(f"Archive exceeds maximum member limit ({MAX_EXTRACT_MEMBERS}).")
+
+    total_size = sum(member.file_size for member in infolist)
+    if total_size > MAX_UNCOMPRESSED_SIZE:
+        raise ValueError(
+            f"Archive exceeds maximum uncompressed size ({MAX_UNCOMPRESSED_SIZE} bytes)."
+        )
+
+    for member in infolist:
         # Get absolute path of extracted file
         member_target_path = os.path.abspath(os.path.join(dest_dir_str, member.filename))
 

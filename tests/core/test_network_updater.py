@@ -280,7 +280,11 @@ class TestNetworkUpdaterExpanded:
     def test_install_plugin_updates_local_registry(self, mock_get, updater):
         """Verify that successful installation updates the local registry file."""
         mock_response = mock_get.return_value
-        mock_response.content = create_safe_zip()
+        import io
+
+        zip_bytes = create_safe_zip()
+        mock_response.content = zip_bytes
+        mock_response.raw = io.BytesIO(zip_bytes)
         mock_response.raise_for_status.return_value = None
 
         plugin_info = {"version": "1.2.3", "name": "Test Plugin", "download_url": "http://fake.url"}

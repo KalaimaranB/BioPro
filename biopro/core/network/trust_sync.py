@@ -6,6 +6,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from biopro_sdk.host import BIOPRO_ROOT_PUBLIC_KEY_HEX
 from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -20,7 +21,7 @@ class TrustSync:
     """Handles syncing cryptographic keys and developer profiles."""
 
     @staticmethod
-    def sync_keys(trusted_list: list, prefix: str = "network_") -> Any:
+    def sync_keys(trusted_list: list[dict[str, Any]], prefix: str = "network_") -> None:
         """Persist trusted public keys locally and remove stale keys for the specified prefix.
 
         Parameters:
@@ -132,12 +133,12 @@ class TrustSync:
             logger.debug(f"Optional authority registry not available: {e}")
 
     @staticmethod
-    def sync_trusted_developers(trusted_list: list) -> Any:
+    def sync_trusted_developers(trusted_list: list[dict[str, Any]]) -> None:
         """Synchronize trusted developer keys and associated profile data.
 
         Parameters:
-            trusted_list (list): Developer records containing public keys and optional profile or
-            avatar information.
+            trusted_list (list[dict[str, Any]]): Developer records containing public keys
+            and optional profile or avatar information.
         """
         TrustSync.sync_keys(trusted_list, prefix="network_")
 
@@ -150,10 +151,25 @@ class TrustSync:
 
             # Asynchronously download/cache avatars in background
             avatar_mgr = AvatarManager()
+
+            allowed_hosts = {"avatars.githubusercontent.com", "secure.gravatar.com"}
+
             for dev in trusted_list:
                 dev_id = dev.get("developer_id")
                 avatar_url = dev.get("avatar_url")
-                if dev_id and avatar_url:
-                    avatar_mgr.fetch_and_cache_avatar(dev_id, avatar_url)
+                if not dev_id or not avatar_url:
+                    continue
+
+                sanitized_id = sanitize_identifier(dev_id)
+                if not sanitized_id:
+                    logger.warning(f"Skipping invalid developer_id for avatar: {dev_id}")
+                    continue
+
+                parsed_url = urlparse(avatar_url)
+                if parsed_url.scheme != "https" or parsed_url.hostname not in allowed_hosts:
+                    logger.warning(f"Blocked unauthorized avatar URL: {avatar_url}")
+                    continue
+
+                avatar_mgr.fetch_and_cache_avatar(sanitized_id, avatar_url)
         except Exception as e:
             logger.warning(f"Could not sync developer profile database/avatars: {e}")

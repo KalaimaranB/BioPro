@@ -1,7 +1,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from biopro.core.package_manager import PackageManager, PluginInstallerWorker
+from biopro.core.package_manager import PackageManager
+from biopro.ui.workers.plugin_dependency_installer import PluginDependencyInstallerWorker
 
 
 def test_package_manager_default_init(monkeypatch, tmp_path):
@@ -15,7 +16,7 @@ def test_package_manager_default_init(monkeypatch, tmp_path):
 
 @patch("biopro.core.package_manager.PackageManager.resolve_and_install_all")
 def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
-    """Verify that PluginInstallerWorker successfully runs in background and processes manifest dependencies."""
+    """Verify that PluginDependencyInstallerWorker successfully runs in background and processes manifest dependencies."""
     cache_dir = tmp_path / "cache"
     plugin_dir = tmp_path / "plugin"
     plugin_dir.mkdir()
@@ -27,7 +28,7 @@ def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
             '[tool.biopro.plugin.python_dependencies]\nscipy = "1.11.3"\n'
         )
 
-    worker = PluginInstallerWorker(plugin_dir, cache_dir=cache_dir)
+    worker = PluginDependencyInstallerWorker(plugin_dir, cache_dir=cache_dir)
     # Run execution directly (synchronous for test)
     worker.run()
 
@@ -36,8 +37,8 @@ def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
 
 def test_worker_manifest_missing(tmp_path):
     """Verify worker handles missing manifest.json."""
-    with patch.object(PluginInstallerWorker, "finished") as mock_finished:
-        worker = PluginInstallerWorker(tmp_path)
+    with patch.object(PluginDependencyInstallerWorker, "finished") as mock_finished:
+        worker = PluginDependencyInstallerWorker(tmp_path)
         worker.run()
         mock_finished.emit.assert_called_with(
             False, "pyproject.toml missing from plugin directory."
@@ -52,8 +53,8 @@ def test_worker_no_deps(tmp_path):
         '[project]\nname = "test"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
         '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
     )
-    with patch.object(PluginInstallerWorker, "finished") as mock_finished:
-        worker = PluginInstallerWorker(plugin_dir)
+    with patch.object(PluginDependencyInstallerWorker, "finished") as mock_finished:
+        worker = PluginDependencyInstallerWorker(plugin_dir)
         worker.run()
         mock_finished.emit.assert_called_with(True, "")
 
@@ -67,8 +68,8 @@ def test_worker_exception(tmp_path):
         '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
         '[tool.biopro.plugin.python_dependencies]\na = "1"\n'
     )
-    with patch.object(PluginInstallerWorker, "finished") as mock_finished:
-        worker = PluginInstallerWorker(plugin_dir)
+    with patch.object(PluginDependencyInstallerWorker, "finished") as mock_finished:
+        worker = PluginDependencyInstallerWorker(plugin_dir)
         with patch.object(worker.pm, "resolve_and_install_all", side_effect=Exception("Crash")):
             worker.run()
             mock_finished.emit.assert_called_with(False, "Crash")

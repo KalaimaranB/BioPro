@@ -7,7 +7,6 @@ from typing import Any
 from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
 
 from biopro.core.trust.strategies import TrustStrategyFactory
-from biopro.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +128,10 @@ class PluginDiscoveryService:
             metadata, or None if the legacy manifest cannot be processed.
         """
         try:
-            raw_manifest = AtomicJsonFile.load(manifest_file, default={})
+            import tomllib
+
+            with open(manifest_file, "rb") as f:
+                raw_manifest = tomllib.load(f)
             mod_id = raw_manifest.get("id", plugin_path.name)
 
             manifest = {

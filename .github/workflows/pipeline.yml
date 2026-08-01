@@ -131,11 +131,10 @@ jobs:
           DISPLAY: ":99"
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarcloud-github-action@c2a382c72b2dc8d655b3ff7df891c305a2e519e4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        continue-on-error: true
 
   # Job 3: Cross-platform tests
   test:
