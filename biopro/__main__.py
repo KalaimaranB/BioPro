@@ -255,7 +255,11 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: PLR0915
             manifest_path = plugin_dir / "pyproject.toml"
             if manifest_path.exists():
                 manifest = ManifestParser().parse_file(str(manifest_path))
-                deps = manifest.get("python_dependencies", {})
+                deps = manifest.get("python_dependencies")
+                if deps is None:
+                    deps_list = manifest.get("core_dependencies", [])
+                    deps = dict.fromkeys(deps_list, "")
+
                 if deps:
                     logger.info(
                         f"Installing {len(deps)} dependencies for {args.plugin_id} "
