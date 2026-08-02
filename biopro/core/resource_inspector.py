@@ -6,6 +6,7 @@ within arbitrary object trees. Enables automatic memory management.
 
 import io
 import logging
+from collections.abc import Callable
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -18,10 +19,10 @@ class ResourceInspector:
     # Default: 1MB
     HEAVY_THRESHOLD_BYTES = 1024 * 1024
 
-    _custom_checkers: list[Any] = []
+    _custom_checkers: list[Callable[[Any], bool]] = []
 
     @classmethod
-    def register_heavy_checker(cls, checker_func) -> Any:
+    def register_heavy_checker(cls, checker_func: Callable[[Any], bool]) -> None:
         """Registers a custom function for evaluating if an object is heavy."""
         if checker_func not in cls._custom_checkers:
             cls._custom_checkers.append(checker_func)

@@ -50,12 +50,12 @@ class AppConfig:
                 # Normalize loaded fields before merging
                 recent = data.get("recent_projects", [])
                 data["recent_projects"] = (
-                    [str(x) for x in recent] if isinstance(recent, list) else []
+                    [x for x in recent if isinstance(x, str)] if isinstance(recent, list) else []
                 )
 
-                skipped = data.get("skipped_update_version")
                 if "skipped_update_version" in data:
-                    data["skipped_update_version"] = str(skipped) if skipped is not None else None
+                    skipped = data.get("skipped_update_version")
+                    data["skipped_update_version"] = skipped if isinstance(skipped, str) else None
 
                 self.data.update(data)
 
@@ -88,15 +88,15 @@ class AppConfig:
         recent.insert(0, path_str)
 
         # Keep only the top 10 recent projects
-        self.data["recent_projects"] = [str(x) for x in recent[:10]]
+        self.data["recent_projects"] = recent[:10]
         self.save()
 
     def get_recent_projects(self) -> list[str]:
         """Return a list of absolute paths to recent projects."""
+        from typing import cast
+
         recent = self.data.get("recent_projects", [])
-        if isinstance(recent, list):
-            return [str(x) for x in recent]
-        return []
+        return cast(list[str], recent) if isinstance(recent, list) else []
 
     def remove_recent_project(self, project_path: Path | str) -> None:
         """Remove a project from the recent projects list and persist the updated configuration.
@@ -112,7 +112,7 @@ class AppConfig:
 
         if path_str in recent:
             recent.remove(path_str)
-            self.data["recent_projects"] = [str(x) for x in recent]
+            self.data["recent_projects"] = recent
             self.save()
 
     def get_skipped_update_version(self) -> str | None:
@@ -122,7 +122,7 @@ class AppConfig:
             str | None: The skipped update version, or None if no version is set.
         """
         skipped = self.data.get("skipped_update_version")
-        return str(skipped) if skipped is not None else None
+        return skipped if isinstance(skipped, str) else None
 
     def set_skipped_update_version(self, version: str) -> None:
         """Persist the update version to skip."""

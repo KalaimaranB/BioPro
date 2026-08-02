@@ -19,13 +19,13 @@ class BlackBoxHandler(logging.Handler):
     just before a crash.
     """
 
-    def __init__(self, capacity: int = 100):  # noqa: D107
+    def __init__(self, capacity: int = 100) -> None:  # noqa: D107
         """Initialize a log handler that retains up to ``capacity`` records."""
         super().__init__()
         self.capacity = capacity
         self.records: deque[dict[str, Any]] = deque(maxlen=capacity)
 
-    def emit(self, record):  # noqa: D102
+    def emit(self, record: logging.LogRecord) -> None:  # noqa: D102
         """Store a formatted log record in the in-memory history.
 
         Parameters:
@@ -57,7 +57,7 @@ class AutoReportHandler(logging.Handler):
     scattered throughout the codebase.
     """
 
-    def __init__(self, engine: "DiagnosticEngine"):  # noqa: D107
+    def __init__(self, engine: "DiagnosticEngine") -> None:  # noqa: D107
         """Initialize the handler to forward error-level records to a diagnostic engine.
 
         Parameters:
@@ -66,7 +66,7 @@ class AutoReportHandler(logging.Handler):
         super().__init__(level=logging.ERROR)
         self.engine = engine
 
-    def emit(self, record):  # noqa: D102
+    def emit(self, record: logging.LogRecord) -> None:  # noqa: D102
         # Prevent infinite recursion if the DiagnosticEngine itself logs an error
         """Forward a log record to the diagnostic engine for reporting.
 
@@ -93,9 +93,10 @@ class AutoReportHandler(logging.Handler):
 class DiagnosticEngine:
     """Central nervous system for application health and error reporting."""
 
-    _instance = None
+    _instance: "DiagnosticEngine | None" = None
+    _initialized: bool = False
 
-    def __new__(cls):  # noqa: D102
+    def __new__(cls) -> "DiagnosticEngine":  # noqa: D102
         """Create and return the class's shared singleton instance.
 
         Returns:
@@ -106,7 +107,7 @@ class DiagnosticEngine:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):  # noqa: D107
+    def __init__(self) -> None:  # noqa: D107
         """Initialize the diagnostic engine with logging handlers and error-reporting state."""
         if self._initialized:
             return
@@ -125,18 +126,18 @@ class DiagnosticEngine:
         logging.getLogger().addHandler(self.auto_reporter)
 
         # Throttling state
-        self._last_error_sig = None
-        self._last_error_time = 0.0
+        self._last_error_sig: str | None = None
+        self._last_error_time: float = 0.0
 
         self._initialized = True
 
     def report_error(
         self,
         message: str,
-        exception: Exception | None = None,
+        exception: BaseException | None = None,
         plugin_id: str | None = None,
         fatal: bool = False,
-    ):
+    ) -> None:
         """Report an error to the system.
 
         This will log the error and broadcast it via the Event Bus for UI display.

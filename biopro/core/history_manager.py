@@ -2,6 +2,7 @@
 
 import copy
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from .resource_inspector import ResourceInspector
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 class ModuleHistory:
     """Manages the undo/redo stacks for a single, specific module."""
 
-    def __init__(self, module_id: str, heavy_checker=None) -> None:  # noqa: D107
+    def __init__(self, module_id: str, heavy_checker: Callable[[Any], bool] | None = None) -> None:  # noqa: D107
         """Initialize history tracking for a module.
 
         Parameters:
@@ -148,9 +149,9 @@ class ModuleHistory:
 class HistoryManager:
     """Central registry that holds independent histories for every module in a project."""
 
-    def __init__(self, heavy_checker=None) -> None:  # noqa: D107
+    def __init__(self, heavy_checker: Callable[[Any], bool] | None = None) -> None:  # noqa: D107
         # Dictionary mapping: module_id -> ModuleHistory instance
-        self.histories: dict = {}
+        self.histories: dict[str, ModuleHistory] = {}
         self.heavy_checker = heavy_checker
 
     def get_module_history(self, module_id: str) -> ModuleHistory:

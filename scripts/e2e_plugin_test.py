@@ -38,6 +38,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
@@ -232,10 +233,7 @@ def main() -> None:  # noqa: D103
     _print_report()
 
 
-def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PLR0915
-    site_packages: Path | None = None
-    fcs_data = None  # shared across phases
-
+def _phase_1_clean_environment(plugin_dir: Path) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 1 — Clean Environment Simulation
     # ══════════════════════════════════════════════════════════════════════════
@@ -269,6 +267,8 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PL
 
         print(f"    ℹ  {len(deps)} direct dependencies declared in manifest")
 
+
+def _phase_2_install_dependencies(plugin_dir: Path) -> Path:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 2 — Plugin Dependency Installation
     # ══════════════════════════════════════════════════════════════════════════
@@ -326,6 +326,10 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PL
         fh_found = bool(list(site_packages.glob("fast_histogram*")))
         check(fh_found, "Package 'fast_histogram' present in site-packages")
 
+        return site_packages
+
+
+def _phase_3_validate_imports(plugin_dir: Path, site_packages: Path | None) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 3 — Critical Import Validation
     # ══════════════════════════════════════════════════════════════════════════
@@ -373,6 +377,8 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PL
         check(hasattr(fk, "Sample"), "flowkit.Sample class accessible")
         check(fk._conf.mp_context == "spawn", "flowkit mp_context set to 'spawn'")
 
+
+def _phase_4_load_fcs(fcs_path: Path) -> Any:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 4 — FCS Load Test (FlowKit must be the primary loader)
     # ══════════════════════════════════════════════════════════════════════════
@@ -414,6 +420,10 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PL
         for msg in captured_msgs:
             print(f"    ·  {msg}")
 
+        return fcs_data
+
+
+def _phase_5_check_data_integrity(fcs_data: Any) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 5 — Data Integrity
     # ══════════════════════════════════════════════════════════════════════════
@@ -450,6 +460,8 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PL
             finite_pct = float(np.isfinite(events[fsc_col]).mean()) * 100
             check(finite_pct >= 95.0, f"FSC-A finite fraction = {finite_pct:.1f}% ≥ 95%")
 
+
+def _phase_6_render_pseudocolor(fcs_data: Any) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 6 — Renderer Test (fast_histogram + compute_pseudocolor_points)
     # ══════════════════════════════════════════════════════════════════════════
@@ -491,6 +503,15 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:  # noqa: C901, PL
         print(
             f"    ℹ  {len(xs):,} events rendered. Colors: [{colors.min():.3f}, {colors.max():.3f}]"
         )
+
+
+def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:
+    _phase_1_clean_environment(plugin_dir)
+    site_packages = _phase_2_install_dependencies(plugin_dir)
+    _phase_3_validate_imports(plugin_dir, site_packages)
+    fcs_data = _phase_4_load_fcs(fcs_path)
+    _phase_5_check_data_integrity(fcs_data)
+    _phase_6_render_pseudocolor(fcs_data)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

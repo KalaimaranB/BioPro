@@ -231,47 +231,38 @@ def invert_image(image: NDArray[np.float64]) -> NDArray[np.float64]:
     return 1.0 - image
 
 
-def enhance_for_band_detection(  # noqa: PLR0913
+def enhance_for_band_detection(
     image: NDArray[np.float64],
-    *,
-    apply_clahe: bool = True,
-    clahe_clip_limit: float = 2.0,
-    clahe_tile_grid_size: int = 8,
-    denoise_median_ksize: int = 0,
-    background_kernel_size: int = 0,
+    config: BandEnhancementConfig | None = None,
 ) -> NDArray[np.float64]:
     """Enhance an image to emphasize band structure and reduce background variation.
 
     Parameters:
         image (NDArray[np.float64]): Grayscale image with intensities expected in
             the range [0.0, 1.0].
-        apply_clahe (bool): Whether to apply local contrast enhancement.
-        clahe_clip_limit (float): Contrast limit used for local histogram
-            equalization.
-        clahe_tile_grid_size (int): Tile size for local contrast enhancement.
-        denoise_median_ksize (int): Median-filter kernel size; values below 3
-            disable denoising.
-        background_kernel_size (int): Gaussian background-estimation kernel size;
-            values below 5 disable background subtraction.
+        config (BandEnhancementConfig | None): Configuration options for band enhancement.
 
     Returns:
         NDArray[np.float64]: Enhanced image clipped to [0.0, 1.0].
     """
+    if config is None:
+        config = BandEnhancementConfig()
+
     out = np.clip(image, 0.0, 1.0)
 
-    if apply_clahe:
-        clip = float(np.clip(clahe_clip_limit / 10.0, 0.001, 0.2))
-        k = int(max(2, clahe_tile_grid_size))
+    if config.apply_clahe:
+        clip = float(np.clip(config.clahe_clip_limit / 10.0, 0.001, 0.2))
+        k = int(max(2, config.clahe_tile_grid_size))
         out = exposure.equalize_adapthist(out, clip_limit=clip, kernel_size=k)
 
-    if denoise_median_ksize and denoise_median_ksize >= 3:
-        k = int(denoise_median_ksize)
+    if config.denoise_median_ksize and config.denoise_median_ksize >= 3:
+        k = int(config.denoise_median_ksize)
         if k % 2 == 0:
             k += 1
         out = median_filter(out, size=(k, k))
 
-    if background_kernel_size and background_kernel_size >= 5:
-        k = int(background_kernel_size)
+    if config.background_kernel_size and config.background_kernel_size >= 5:
+        k = int(config.background_kernel_size)
         if k % 2 == 0:
             k += 1
         sigma = max(1.0, float(k) / 6.0)

@@ -78,7 +78,7 @@ class GalacticCostume(CytoCostume):
         self.items = []
         self.glow_effect = None
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         """
         Attach a handle and glowing blade accessory to the cyto widget's right arm.
 
@@ -102,7 +102,7 @@ class GalacticCostume(CytoCostume):
 
         self.glow_effect = apply_glow_effect(self.blade, QColor("#ffffff"), blur_radius=20)
 
-    def detach(self, cyto_widget):  # noqa: ARG002
+    def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """
         Detach and remove all costume items from the scene.
         """
@@ -112,7 +112,7 @@ class GalacticCostume(CytoCostume):
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         """
         Updates the costume's glow intensity for the current animation time.
 
@@ -129,7 +129,7 @@ class MandalorianCostume(CytoCostume):
         self.items = []
         self.electric_arc = None
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         self.helmet = QGraphicsPathItem()
         path = QPainterPath()
         path.moveTo(-25, 0)
@@ -229,7 +229,7 @@ class MandalorianCostume(CytoCostume):
         apply_glow_effect(self.electric_arc, QColor("#00aaff"), blur_radius=15)
         self.items.append(self.electric_arc)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget: "CytoWidget") -> None:
         """
         Detach the costume accessories and restore the widget's facial feature visibility.
 
@@ -246,7 +246,7 @@ class MandalorianCostume(CytoCostume):
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         """
         Updates the blaster's electric arc with a randomly generated short path and intermittent visibility.
         """
@@ -272,7 +272,7 @@ class TriStateCostume(CytoCostume):
         self.hat_group = None
         self.lens_glow = None
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         """
         Attach the fedora and magnifying-glass accessories to the cyto widget.
         """
@@ -366,7 +366,7 @@ class TriStateCostume(CytoCostume):
 
         self.lens_glow = apply_glow_effect(self.lens, QColor("#ff0000"), blur_radius=15)
 
-    def detach(self, cyto_widget):  # noqa: ARG002
+    def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """
         Detach and remove all costume items from the scene.
         """
@@ -376,7 +376,7 @@ class TriStateCostume(CytoCostume):
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         """
         Animate the hat rotation and magnifying-glass lens glow.
 
@@ -395,7 +395,7 @@ class SubcavernCostume(CytoCostume):
         self.items = []
         self.glow_effect = None
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         # Blaster pointing forward (horizontal)
         """
         Attach a blaster-like accessory with a glowing chamber to the cyto widget's right arm.
@@ -453,7 +453,7 @@ class SubcavernCostume(CytoCostume):
 
         self.glow_effect = apply_glow_effect(self.chamber, QColor(0, 255, 255), blur_radius=15)
 
-    def detach(self, cyto_widget):  # noqa: ARG002
+    def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """
         Detach and remove all costume items from the scene.
         """
@@ -463,7 +463,7 @@ class SubcavernCostume(CytoCostume):
                 item.scene().removeItem(item)
         self.items.clear()
 
-    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         """
         Update the chamber glow intensity for the current animation time.
         """
@@ -477,7 +477,7 @@ class NinjagoCostume(CytoCostume):
         self.items = []
         self.tornado_layers = []
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         self.mask_group = QGraphicsItemGroup()
         self.mask_group.setParentItem(cyto_widget.cyto_group)
         self.mask_group.setZValue(5.5)
@@ -547,7 +547,7 @@ class NinjagoCostume(CytoCostume):
             self.tornado_layers.append(layer)
             self.items.append(layer)
 
-    def detach(self, cyto_widget):
+    def detach(self, cyto_widget: "CytoWidget") -> None:
         """
         Detach the tornado costume and restore the widget's mouth visibility.
 
@@ -562,7 +562,7 @@ class NinjagoCostume(CytoCostume):
         self.items.clear()
         self.tornado_layers.clear()
 
-    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         """
         Update the tornado layers to reflect the current animation time.
 
@@ -596,7 +596,7 @@ class AvatarAangCostume(CytoCostume):
         self.items = []
         self.swirl_group = None
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         """
         Attach the arrow, staff, glider wings, and animated airbending swirl to the widget.
 
@@ -695,7 +695,7 @@ class AvatarAangCostume(CytoCostume):
 
         apply_glow_effect(self.swirl_group, QColor(135, 206, 235), blur_radius=12)
 
-    def detach(self, cyto_widget):  # noqa: ARG002
+    def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """
         Detach all costume items and clear the rotating swirl group.
         """
@@ -706,7 +706,7 @@ class AvatarAangCostume(CytoCostume):
         self.items.clear()
         self.swirl_group = None
 
-    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         """
         Animate the staff-tip swirl with continuous rotation and periodic scaling.
 
@@ -724,7 +724,7 @@ class AvatarKorraCostume(CytoCostume):
         self.items = []
         self.water_streams = []
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         """
         Attach two glowing water-stream graphics to the widget's right arm.
 
@@ -747,7 +747,7 @@ class AvatarKorraCostume(CytoCostume):
             self.items.append(stream)
             self.water_streams.append(stream)
 
-    def detach(self, cyto_widget):  # noqa: ARG002
+    def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """Detach all water streams and remove their graphics items from the scene."""
         for item in self.items:
             item.setParentItem(None)
@@ -756,7 +756,7 @@ class AvatarKorraCostume(CytoCostume):
         self.items.clear()
         self.water_streams.clear()
 
-    def animate(self, cyto_widget, time_step: float):  # noqa: ARG002
+    def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         # A tapered, filled ribbon (built by _tapered_ribbon) instead of a
         # thin stroked cubic — it bulges and tapers the way a real water
         # tendril would, and stays close to the hand instead of drifting
@@ -787,7 +787,7 @@ class DefaultCostume(CytoCostume):
     def __init__(self):
         self.items = []
 
-    def attach(self, cyto_widget):
+    def attach(self, cyto_widget: "CytoWidget") -> None:
         """
         Attach a blue pointer accessory to the widget's right arm.
 
@@ -799,7 +799,7 @@ class DefaultCostume(CytoCostume):
         self.pointer.setParentItem(cyto_widget.right_arm)
         self.items.append(self.pointer)
 
-    def detach(self, cyto_widget):  # noqa: ARG002
+    def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """
         Detach and remove all costume items from the scene.
         """

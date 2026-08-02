@@ -81,7 +81,7 @@ class TestDeveloperDatabase:
         mock_response.status_code = 200
         mock_response.content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..."  # Dummy PNG bytes
         mock_response.raw = io.BytesIO(mock_response.content)
-        mock_get.return_return = mock_response
+        mock_response.__enter__.return_value = mock_response
         mock_get.return_value = mock_response
 
         manager = AvatarManager(avatar_dir=temp_env["avatar_dir"])
