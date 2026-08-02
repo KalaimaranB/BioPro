@@ -215,7 +215,7 @@ def bootstrap_sdk():
     return False
 
 
-def _run_smoke_test(argv: list[str]) -> int:  # noqa: PLR0915
+def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
     """Run a smoke test for a specified plugin in a headless PyInstaller environment."""
     import argparse
 
@@ -285,6 +285,20 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: PLR0915
 
         # Temp Patch: Force trust the plugin to bypass Security Block during smoke testing
         module_manager.trust_module(args.plugin_id)
+
+        # Prevent modal dialogs from hanging the headless runner
+        from PyQt6.QtWidgets import QMessageBox
+
+        def _mock_msgbox(*_args, **_kwargs):
+            return None
+
+        def _mock_question(*_args, **_kwargs):
+            return QMessageBox.StandardButton.Yes
+
+        QMessageBox.information = _mock_msgbox  # type: ignore[method-assign]
+        QMessageBox.warning = _mock_msgbox  # type: ignore[method-assign]
+        QMessageBox.critical = _mock_msgbox  # type: ignore[method-assign]
+        QMessageBox.question = _mock_question  # type: ignore[method-assign]
 
         PanelClass = module_manager.load_module_ui(args.plugin_id)  # noqa: N806
         if PanelClass is None:
