@@ -307,13 +307,22 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
         if args.data_file and hasattr(panel, "load_workflow"):
             logger.info(f"Injecting test data file: {args.data_file}")
+
+            # If the plugin signals when async data is ready, wait for it
+            if hasattr(panel, "data_ready"):
+                logger.info("Hooking into plugin data_ready signal for delayed exit.")
+                panel.data_ready.connect(app.quit)
+                # Give it up to 15 seconds to load async data before forcing a quit
+                QTimer.singleShot(15000, app.quit)
+
             panel.load_workflow(None, filename=args.data_file)
 
     logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
 
-    # Allow event loop to tick once then quit successfully
-    smoke_test_tick_ms = 1000
-    QTimer.singleShot(smoke_test_tick_ms, app.quit)
+    # Allow event loop to tick once then quit successfully, unless we are waiting for data
+    if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")):
+        smoke_test_tick_ms = 1000
+        QTimer.singleShot(smoke_test_tick_ms, app.quit)
     app.exec()
     return 0
 
