@@ -13,6 +13,9 @@ class MenuManager:
         self.main_window = main_window
 
     def setup_menu_bar(self) -> None:
+        """
+        Builds and attaches the application's File, Edit, Theme, and Help menus to the main window.
+        """
         mw = self.main_window
         menubar = mw.menuBar()
         assert menubar is not None
@@ -72,9 +75,9 @@ class MenuManager:
         for name, path in available_themes:
             action = QAction(name, mw)
             if hasattr(mw, "theme_manager"):
-                action.triggered.connect(lambda checked, p=path: mw.theme_manager.switch_theme(p))
+                action.triggered.connect(lambda checked, p=path: mw.theme_manager.switch_theme(p))  # noqa: ARG005
             else:
-                action.triggered.connect(lambda checked, p=path: mw._switch_theme(p))
+                action.triggered.connect(lambda checked, p=path: mw._switch_theme(p))  # noqa: ARG005
             theme_menu.addAction(action)
 
         # Help Menu

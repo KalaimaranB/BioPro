@@ -649,8 +649,10 @@ class PluginStoreDialog(QDialog):
         """React to external plugin changes."""
         self._load_store_data()
 
-    def closeEvent(self, event):
-        """Cleanup subscriptions on close."""
+    def closeEvent(self, event):  # noqa: N802
+        """
+        Clean up background work and event subscriptions when the dialog closes.
+        """
         import logging
 
         logger = logging.getLogger(__name__)
@@ -666,6 +668,9 @@ class PluginStoreDialog(QDialog):
         super().closeEvent(event)
 
     def _setup_ui(self):
+        """
+        Builds the marketplace dialog interface, including search, filtering, plugin content, and status areas.
+        """
         self.setMinimumSize(1000, 650)
         self.resize(1100, 750)
 
@@ -830,14 +835,19 @@ class PluginStoreDialog(QDialog):
         self.status_lbl.hide()
         layout.addWidget(self.status_lbl)
 
-    def _on_search_changed(self, text: str):
+    def _on_search_changed(self, text: str):  # noqa: ARG002
+        """Reload the marketplace data when the search query changes."""
         self._load_store_data()
 
-    def _on_filter_changed(self, row: int):
+    def _on_filter_changed(self, row: int):  # noqa: ARG002
+        """Reload the marketplace data for the selected filter."""
         self._load_store_data()
 
     def _load_store_data(self):
         # 1. Clear grid
+        """
+        Reloads marketplace data for the selected filter.
+        """
         for i in reversed(range(self.store_grid.count())):
             item = self.store_grid.itemAt(i)
             if item:
@@ -1094,6 +1104,7 @@ class PluginStoreDialog(QDialog):
         return card
 
     def _show_card_context_menu(self, card, pos, plugin_id: str, data: dict):
+        """Display a context menu with an option to diagnose and repair the selected plugin."""
         menu = QMenu(self)
         theme_manager.apply_style(
             menu, f"background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};"
@@ -1104,7 +1115,8 @@ class PluginStoreDialog(QDialog):
 
         menu.exec(card.mapToGlobal(pos))
 
-    def _view_plugin_diagnostics(self, plugin_id: str, data: dict):
+    def _view_plugin_diagnostics(self, plugin_id: str, data: dict):  # noqa: ARG002
+        """Open the plugin diagnostics dialog and refresh the store after it closes."""
         from biopro.ui.dialogs.plugin_doctor_dialog import PluginDoctorDialog
 
         plugin_dir = self.updater.plugin_dir / plugin_id
@@ -1177,12 +1189,20 @@ class PluginStoreDialog(QDialog):
         dialog.exec()
 
     def _create_developer_card(self, dev: dict):
-        """Renders a verified trusted developer card with dynamic JPG/PNG avatars."""
+        """
+        Create a card displaying a trusted developer's profile, trust status, and public-key fingerprint.
+
+        Parameters:
+            dev (dict): Developer metadata, including the developer ID, public key, profile details, and manual-trust status.
+
+        Returns:
+            ModuleCard: The populated developer card.
+        """
         dev_id = dev.get("developer_id", "Unknown")
         pub_key = dev.get("public_key", "")
 
         # Rich local default cache fallback profiles
-        DEFAULT_DEV_INFO = {
+        DEFAULT_DEV_INFO = {  # noqa: N806
             "Kalaimaran": {
                 "name": "Kalaimaran Balasothy",
                 "role": "Founder & Lead Architect",

@@ -280,7 +280,9 @@ class TrustDirectoryWidget(QFrame):
         self.load_keys()
 
     def load_keys(self) -> None:
-        """Loads and lists the manual anchor key files from ~/.biopro/trusted_roots/."""
+        """
+        Load manually trusted developer anchors into the directory list, applying the active search filter.
+        """
         self.list_widget.clear()
 
         roots_dir = AppConfig.APP_DATA_DIR / "trusted_roots"
@@ -332,7 +334,7 @@ class TrustDirectoryWidget(QFrame):
                     QPushButton:hover {{ background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; }}
                 """,
                 )
-                revoke_btn.clicked.connect(lambda checked, path=key_file: self._revoke_anchor(path))
+                revoke_btn.clicked.connect(lambda checked, path=key_file: self._revoke_anchor(path))  # noqa: ARG005
                 item_layout.addWidget(revoke_btn)
 
                 list_item = QListWidgetItem(self.list_widget)
@@ -533,12 +535,23 @@ class PluginDetailPanel(QScrollArea):
         name: str,
         description: str,
         trust_status: str,
-        required_cosigners: list[str] | None = None,
+        required_cosigners: list[str] | None = None,  # noqa: ARG002
         author_avatar_stub: tuple[str, str, str] | None = None,  # (name, local_file_or_url, hash)
         screenshot_stub: tuple[str, str] | None = None,  # (local_file_or_url, hash)
         backdoor_detected: bool = False,
     ) -> None:
-        """Updates and renders the visual presentation layout dynamically."""
+        """
+        Updates the plugin details view with trust status, security alerts, and verified visual assets.
+
+        Parameters:
+            name (str): Plugin name.
+            description (str): Plugin description.
+            trust_status (str): Plugin trust state used to determine the displayed security status.
+            author_avatar_stub (tuple[str, str, str] | None): Author name, local asset path, and expected asset hash.
+            screenshot_stub (tuple[str, str] | None): Local screenshot path and expected asset hash.
+            backdoor_detected (bool): Whether unauthorized executable payloads were detected.
+
+        """
         self.name_lbl.setText(name)
         self.desc_lbl.setText(description)
 

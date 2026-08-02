@@ -18,6 +18,12 @@ class SBOMGenerator:
     """Compiles software supply chain inventory for the BioPro core and active plugins."""
 
     def __init__(self, project_root: Path | None = None):
+        """Initialize the SBOM generator with the project and application data directories.
+
+        Parameters:
+            project_root (Path | None): Project root directory, or the default project directory
+            when omitted.
+        """
         self.project_root = project_root or Path(__file__).parent.parent.parent
         self.biopro_dir = AppConfig.APP_DATA_DIR
 
@@ -51,14 +57,22 @@ class SBOMGenerator:
         }
 
     def compile_sbom(self) -> dict[str, Any]:
-        """Gathers system, core python library, and active plugin metadata."""
+        """Build a CycloneDX-compatible software bill of materials for the project.
+
+        The result includes core Python dependencies from ``uv.lock`` and metadata
+        for available plugins, including their trust status and integrity file count.
+        Plugin collection failures are recorded in ``plugins_error``.
+
+        Returns:
+            dict[str, Any]: The generated SBOM data.
+        """
         components_list: list[dict[str, Any]] = []
         plugins_list: list[dict[str, Any]] = []
 
         sbom: dict[str, Any] = {
             "bomFormat": "CycloneDX",
             "specVersion": "1.5",
-            "serialNumber": f"urn:uuid:{hashlib.sha256(str(platform.node()).encode()).hexdigest()[:32]}",
+            "serialNumber": f"urn:uuid:{hashlib.sha256(str(platform.node()).encode()).hexdigest()[:32]}",  # noqa: E501
             "version": 1,
             "metadata": self.get_metadata(),
             "components": components_list,
@@ -126,7 +140,11 @@ class SBOMGenerator:
         return json.dumps(self.compile_sbom(), indent=4)
 
     def to_markdown(self) -> str:
-        """Returns the SBOM as a beautifully formatted Markdown report."""
+        """Formats the SBOM as a Markdown report containing system details and dependencies.
+
+        Returns:
+                str: The formatted Markdown SBOM report.
+        """
         data = self.compile_sbom()
         md = []
         md.append("# Software Bill of Materials (SBOM) — BioPro\n")
@@ -150,7 +168,7 @@ class SBOMGenerator:
             md.append("| :--- | :--- | :--- | :--- | :---: | :--- |")
             for p in data["plugins"]:
                 md.append(
-                    f"| `{p['id']}` | {p['name']} | v{p['version']} | {p['author']} | {p['file_count']} | **{p['trust_status']}** |"
+                    f"| `{p['id']}` | {p['name']} | v{p['version']} | {p['author']} | {p['file_count']} | **{p['trust_status']}** |"  # noqa: E501
                 )
         else:
             md.append("*No plugins currently installed or loaded.*")
@@ -162,7 +180,7 @@ class SBOMGenerator:
         md.append("| :--- | :--- | :--- |")
         for comp in data["components"]:
             md.append(
-                f"| `{comp['name']}` | {comp['version']} | [Pypi Page](https://pypi.org/project/{comp['name']}/{comp['version']}/) |"
+                f"| `{comp['name']}` | {comp['version']} | [Pypi Page](https://pypi.org/project/{comp['name']}/{comp['version']}/) |"  # noqa: E501
             )
 
         return "\n".join(md)

@@ -91,6 +91,7 @@ jobs:
 
       - name: Install Linting & Security Tools
         run: |
+          if [ ! -d ".venv" ]; then uv venv; fi
           uv pip install ruff mypy pip-audit types-requests types-Markdown types-Pygments types-psutil requests markdown Pygments psutil
 
       - name: Run Ruff Linter
@@ -106,6 +107,32 @@ jobs:
         run: |
           uv export --format requirements-txt --no-emit-project | grep -v "^-e " > reqs.txt
           pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
+
+      - name: Install System UI Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libxcb-cursor0 libxkbcommon-x11-0 libdbus-1-3 \
+               libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 \
+               libxcb-shape0 libxcb-xfixes0 libxcb-xinerama0 libnss3 libnspr4 libatk1.0-0 \
+               libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+               libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64
+
+      - name: Install Test Dependencies
+        run: |
+          if [ ! -d ".venv" ]; then uv venv; fi
+          uv pip install pytest pytest-qt pytest-cov
+
+      - name: Run Tests with Coverage
+        run: |
+          uv run pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
+            tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
+            --tb=short -q \
+            --cov=biopro --cov-report=xml --cov-report=term-missing
+        env:
+          QT_QPA_PLATFORM: offscreen
+          DISPLAY: ":99"
+
+
 
   # Job 3: Cross-platform tests
   test:
@@ -211,6 +238,14 @@ jobs:
 
       - name: Run PyInstaller Build
         run: uv run pyinstaller BioPro.spec
+
+      - name: Run E2E Smoke Test (macOS)
+        if: runner.os == 'macOS'
+        run: ./dist/BioPro.app/Contents/MacOS/BioPro --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
+
+      - name: Run E2E Smoke Test (Windows)
+        if: runner.os == 'Windows'
+        run: .\dist\BioPro\BioPro.exe --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
 
       - name: Compress Artifacts (Windows)
         if: runner.os == 'Windows'

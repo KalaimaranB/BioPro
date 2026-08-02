@@ -16,12 +16,20 @@ class GalacticLoader(QQuickWidget):
     """
 
     warp_out_finished = pyqtSignal()
+    fade_out_finished = pyqtSignal()
 
     def __init__(self, parent=None):
+        """
+        Initialize the QML-based Galactic loading widget.
+
+        Parameters:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
 
         # Transparent background for the widget itself
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_AlwaysStackOnTop)
         self.setClearColor(Qt.GlobalColor.transparent)
         self.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
 
@@ -47,10 +55,14 @@ class GalacticLoader(QQuickWidget):
         root = self.rootObject()
         if root:
             root.warpOutFinished.connect(self.warp_out_finished.emit)
+            if hasattr(root, "fadeOutFinished"):
+                root.fadeOutFinished.connect(self.fade_out_finished.emit)
             self.update_colors()
 
     def update_colors(self):
-        """Update QML properties with current theme colors."""
+        """
+        Update the QML loader colors to reflect the current application theme.
+        """
         root = self.rootObject()
         if not root:
             return
@@ -71,13 +83,30 @@ class GalacticLoader(QQuickWidget):
         root.setProperty("textColor", text_color)
 
     def set_module(self, name: str):
-        """Reset the loader for a new module."""
+        """
+        Reset the loader and assign it to a new module.
+
+        Parameters:
+            name (str): Name of the module to display.
+        """
         root = self.rootObject()
         if root:
             root.setProperty("moduleName", name)
             import PyQt6.QtCore as QtCore
 
             QtCore.QMetaObject.invokeMethod(root, "reset")
+
+    def set_status_message(self, msg: str) -> None:
+        """Update the secondary status line during Phase 2.
+
+        Called by PluginLoaderManager once the skeleton panel is built and
+        Phase 2 (heavy widget construction) is about to begin. The message
+        replaces the default 'STATUS: HYPERDRIVE ENGAGED' text so the user
+        sees a meaningful progress indicator while the loader is still visible.
+        """
+        root = self.rootObject()
+        if root:
+            root.setProperty("statusMessage", msg)
 
     def warp_out(self):
         """Begin the cinematic warp-out sequence."""
@@ -86,6 +115,21 @@ class GalacticLoader(QQuickWidget):
             import PyQt6.QtCore as QtCore
 
             QtCore.QMetaObject.invokeMethod(root, "warpOut")
+
+    def fade_out(self, duration_ms: int = 500):
+        """
+        Begin the loader's fade-out transition.
+
+        Parameters:
+            duration_ms (int): Duration of the transition in milliseconds.
+        """
+        root = self.rootObject()
+        if root:
+            import PyQt6.QtCore as QtCore
+
+            QtCore.QMetaObject.invokeMethod(
+                root, "fadeOut", QtCore.Q_ARG(QtCore.QVariant, duration_ms)
+            )
 
 
 if __name__ == "__main__":

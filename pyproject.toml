@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biopro"
-version = "1.5.0.a"
+version = "1.5.0"
 description = "An open-source, intuitive bio analysis tool — Open Source, Free and Accessible to all."
 readme = "README.md"
 license = "MIT"
@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "biopro-sdk>=1.3.1",
+    "msgpack>=1.0.0",
     "PyQt6>=6.6",
     "PyQt6-WebEngine>=6.6",
     "numpy==1.26.4",
@@ -80,17 +81,21 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "D", "UP", "B", "SIM"]
-ignore = [
-    "D100", "D101", "D102", "D103", "D104", "D105", "D107", "D205",
-    "E501", "E722", "B024", "B027"
+select = [
+    "E", "F", "W", "I", "D", "UP", "B", "SIM", 
+    "N", "A", "ARG", "RET", "C4", "C90", 
+    "PLR0904", "PLR0913", "PLR0915"
 ]
+ignore = []
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "E501", "E402"]
-"tests/**/*.py" = ["D", "E501", "E402"]
-"biopro/ui/**/*.py" = ["D", "E501"]
-"biopro/plugins/**/*.py" = ["D", "E501"]
+"tests/*" = ["D", "E501", "E402", "PLR0915", "PLR0913", "ARG"]
+"tests/**/*.py" = ["D", "E501", "E402", "PLR0915", "PLR0913", "ARG"]
+"biopro/ui/**/*.py" = ["D", "E501", "C90", "PLR"]
+"biopro/plugins/**/*.py" = ["D", "E501", "PLR"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -139,6 +144,8 @@ module = [
     "requests"
 ]
 ignore_missing_imports = true
+
+
 
 [[tool.mypy.overrides]]
 module = "biopro.ui.*"

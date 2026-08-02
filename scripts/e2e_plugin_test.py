@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """BioPro End-to-End Integration Test.
+
 ====================================
 Simulates a clean end-user installation of the BioPro app + the Flow Cytometry
 plugin and validates that the entire pipeline (dependency install → FCS load →
@@ -37,6 +38,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Config
@@ -64,7 +66,7 @@ RESET = "\033[0m"
 # Result tracking
 # ─────────────────────────────────────────────────────────────────────────────
 @dataclass
-class PhaseResult:
+class PhaseResult:  # noqa: D101
     name: str
     passed: bool
     message: str = ""
@@ -168,7 +170,7 @@ def _write_synthetic_fcs(path: Path, n_events: int = 2000, n_channels: int = 4) 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
-def main():
+def main() -> None:  # noqa: D103
     parser = argparse.ArgumentParser(description="BioPro E2E Integration Test")
     parser.add_argument(
         "--fcs", type=Path, default=None, help="Path to an FCS file to use for testing"
@@ -231,10 +233,7 @@ def main():
     _print_report()
 
 
-def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
-    site_packages: Path | None = None
-    fcs_data = None  # shared across phases
-
+def _phase_1_clean_environment(plugin_dir: Path) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 1 — Clean Environment Simulation
     # ══════════════════════════════════════════════════════════════════════════
@@ -268,6 +267,8 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
 
         print(f"    ℹ  {len(deps)} direct dependencies declared in manifest")
 
+
+def _phase_2_install_dependencies(plugin_dir: Path) -> Path:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 2 — Plugin Dependency Installation
     # ══════════════════════════════════════════════════════════════════════════
@@ -325,6 +326,10 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
         fh_found = bool(list(site_packages.glob("fast_histogram*")))
         check(fh_found, "Package 'fast_histogram' present in site-packages")
 
+        return site_packages
+
+
+def _phase_3_validate_imports(plugin_dir: Path, site_packages: Path | None) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 3 — Critical Import Validation
     # ══════════════════════════════════════════════════════════════════════════
@@ -372,6 +377,8 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
         check(hasattr(fk, "Sample"), "flowkit.Sample class accessible")
         check(fk._conf.mp_context == "spawn", "flowkit mp_context set to 'spawn'")
 
+
+def _phase_4_load_fcs(fcs_path: Path) -> Any:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 4 — FCS Load Test (FlowKit must be the primary loader)
     # ══════════════════════════════════════════════════════════════════════════
@@ -413,6 +420,10 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
         for msg in captured_msgs:
             print(f"    ·  {msg}")
 
+        return fcs_data
+
+
+def _phase_5_check_data_integrity(fcs_data: Any) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 5 — Data Integrity
     # ══════════════════════════════════════════════════════════════════════════
@@ -449,6 +460,8 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
             finite_pct = float(np.isfinite(events[fsc_col]).mean()) * 100
             check(finite_pct >= 95.0, f"FSC-A finite fraction = {finite_pct:.1f}% ≥ 95%")
 
+
+def _phase_6_render_pseudocolor(fcs_data: Any) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 6 — Renderer Test (fast_histogram + compute_pseudocolor_points)
     # ══════════════════════════════════════════════════════════════════════════
@@ -492,10 +505,19 @@ def _run_all_phases(plugin_dir: Path, fcs_path: Path):  # noqa: C901
         )
 
 
+def _run_all_phases(plugin_dir: Path, fcs_path: Path) -> None:
+    _phase_1_clean_environment(plugin_dir)
+    site_packages = _phase_2_install_dependencies(plugin_dir)
+    _phase_3_validate_imports(plugin_dir, site_packages)
+    fcs_data = _phase_4_load_fcs(fcs_path)
+    _phase_5_check_data_integrity(fcs_data)
+    _phase_6_render_pseudocolor(fcs_data)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Report
 # ─────────────────────────────────────────────────────────────────────────────
-def _print_report():
+def _print_report() -> None:
     total = len(results)
     passed = sum(r.passed for r in results)
     failed = total - passed

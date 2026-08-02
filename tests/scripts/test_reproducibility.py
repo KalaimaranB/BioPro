@@ -58,8 +58,18 @@ def build_mock(name, epoch):
 
 
 def compare_dirs(dir1, dir2):
-    files1 = set(p.relative_to(dir1) for p in dir1.rglob("*") if p.is_file())
-    files2 = set(p.relative_to(dir2) for p in dir2.rglob("*") if p.is_file())
+    """
+    Compare the files and contents of two directories.
+
+    Parameters:
+        dir1 (Path): First directory to compare.
+        dir2 (Path): Second directory to compare.
+
+    Returns:
+        False if the directories contain different file paths; otherwise, a list of relative paths whose file contents differ.
+    """
+    files1 = set(p.relative_to(dir1) for p in dir1.rglob("*") if p.is_file())  # noqa: C401
+    files2 = set(p.relative_to(dir2) for p in dir2.rglob("*") if p.is_file())  # noqa: C401
 
     if files1 != files2:
         print(f"Different file sets! {files1 ^ files2}")
@@ -87,8 +97,8 @@ def test_determinism():
     if Path("dist_saved").exists():
         shutil.rmtree("dist_saved")
 
-    dirA = build_mock("A", epoch)
-    dirB = build_mock("B", epoch)
+    dirA = build_mock("A", epoch)  # noqa: N806
+    dirB = build_mock("B", epoch)  # noqa: N806
 
     differing = compare_dirs(dirA, dirB)
 

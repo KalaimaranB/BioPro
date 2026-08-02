@@ -152,6 +152,12 @@ class ModuleCard(QFrame):
             dialog.exec()
 
     def _apply_style(self, hovered: bool) -> None:
+        """
+        Apply the card's visual styling for its enabled, disabled, hovered, and trust states.
+
+        Parameters:
+            hovered (bool): Whether the card is currently hovered.
+        """
         if not self._enabled:
             theme_manager.apply_style(
                 self,
@@ -171,16 +177,26 @@ class ModuleCard(QFrame):
             f"QFrame#moduleCard {{ background: {bg}; border: 1.5px solid {border}; border-radius: 10px; }}",
         )
 
-    def enterEvent(self, event) -> None:
+    def enterEvent(self, event) -> None:  # noqa: N802
+        """Apply the hovered style when the card is enabled."""
         if self._enabled:
             self._apply_style(True)
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        """
+        Restore the card's default styling when the pointer leaves it.
+        """
         self._apply_style(False)
         super().leaveEvent(event)
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        """
+        Emit the card's click signal when the card is enabled.
+
+        Parameters:
+                event: The mouse press event to pass to the base widget implementation.
+        """
         if self._enabled:
             self.clicked.emit()
         super().mousePressEvent(event)
@@ -315,6 +331,7 @@ class DashboardWorkflowCard(QFrame):
         self.academy_requested.emit()
 
     def _apply_style(self, hovered: bool) -> None:
+        """Apply the card's background and border styling for its hover state."""
         if self._has_academy:
             # Blue left-border accent when academy courses are available
             border_left = "#1f6feb"
@@ -337,15 +354,25 @@ class DashboardWorkflowCard(QFrame):
                 f"QFrame#workflowCard {{ background: {bg}; border: 1px solid {border}; border-radius: 8px; }}",
             )
 
-    def enterEvent(self, event) -> None:
+    def enterEvent(self, event) -> None:  # noqa: N802
+        """
+        Apply the hovered styling when the pointer enters the card.
+
+        Parameters:
+                event: The pointer-enter event.
+        """
         self._apply_style(True)
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event) -> None:  # noqa: N802
+        """
+        Restore the card's default styling when the pointer leaves it.
+        """
         self._apply_style(False)
         super().leaveEvent(event)
 
-    def mousePressEvent(self, event) -> None:
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        """Handle card clicks while excluding clicks on overlay buttons."""
         pos = event.position().toPoint()
         # Ignore clicks on overlay buttons — they handle their own signals
         if self.btn_settings.geometry().contains(pos):

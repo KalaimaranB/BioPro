@@ -1,93 +1,34 @@
-"""Background network fetcher and plugin installer for BioPro."""
+"""Background network fetcher and plugin installer for BioPro (Facade)."""
 
-import contextlib
-import io
-import json
 import logging
 import os
-import shutil
+import tempfile
+import webbrowser
 import zipfile
 from pathlib import Path
-
-import certifi
-import requests
-from PyQt6.QtCore import QThread, pyqtSignal
+from typing import Any
 
 from biopro.core.config import AppConfig
 from biopro.core.event_bus import BioProEvent, event_bus
-from biopro.core.utils import AtomicJsonFile
+from biopro.core.network.client import NetworkClient
+from biopro.core.network.installer import safe_extract, safe_remove
+from biopro.core.network.registry_sync import RegistrySync
+from biopro.core.network.system_assets import SystemAssetSync
+from biopro.core.network.trust_sync import TrustSync
+from biopro.core.utils import AtomicJsonFile, parse_version
 
 logger = logging.getLogger(__name__)
 
 
-def _safe_extract(zip_ref: zipfile.ZipFile, dest_dir: Path):
-    """Safely extract zip files preventing Zip Slip (path traversal) vulnerabilities."""
-    dest_dir_str = os.path.abspath(dest_dir)
-    for member in zip_ref.infolist():
-        # Get absolute path of extracted file
-        member_target_path = os.path.abspath(os.path.join(dest_dir_str, member.filename))
-
-        # Ensure that the resolved path is within the intended destination directory
-        if not member_target_path.startswith(dest_dir_str + os.sep):
-            logger.warning(
-                f"Prevented directory traversal attack! Skipping file: {member.filename}"
-            )
-            continue
-
-        zip_ref.extract(member, dest_dir)
-
-
-class PluginInstallerWorker(QThread):
-    """Downloads, extracts, and installs a plugin into the user directory."""
-
-    progress = pyqtSignal(int, str)
-    finished = pyqtSignal(bool, str)
-
-    def __init__(self, plugin_id: str, download_url: str, plugins_dir: Path):
-        super().__init__()
-        self.plugin_id = plugin_id
-        self.download_url = download_url
-
-        # Override plugins_dir to strictly use the safe user folder, ignoring the source code folder
-        self.plugins_dir = Path.home() / ".biopro" / "plugins"
-
-    def run(self):
-        try:
-            # 1. Ensure the user plugin directory exists
-            self.plugins_dir.mkdir(parents=True, exist_ok=True)
-
-            # 2. Download the Zip File
-            self.progress.emit(10, f"Downloading {self.plugin_id}...")
-            # Use certifi.where() for PyInstaller compatibility
-            response = requests.get(
-                self.download_url, stream=True, timeout=15, verify=certifi.where()
-            )
-            response.raise_for_status()
-
-            # 3. Extract the Zip (Safely!)
-            self.progress.emit(60, "Extracting plugin files...")
-            with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                _safe_extract(z, self.plugins_dir)
-
-            self.progress.emit(100, "Installation complete!")
-            self.finished.emit(True, f"Successfully installed {self.plugin_id}")
-
-        except requests.RequestException as e:
-            msg = f"Network error downloading plugin: {e}"
-            logger.error(msg, exc_info=True)
-            self.finished.emit(False, "Download failed: Check your internet connection.")
-        except zipfile.BadZipFile:
-            msg = "Downloaded file is not a valid zip archive."
-            logger.error(msg, exc_info=True)
-            self.finished.emit(False, "Installation failed: Corrupted zip file.")
-        except Exception as e:
-            msg = f"Unexpected error installing plugin {self.plugin_id}"
-            logger.exception(msg)
-            self.finished.emit(False, f"Installation error: {str(e)}")
-
-
 class NetworkUpdater:
-    def __init__(self):
+    """Facade for network operations, delegating to specialized network packages."""
+
+    def __init__(self) -> None:
+        """Initialize network updater configuration and local plugin storage.
+
+        Creates the plugin directory and initializes the local installed-plugin registry when
+        needed.
+        """
         self.core_version = AppConfig.CORE_VERSION
         self.registry_url = AppConfig.REGISTRY_URL
         self.authority_url = AppConfig.AUTHORITY_REGISTRY_URL
@@ -98,14 +39,12 @@ class NetworkUpdater:
         self.local_registry_path = self.plugin_dir / "installed.json"
 
         if not self.local_registry_path.exists():
-            from biopro.core.utils import AtomicJsonFile
-
             AtomicJsonFile.save(self.local_registry_path, {})
 
         self.setup_developer_tools()
 
-    def setup_developer_tools(self):
-        """Ensures a copy of the signing utility is available in the plugins folder for developers."""
+    def setup_developer_tools(self) -> None:
+        """Ensures a copy of the signing utility is available in the plugins folder for developers."""  # noqa: E501
         try:
             signer_source = Path(__file__).parent / "sign_plugin.py"
             signer_dest = self.plugin_dir / "biopro-sign.py"
@@ -121,338 +60,85 @@ class NetworkUpdater:
         except Exception as e:
             logger.warning(f"Could not deploy signing tool: {e}")
 
-    def get_local_state(self):
-        """Scans the plugin directory for actual manifest files to determine current state.
-        This ensures that manually updated or locally developed plugins are correctly identified.
+    def get_local_state(self) -> dict[str, Any]:
+        """Retrieve the locally installed plugin registry state.
+
+        Returns:
+            dict: The current local registry data.
         """
-        local_state = {}
+        return RegistrySync.get_local_state(self.plugin_dir, self.local_registry_path)
 
-        # 1. Scan the plugin directory for subfolders
-        if not self.plugin_dir.exists():
-            return local_state
+    def fetch_remote_registry(self, registry_url: str) -> dict[str, Any]:
+        """Fetches registry data from the specified remote URL.
 
-        try:
-            from biopro_sdk.plugin.manifest_parser import ManifestParser
+        Parameters:
+            registry_url (str): URL of the remote registry.
 
-            parser = ManifestParser()
-        except ImportError:
-            parser = None
-
-        for item in self.plugin_dir.iterdir():
-            if item.is_dir():
-                manifest_path = item / "pyproject.toml"
-                if manifest_path.exists() and parser:
-                    try:
-                        manifest = parser.parse_file(str(manifest_path))
-                        plugin_id = manifest.get("id") or item.name
-                        local_state[plugin_id] = {
-                            "version": manifest.get("version", "0.0.0"),
-                            "name": manifest.get("name", item.name),
-                        }
-                    except Exception as e:
-                        logger.warning(f"Could not read pyproject.toml for {item.name}: {e}")
-
-        # 2. Sync back to installed.json for consistency (legacy support)
-        if not AtomicJsonFile.save(self.local_registry_path, local_state):
-            logger.error("Failed to sync local registry")
-
-        return local_state
-
-    def fetch_remote_registry(self, registry_url):
-        """Pulls the master JSON from your GitHub repository using requests with certifi.
-
-        Note: raw.githubusercontent.com uses Fastly CDN which ignores query-string
-        cache-busters. Content will update within 5-10 minutes of a push automatically.
+        Returns:
+            dict: Registry data retrieved from the remote URL.
         """
-        try:
-            headers = {
-                "User-Agent": "BioPro-App",
-                "Cache-Control": "no-cache, no-store",
-                "Pragma": "no-cache",
-            }
-            response = requests.get(
-                registry_url, timeout=5, headers=headers, verify=certifi.where()
-            )
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            msg = f"Network error fetching registry: {e}"
-            logger.error(msg, exc_info=True)
-            return {}
+        return RegistrySync.fetch_remote_registry(registry_url)
 
-    def fetch_remote_developers(self) -> list:
-        """Fetches developer profiles from separate developers.json or falls back gracefully."""
-        dev_url = self.registry_url.replace("registry.json", "developers.json")
-        try:
-            headers = {"User-Agent": "BioPro-App", "Cache-Control": "no-cache"}
-            response = requests.get(dev_url, timeout=5, headers=headers, verify=certifi.where())
-            if response.status_code == 200:
-                data = response.json()
-                devs_data = data.get("developers", {})
-                if isinstance(devs_data, dict):
-                    dev_list = []
-                    for dev_id, info in devs_data.items():
-                        dev_item = dict(info)
-                        dev_item["developer_id"] = dev_id
-                        dev_list.append(dev_item)
-                    return dev_list
-                elif isinstance(devs_data, list):
-                    return devs_data
-        except Exception as e:
-            logger.debug(f"Could not fetch separate developers.json, falling back: {e}")
-        return []
+    def fetch_remote_developers(self) -> list[dict[str, Any]]:
+        """Fetches the developers listed in the remote registry.
 
-    def _parse_version(self, v_str: str) -> tuple:
-        """Converts a version string like '1.0.4' into a comparable tuple (1, 0, 4)."""
-        try:
-            # Handle empty or non-string inputs
-            if not v_str or not isinstance(v_str, str):
-                return (0, 0, 0)
-            # Remove any non-numeric suffixes (like -alpha, -beta) for comparison
-            clean_v = v_str.split("-")[0]
-            parts = []
-            for p in clean_v.split("."):
-                if p.isdigit():
-                    parts.append(int(p))
-                else:
-                    break
-            return tuple(parts) if parts else (0, 0, 0)
-        except (ValueError, AttributeError):
-            return (0, 0, 0)
+        Returns:
+                list: The remote developer records.
+        """
+        return RegistrySync.fetch_remote_developers(self.registry_url)
 
-    def evaluate_store_state(self):
-        remote_data = self.fetch_remote_registry(self.registry_url)
-        local_data = self.get_local_state()
-        store_inventory = {}
-        plugins_data = remote_data.get("plugins", {})
-        app_v = self._parse_version(self.core_version)
+    def evaluate_store_state(self) -> dict:
+        """Evaluate store state and synchronize related trust and system asset data.
 
-        logger.info(f"Checking Store State. App Version: {self.core_version} (Parsed: {app_v})")
-
-        for plugin_id, remote_info in plugins_data.items():
-            state = "INSTALL"
-            min_core_str = remote_info.get("min_core_version", "0.0.0")
-            min_core_v = self._parse_version(min_core_str)
-
-            logger.info(
-                f"Plugin {plugin_id}: MinCoreReq={min_core_str} ({min_core_v}), AppVersion={self.core_version} ({app_v})"
-            )
-
-            if app_v < min_core_v:
-                state = "INCOMPATIBLE"
-                logger.warning(f"MARKING {plugin_id} AS INCOMPATIBLE: {app_v} < {min_core_v}")
-            elif plugin_id in local_data:
-                local_v = self._parse_version(local_data[plugin_id].get("version", "0.0.0"))
-                remote_v = self._parse_version(remote_info.get("version", "0.0.0"))
-
-                state = "UPDATE" if local_v < remote_v else "UP_TO_DATE"
-
-            # 4. Check if the developer is Verified
-            is_verified = False
-            author_id = remote_info.get("author_id", remote_info.get("author"))
-            if author_id:
-                roots_dir = Path.home() / ".biopro" / "trusted_roots"
-                if (roots_dir / f"network_{author_id}.pub").exists():
-                    is_verified = True
-
-            store_inventory[plugin_id] = {
-                "info": remote_info,
-                "state": state,
-                "local_version": local_data.get(plugin_id, {}).get("version", None),
-                "is_verified": is_verified,
-            }
-
-        # Try to pull separate developers.json, otherwise fall back to embedded metadata
-        trusted_devs = self.fetch_remote_developers()
-        if not trusted_devs:
-            trusted_devs = remote_data.get("trusted_developers", [])
+        Returns:
+                dict: The evaluated store inventory.
+        """
+        store_inventory, trusted_devs, remote_data = RegistrySync.evaluate_store_state(
+            self.core_version, self.registry_url, self.plugin_dir, self.local_registry_path
+        )
         self.sync_trusted_developers(trusted_devs)
         self.fetch_and_sync_authorities()
-        self.sync_system_assets()
+        SystemAssetSync.sync_assets(remote_data, self.plugin_dir)
         return store_inventory
 
-    def fetch_and_sync_authorities(self):
-        """Pulls the separate authorities JSON, cryptographically verifies its signature using the root key, and syncs them to local storage."""
-        if not self.authority_url:
-            return
+    def fetch_and_sync_authorities(self) -> None:
+        """Fetch and synchronize authority data from the configured authority service."""
+        TrustSync.fetch_and_sync_authorities(self.authority_url)
 
-        try:
-            import time
+    def sync_trusted_developers(self, trusted_list: list[dict[str, Any]]) -> None:
+        """Synchronize the configured trusted developer records.
 
-            authority_url = f"{self.authority_url}?t={int(time.time())}"
-
-            headers = {"User-Agent": "BioPro-App", "Cache-Control": "no-cache"}
-            response = requests.get(
-                authority_url, timeout=5, headers=headers, verify=certifi.where()
-            )
-
-            # If the authority registry is missing (404), just skip it silently.
-            # This prevents noisy logs in environments where the authority repo hasn't been set up yet.
-            if response.status_code == 404:
-                return
-
-            response.raise_for_status()
-            remote_data = response.json()
-            authorities = remote_data.get("authorities", [])
-
-            if authorities:
-                # Cryptographic verification against the hardcoded root public key
-                from biopro_sdk.host import BIOPRO_ROOT_PUBLIC_KEY_HEX
-                from cryptography.hazmat.primitives.asymmetric import ed25519
-
-                sig_hex = remote_data.get("signature")
-                if not sig_hex:
-                    logger.error("Signature missing from authorities registry! Skipping sync.")
-                    return
-
-                # Canonicalize the authorities list matching the signature generation
-                canonical_bytes = json.dumps(authorities, sort_keys=True).encode()
-
-                # Load root public key
-                root_pub_bytes = bytes.fromhex(BIOPRO_ROOT_PUBLIC_KEY_HEX)
-                root_public_key = ed25519.Ed25519PublicKey.from_public_bytes(root_pub_bytes)
-
-                # Verify signature
-                try:
-                    root_public_key.verify(bytes.fromhex(sig_hex), canonical_bytes)
-                    logger.info("Successfully verified authorities registry signature ✅")
-                except Exception as e:
-                    logger.error(
-                        f"CRITICAL SECURITY ALERT: Authorities registry signature verification failed! {e}"
-                    )
-                    return
-
-                self._sync_keys(authorities, prefix="auth_")
-        except Exception as e:
-            # Only log actual network failures, not 404s
-            logger.debug(f"Optional authority registry not available: {e}")
-
-    def _sync_keys(self, trusted_list: list, prefix: str = "network_"):
-        """Generic key syncing logic used by both plugins and authority registries."""
-        roots_dir = Path.home() / ".biopro" / "trusted_roots"
-        roots_dir.mkdir(parents=True, exist_ok=True)
-
-        # 1. Identify current network keys for this prefix
-        existing_keys = list(roots_dir.glob(f"{prefix}*.pub"))
-        new_filenames = []
-
-        for entity in trusted_list:
-            entity_id = entity.get("id") or entity.get("developer_id")
-            pub_hex = entity.get("public_key")
-
-            if not entity_id or not pub_hex:
-                continue
-
-            filename = roots_dir / f"{prefix}{entity_id}.pub"
-            new_filenames.append(filename)
-
-            try:
-                # Save raw bytes
-                with open(filename, "wb") as f:
-                    f.write(bytes.fromhex(pub_hex))
-            except Exception as e:
-                logger.error(f"Failed to sync key for {entity_id}: {e}")
-
-        # 2. Cleanup
-        for old_key in existing_keys:
-            if old_key not in new_filenames:
-                with contextlib.suppress(Exception):
-                    old_key.unlink()
-
-    def sync_trusted_developers(self, trusted_list: list):
-        """Maintained for backward compatibility but routes to generic sync."""
-        self._sync_keys(trusted_list, prefix="network_")
-
-        # Integrate centralized profile caching and image download
-        try:
-            from biopro.core.developer_database import AvatarManager, DeveloperProfileDatabase
-
-            db = DeveloperProfileDatabase()
-            db.save_profiles(trusted_list)
-
-            # Asynchronously download/cache avatars in background
-            avatar_mgr = AvatarManager()
-            for dev in trusted_list:
-                dev_id = dev.get("developer_id")
-                avatar_url = dev.get("avatar_url")
-                if dev_id and avatar_url:
-                    avatar_mgr.fetch_and_cache_avatar(dev_id, avatar_url)
-        except Exception as e:
-            logger.warning(f"Could not sync developer profile database/avatars: {e}")
+        Parameters:
+            trusted_list (list): Trusted developer records to synchronize.
+        """
+        TrustSync.sync_trusted_developers(trusted_list)
 
     def sync_system_assets(self) -> None:
-        """Pulls latest SDK, themes, and docs updates from registry.json and installs them if versions differ."""
+        """Synchronize system assets using the remote registry data."""
         remote_data = self.fetch_remote_registry(self.registry_url)
-        if not remote_data:
-            return
+        SystemAssetSync.sync_assets(remote_data, self.plugin_dir)
 
-        local_assets_path = self.plugin_dir / "system_assets.json"
-        local_assets = AtomicJsonFile.load(local_assets_path, default={})
+    def check_for_core_updates(self) -> tuple[bool, dict[str, Any] | None]:
+        """Determine whether a newer core application version is available.
 
-        # Asset types to sync automatically
-        system_types = {
-            "sdk": Path.home() / ".biopro" / "sdk",
-            "themes": Path.home() / ".biopro" / "themes",
-            "docs": Path.home() / ".biopro" / "docs",
-        }
-
-        updated_any = False
-
-        for asset_key, local_dir in system_types.items():
-            remote_info = remote_data.get(asset_key)
-            if not remote_info:
-                continue
-
-            remote_v = remote_info.get("version", "0.0.0")
-            local_v = local_assets.get(asset_key, {}).get("version", "0.0.0")
-
-            if self._parse_version(local_v) < self._parse_version(remote_v):
-                download_url = remote_info.get("download_url")
-                if not download_url:
-                    continue
-
-                logger.info(
-                    f"Automatically updating {asset_key} from version {local_v} to {remote_v}..."
-                )
-                try:
-                    headers = {"User-Agent": "BioPro-App"}
-                    response = requests.get(
-                        download_url, timeout=15, headers=headers, verify=certifi.where()
-                    )
-                    response.raise_for_status()
-
-                    # Clean local dir and extract securely
-                    if local_dir.is_symlink() or local_dir.is_file():
-                        local_dir.unlink()
-                    elif local_dir.exists():
-                        shutil.rmtree(local_dir)
-                    local_dir.mkdir(parents=True, exist_ok=True)
-
-                    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-                        _safe_extract(z, local_dir)
-
-                    # Update local tracking
-                    local_assets[asset_key] = {"version": remote_v}
-                    updated_any = True
-                    logger.info(f"Successfully updated {asset_key} to {remote_v} ✅")
-                except Exception as e:
-                    logger.error(f"Failed to automatically update {asset_key}: {e}")
-
-        if updated_any:
-            AtomicJsonFile.save(local_assets_path, local_assets)
-
-    def check_for_core_updates(self):
+        Returns:
+            tuple: A boolean and core application details when an update is available;
+                otherwise, `False` and `None`.
+        """
         remote_data = self.fetch_remote_registry(self.registry_url)
         core_info = remote_data.get("core_app", {})
         remote_version = core_info.get("version", "0.0.0")
 
-        if self.core_version < remote_version:
+        if parse_version(self.core_version) < parse_version(remote_version):  # noqa: E501
             return True, core_info
         return False, None
 
     def launch_core_update_page(self) -> bool:
-        import webbrowser
+        """Open the core application's download page when a URL is available.
 
+        Returns:
+            bool: `True` if the download page was opened, `False` if no URL is configured.
+        """
         remote_data = self.fetch_remote_registry(self.registry_url)
         core_info = remote_data.get("core_app", {})
         download_url = core_info.get("download_url")
@@ -462,75 +148,57 @@ class NetworkUpdater:
             return True
         return False
 
-    def _safe_remove(self, plugin_folder: Path) -> None:
-        """Safely removes a plugin directory on Windows where files may be locked.
-        Uses a .trash renaming strategy to prevent WinError 32 crashes during updates.
+    def install_plugin(self, plugin_id: str, remote_info: dict[str, Any]) -> tuple[bool, str]:
+        """Download and install a plugin package, then update the local installation registry.
+
+        Parameters:
+            plugin_id: Identifier of the plugin to install.
+            remote_info: Plugin metadata containing the download URL, version, and name.
+
+        Returns:
+            A tuple containing a success flag and a status message.
         """
-        if not plugin_folder.exists():
-            return
-
-        if plugin_folder.is_symlink() or plugin_folder.is_file():
-            plugin_folder.unlink()
-            return
-
-        trash_dir = self.plugin_dir / ".trash"
-        trash_dir.mkdir(parents=True, exist_ok=True)
-
-        import time
-
-        trash_path = trash_dir / f"{plugin_folder.name}_{int(time.time())}"
-
         try:
-            # Rename gets the active folder out of the way immediately, even if files are locked.
-            plugin_folder.rename(trash_path)
-        except OSError as e:
-            raise RuntimeError(
-                f"The plugin is currently locked by the system and cannot be updated. "
-                f"Please restart BioPro and try again. ({e})"
-            ) from e
-
-        # Try to quietly delete the trashed folder. Locked DLLs will survive this sweep.
-        shutil.rmtree(trash_path, ignore_errors=True)
-
-        # Self-cleaning loop: Try to clean up any past trashed folders that are no longer locked
-        for item in trash_dir.iterdir():
-            shutil.rmtree(item, ignore_errors=True)
-
-    def install_plugin(self, plugin_id, remote_info):
-        """Downloads a .zip plugin package, extracts it securely, and updates the registry."""
-        try:
-            headers = {"User-Agent": "BioPro-App"}
-            response = requests.get(
-                remote_info["download_url"], timeout=15, headers=headers, verify=certifi.where()
+            response = NetworkClient.get(
+                remote_info["download_url"],
+                timeout=NetworkClient.DEFAULT_TIMEOUT,
+                stream=True,
             )
             response.raise_for_status()
-            zip_bytes = response.content
 
-            plugin_folder = self.plugin_dir / plugin_id
-            self._safe_remove(plugin_folder)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+                max_download_size = 500 * 1024 * 1024  # 500 MB limit
+                downloaded = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    downloaded += len(chunk)
+                    if downloaded > max_download_size:
+                        raise RuntimeError("Download exceeded maximum size limit.")
+                    tmp.write(chunk)
+                tmp_path = tmp.name
 
-            with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-                # Smart isolation: Check if the zip already has a top-level folder for the plugin
-                has_nested_folder = False
-                namelist = z.namelist()
-                if namelist:
-                    first_member = namelist[0]
-                    if first_member.startswith(plugin_id + "/") or first_member.startswith(
-                        plugin_id + os.sep
-                    ):
-                        has_nested_folder = True
+            try:
+                plugin_folder = self.plugin_dir / plugin_id
+                safe_remove(self.plugin_dir, plugin_folder)
 
-                extract_target = self.plugin_dir if has_nested_folder else plugin_folder
-                extract_target.mkdir(parents=True, exist_ok=True)
-                _safe_extract(z, extract_target)
+                with zipfile.ZipFile(tmp_path) as z:
+                    namelist = [n for n in z.namelist() if not n.startswith("__MACOSX/")]
+                    prefixes = (plugin_id + "/", plugin_id + "\\")
+                    has_nested_folder = bool(namelist) and all(
+                        name.startswith(prefixes) for name in namelist
+                    )
+
+                    extract_target = self.plugin_dir if has_nested_folder else plugin_folder
+                    extract_target.mkdir(parents=True, exist_ok=True)
+                    safe_extract(z, extract_target)
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
 
             local_data = self.get_local_state()
             local_data[plugin_id] = {"version": remote_info["version"], "name": remote_info["name"]}
 
-            with open(self.local_registry_path, "w", encoding="utf-8") as f:
-                json.dump(local_data, f, indent=4)
+            AtomicJsonFile.save(self.local_registry_path, local_data)
 
-            # Broadcast the installation success (The Nervous System sends a pulse)
+            # Broadcast the installation success
             event_bus.emit(BioProEvent.PLUGIN_INSTALLED, plugin_id)
 
             return True, "Installation successful."
@@ -538,17 +206,24 @@ class NetworkUpdater:
             logger.error(f"Failed to install {plugin_id}: {e}")
             return False, f"Failed to install: {e}"
 
-    def remove_plugin(self, plugin_id):
+    def remove_plugin(self, plugin_id: str) -> tuple[bool, str]:
+        """Remove an installed plugin and update the local registry.
+
+        Parameters:
+            plugin_id: Identifier of the plugin to remove.
+
+        Returns:
+            A tuple containing a success flag and a status message.
+        """
         try:
             plugin_folder = self.plugin_dir / plugin_id
-            self._safe_remove(plugin_folder)
+            safe_remove(self.plugin_dir, plugin_folder)
 
             local_data = self.get_local_state()
             if plugin_id in local_data:
                 del local_data[plugin_id]
 
-            with open(self.local_registry_path, "w", encoding="utf-8") as f:
-                json.dump(local_data, f, indent=4)
+            AtomicJsonFile.save(self.local_registry_path, local_data)
 
             # Broadcast the removal
             event_bus.emit(BioProEvent.PLUGIN_REMOVED, plugin_id)

@@ -29,12 +29,32 @@ class HelpPage(QWebEnginePage):
     """Custom page to intercept links and prevent navigation crashes."""
 
     def __init__(self, dialog, *args, **kwargs):
+        """
+        Initialize the page with a reference to its owning dialog.
+
+        Parameters:
+            dialog: The dialog used to handle intercepted navigation requests.
+        """
         super().__init__(*args, **kwargs)
         self.dialog = dialog
 
-    def acceptNavigationRequest(
-        self, url: QUrl, nav_type: QWebEnginePage.NavigationType, is_main_frame: bool
+    def acceptNavigationRequest(  # noqa: N802
+        self,
+        url: QUrl,
+        nav_type: QWebEnginePage.NavigationType,
+        is_main_frame: bool,  # noqa: ARG002
     ) -> bool:
+        """
+        Intercept clicked Markdown links and route them to the owning help dialog.
+
+        Parameters:
+            url (QUrl): URL targeted by the navigation request.
+            nav_type (QWebEnginePage.NavigationType): Type of navigation request.
+            is_main_frame (bool): Whether the request targets the main frame.
+
+        Returns:
+            bool: `False` for clicked Markdown links, `True` for all other navigation requests.
+        """
         if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
             url_str = url.toString()
             if url_str.endswith(".md"):
@@ -140,9 +160,15 @@ class HelpCenterDialog(QDialog):
         layout.addWidget(splitter)
 
     def _populate_tree_from_dir(self, directory: Path, parent_item: QTreeWidgetItem):
-        """Recursively scan for .md files and build tree structure."""
+        """
+        Recursively populates a tree item with markdown files and documentation subdirectories.
+
+        Parameters:
+            directory (Path): Directory to scan.
+            parent_item (QTreeWidgetItem): Tree item under which files and subdirectories are added.
+        """
         # 1. Add files in this directory
-        for f in sorted(list(directory.glob("*.md"))):
+        for f in sorted(list(directory.glob("*.md"))):  # noqa: C414
             name = f.stem
             # Clean up display name: remove leading numbers and underscores
             display_name = (
@@ -160,7 +186,7 @@ class HelpCenterDialog(QDialog):
             self.lookup_table[f.name] = item
 
         # 2. Add subdirectories recursively
-        for d in sorted(list(directory.iterdir())):
+        for d in sorted(list(directory.iterdir())):  # noqa: C414
             if d.is_dir() and not d.name.startswith(".") and d.name != "images":
                 sub_item = QTreeWidgetItem(parent_item, [d.name.title()])
                 sub_item.setFlags(sub_item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
@@ -175,7 +201,7 @@ class HelpCenterDialog(QDialog):
                     parent_item.removeChild(sub_item)
 
     def _load_topics(self):
-        """Build hierarchical categories from folder structure."""
+        """Builds the documentation tree from core and available plugin documentation directories."""
         font = self.tree.font()
         font.setBold(True)
         font.setPointSize(11)
@@ -215,7 +241,7 @@ class HelpCenterDialog(QDialog):
                     found_plugins = True
                     manifest = mod_info["manifest"]
                     plugin_root = QTreeWidgetItem(
-                        self.plugin_group, [f"📦 {manifest.get('name', mod_id)}"]
+                        self.plugin_group, [f"📦 {manifest.get('display_name', mod_id)}"]
                     )
                     plugin_root.setFlags(plugin_root.flags() & ~Qt.ItemFlag.ItemIsSelectable)
 

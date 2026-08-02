@@ -1,3 +1,5 @@
+"""Core module."""
+
 import logging
 import os
 from pathlib import Path
@@ -15,6 +17,11 @@ class ProjectLock:
     """Handles project-level file locking to prevent concurrent access."""
 
     def __init__(self, project_dir: Path):
+        """Initialize a project lock for the specified directory.
+
+        Parameters:
+            project_dir (Path): Directory containing the project's lock file.
+        """
         self.project_dir = project_dir
         self.lock_file = self.project_dir / ".biopro.lock"
 

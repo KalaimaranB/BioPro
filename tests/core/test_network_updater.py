@@ -1,8 +1,29 @@
 import io
+import json
+import zipfile
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from biopro.core.network.trust_sync import TrustSync
+
+# Import from the facade and new network modules
+from biopro.core.network_updater import NetworkUpdater
+from biopro.ui.workers.plugin_installer import PluginInstallerWorker
 
 
 def _dict_to_toml(d):
     # Convert flat dict to pyproject.toml format
+    """
+    Convert plugin metadata into a pyproject.toml-formatted string.
+
+    Parameters:
+        d: Flat plugin metadata dictionary.
+
+    Returns:
+        A TOML string containing project and BioPro plugin metadata.
+    """
     lines = []
 
     lines.append("[project]")
@@ -37,16 +58,6 @@ def _dict_to_toml(d):
         lines.append("]")
 
     return "\n".join(lines)
-
-
-import json
-import zipfile
-from pathlib import Path
-from unittest.mock import patch
-
-import pytest
-
-from biopro.core.network_updater import NetworkUpdater, PluginInstallerWorker
 
 
 # Mock PyQt6 to avoid QThread errors during testing if needed
@@ -107,7 +118,7 @@ def create_safe_zip() -> bytes:
     return buffer.getvalue()
 
 
-@patch("biopro.core.network_updater.requests.get")
+@patch("biopro.core.network.client.requests.get")
 def test_plugin_installer_zip_slip(mock_get, temp_plugin_dir, monkeypatch):
     """Verify that the Zip Slip vulnerability is blocked by safe extraction."""
     monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
@@ -117,25 +128,10 @@ def test_plugin_installer_zip_slip(mock_get, temp_plugin_dir, monkeypatch):
     mock_response.raise_for_status.return_value = None
 
     installer = PluginInstallerWorker("evil_plugin", "https://fake.url", Path("dummy"))
-
-    # Run the worker to extract the zip
     installer.run()
 
-    # Check if the evil file escaped into /tmp
-    # Usually we can't write to /tmp cleanly in all systems, but we can check if it raised an error
-    # or if it was safely ignored.
 
-    plugin_dir = temp_plugin_dir / ".biopro" / "plugins"
-    plugin_dir / "safe_plugin" / "info.json"
-
-    # The normal file should be extracted (if we choose to extract safe files and skip bad ones)
-    # The malicious file must NOT exist at the targeted path
-
-    # Wait, the current implementation extractall() would throw an error or write it.
-    # We will test that safe extraction either raises an exception or ignores the bad file.
-
-
-@patch("biopro.core.network_updater.requests.get")
+@patch("biopro.core.network.client.requests.get")
 def test_plugin_installer_ssl_verify(mock_get, temp_plugin_dir, monkeypatch):
     """Ensure requests.get is called with properly configured SSL certs."""
     import certifi
@@ -150,11 +146,19 @@ def test_plugin_installer_ssl_verify(mock_get, temp_plugin_dir, monkeypatch):
 
     # Verify requests.get was called with verify=certifi.where()
     mock_get.assert_called_once_with(
-        "https://fake.url", stream=True, timeout=15, verify=certifi.where()
+        "https://fake.url",
+        stream=True,
+        timeout=15,
+        headers={
+            "User-Agent": "BioPro-App",
+            "Cache-Control": "no-cache, no-store",
+            "Pragma": "no-cache",
+        },
+        verify=certifi.where(),
     )
 
 
-@patch("biopro.core.network_updater.requests.get")
+@patch("biopro.core.network.client.requests.get")
 def test_network_updater_fetch_registry(mock_get, temp_plugin_dir, monkeypatch):
     """Ensure NetworkUpdater uses requests with verify=certifi.where() and no-cache headers."""
     import certifi
@@ -170,7 +174,8 @@ def test_network_updater_fetch_registry(mock_get, temp_plugin_dir, monkeypatch):
 
     mock_get.assert_called_once_with(
         "https://registry.url",
-        timeout=5,
+        stream=False,
+        timeout=15,  # Default client timeout
         headers={
             "User-Agent": "BioPro-App",
             "Cache-Control": "no-cache, no-store",
@@ -185,12 +190,21 @@ class TestNetworkUpdaterExpanded:
 
     @pytest.fixture
     def updater(self, temp_plugin_dir, monkeypatch):
+        """Create a network updater configured to use the temporary plugin directory.
+
+        Parameters:
+            temp_plugin_dir (Path): Temporary home directory for plugin data.
+            monkeypatch: Pytest monkeypatch fixture used to override the home directory.
+
+        Returns:
+            NetworkUpdater: An updater configured with the temporary plugin directory.
+        """
         monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
         return NetworkUpdater()
 
-    @patch("biopro.core.network_updater.requests.get")
+    @patch("biopro.core.network.client.requests.get")
     def test_evaluate_store_state_scenarios(self, mock_get, updater):
-        """Tests the logic for categorizing plugins as INSTALL, UPDATE, or INCOMPATIBLE."""
+        """Classify plugins as INSTALL, UPDATE, UP_TO_DATE, or INCOMPATIBLE based on local and remote state."""
         mock_response = mock_get.return_value
         mock_response.json.return_value = {"authorities": []}
         mock_response.raise_for_status.return_value = None
@@ -231,8 +245,14 @@ class TestNetworkUpdaterExpanded:
         }
 
         with (
-            patch.object(updater, "fetch_remote_registry", return_value=remote_registry),
-            patch.object(updater, "get_local_state", return_value=local_data),
+            patch(
+                "biopro.core.network.registry_sync.RegistrySync.fetch_remote_registry",
+                return_value=remote_registry,
+            ),
+            patch(
+                "biopro.core.network.registry_sync.RegistrySync.get_local_state",
+                return_value=local_data,
+            ),
         ):
             inventory = updater.evaluate_store_state()
 
@@ -256,11 +276,16 @@ class TestNetworkUpdaterExpanded:
             needed, _ = updater.check_for_core_updates()
             assert needed is False
 
-    @patch("biopro.core.network_updater.requests.get")
+    @patch("biopro.core.network.client.requests.get")
     def test_install_plugin_updates_local_registry(self, mock_get, updater):
         """Verify that successful installation updates the local registry file."""
         mock_response = mock_get.return_value
-        mock_response.content = create_safe_zip()
+        import io
+
+        zip_bytes = create_safe_zip()
+        mock_response.content = zip_bytes
+        mock_response.raw = io.BytesIO(zip_bytes)
+        mock_response.iter_content.return_value = [zip_bytes]
         mock_response.raise_for_status.return_value = None
 
         plugin_info = {"version": "1.2.3", "name": "Test Plugin", "download_url": "http://fake.url"}
@@ -293,7 +318,7 @@ class TestNetworkUpdaterExpanded:
 
     def test_fetch_remote_registry_error(self, updater):
         """Ensures that network errors during registry fetch return an empty dict."""
-        with patch("requests.get", side_effect=Exception("Timeout")):
+        with patch("biopro.core.network.client.requests.get", side_effect=Exception("Timeout")):
             res = updater.fetch_remote_registry("http://bad.url")
             assert res == {}
 
@@ -317,30 +342,68 @@ class TestNetworkUpdaterExpanded:
 
     def test_install_plugin_failure_path(self, updater):
         """Ensures that installation failures are caught and reported."""
-        with patch("requests.get", side_effect=Exception("IO Error")):
+        with patch("biopro.core.network.client.requests.get", side_effect=Exception("IO Error")):
             success, msg = updater.install_plugin("fail", {"download_url": "..."})
             assert success is False
             assert "Failed to install" in msg
 
-    def test_sync_keys_cleanup(self, updater):
+    def test_sync_keys_cleanup(self, updater, temp_plugin_dir, monkeypatch):
         """Verifies that keys no longer in the trusted list are removed from disk."""
-        roots_dir = Path.home() / ".biopro" / "trusted_roots"
+        monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
+        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
         old_key = roots_dir / "network_old.pub"
         old_key.write_bytes(b"data")
 
         # Sync with an empty list should remove the old key
-        updater._sync_keys([], prefix="network_")
+        TrustSync.sync_keys([], prefix="network_")
         assert not old_key.exists()
 
-    def test_authority_sync_404_ignored(self, updater):
+    def test_sync_keys_rejects_traversal_attack(self, updater, temp_plugin_dir, monkeypatch):
+        """Verify that sync_keys rejects path traversal attempts in entity IDs."""
+        monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
+        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
+        roots_dir.mkdir(parents=True, exist_ok=True)
+
+        # Attempt to write outside trusted_roots via path traversal
+        malicious_entities = [
+            {"id": "../../../tmp/evil", "public_key": "aabbcc"},
+            {"id": "..\\..\\..\\tmp\\evil2", "public_key": "ddeeff"},
+            {"id": "normal_id/../../../evil3", "public_key": "112233"},
+        ]
+
+        # Should not raise but should skip invalid entries
+        TrustSync.sync_keys(malicious_entities, prefix="network_")
+
+        # Verify no files were created outside roots_dir
+        parent_dir = roots_dir.parent
+        for item in parent_dir.rglob("*evil*"):
+            # If the item is inside roots_dir, it was safely sanitized and contained
+            if roots_dir in item.parents:
+                continue
+            # If any evil files exist outside roots_dir, fail the test
+            raise AssertionError(f"Malicious file escaped roots_dir: {item}")
+
+        # Verify only valid files (none in this case) exist in roots_dir
+        created_files = list(roots_dir.glob("network_*.pub"))
+        assert len(created_files) == 3, "Sanitized files should have been created for invalid IDs"
+
+    def test_authority_sync_404_ignored(self, updater, temp_plugin_dir, monkeypatch):
         """Ensures that a 404 on the authority registry is handled silently."""
-        with patch("requests.get") as mock_get:
+        monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
+        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
+        roots_dir.mkdir(parents=True, exist_ok=True)
+
+        with patch("biopro.core.network.client.requests.get") as mock_get:
             mock_get.return_value.status_code = 404
             # Should not raise
             updater.fetch_and_sync_authorities()
 
-    @patch("biopro_sdk.host.BIOPRO_ROOT_PUBLIC_KEY_HEX", "0" * 64)
+            # Verify no authority keys were synchronized
+            auth_keys = list(roots_dir.glob("auth_*.pub"))
+            assert len(auth_keys) == 0, "No authority keys should be synchronized after 404"
+
+    @patch("biopro.core.network.trust_sync.BIOPRO_ROOT_PUBLIC_KEY_HEX", "0" * 64)
     def test_authority_sync_signature_verification_failure(self, updater):
         """Verifies that authority sync aborts if signature verification fails."""
         from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -351,17 +414,25 @@ class TestNetworkUpdaterExpanded:
         canonical_bytes = json.dumps(authorities, sort_keys=True).encode()
         sig = private_key.sign(canonical_bytes).hex()
 
-        with patch("requests.get") as mock_get:
+        with patch("biopro.core.network.client.requests.get") as mock_get:
             mock_get.return_value.status_code = 200
             mock_get.return_value.json.return_value = {"authorities": authorities, "signature": sig}
             # This should fail because the root public key hex was patched to 00...
-            with patch.object(updater, "_sync_keys") as mock_sync:
+            with patch("biopro.core.network.trust_sync.TrustSync.sync_keys") as mock_sync:
                 updater.fetch_and_sync_authorities()
                 mock_sync.assert_not_called()
 
     def test_sync_system_assets_logic(self, updater):
-        """Tests the automatic update logic for system assets (SDK, docs)."""
-        remote_data = {"sdk": {"version": "2.0.0", "download_url": "http://sdk.zip"}, "plugins": {}}
+        """Verify that newer system assets are downloaded and recorded in local metadata."""
+        import hashlib
+
+        fake_content = b"zipdata"
+        fake_hash = hashlib.sha256(fake_content).hexdigest()
+
+        remote_data = {
+            "sdk": {"version": "2.0.0", "download_url": "http://sdk.zip", "sha256": fake_hash},
+            "plugins": {},
+        }
         local_assets = {"sdk": {"version": "1.0.0"}}
 
         assets_json = updater.plugin_dir / "system_assets.json"
@@ -369,13 +440,13 @@ class TestNetworkUpdaterExpanded:
 
         with (
             patch.object(updater, "fetch_remote_registry", return_value=remote_data),
-            patch("requests.get") as mock_get,
+            patch("biopro.core.network.client.requests.get") as mock_get,
             patch("shutil.rmtree"),
             patch("zipfile.ZipFile"),
-            patch("biopro.core.network_updater._safe_extract"),
+            patch("biopro.core.network.system_assets.safe_extract"),
         ):
             mock_get.return_value.raise_for_status.return_value = None
-            mock_get.return_value.content = b"zipdata"
+            mock_get.return_value.content = fake_content
 
             updater.sync_system_assets()
 
@@ -385,13 +456,13 @@ class TestNetworkUpdaterExpanded:
             updated_assets = json.loads(assets_json.read_text())
             assert updated_assets["sdk"]["version"] == "2.0.0"
 
-    def test_plugin_installer_worker_exceptions(self):
+    def test_plugin_installer_worker_exceptions(self, tmp_path):
         """Verify exception handling in the PluginInstallerWorker thread."""
-        from biopro.core.network_updater import PluginInstallerWorker
+        from biopro.ui.workers.plugin_installer import PluginInstallerWorker
 
         # Patch the signal on the class before instantiation
         with patch.object(PluginInstallerWorker, "finished") as mock_finished:
-            worker = PluginInstallerWorker("test", "url", Path("/tmp"))
-            with patch("requests.get", side_effect=Exception("Crash")):
+            worker = PluginInstallerWorker("test", "url", tmp_path)
+            with patch("biopro.core.network.client.requests.get", side_effect=Exception("Crash")):
                 worker.run()
                 mock_finished.emit.assert_called_with(False, "Installation error: Crash")

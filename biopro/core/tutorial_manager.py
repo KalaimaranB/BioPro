@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 class AcademyManager:
     """Manages the BioPro Academy state machine and module courses."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize academy paths, course registries, progress data, and active course state."""
         self.config_dir = AppConfig.APP_DATA_DIR / "academy"
         self.progress_file = self.config_dir / "progress.json"
         self.checkpoints_dir = self.config_dir / "checkpoints"
@@ -74,11 +75,18 @@ class AcademyManager:
         return self.courses_by_module.get(module_id, [])
 
     def start_course(self, course_id: str) -> None:
-        """Requests to start a course. The UI/Plugin must handle project setup and call confirmed."""
+        """Requests to start a course. The UI/Plugin must handle project setup and call confirmed."""  # noqa: E501
         event_bus.emit(BioProEvent.ACADEMY_COURSE_PREPARE_PROJECT, course_id)
 
     def start_course_confirmed(self, course_id: str) -> bool:
-        """Actually starts the course after the plugin has prepared the project workspace."""
+        """Start a prepared course and activate its initial step.
+
+        Parameters:
+            course_id (str): Identifier of the course to start.
+
+        Returns:
+            bool: `true` if the course was found and started, `false` otherwise.
+        """
         for courses in self.courses_by_module.values():
             for course in courses:
                 if course.id == course_id:
@@ -166,7 +174,7 @@ class AcademyManager:
 
         step_id = step.id
 
-        def _on_event(*_args, **_kwargs):
+        def _on_event(*_args, **_kwargs) -> Any:
             # Only advance if we're still on this step
             if self.current_step and self.current_step.id == step_id:
                 self.next_step()

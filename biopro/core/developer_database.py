@@ -16,6 +16,12 @@ class DeveloperProfileDatabase:
     """Manages parsing, disk serialization, and query lookups for trusted developers."""
 
     def __init__(self, db_file: Path | str | None = None):
+        """Initialize the developer profile database and load cached profiles from disk.
+
+        Parameters:
+                db_file (Path | str | None): Optional path to the profile database file. Defaults
+                to the application's trusted developer cache.
+        """
         if db_file is None:
             self.db_file = AppConfig.APP_DATA_DIR / "trusted_developers.json"
         else:
@@ -43,7 +49,15 @@ class DeveloperProfileDatabase:
             logger.error("Failed to write trusted developer database to disk.")
 
     def get_profile(self, developer_id: str) -> dict:
-        """Retrieves a developer profile, or returns a safe structural fallback."""
+        """Retrieve a developer profile, providing a default if none exists.
+
+        Parameters:
+                developer_id (str): Identifier of the developer to retrieve.
+
+        Returns:
+                dict: The matching profile, or a fallback profile containing the identifier and
+                safe default metadata.
+        """
         if developer_id in self.profiles:
             return self.profiles[developer_id]
 
@@ -53,7 +67,7 @@ class DeveloperProfileDatabase:
             "name": f"Developer '{developer_id}'",
             "role": "Verified Contributor",
             "avatar_url": None,
-            "description": "Verified independent developer contributing safe computational plugins to BioPro.",
+            "description": "Verified independent developer contributing safe computational plugins to BioPro.",  # noqa: E501
             "public_key": "",
         }
 
@@ -62,6 +76,12 @@ class AvatarManager:
     """Downloads and caches developer JPG/PNG avatar images locally for offline availability."""
 
     def __init__(self, avatar_dir: Path | str | None = None):
+        """Initialize the avatar storage directory.
+
+        Parameters:
+                avatar_dir (Path | str | None): Directory for cached avatars. Defaults to the
+                application's avatar directory.
+        """
         if avatar_dir is None:
             self.avatar_dir = AppConfig.APP_DATA_DIR / "avatars"
         else:
@@ -82,19 +102,22 @@ class AvatarManager:
         cached_file = self.avatar_dir / f"{developer_id}.{file_ext}"
 
         try:
-            logger.debug(f"Downloading avatar for {developer_id} from {avatar_url}...")
-            response = requests.get(avatar_url, timeout=10, verify=certifi.where())
-            response.raise_for_status()
+            import shutil
 
-            # Save the raw image binary bytes
-            with open(cached_file, "wb") as f:
-                f.write(response.content)
+            logger.debug("Downloading avatar image from remote source...")
+            with requests.get(
+                avatar_url, stream=True, timeout=10, verify=certifi.where()
+            ) as response:
+                response.raise_for_status()
 
-            logger.info(f"Successfully cached avatar for {developer_id} at {cached_file}")
+                # Save the raw image binary bytes
+                with open(cached_file, "wb") as f:
+                    response.raw.decode_content = True
+                    shutil.copyfileobj(response.raw, f)
+
+            logger.info("Successfully cached avatar image locally.")
             return str(cached_file.absolute())
-        except Exception as e:
-            logger.warning(
-                f"Could not cache avatar image for {developer_id} (offline/network issue): {e}"
-            )
+        except Exception:
+            logger.warning("Could not cache avatar image (offline/network issue)", exc_info=True)
             # Safe degradation fallback: UI will render initials gradient on-the-fly
             return None

@@ -1,3 +1,5 @@
+"""Core module."""
+
 import abc
 from pathlib import Path
 from typing import Any
@@ -10,6 +12,15 @@ class ITrustStrategy(abc.ABC):
 
     @abc.abstractmethod
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
+        """Verify a plugin using the trust strategy.
+
+        Parameters:
+            manifest (dict[str, Any]): Plugin manifest containing signing metadata.
+            plugin_path (str): Filesystem path to the plugin.
+
+        Returns:
+            VerificationResult: Result of the plugin trust verification.
+        """
         pass
 
 
@@ -17,6 +28,17 @@ class ProjectTrustStrategy(ITrustStrategy):
     """Verifies plugins signed by a CI/CD Project Key."""
 
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
+        """Verify a plugin signed by a project key.
+
+        Parameters:
+            manifest (dict[str, Any]): Plugin manifest used to determine the signing entity when
+            filesystem metadata is unavailable.
+            plugin_path (str): Path to the plugin directory.
+
+        Returns:
+            VerificationResult: Verification outcome, with successful project verification reported
+            as ``verified_project``.
+        """
         # Load security.json to determine entity type
         entity_type = ""
         path_obj = Path(plugin_path)
@@ -31,11 +53,11 @@ class ProjectTrustStrategy(ITrustStrategy):
 
                         sec_data = AtomicJsonFile.load(security_file, default={})
                         entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                    except Exception as e:
+                    except Exception:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            f"Failed to load security file {security_file}: {e}"
+                            f"Failed to load security file {security_file}", exc_info=True
                         )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)
@@ -62,6 +84,16 @@ class DeveloperTrustStrategy(ITrustStrategy):
     """Verifies plugins signed by an individual Developer Key."""
 
     def verify(self, manifest: dict[str, Any], plugin_path: str) -> VerificationResult:
+        """Verifies that a plugin is signed by a developer key.
+
+        Parameters:
+            manifest (dict[str, Any]): Plugin manifest containing signing metadata.
+            plugin_path (str): Filesystem path to the plugin.
+
+        Returns:
+            VerificationResult: The plugin verification result, or a failed result when the entity
+            type is not ``"developer"``.
+        """
         # Load security.json to determine entity type
         entity_type = ""
         path_obj = Path(plugin_path)
@@ -76,11 +108,11 @@ class DeveloperTrustStrategy(ITrustStrategy):
 
                         sec_data = AtomicJsonFile.load(security_file, default={})
                         entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                    except Exception as e:
+                    except Exception:
                         import logging
 
                         logging.getLogger(__name__).debug(
-                            f"Failed to load security file {security_file}: {e}"
+                            f"Failed to load security file {security_file}", exc_info=True
                         )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)
@@ -94,8 +126,7 @@ class DeveloperTrustStrategy(ITrustStrategy):
 
         # Wrap the legacy TrustManager logic
         manager = TrustManager()
-        result = manager.verify_plugin(Path(plugin_path))
-        return result
+        return manager.verify_plugin(Path(plugin_path))
 
 
 class TrustStrategyFactory:
@@ -103,6 +134,16 @@ class TrustStrategyFactory:
 
     @staticmethod
     def get_strategy(manifest: dict[str, Any], plugin_path: str = "") -> ITrustStrategy:
+        """Select a trust verification strategy based on the plugin's signing entity.
+
+        Parameters:
+            manifest (dict[str, Any]): Plugin manifest containing signing metadata.
+            plugin_path (str): Optional path used to determine the signing entity from plugin files.
+
+        Returns:
+            ITrustStrategy: A project strategy for project-signed plugins; otherwise, a developer
+            strategy.
+        """
         entity_type = ""
         if plugin_path:
             path_obj = Path(plugin_path)
@@ -118,11 +159,11 @@ class TrustStrategyFactory:
 
                             sec_data = AtomicJsonFile.load(security_file, default={})
                             entity_type = sec_data.get("signed_by", {}).get("entity_type", "")
-                        except Exception as e:
+                        except Exception:
                             import logging
 
                             logging.getLogger(__name__).debug(
-                                f"Failed to load security file {security_file}: {e}"
+                                f"Failed to load security file {security_file}", exc_info=True
                             )
 
         # Fallback to manifest if disk check did not yield a result (e.g., in unit tests)

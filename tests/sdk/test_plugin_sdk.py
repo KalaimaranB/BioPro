@@ -175,8 +175,17 @@ class TestWizardStep:
         is_terminal = False
 
         def build_page(self, panel) -> QWidget:
+            """
+            Build the widget displayed for this wizard step.
+
+            Parameters:
+                panel: The wizard panel containing the step.
+
+            Returns:
+                QWidget: An empty widget for the step page.
+            """
             page = QWidget()
-            return page
+            return page  # noqa: RET504
 
         def on_next(self, panel) -> bool:
             return True

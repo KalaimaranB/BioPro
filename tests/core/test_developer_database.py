@@ -72,13 +72,16 @@ class TestDeveloperDatabase:
     @patch("requests.get")
     def test_avatar_manager_caching(self, mock_get, temp_env):
         """Verifies that AvatarManager downloads remote image binaries and caches them locally."""
+        # Mock successful HTTP image payload
+        import io
+
         from biopro.core.developer_database import AvatarManager
 
-        # Mock successful HTTP image payload
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.content = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR..."  # Dummy PNG bytes
-        mock_get.return_return = mock_response
+        mock_response.raw = io.BytesIO(mock_response.content)
+        mock_response.__enter__.return_value = mock_response
         mock_get.return_value = mock_response
 
         manager = AvatarManager(avatar_dir=temp_env["avatar_dir"])
@@ -89,7 +92,9 @@ class TestDeveloperDatabase:
         # Assert network call was made to fetch the URL
         import certifi
 
-        mock_get.assert_called_once_with(avatar_url, timeout=10, verify=certifi.where())
+        mock_get.assert_called_once_with(
+            avatar_url, stream=True, timeout=10, verify=certifi.where()
+        )
 
         # Assert file was written correctly
         assert cached_path is not None

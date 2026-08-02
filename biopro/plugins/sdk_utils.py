@@ -370,6 +370,14 @@ class ProgressDialog(QDialog):
     """
 
     def __init__(self, parent=None, title: str = "Please Wait", message: str = "Processing..."):
+        """
+        Initialize a modal progress dialog with a title, message, and zero-percent progress display.
+
+        Parameters:
+            parent: Optional parent widget.
+            title (str): Window title.
+            message (str): Message displayed above the progress percentage.
+        """
         super().__init__(parent)
         self.setWindowTitle(title)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -383,8 +391,12 @@ class ProgressDialog(QDialog):
 
         self.value = 0
 
-    def setValue(self, value: int) -> None:
-        """Set progress (0-100)."""
+    def setValue(self, value: int) -> None:  # noqa: N802
+        """Set the progress value as a percentage.
+
+        Parameters:
+            value (int): The progress value, clamped to the range 0–100.
+        """
         self.value = max(0, min(100, value))
         self.label.setText(f"{self.value}%")
         self.update()

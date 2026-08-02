@@ -55,6 +55,12 @@ class TutorialOverlay(QWidget):
     """
 
     def __init__(self, parent: QWidget | None = None, compact_mode: bool = False) -> None:
+        """
+        Initialize the tutorial overlay and synchronize it with the current tutorial state.
+
+        Parameters:
+            compact_mode (bool): Whether to use compact positioning instead of positioning around spotlight targets.
+        """
         super().__init__(parent)
         # Allow mouse events; masking handles the passthrough behaviour.
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
@@ -92,7 +98,7 @@ class TutorialOverlay(QWidget):
         else:
             self.hide()
 
-    def _cleanup(self, *args) -> None:
+    def _cleanup(self, *args) -> None:  # noqa: ARG002
         """Unsubscribe from event bus when the C++ object is deleted."""
         event_bus.unsubscribe(BioProEvent.ACADEMY_STEP_CHANGED, self._render_step_cb)
         event_bus.unsubscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
@@ -112,6 +118,9 @@ class TutorialOverlay(QWidget):
         self.cyto = CytoWidget(self)
 
     def _build_bubble(self) -> None:
+        """
+        Builds the overlay's instructional bubble and its progress and navigation controls.
+        """
         self.bubble_container = QWidget(self)
         self.bubble_container.setObjectName("BubbleContainer")
         theme_manager.apply_style(
@@ -143,10 +152,10 @@ class TutorialOverlay(QWidget):
             self.btn_close,
             f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;",
         )
-        self.btn_close.enterEvent = lambda e: self.btn_close.setStyleSheet(
+        self.btn_close.enterEvent = lambda e: self.btn_close.setStyleSheet(  # noqa: ARG005
             f"color: {Colors.FG_PRIMARY}; border: none; font-size: 16px; font-weight: bold;"
         )
-        self.btn_close.leaveEvent = lambda e: self.btn_close.setStyleSheet(
+        self.btn_close.leaveEvent = lambda e: self.btn_close.setStyleSheet(  # noqa: ARG005
             f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;"
         )
         header.addWidget(self.lbl_progress)
@@ -481,8 +490,8 @@ class TutorialOverlay(QWidget):
 
     # ── Painting & masking ────────────────────────────────────────────────────
 
-    def paintEvent(self, event) -> None:  # noqa: N802
-        """Draw the dim overlay and cyan spotlight borders."""
+    def paintEvent(self, event) -> None:  # noqa: N802, ARG002
+        """Paints the dimmed overlay and spotlight borders around target regions."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -592,7 +601,11 @@ class TutorialOverlay(QWidget):
             self.btn_next.show()
 
     def _render_branching_options(self, options: dict) -> None:
-        """Render branch buttons and connect them to next_step."""
+        """Render branching-option buttons that advance to their selected tutorial steps.
+
+        Parameters:
+            options (dict): Mapping of option labels to target step identifiers.
+        """
         self._clear_buttons()
         btn_style = (
             "background-color: #1f6feb; color: white; border: none;"
@@ -606,7 +619,7 @@ class TutorialOverlay(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             # Use default argument capture for target_id inside the lambda
             btn.clicked.connect(
-                lambda checked, tid=target_id: global_tutorial_manager.next_step(tid)
+                lambda checked, tid=target_id: global_tutorial_manager.next_step(tid)  # noqa: ARG005
             )
             self.btn_layout.addWidget(btn)
 

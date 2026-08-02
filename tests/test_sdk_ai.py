@@ -60,7 +60,7 @@ def test_model_path_persistence():
     assert os.path.isabs(manager.model_path)
 
 
-def test_start_server_absolute_path(monkeypatch):
+def test_start_server_absolute_path(monkeypatch):  # noqa: C901
     """Verify that start_server uses absolute paths for the model command."""
     manager = AIServerManager(model_path="relative/path/to/model.gguf")
 

@@ -27,19 +27,22 @@ class TestWorkspaceWindow:
         hub_cb = MagicMock()
         store_cb = MagicMock()
 
-        win = WorkspaceWindow(pm, mm, up, store_cb, hub_cb)
-        qtbot.addWidget(win)
-        return win
+        store_cb = MagicMock()
+
+        with patch("biopro.ui.windows.workspace.hub_manager.HubManager.maybe_start_core_intro"):
+            win = WorkspaceWindow(pm, mm, up, store_cb, hub_cb)
+            qtbot.addWidget(win)
+            return win
 
     def test_initialization(self, window):
         assert "Unit Testing" in window.windowTitle()
         assert window.root_stack.currentIndex() == _PAGE_HOME
         # Verify populated modules
-        assert window.home_screen.modules_grid.count() == 1
+        assert window.home_screen.modules_layout.count() == 1
 
-    @patch("biopro.ui.windows.workspace_window.QMessageBox.critical")
+    @patch("biopro.ui.dialogs.error_report.ErrorReportDialog.exec")
     def test_open_module_success(self, mock_err, window, qtbot):
-        manifest = {"id": "plugin_a", "name": "Plugin A", "icon": "A"}
+        manifest = {"id": "plugin_a", "display_name": "Plugin A", "name": "Plugin A", "icon": "A"}
 
         # Mock UI loader with a real QWidget to avoid PyQt type issues
         class MockPanel(QWidget):
@@ -50,10 +53,10 @@ class TestWorkspaceWindow:
 
         window.module_manager.load_module_ui.return_value = MockPanel
 
-        window._open_module(manifest)
+        window.plugin_manager.open_module(manifest)
 
         # Wait for async worker to finish
-        qtbot.waitUntil(lambda: window.current_module_id == "plugin_a", timeout=5000)
+        qtbot.waitUntil(lambda: window.wizard_panel is not None, timeout=5000)
 
         assert window.current_module_id == "plugin_a"
         assert isinstance(window.wizard_panel, MockPanel)
@@ -66,7 +69,7 @@ class TestWorkspaceWindow:
         manifest = {"id": "broken", "name": "Broken"}
         window.module_manager.load_module_ui.side_effect = Exception("Load Failed")
 
-        window._open_module(manifest)
+        window.plugin_manager.open_module(manifest)
 
         # Wait for error dialog
         qtbot.waitUntil(lambda: mock_exec.called, timeout=5000)
@@ -107,7 +110,7 @@ class TestWorkspaceWindow:
         """Verify that changing theme triggers UI rebuild logic."""
         old_home = window.home_screen
 
-        with patch.object(window, "_refresh_hub_workflows") as mock_refresh:
+        with patch.object(window.hub_manager, "refresh_hub_workflows") as mock_refresh:
             theme_manager.theme_changed.emit()
 
             # The window destroys the old home and creates a new one

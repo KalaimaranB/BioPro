@@ -206,8 +206,8 @@ class CytoWidget(QGraphicsView):
         self.current_costume = CostumeFactory.get_costume(theme_name)
         self.current_costume.attach(self)
 
-    def speak(self, text: str):
-        """Triggers the talking animation sequence. (Text rendering handled by overlay)"""
+    def speak(self, text: str):  # noqa: ARG002
+        """Starts the character's talking animation."""
         self.is_talking = True
         self.talking_timer = 150  # Roughly 4 seconds of lip flap
 
@@ -233,6 +233,7 @@ class CytoWidget(QGraphicsView):
     # --- Internal Animation Loop ---
 
     def update_body_path(self):
+        """Update the character body's animated outline."""
         path = QPainterPath()
         base_radius = 45
         points = 40
@@ -250,7 +251,7 @@ class CytoWidget(QGraphicsView):
                 path.lineTo(x, y)
         self.body.setPath(path)
 
-    def drawBackground(self, painter, rect):
+    def drawBackground(self, painter, rect):  # noqa: N802
         """Override to prevent QGraphicsView from painting any background fill."""
         pass  # Intentionally empty — transparency handled by overlay paintEvent
 

@@ -70,6 +70,11 @@ class ProgrammaticLoader(QWidget):
         return ["0", "1"]
 
     def _update_animation(self):
+        """
+        Advances the loader animation and updates the binary stream states.
+
+        Refreshes glyphs when the active theme changes, moves streams, reinitializes absorbed or off-screen streams, applies occasional flicker, and schedules the widget for repainting.
+        """
         self.angle += 0.025
         self.pulse = math.sin(self.angle * 0.8) * 0.1
 
@@ -99,7 +104,10 @@ class ProgrammaticLoader(QWidget):
 
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event):  # noqa: ARG002, N802
+        """
+        Render the animated binary streams, embers, and DNA helix.
+        """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)

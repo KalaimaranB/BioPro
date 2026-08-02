@@ -82,7 +82,7 @@ class TestPluginContract:
         # The class itself should satisfy it (via get_panel_class classmethod)
         assert isinstance(MyPlugin, BioProPlugin)  # type: ignore[arg-type]
 
-    @patch("biopro.core.module_manager.importlib.import_module")
+    @patch("biopro.core.plugins.loader.importlib.import_module")
     def test_module_manager_validation_pass(self, mock_import, tmp_path):
         """Verifies that ModuleManager allows loading valid plugins."""
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
@@ -109,7 +109,7 @@ class TestPluginContract:
         assert ui_class == QWidget
         assert mm.modules["mod_a"]["loaded"] is True
 
-    @patch("biopro.core.module_manager.importlib.import_module")
+    @patch("biopro.core.plugins.loader.importlib.import_module")
     def test_module_manager_validation_fail(self, mock_import, tmp_path):
         """Verifies that ModuleManager rejects invalid plugins."""
         mm = ModuleManager(trust_manager=PermissiveTrustManager())

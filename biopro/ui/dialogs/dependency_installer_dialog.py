@@ -4,7 +4,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QProgressBar, QPushButton, QVBoxLayout
 
-from biopro.core.package_manager import PluginInstallerWorker
+from biopro.ui.workers.plugin_dependency_installer import PluginDependencyInstallerWorker
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ class DependencyInstallerDialog(QDialog):
         self.progress_bar.setValue(0)
         self.status_label.setText("Installing...")
 
-        self.worker = PluginInstallerWorker(self.plugin_dir)
+        self.worker = PluginDependencyInstallerWorker(self.plugin_dir)
         self.worker.progress.connect(self.on_progress)
         self.worker.finished.connect(self.on_finished)
         self.worker.start()

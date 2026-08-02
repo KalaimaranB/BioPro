@@ -1,3 +1,5 @@
+"""Core module."""
+
 import logging
 import os
 import shutil
@@ -12,6 +14,11 @@ class WorkflowManager:
     """Manages scientific workflows stored as JSON in the project workspace."""
 
     def __init__(self, project_dir: Path):
+        """Initialize a workflow manager for a project directory.
+
+        Parameters:
+                project_dir (Path): Root directory containing the project's workflow files.
+        """
         self.project_dir = project_dir
         self.wf_dir = self.project_dir / "workflows"
 
@@ -113,7 +120,7 @@ class WorkflowManager:
                     meta = data.get("metadata", {})
                     meta["filename"] = file.name
                     workflows.append(meta)
-            except:
+            except Exception:
                 pass
 
         workflows.sort(key=lambda x: x.get("timestamp", ""), reverse=True)

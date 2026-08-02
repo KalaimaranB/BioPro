@@ -12,6 +12,11 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 
 
 def main():
+    """Sign the authorities registry using a supplied Ed25519 private key and save the signature.
+
+    The function prompts for a hexadecimal private key, creates `authorities.json` when needed,
+    signs its authorities data, and writes the updated registry back to disk.
+    """
     # 1. Ask for the Hex Private Key
     print("=== BioPro Authority Registry Signer ===")
     hex_key = input("Enter your 32-byte Ed25519 Private Key (hex format): ").strip()
@@ -20,7 +25,7 @@ def main():
         private_bytes = bytes.fromhex(hex_key)
         if len(private_bytes) != 32:
             raise ValueError(
-                f"Private key must be exactly 32 bytes (64 hex characters). Got {len(private_bytes)} bytes."
+                f"Private key must be exactly 32 bytes (64 hex characters). Got {len(private_bytes)} bytes."  # noqa: E501
             )
 
         # Load the key using standard cryptography
@@ -45,7 +50,7 @@ def main():
                 {
                     "id": "biopro_core",
                     "name": "BioPro Core Authority",
-                    "public_key": "08f4319b6f979057b36b0db2b8faaee6eff8782f3aafd5e924ba79b04d4c8366",
+                    "public_key": "08f4319b6f979057b36b0db2b8faaee6eff8782f3aafd5e924ba79b04d4c8366",  # noqa: E501
                 }
             ],
             "last_updated": "2026-05-18T00:00:00Z",

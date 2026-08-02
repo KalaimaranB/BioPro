@@ -1,4 +1,5 @@
 """Compatibility shim for ProjectManager.
+
 Relocated to biopro.core.projects.manager for SOLID compliance.
 """
 

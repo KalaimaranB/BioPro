@@ -6,6 +6,7 @@ within arbitrary object trees. Enables automatic memory management.
 
 import io
 import logging
+from collections.abc import Callable
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -18,10 +19,10 @@ class ResourceInspector:
     # Default: 1MB
     HEAVY_THRESHOLD_BYTES = 1024 * 1024
 
-    _custom_checkers: list[Any] = []
+    _custom_checkers: list[Callable[[Any], bool]] = []
 
     @classmethod
-    def register_heavy_checker(cls, checker_func):
+    def register_heavy_checker(cls, checker_func: Callable[[Any], bool]) -> None:
         """Registers a custom function for evaluating if an object is heavy."""
         if checker_func not in cls._custom_checkers:
             cls._custom_checkers.append(checker_func)
@@ -29,13 +30,13 @@ class ResourceInspector:
 
     @classmethod
     def get_heavy_resources(cls, obj: Any) -> list[tuple[str, Any]]:
-        """Scans the attributes of an object for heavy resources.
+        """Identify heavy resources among an object's attributes or dictionary entries.
 
         Args:
-            obj: The object to inspect (typically a PluginBase or PluginState instance)
+            obj: The object whose stored attributes or entries should be inspected.
 
         Returns:
-            List of (attribute_name, resource_object) tuples.
+            A list of `(name, resource)` tuples for values classified as heavy.
         """
         heavy = []
 
@@ -56,8 +57,17 @@ class ResourceInspector:
         return heavy
 
     @classmethod
-    def is_heavy(cls, obj: Any) -> bool:
-        """Determines if a single object is considered a heavy resource."""
+    def is_heavy(cls, obj: Any) -> bool:  # noqa: C901
+        """Determines whether an object qualifies as a heavy resource.
+
+        Parameters:
+                obj (Any): Object to classify.
+
+        Returns:
+                bool: `true` if the object is a registered heavy resource, a sufficiently large
+                array or CPU tensor, a CUDA tensor, a matplotlib figure, or an open file handle;
+                `false` otherwise.
+        """
         if obj is None:
             return False
 

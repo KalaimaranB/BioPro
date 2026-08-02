@@ -18,7 +18,6 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.core.config import AppConfig
-from biopro.core.sound_manager import sound_manager
 from biopro.ui.ai.context_panel import ContextPanel
 from biopro.ui.ai.service import AIService
 from biopro.ui.theme import Colors, Fonts, theme_manager
@@ -254,6 +253,9 @@ class AIChatWindow(QDialog):
                 widget.refresh_styles()
 
     def _connect_signals(self):
+        """
+        Connects application, context, chat, download, and server-control signals to their handlers.
+        """
         ai_manager.signals.prompt_download.connect(self._show_download_ui)
         ai_manager.signals.server_started.connect(self._show_chat_ui)
         ai_manager.signals.download_progress.connect(self.progress_bar.setValue)
@@ -271,7 +273,7 @@ class AIChatWindow(QDialog):
         self.btn_soul.clicked.connect(self._edit_soul)
         self.btn_power.clicked.connect(self._toggle_server)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event):  # noqa: N802
         """Cleanup subscriptions to global singletons on close to prevent memory leaks."""
         try:
             ai_manager.signals.prompt_download.disconnect(self._show_download_ui)
@@ -304,6 +306,7 @@ class AIChatWindow(QDialog):
         self.service.selected_context_files = selected_files
 
     def _send_message(self):
+        """Submits the entered message and starts streaming the assistant's response."""
         text = self.input_field.text().strip()
         logger.info(f"AI Message Send clicked. Text length: {len(text)}")
 
@@ -323,7 +326,6 @@ class AIChatWindow(QDialog):
             personality_prefix = (
                 "SYSTEM NOTICE: Adopt the personality of a helpful, analytical Droid. "
             )
-            sound_manager.play_beep()
 
         self.service.full_chat_md += "**Assistant:** "
         self.ai_thread = self.service.get_streaming_thread(
