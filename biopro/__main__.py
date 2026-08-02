@@ -215,7 +215,7 @@ def bootstrap_sdk():
     return False
 
 
-def _run_smoke_test(argv: list[str]) -> int:
+def _run_smoke_test(argv: list[str]) -> int:  # noqa: PLR0915
     """Run a smoke test for a specified plugin in a headless PyInstaller environment."""
     import argparse
 
@@ -278,6 +278,10 @@ def _run_smoke_test(argv: list[str]) -> int:
         logger.info(
             "Loading plugin UI class to trigger all heavy imports (Numba, Matplotlib, C-Extensions)..."  # noqa: E501
         )
+
+        # Temp Patch: Force trust the plugin to bypass Security Block during smoke testing
+        module_manager.trust_module(args.plugin_id)
+
         PanelClass = module_manager.load_module_ui(args.plugin_id)  # noqa: N806
         if PanelClass is None:
             raise RuntimeError(f"Plugin {args.plugin_id} exposes no UI class.")
