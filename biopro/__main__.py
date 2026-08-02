@@ -244,6 +244,25 @@ def _run_smoke_test(argv: list[str]) -> int:
             success, msg = updater.install_plugin(args.plugin_id, plugin_info)
             if not success:
                 raise RuntimeError(f"Failed to install plugin: {msg}")
+
+            # 2.5 Install Python dependencies for the newly downloaded plugin
+            from biopro_sdk.plugin.manifest_parser import ManifestParser
+
+            from biopro.core.package_manager import PackageManager
+
+            pm = PackageManager()
+            plugin_dir = updater.plugin_dir / args.plugin_id
+            manifest_path = plugin_dir / "pyproject.toml"
+            if manifest_path.exists():
+                manifest = ManifestParser().parse_file(str(manifest_path))
+                deps = manifest.get("python_dependencies", {})
+                if deps:
+                    logger.info(
+                        f"Installing {len(deps)} dependencies for {args.plugin_id} "
+                        "into isolated venv..."
+                    )
+                    pm.resolve_and_install_all(deps, plugin_dir)
+
             # Re-scan installed modules
             module_manager.reload_modules()
         else:

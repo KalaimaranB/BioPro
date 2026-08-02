@@ -181,15 +181,18 @@ class NetworkUpdater:
                 safe_remove(self.plugin_dir, plugin_folder)
 
                 with zipfile.ZipFile(tmp_path) as z:
-                    namelist = [n for n in z.namelist() if not n.startswith("__MACOSX/")]
-                    prefixes = (plugin_id + "/", plugin_id + "\\")
-                    has_nested_folder = bool(namelist) and all(
-                        name.startswith(prefixes) for name in namelist
-                    )
+                    plugin_folder.mkdir(parents=True, exist_ok=True)
+                    safe_extract(z, plugin_folder)
 
-                    extract_target = self.plugin_dir if has_nested_folder else plugin_folder
-                    extract_target.mkdir(parents=True, exist_ok=True)
-                    safe_extract(z, extract_target)
+                # Flatten single root directory (e.g., GitHub release artifacts)
+                items = [item for item in plugin_folder.iterdir() if item.name != "__MACOSX"]
+                if len(items) == 1 and items[0].is_dir():
+                    nested_dir = items[0]
+                    for item in nested_dir.iterdir():
+                        import shutil
+
+                        shutil.move(str(item), str(plugin_folder / item.name))
+                    nested_dir.rmdir()
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
 
