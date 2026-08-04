@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from biopro_sdk.plugin import SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
@@ -32,6 +33,9 @@ from biopro.ui.theme import theme_manager
 from biopro.ui.widgets.dna_loader import ProgrammaticLoader
 from biopro.ui.windows.workspace_window import WorkspaceWindow
 
+if TYPE_CHECKING:
+    from biopro.ui.windows.workspace.hub_manager import StoreCallback
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +43,7 @@ class ProjectLauncherWindow(QMainWindow):
     """The main entry hub for creating and opening BioPro projects."""
 
     # We now REQUIRE the dependencies to be passed in!
-    def __init__(self, module_manager, updater, store_callback, hub_callback):
+    def __init__(self, module_manager, updater, store_callback: "StoreCallback", hub_callback):
         super().__init__()
 
         # Save the references
@@ -500,6 +504,13 @@ class ProjectLauncherWindow(QMainWindow):
     def closeEvent(self, event):  # noqa: N802
         """Save window geometry before closing."""
         self._hub_poll_timer.stop()
+
+        # Don't save geometry if we are clearing app data,
+        # otherwise it will recreate the .biopro folder!
+        if getattr(self, "_is_clearing_data", False):
+            super().closeEvent(event)
+            return
+
         from biopro.core.preferences import core_preferences
 
         geom_hex = self.saveGeometry().toHex().data().decode("ascii")
@@ -541,8 +552,6 @@ class ProjectLauncherWindow(QMainWindow):
         about_action = QAction("🧬 &About BioPro", self)
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
-
-        help_menu.addSeparator()
 
         help_menu.addSeparator()
 
@@ -594,9 +603,7 @@ class ProjectLauncherWindow(QMainWindow):
         self._maybe_start_core_intro()
 
     def _clear_app_data(self) -> None:
-        """Clear all BioPro app data and quit."""
-        import shutil
-
+        """Clear all BioPro app data and quit asynchronously to avoid UI freezing."""
         from PyQt6.QtWidgets import QApplication
 
         if ask_question(
@@ -604,13 +611,31 @@ class ProjectLauncherWindow(QMainWindow):
             "Clear All App Data",
             "Are you sure you want to delete all plugins, caches, and app settings?\n\nThis will completely reset BioPro and cannot be undone. The application will close immediately.",
         ):
-            try:
-                target_path = Path.home() / ".biopro"
-                if target_path.exists() and target_path.is_dir():
-                    shutil.rmtree(target_path)
-                QApplication.quit()
-            except Exception as e:
-                show_error(self, "Error", f"Failed to clear app data:\n{str(e)}")
+            # Tell closeEvent we are clearing data so it doesn't write new preferences
+            self._is_clearing_data = True
+
+            # Stop the background update worker if running
+            if hasattr(self, "_update_worker") and self._update_worker.isRunning():
+                self._update_worker.requestInterruption()
+                self._update_worker.wait(1000)
+
+            # Close any active logging handlers that may have file locks
+            import logging
+
+            for handler in logging.getLogger().handlers[:]:
+                handler.close()
+                logging.getLogger().removeHandler(handler)
+
+            self._cleanup_worker = _CleanupWorker()
+            self._cleanup_worker.finished.connect(QApplication.quit)
+
+            def _on_cleanup_error(err_str: str):
+                from biopro.shared.ui.alerts import show_error
+
+                show_error(self, "Error", f"Failed to clear app data:\n{err_str}")
+
+            self._cleanup_worker.error.connect(_on_cleanup_error)
+            self._cleanup_worker.start()
 
     def _show_about(self) -> None:
         from biopro.core.config import AppConfig
@@ -688,3 +713,20 @@ class _UpdateCheckWorker(QThread):
     def run(self) -> None:
         """Execute the update check on the background thread."""
         self._update_checker.check_and_notify()
+
+
+class _CleanupWorker(QThread):
+    """Background worker to delete the ~/.biopro folder."""
+
+    error = pyqtSignal(str)
+
+    def run(self):
+        import shutil
+        from pathlib import Path
+
+        try:
+            target_path = Path.home() / ".biopro"
+            if target_path.exists() and target_path.is_dir():
+                shutil.rmtree(target_path, ignore_errors=True)
+        except Exception as e:
+            self.error.emit(str(e))

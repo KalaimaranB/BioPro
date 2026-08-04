@@ -287,18 +287,20 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
         module_manager.trust_module(args.plugin_id)
 
         # Prevent modal dialogs from hanging the headless runner
+        from typing import NoReturn
+
         from PyQt6.QtWidgets import QMessageBox
 
-        def _mock_msgbox(*_args, **_kwargs):
+        def _mock_msgbox(*_args: object, **_kwargs: object) -> None:
             return None
 
-        def _mock_question(*_args, **_kwargs):
+        def _mock_question(*_args: object, **_kwargs: object) -> QMessageBox.StandardButton:
             return QMessageBox.StandardButton.Yes
 
-        QMessageBox.information = _mock_msgbox  # type: ignore[method-assign]
-        QMessageBox.warning = _mock_msgbox  # type: ignore[method-assign]
-        QMessageBox.critical = _mock_msgbox  # type: ignore[method-assign]
-        QMessageBox.question = _mock_question  # type: ignore[method-assign]
+        QMessageBox.information = _mock_msgbox  # type: ignore[assignment]
+        QMessageBox.warning = _mock_msgbox  # type: ignore[assignment]
+        QMessageBox.critical = _mock_msgbox  # type: ignore[assignment]
+        QMessageBox.question = _mock_question  # type: ignore[assignment]
 
         PanelClass = module_manager.load_module_ui(args.plugin_id)  # noqa: N806
         if PanelClass is None:
@@ -312,7 +314,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                 # Monkeypatch fcs_io to explicitly fail if flowkit (daemon) is NOT used
                 import biopro_plugins.flow_cytometry.analysis.fcs_io as fcs_io  # type: ignore[import-untyped, import-not-found]
 
-                def _crash_fcsparser(*_args, **_kwargs):  # noqa: ARG001
+                def _crash_fcsparser(*_args: object, **_kwargs: object) -> NoReturn:  # noqa: ARG001
                     raise RuntimeError(
                         "Smoke test explicitly failed: flowkit was not used! "
                         "Daemon virtual environment may be broken."
@@ -321,14 +323,18 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                 fcs_io._load_with_fcsparser = _crash_fcsparser
                 logger.info("Monkeypatched fcs_io to strictly enforce flowkit usage via daemon.")
             except ImportError:
+                if args.plugin_id == "flow_cytometry":
+                    raise
                 pass
 
             # If the plugin signals when async data is ready, wait for it
             if hasattr(panel, "data_ready"):
                 logger.info("Hooking into plugin data_ready signal for delayed exit.")
                 panel.data_ready.connect(app.quit)
+
+                smoke_test_timeout_ms = 15000
                 # Give it up to 15 seconds to load async data before forcing a quit
-                QTimer.singleShot(15000, app.quit)
+                QTimer.singleShot(smoke_test_timeout_ms, app.quit)
 
             panel.load_workflow(None, filename=args.data_file)
 
@@ -424,6 +430,14 @@ def _start_application(log_file: Path) -> None:
             from PyQt6.QtWidgets import QApplication
 
             if not QApplication.instance():
+                return
+
+            if isinstance(error_data, dict) and "title" in error_data and "message" in error_data:
+                from biopro.shared.ui.alerts import show_error
+
+                top_widget = QApplication.activeWindow()
+                if top_widget:
+                    show_error(top_widget, error_data["title"], error_data["message"])
                 return
 
             dialog = ErrorReportDialog(error_data)

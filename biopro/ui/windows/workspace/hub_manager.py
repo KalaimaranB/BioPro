@@ -1,14 +1,19 @@
 """Hub Manager for WorkspaceWindow."""
 
 import logging
+from collections.abc import Callable
+
+from PyQt6.QtWidgets import QMainWindow
 
 from biopro.shared.ui.alerts import ask_question, show_error
 
 logger = logging.getLogger(__name__)
 
+StoreCallback = Callable[[QMainWindow], None]
+
 
 class HubManager:
-    def __init__(self, main_window):
+    def __init__(self, main_window: QMainWindow):
         self.main_window = main_window
 
     def show_home(self) -> None:
@@ -132,11 +137,12 @@ class HubManager:
         self.show_home()
         self.maybe_start_core_intro()
 
-    def open_store(self):
+    def open_store(self) -> None:
         """Open the plugin store from the Hub."""
         if self.main_window.open_store_callback:
             self.main_window.open_store_callback(self.main_window)
             self.main_window.close()
+        return
 
     def on_trust_requested(self, module_id: str) -> bool:
         """
