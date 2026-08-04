@@ -544,6 +544,12 @@ class ProjectLauncherWindow(QMainWindow):
 
         help_menu.addSeparator()
 
+        help_menu.addSeparator()
+
+        clear_data_action = QAction("🧹 Clear App Data...", self)
+        clear_data_action.triggered.connect(self._clear_app_data)
+        help_menu.addAction(clear_data_action)
+
         restart_tour_action = QAction("♻️ Restart Onboarding Tour", self)
         restart_tour_action.triggered.connect(self._restart_core_intro)
         help_menu.addAction(restart_tour_action)
@@ -586,6 +592,25 @@ class ProjectLauncherWindow(QMainWindow):
         core_preferences.set("core_intro_dismissed_once", False)
 
         self._maybe_start_core_intro()
+
+    def _clear_app_data(self) -> None:
+        """Clear all BioPro app data and quit."""
+        import shutil
+
+        from PyQt6.QtWidgets import QApplication
+
+        if ask_question(
+            self,
+            "Clear All App Data",
+            "Are you sure you want to delete all plugins, caches, and app settings?\n\nThis will completely reset BioPro and cannot be undone. The application will close immediately.",
+        ):
+            try:
+                target_path = Path.home() / ".biopro"
+                if target_path.exists() and target_path.is_dir():
+                    shutil.rmtree(target_path)
+                QApplication.quit()
+            except Exception as e:
+                show_error(self, "Error", f"Failed to clear app data:\n{str(e)}")
 
     def _show_about(self) -> None:
         from biopro.core.config import AppConfig

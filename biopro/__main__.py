@@ -308,6 +308,21 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
         if args.data_file and hasattr(panel, "load_workflow"):
             logger.info(f"Injecting test data file: {args.data_file}")
 
+            try:
+                # Monkeypatch fcs_io to explicitly fail if flowkit (daemon) is NOT used
+                import biopro_plugins.flow_cytometry.analysis.fcs_io as fcs_io  # type: ignore[import-untyped, import-not-found]
+
+                def _crash_fcsparser(*_args, **_kwargs):  # noqa: ARG001
+                    raise RuntimeError(
+                        "Smoke test explicitly failed: flowkit was not used! "
+                        "Daemon virtual environment may be broken."
+                    )
+
+                fcs_io._load_with_fcsparser = _crash_fcsparser
+                logger.info("Monkeypatched fcs_io to strictly enforce flowkit usage via daemon.")
+            except ImportError:
+                pass
+
             # If the plugin signals when async data is ready, wait for it
             if hasattr(panel, "data_ready"):
                 logger.info("Hooking into plugin data_ready signal for delayed exit.")

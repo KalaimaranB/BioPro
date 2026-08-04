@@ -111,6 +111,22 @@ class TaskScheduler(QObject):
         """
         self.task_error.emit(task_id, error_msg)
         logger.error(f"Background task {task_id} failed: {error_msg}")
+
+        if "failed ready handshake" in error_msg or "Daemon call failed" in error_msg:
+            from PyQt6.QtWidgets import QApplication
+
+            from biopro.shared.ui.alerts import show_error
+
+            top_widget = QApplication.activeWindow()
+            if top_widget:
+                show_error(
+                    top_widget,
+                    "Plugin Virtual Environment Error",
+                    "A critical error occurred while attempting to connect to the plugin's "
+                    f"virtual environment.\n\n{error_msg}\n\nTry going to the Hub -> Help menu "
+                    "and clicking 'Clear App Data...' to reset your environment.",
+                )
+
         self._cleanup(task_id)
 
     def _cleanup(self, task_id: str) -> Any:
