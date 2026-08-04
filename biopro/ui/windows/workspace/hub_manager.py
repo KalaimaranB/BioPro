@@ -133,9 +133,9 @@ class HubManager:
         self.maybe_start_core_intro()
 
     def open_store(self):
-        """Invoke the callback provided by project_launcher to switch to the Store page."""
+        """Open the plugin store from the Hub."""
         if self.main_window.open_store_callback:
-            self.main_window.open_store_callback()
+            self.main_window.open_store_callback(self.main_window)
             self.main_window.close()
 
     def on_trust_requested(self, module_id: str) -> bool:
