@@ -215,6 +215,11 @@ def bootstrap_sdk():
     return False
 
 
+# Smoke test timeout configuration
+SMOKE_TEST_TIMEOUT_MS = 15000  # Maximum time to wait for async data loading
+SMOKE_TEST_TICK_MS = 1000  # Delay before quitting when no async data expected
+
+
 def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
     """Run a smoke test for a specified plugin in a headless PyInstaller environment."""
     import argparse
@@ -278,6 +283,9 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
     app = QApplication.instance() or QApplication(argv)
 
+    # Track whether data_ready signal emitted
+    data_ready_emitted = False
+
     if args.plugin_id:
         logger.info(
             "Loading plugin UI class to trigger all heavy imports (Numba, Matplotlib, C-Extensions)..."  # noqa: E501
@@ -330,11 +338,22 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
             # If the plugin signals when async data is ready, wait for it
             if hasattr(panel, "data_ready"):
                 logger.info("Hooking into plugin data_ready signal for delayed exit.")
-                panel.data_ready.connect(app.quit)
 
-                smoke_test_timeout_ms = 15000
+                def _on_data_ready():
+                    nonlocal data_ready_emitted
+                    data_ready_emitted = True
+                    logger.info("Smoke test: data_ready signal received. Exiting cleanly.")
+                    app.quit()
+
+                panel.data_ready.connect(_on_data_ready)
+
+                def _on_timeout():
+                    if not data_ready_emitted:
+                        logger.error("Smoke test: timeout reached without data_ready emission.")
+                    app.quit()
+
                 # Give it up to 15 seconds to load async data before forcing a quit
-                QTimer.singleShot(smoke_test_timeout_ms, app.quit)
+                QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_timeout)
 
             panel.load_workflow(None, filename=args.data_file)
 
@@ -342,9 +361,14 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
     # Allow event loop to tick once then quit successfully, unless we are waiting for data
     if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")):
-        smoke_test_tick_ms = 1000
-        QTimer.singleShot(smoke_test_tick_ms, app.quit)
+        QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
     app.exec()
+
+    # Return failure if we were expecting data_ready but it never arrived
+    if args.plugin_id and args.data_file and hasattr(panel, "data_ready") and not data_ready_emitted:
+        logger.error("SMOKE TEST FAILED: data_ready signal was never emitted.")
+        return 1
+
     return 0
 
 
@@ -433,11 +457,12 @@ def _start_application(log_file: Path) -> None:
                 return
 
             if isinstance(error_data, dict) and "title" in error_data and "message" in error_data:
+                from biopro.core.event_bus import ErrorEventPayload
                 from biopro.shared.ui.alerts import show_error
 
-                top_widget = QApplication.activeWindow()
-                if top_widget:
-                    show_error(top_widget, error_data["title"], error_data["message"])
+                # Narrow the type for strict Mypy compatibility
+                typed_error: ErrorEventPayload = error_data  # type: ignore[assignment]
+                show_error(QApplication.activeWindow(), typed_error["title"], typed_error["message"])
                 return
 
             dialog = ErrorReportDialog(error_data)

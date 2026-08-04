@@ -33,6 +33,9 @@ from biopro.ui.windows.workspace.plugin_loader import PluginLoaderManager
 from biopro.ui.windows.workspace.theme_manager import ThemeManager
 
 if TYPE_CHECKING:
+    from biopro.core.module_manager import ModuleManager
+    from biopro.core.network_updater import NetworkUpdater
+    from biopro.core.project_manager import ProjectManager
     from biopro.ui.windows.workspace.hub_manager import StoreCallback
 
 logger = logging.getLogger(__name__)
@@ -49,8 +52,13 @@ class WorkspaceWindow(QMainWindow):
     DEFAULT_SIZE = QSize(1400, 860)
 
     def __init__(
-        self, project_manager, module_manager, updater, store_callback: StoreCallback, hub_callback
-    ):
+        self,
+        project_manager: ProjectManager,
+        module_manager: ModuleManager,
+        updater: NetworkUpdater,
+        store_callback: StoreCallback,
+        hub_callback: StoreCallback,
+    ) -> None:
         super().__init__()
         self.project_manager = project_manager
         self.module_manager = module_manager

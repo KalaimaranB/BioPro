@@ -34,16 +34,27 @@ from biopro.ui.widgets.dna_loader import ProgrammaticLoader
 from biopro.ui.windows.workspace_window import WorkspaceWindow
 
 if TYPE_CHECKING:
+    from biopro.core.module_manager import ModuleManager
+    from biopro.core.network_updater import NetworkUpdater
     from biopro.ui.windows.workspace.hub_manager import StoreCallback
 
 logger = logging.getLogger(__name__)
+
+# Timeout for waiting on worker thread termination
+UPDATE_WORKER_SHUTDOWN_TIMEOUT_MS = 2000
 
 
 class ProjectLauncherWindow(QMainWindow):
     """The main entry hub for creating and opening BioPro projects."""
 
     # We now REQUIRE the dependencies to be passed in!
-    def __init__(self, module_manager, updater, store_callback: "StoreCallback", hub_callback):
+    def __init__(
+        self,
+        module_manager: "ModuleManager",
+        updater: "NetworkUpdater",
+        store_callback: "StoreCallback",
+        hub_callback: "StoreCallback",
+    ) -> None:
         super().__init__()
 
         # Save the references
@@ -555,9 +566,9 @@ class ProjectLauncherWindow(QMainWindow):
 
         help_menu.addSeparator()
 
-        clear_data_action = QAction("🧹 Clear App Data...", self)
-        clear_data_action.triggered.connect(self._clear_app_data)
-        help_menu.addAction(clear_data_action)
+        self.clear_data_action = QAction("🧹 Clear App Data...", self)
+        self.clear_data_action.triggered.connect(self._clear_app_data)
+        help_menu.addAction(self.clear_data_action)
 
         restart_tour_action = QAction("♻️ Restart Onboarding Tour", self)
         restart_tour_action.triggered.connect(self._restart_core_intro)
@@ -606,6 +617,10 @@ class ProjectLauncherWindow(QMainWindow):
         """Clear all BioPro app data and quit asynchronously to avoid UI freezing."""
         from PyQt6.QtWidgets import QApplication
 
+        # Return immediately if already clearing data
+        if getattr(self, "_is_clearing_data", False):
+            return
+
         if ask_question(
             self,
             "Clear All App Data",
@@ -614,10 +629,27 @@ class ProjectLauncherWindow(QMainWindow):
             # Tell closeEvent we are clearing data so it doesn't write new preferences
             self._is_clearing_data = True
 
+            # Disable the action to prevent re-triggering
+            self.clear_data_action.setEnabled(False)
+
             # Stop the background update worker if running
             if hasattr(self, "_update_worker") and self._update_worker.isRunning():
                 self._update_worker.requestInterruption()
-                self._update_worker.wait(1000)
+                if not self._update_worker.wait(UPDATE_WORKER_SHUTDOWN_TIMEOUT_MS):
+                    logger.error(
+                        f"Update worker did not terminate within {UPDATE_WORKER_SHUTDOWN_TIMEOUT_MS}ms. "
+                        "Aborting cleanup to prevent data corruption."
+                    )
+                    from biopro.shared.ui.alerts import show_error
+
+                    show_error(
+                        self,
+                        "Error",
+                        "Failed to stop background update worker.\n\nCannot safely clear app data.",
+                    )
+                    self._is_clearing_data = False
+                    self.clear_data_action.setEnabled(True)
+                    return
 
             # Close any active logging handlers that may have file locks
             import logging
@@ -629,7 +661,7 @@ class ProjectLauncherWindow(QMainWindow):
             self._cleanup_worker = _CleanupWorker()
             self._cleanup_worker.finished.connect(QApplication.quit)
 
-            def _on_cleanup_error(err_str: str):
+            def _on_cleanup_error(err_str: str) -> None:
                 from biopro.shared.ui.alerts import show_error
 
                 show_error(self, "Error", f"Failed to clear app data:\n{err_str}")
@@ -720,13 +752,13 @@ class _CleanupWorker(QThread):
 
     error = pyqtSignal(str)
 
-    def run(self):
+    def run(self) -> None:
         import shutil
         from pathlib import Path
 
         try:
             target_path = Path.home() / ".biopro"
             if target_path.exists() and target_path.is_dir():
-                shutil.rmtree(target_path, ignore_errors=True)
+                shutil.rmtree(target_path)
         except Exception as e:
             self.error.emit(str(e))

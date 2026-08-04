@@ -13,7 +13,7 @@ StoreCallback = Callable[[QMainWindow], None]
 
 
 class HubManager:
-    def __init__(self, main_window: QMainWindow):
+    def __init__(self, main_window: QMainWindow) -> None:
         self.main_window = main_window
 
     def show_home(self) -> None:

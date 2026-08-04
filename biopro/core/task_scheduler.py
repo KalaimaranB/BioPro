@@ -113,20 +113,18 @@ class TaskScheduler(QObject):
         logger.error(f"Background task {task_id} failed: {error_msg}")
 
         if "failed ready handshake" in error_msg or "Daemon call failed" in error_msg:
-            from biopro.core.event_bus import BioProEvent, event_bus
+            from biopro.core.event_bus import BioProEvent, ErrorEventPayload, event_bus
 
             # Emit typed recovery event, keeping existing recovery guidance
-            event_bus.emit(
-                BioProEvent.ERROR_OCCURRED,
-                {
-                    "title": "Plugin Virtual Environment Error",
-                    "message": (
-                        "A critical error occurred while attempting to connect to the plugin's "
-                        f"virtual environment.\n\n{error_msg}\n\nTry going to the Hub -> Help menu "
-                        "and clicking 'Clear App Data...' to reset your environment."
-                    ),
-                },
-            )
+            payload: ErrorEventPayload = {
+                "title": "Plugin Virtual Environment Error",
+                "message": (
+                    "A critical error occurred while attempting to connect to the plugin's "
+                    f"virtual environment.\n\n{error_msg}\n\nTry going to the Hub -> Help menu "
+                    "and clicking 'Clear App Data...' to reset your environment."
+                ),
+            }
+            event_bus.emit(BioProEvent.ERROR_OCCURRED, payload)
 
         self._cleanup(task_id)
 

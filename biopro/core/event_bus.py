@@ -7,11 +7,18 @@ between core components and UI. Built on PyQt6 signals.
 import logging
 from collections.abc import Callable
 from enum import Enum, auto
-from typing import Any
+from typing import Any, TypedDict
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
 logger = logging.getLogger(__name__)
+
+
+class ErrorEventPayload(TypedDict):
+    """Strict payload type for ERROR_OCCURRED events."""
+
+    title: str
+    message: str
 
 
 class BioProEvent(Enum):
