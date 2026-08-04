@@ -314,6 +314,8 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
         if PanelClass is None:
             raise RuntimeError(f"Plugin {args.plugin_id} exposes no UI class.")
         panel = PanelClass()
+        if hasattr(panel, "begin_async_init"):
+            panel.begin_async_init()
 
         if args.data_file and hasattr(panel, "load_workflow"):
             logger.info(f"Injecting test data file: {args.data_file}")
@@ -355,7 +357,14 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                 # Give it up to 15 seconds to load async data before forcing a quit
                 QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_timeout)
 
-            panel.load_workflow(None, filename=args.data_file)
+            if hasattr(panel, "panel_ready"):
+
+                def _on_panel_ready():
+                    panel.load_workflow(None, filename=args.data_file)
+
+                panel.panel_ready.connect(_on_panel_ready)
+            else:
+                panel.load_workflow(None, filename=args.data_file)
 
     # Allow event loop to tick once then quit successfully, unless we are waiting for data
     if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")):
