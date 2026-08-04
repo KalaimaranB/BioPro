@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import (
@@ -57,7 +58,7 @@ class WorkspaceWindow(QMainWindow):
         module_manager: ModuleManager,
         updater: NetworkUpdater,
         store_callback: StoreCallback,
-        hub_callback: StoreCallback,
+        hub_callback: Callable[[], None],
     ) -> None:
         super().__init__()
         self.project_manager = project_manager

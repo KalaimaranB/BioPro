@@ -1,6 +1,5 @@
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
 
 
 def test_smoke_test_timeout_no_signal(monkeypatch):
@@ -12,6 +11,7 @@ def test_smoke_test_timeout_no_signal(monkeypatch):
         def __init__(self):
             super().__init__()
             from PyQt6.QtCore import pyqtSignal
+
             self.data_ready = pyqtSignal()
 
         def load_workflow(self, *args, **kwargs):
@@ -57,6 +57,7 @@ def test_smoke_test_timeout_no_signal(monkeypatch):
 
     try:
         from biopro.__main__ import _run_smoke_test
+
         exit_code = _run_smoke_test(sys.argv)
 
         # Should return 1 because data_ready never emitted

@@ -1,6 +1,7 @@
 """BioPro Hub - Project selection and creation dashboard."""
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -53,7 +54,7 @@ class ProjectLauncherWindow(QMainWindow):
         module_manager: "ModuleManager",
         updater: "NetworkUpdater",
         store_callback: "StoreCallback",
-        hub_callback: "StoreCallback",
+        hub_callback: "Callable[[], None]",
     ) -> None:
         super().__init__()
 

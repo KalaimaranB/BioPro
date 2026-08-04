@@ -365,7 +365,12 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
     app.exec()
 
     # Return failure if we were expecting data_ready but it never arrived
-    if args.plugin_id and args.data_file and hasattr(panel, "data_ready") and not data_ready_emitted:
+    if (
+        args.plugin_id
+        and args.data_file
+        and hasattr(panel, "data_ready")
+        and not data_ready_emitted
+    ):
         logger.error("SMOKE TEST FAILED: data_ready signal was never emitted.")
         return 1
 
@@ -447,7 +452,9 @@ def _start_application(log_file: Path) -> None:
             if theme_path.exists():
                 theme_manager.load_theme(theme_path)
 
-        def on_error(error_data):
+        from typing import Any
+
+        def on_error(error_data: Any) -> None:
             # CRITICAL: We cannot show a QDialog if QApplication hasn't been created.
             # If it's a fatal error, we'll let the global exception handler in main() catch it
             # and show a native message box there.
@@ -462,7 +469,11 @@ def _start_application(log_file: Path) -> None:
 
                 # Narrow the type for strict Mypy compatibility
                 typed_error: ErrorEventPayload = error_data  # type: ignore[assignment]
-                show_error(QApplication.activeWindow(), typed_error["title"], typed_error["message"])
+                show_error(
+                    QApplication.activeWindow(),
+                    typed_error["title"],
+                    typed_error["message"],
+                )
                 return
 
             dialog = ErrorReportDialog(error_data)
