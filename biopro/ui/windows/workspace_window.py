@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import (
     QEasingCurve,
@@ -31,6 +33,12 @@ from biopro.ui.windows.workspace.menu_manager import MenuManager
 from biopro.ui.windows.workspace.plugin_loader import PluginLoaderManager
 from biopro.ui.windows.workspace.theme_manager import ThemeManager
 
+if TYPE_CHECKING:
+    from biopro.core.module_manager import ModuleManager
+    from biopro.core.network_updater import NetworkUpdater
+    from biopro.core.project_manager import ProjectManager
+    from biopro.ui.windows.workspace.hub_manager import StoreCallback
+
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
 _PAGE_HOME = 0
@@ -44,7 +52,14 @@ class WorkspaceWindow(QMainWindow):
     APP_TITLE = "BioPro — Bio Analysis"
     DEFAULT_SIZE = QSize(1400, 860)
 
-    def __init__(self, project_manager, module_manager, updater, store_callback, hub_callback):
+    def __init__(
+        self,
+        project_manager: ProjectManager,
+        module_manager: ModuleManager,
+        updater: NetworkUpdater,
+        store_callback: StoreCallback,
+        hub_callback: Callable[[], None],
+    ) -> None:
         super().__init__()
         self.project_manager = project_manager
         self.module_manager = module_manager

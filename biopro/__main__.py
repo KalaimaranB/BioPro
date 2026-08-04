@@ -215,6 +215,11 @@ def bootstrap_sdk():
     return False
 
 
+# Smoke test timeout configuration
+SMOKE_TEST_TIMEOUT_MS = 15000  # Maximum time to wait for async data loading
+SMOKE_TEST_TICK_MS = 1000  # Delay before quitting when no async data expected
+
+
 def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
     """Run a smoke test for a specified plugin in a headless PyInstaller environment."""
     import argparse
@@ -278,6 +283,9 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
     app = QApplication.instance() or QApplication(argv)
 
+    # Track whether data_ready signal emitted
+    data_ready_emitted = False
+
     if args.plugin_id:
         logger.info(
             "Loading plugin UI class to trigger all heavy imports (Numba, Matplotlib, C-Extensions)..."  # noqa: E501
@@ -287,18 +295,20 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
         module_manager.trust_module(args.plugin_id)
 
         # Prevent modal dialogs from hanging the headless runner
+        from typing import NoReturn
+
         from PyQt6.QtWidgets import QMessageBox
 
-        def _mock_msgbox(*_args, **_kwargs):
+        def _mock_msgbox(*_args: object, **_kwargs: object) -> None:
             return None
 
-        def _mock_question(*_args, **_kwargs):
+        def _mock_question(*_args: object, **_kwargs: object) -> QMessageBox.StandardButton:
             return QMessageBox.StandardButton.Yes
 
-        QMessageBox.information = _mock_msgbox  # type: ignore[method-assign]
-        QMessageBox.warning = _mock_msgbox  # type: ignore[method-assign]
-        QMessageBox.critical = _mock_msgbox  # type: ignore[method-assign]
-        QMessageBox.question = _mock_question  # type: ignore[method-assign]
+        QMessageBox.information = _mock_msgbox  # type: ignore[assignment]
+        QMessageBox.warning = _mock_msgbox  # type: ignore[assignment]
+        QMessageBox.critical = _mock_msgbox  # type: ignore[assignment]
+        QMessageBox.question = _mock_question  # type: ignore[assignment]
 
         PanelClass = module_manager.load_module_ui(args.plugin_id)  # noqa: N806
         if PanelClass is None:
@@ -307,14 +317,62 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
         if args.data_file and hasattr(panel, "load_workflow"):
             logger.info(f"Injecting test data file: {args.data_file}")
+
+            try:
+                # Monkeypatch fcs_io to explicitly fail if flowkit (daemon) is NOT used
+                import biopro_plugins.flow_cytometry.analysis.fcs_io as fcs_io  # type: ignore[import-untyped, import-not-found]
+
+                def _crash_fcsparser(*_args: object, **_kwargs: object) -> NoReturn:  # noqa: ARG001
+                    raise RuntimeError(
+                        "Smoke test explicitly failed: flowkit was not used! "
+                        "Daemon virtual environment may be broken."
+                    )
+
+                fcs_io._load_with_fcsparser = _crash_fcsparser
+                logger.info("Monkeypatched fcs_io to strictly enforce flowkit usage via daemon.")
+            except ImportError:
+                if args.plugin_id == "flow_cytometry":
+                    raise
+                pass
+
+            # If the plugin signals when async data is ready, wait for it
+            if hasattr(panel, "data_ready"):
+                logger.info("Hooking into plugin data_ready signal for delayed exit.")
+
+                def _on_data_ready() -> None:
+                    nonlocal data_ready_emitted
+                    data_ready_emitted = True
+                    logger.info("Smoke test: data_ready signal received. Exiting cleanly.")
+                    app.quit()
+
+                panel.data_ready.connect(_on_data_ready)
+
+                def _on_timeout() -> None:
+                    if not data_ready_emitted:
+                        logger.error("Smoke test: timeout reached without data_ready emission.")
+                    app.quit()
+
+                # Give it up to 15 seconds to load async data before forcing a quit
+                QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_timeout)
+
             panel.load_workflow(None, filename=args.data_file)
 
-    logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
-
-    # Allow event loop to tick once then quit successfully
-    smoke_test_tick_ms = 1000
-    QTimer.singleShot(smoke_test_tick_ms, app.quit)
+    # Allow event loop to tick once then quit successfully, unless we are waiting for data
+    if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")):
+        QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
     app.exec()
+
+    # Return failure if we were expecting data_ready but it never arrived
+    if (
+        args.plugin_id
+        and args.data_file
+        and hasattr(panel, "data_ready")
+        and not data_ready_emitted
+    ):
+        logger.error("SMOKE TEST FAILED: data_ready signal was never emitted.")
+        return 1
+
+    logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
     return 0
 
 
@@ -393,13 +451,28 @@ def _start_application(log_file: Path) -> None:
             if theme_path.exists():
                 theme_manager.load_theme(theme_path)
 
-        def on_error(error_data):
+        from typing import Any
+
+        def on_error(error_data: Any) -> None:
             # CRITICAL: We cannot show a QDialog if QApplication hasn't been created.
             # If it's a fatal error, we'll let the global exception handler in main() catch it
             # and show a native message box there.
             from PyQt6.QtWidgets import QApplication
 
             if not QApplication.instance():
+                return
+
+            if isinstance(error_data, dict) and "title" in error_data and "message" in error_data:
+                from biopro.core.event_bus import ErrorEventPayload
+                from biopro.shared.ui.alerts import show_error
+
+                # Narrow the type for strict Mypy compatibility
+                typed_error: ErrorEventPayload = error_data  # type: ignore[assignment]
+                show_error(
+                    QApplication.activeWindow(),
+                    typed_error["title"],
+                    typed_error["message"],
+                )
                 return
 
             dialog = ErrorReportDialog(error_data)
