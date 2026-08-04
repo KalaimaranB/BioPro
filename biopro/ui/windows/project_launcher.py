@@ -77,11 +77,6 @@ class ProjectLauncherWindow(QMainWindow):
         if saved_geom:
             self.restoreGeometry(QByteArray.fromHex(saved_geom.encode("ascii")))
 
-        # Initialize the Logic Engine for the Core App and Store
-        from biopro.core.network_updater import NetworkUpdater
-
-        self.updater = NetworkUpdater()
-
         # Build update checker (injected deps — SRP + DIP)
         _config = AppConfig()
         self._update_checker = UpdateChecker(self.updater, _config, get_event_bus())

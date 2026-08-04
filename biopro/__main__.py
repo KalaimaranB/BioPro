@@ -339,7 +339,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
             if hasattr(panel, "data_ready"):
                 logger.info("Hooking into plugin data_ready signal for delayed exit.")
 
-                def _on_data_ready():
+                def _on_data_ready() -> None:
                     nonlocal data_ready_emitted
                     data_ready_emitted = True
                     logger.info("Smoke test: data_ready signal received. Exiting cleanly.")
@@ -347,7 +347,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
                 panel.data_ready.connect(_on_data_ready)
 
-                def _on_timeout():
+                def _on_timeout() -> None:
                     if not data_ready_emitted:
                         logger.error("Smoke test: timeout reached without data_ready emission.")
                     app.quit()
@@ -356,8 +356,6 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                 QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_timeout)
 
             panel.load_workflow(None, filename=args.data_file)
-
-    logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
 
     # Allow event loop to tick once then quit successfully, unless we are waiting for data
     if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")):
@@ -374,6 +372,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
         logger.error("SMOKE TEST FAILED: data_ready signal was never emitted.")
         return 1
 
+    logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
     return 0
 
 

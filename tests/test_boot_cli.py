@@ -1,47 +1,53 @@
 import sys
 from pathlib import Path
+from typing import Any
+
+import pytest
+
+# Test-specific timeout constant for smoke test validation
+TEST_SMOKE_TIMEOUT_MS = 100
 
 
-def test_smoke_test_timeout_no_signal(monkeypatch):
+def test_smoke_test_timeout_no_signal(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify that smoke test returns failure when data_ready signal never emits."""
+    from PyQt6.QtCore import pyqtSignal
     from PyQt6.QtWidgets import QApplication, QWidget
 
     # Mock panel class that has data_ready but never emits it
     class MockPanel(QWidget):
-        def __init__(self):
+        data_ready = pyqtSignal()
+
+        def __init__(self) -> None:
             super().__init__()
-            from PyQt6.QtCore import pyqtSignal
 
-            self.data_ready = pyqtSignal()
-
-        def load_workflow(self, *args, **kwargs):
+        def load_workflow(self, *args: Any, **kwargs: Any) -> None:
             # Simulate loading but never emit data_ready
             pass
 
     # Mock ModuleManager
     class MockModuleManager:
-        def reload_modules(self):
+        def reload_modules(self) -> None:
             pass
 
-        def trust_module(self, module_id):
+        def trust_module(self, module_id: str) -> None:
             pass
 
-        def load_module_ui(self, module_id):
+        def load_module_ui(self, module_id: str) -> type[MockPanel]:
             return MockPanel
 
     # Mock NetworkUpdater
     class MockNetworkUpdater:
         plugin_dir = Path("/tmp/plugins")
 
-        def fetch_remote_registry(self, url):
+        def fetch_remote_registry(self, url: str) -> dict[str, Any]:
             return {"plugins": {"test_plugin": {"version": "1.0.0"}}}
 
-        def install_plugin(self, plugin_id, plugin_info):
+        def install_plugin(self, plugin_id: str, plugin_info: dict[str, Any]) -> tuple[bool, str]:
             return True, "Success"
 
     # Mock PackageManager
     class MockPackageManager:
-        def resolve_and_install_all(self, deps, plugin_dir):
+        def resolve_and_install_all(self, deps: dict[str, str], plugin_dir: Path) -> None:
             pass
 
     monkeypatch.setattr("biopro.core.module_manager.ModuleManager", MockModuleManager)
@@ -50,7 +56,7 @@ def test_smoke_test_timeout_no_signal(monkeypatch):
     monkeypatch.setattr("biopro.__main__.setup_logging", lambda: Path("/tmp/biopro.log"))
 
     # Significantly reduce timeout for testing
-    monkeypatch.setattr("biopro.__main__.SMOKE_TEST_TIMEOUT_MS", 100)
+    monkeypatch.setattr("biopro.__main__.SMOKE_TEST_TIMEOUT_MS", TEST_SMOKE_TIMEOUT_MS)
 
     original_argv = sys.argv
     sys.argv = ["biopro", "--smoke-test=test_plugin", "/tmp/test_data.fcs"]
