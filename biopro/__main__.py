@@ -314,8 +314,9 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
         if PanelClass is None:
             raise RuntimeError(f"Plugin {args.plugin_id} exposes no UI class.")
         panel = PanelClass()
-        if hasattr(panel, "begin_async_init"):
-            panel.begin_async_init()
+
+        # Track whether panel_ready signal emitted (to guard against multiple invocations)
+        panel_ready_emitted = False
 
         if args.data_file and hasattr(panel, "load_workflow"):
             logger.info(f"Injecting test data file: {args.data_file}")
@@ -357,18 +358,50 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                 # Give it up to 15 seconds to load async data before forcing a quit
                 QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_timeout)
 
+            # Connect panel_ready BEFORE calling begin_async_init to avoid race condition
             if hasattr(panel, "panel_ready"):
 
-                def _on_panel_ready():
+                def _on_panel_ready() -> None:
+                    nonlocal panel_ready_emitted
+                    if panel_ready_emitted:
+                        logger.warning(
+                            "Smoke test: panel_ready emitted multiple times, ignoring subsequent emissions."
+                        )
+                        return
+                    panel_ready_emitted = True
                     panel.load_workflow(None, filename=args.data_file)
+                    # If no data_ready signal, quit after load_workflow completes
+                    if not hasattr(panel, "data_ready"):
+                        logger.info(
+                            "Smoke test: load_workflow invoked via panel_ready. No data_ready signal, exiting cleanly."  # noqa: E501
+                        )
+                        app.quit()
 
                 panel.panel_ready.connect(_on_panel_ready)
+
+                def _on_panel_ready_timeout() -> None:
+                    if not panel_ready_emitted:
+                        logger.error(
+                            "Smoke test: timeout reached without panel_ready emission."
+                        )
+                        app.quit()
+
+                # Wait up to SMOKE_TEST_TIMEOUT_MS for panel_ready if no data_ready signal
+                if not hasattr(panel, "data_ready"):
+                    QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_panel_ready_timeout)
             else:
+                # No panel_ready signal, invoke load_workflow immediately
                 panel.load_workflow(None, filename=args.data_file)
+
+        # Call begin_async_init AFTER all signal connections to avoid race conditions
+        if hasattr(panel, "begin_async_init"):
+            panel.begin_async_init()
 
     # Allow event loop to tick once then quit successfully, unless we are waiting for data
     if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")):
-        QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
+        # Skip short timeout if panel_ready exists (already set up proper timeout above)
+        if not (args.plugin_id and args.data_file and hasattr(panel, "panel_ready")):
+            QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
     app.exec()
 
     # Return failure if we were expecting data_ready but it never arrived
