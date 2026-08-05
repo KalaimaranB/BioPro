@@ -436,8 +436,8 @@ class TutorialOverlay(QWidget):
                 else:
                     cyto_y = max(20, union_rect.y() - 400)
 
-        # If the union target is massive (like the plot canvas), move Cyto to the left sidebar
-        if union_rect.width() > self.width() * 0.5 and len(rects) == 1:
+        # If any target is massive (like the plot canvas), move Cyto to the left sidebar
+        if any(r.width() > self.width() * 0.5 for r in rects):
             cyto_x = 20
             cyto_y = max(20, self.height() - 400)
 
