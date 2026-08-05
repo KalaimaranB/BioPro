@@ -113,7 +113,7 @@ class PluginSigner:
                     hashes[rel_path] = hashlib.sha256(f.read()).hexdigest()
 
         # Build security.json
-        manifest_bytes = manifest_path.read_bytes()
+        manifest_bytes = manifest_path.read_bytes().replace(b"\r\n", b"\n")
         manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
 
         security_data = {
@@ -381,7 +381,7 @@ class TestTrustArchitecture:
                 hashes[str(rel)] = hashlib.sha256(f.read_bytes()).hexdigest()
 
         # Build security.json
-        manifest_bytes = manifest_path.read_bytes()
+        manifest_bytes = manifest_path.read_bytes().replace(b"\r\n", b"\n")
         manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
 
         security_data = {

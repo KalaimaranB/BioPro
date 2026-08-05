@@ -123,7 +123,8 @@ class TestDoubleSigningPipeline:
         assert sec_data["plugin_id"] == "my_plugin"
 
         # Check manifest hash matches manifest.json exactly
-        computed_manifest_hash = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
+        manifest_bytes = manifest_file.read_bytes().replace(b"\r\n", b"\n")
+        computed_manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
         assert sec_data["manifest_hash"] == computed_manifest_hash
 
         # Check that code.py is hashed
