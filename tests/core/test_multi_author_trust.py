@@ -106,7 +106,8 @@ def sign_mock_plugin(plugin_dir, manifest_data, dev_certs, mock_auth):
     # Calculate manifest hash binding
     import hashlib
 
-    manifest_hash = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
+    manifest_bytes = manifest_file.read_bytes().replace(b"\r\n", b"\n")
+    manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
 
     # Simple walk to hash python files
     hashes = {}
