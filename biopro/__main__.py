@@ -365,7 +365,8 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                     nonlocal panel_ready_emitted
                     if panel_ready_emitted:
                         logger.warning(
-                            "Smoke test: panel_ready emitted multiple times, ignoring subsequent emissions."
+                            "Smoke test: panel_ready emitted multiple times, "
+                            "ignoring subsequent emissions."
                         )
                         return
                     panel_ready_emitted = True
@@ -381,9 +382,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
                 def _on_panel_ready_timeout() -> None:
                     if not panel_ready_emitted:
-                        logger.error(
-                            "Smoke test: timeout reached without panel_ready emission."
-                        )
+                        logger.error("Smoke test: timeout reached without panel_ready emission.")
                         app.quit()
 
                 # Wait up to SMOKE_TEST_TIMEOUT_MS for panel_ready if no data_ready signal
@@ -398,10 +397,10 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
             panel.begin_async_init()
 
     # Allow event loop to tick once then quit successfully, unless we are waiting for data
-    if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")):
-        # Skip short timeout if panel_ready exists (already set up proper timeout above)
-        if not (args.plugin_id and args.data_file and hasattr(panel, "panel_ready")):
-            QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
+    if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")) and not (
+        args.plugin_id and args.data_file and hasattr(panel, "panel_ready")
+    ):
+        QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
     app.exec()
 
     # Return failure if we were expecting data_ready but it never arrived

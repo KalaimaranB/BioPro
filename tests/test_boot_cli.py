@@ -76,7 +76,7 @@ def test_smoke_test_timeout_no_signal(monkeypatch: pytest.MonkeyPatch) -> None:
             app.quit()
 
 
-def test_smoke_test_panel_ready_without_data_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_smoke_test_panel_ready_without_data_ready(monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: C901
     """Verify that smoke test succeeds when panel_ready signal emits but data_ready is absent."""
     from PyQt6.QtCore import QTimer, pyqtSignal
     from PyQt6.QtWidgets import QApplication, QWidget
