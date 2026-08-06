@@ -70,9 +70,17 @@ class AutoReportHandler(logging.Handler):
         # Prevent infinite recursion if the DiagnosticEngine itself logs an error
         """Forward a log record to the diagnostic engine for reporting.
 
-        Records emitted by the diagnostic logger are ignored to prevent recursive reporting.
+        Records emitted by the diagnostic logger are ignored to prevent recursive
+        reporting. Records from the event bus are also ignored: `event_bus.py`
+        logs here when an `ERROR_OCCURRED` *listener itself* raises — reporting
+        that as a new error would re-emit `ERROR_OCCURRED`, re-invoking the same
+        broken listener, which logs again here, forever (this actually happened
+        in production: a broken `setFont()` call in the error dialog listener
+        caused an infinite report -> emit -> dispatch -> report cycle until the
+        recursion limit was hit). A listener failure is a bug in that listener,
+        not a new application error to broadcast through the same channel.
         """
-        if record.name == "biopro.core.diagnostics":
+        if record.name in ("biopro.core.diagnostics", "biopro.core.event_bus"):
             return
 
         try:

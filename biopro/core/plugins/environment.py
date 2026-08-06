@@ -11,6 +11,29 @@ logger = logging.getLogger(__name__)
 
 _DEP_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-]+")
 
+# Packages that must NEVER be purged from sys.modules, even if a plugin's own
+# site-packages happens to have a copy (usually as a transitive dependency of
+# biopro_sdk, which every plugin depends on). These own process-wide C-level
+# singleton state — one running QApplication, one widget/font/style registry —
+# and loading a second, independent copy mid-session doesn't "fix" isolation,
+# it corrupts it: objects built by one binding (e.g. a QFont) are no longer
+# type-compatible with objects/methods bound to the other, which is exactly
+# what happened in production (`setFont(): argument 1 has unexpected type
+# 'QFont'`) when PyQt6 got purged-and-reloaded partway through a plugin load.
+_PINNED_SINGLETON_PACKAGES = frozenset(
+    {
+        "PyQt6",
+        "PyQt6_sip",
+        "PyQt6_Qt6",
+        "PySide6",
+        "PySide2",
+        "PyQt5",
+        "sip",
+        "shiboken6",
+        "shiboken2",
+    }
+)
+
 
 def _module_origin(mod: ModuleType) -> str | None:
     """Extract the origin path from a module.
@@ -155,6 +178,10 @@ class PluginEnvironmentInjector:
         Parameters:
             site_packages (Path): The plugin's own site-packages directory.
 
+        Excludes packages in `_PINNED_SINGLETON_PACKAGES` (e.g. PyQt6) — these are
+        never candidates for purging/re-resolution regardless of where they're
+        installed, since the running process must keep exactly one copy of them.
+
         Returns:
             list[str]: Best-effort importable names (falls back to the distribution
             name, hyphens normalized to underscores, for wheels without a
@@ -199,7 +226,7 @@ class PluginEnvironmentInjector:
         except Exception as e:
             logger.debug("Failed to enumerate installed packages in %s: %s", site_packages, e)
 
-        return sorted(names)
+        return sorted(names - _PINNED_SINGLETON_PACKAGES)
 
     @staticmethod
     def enforce_priority(plugin_path: Path, site_packages: Path) -> list[str]:

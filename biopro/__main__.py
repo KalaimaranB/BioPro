@@ -425,6 +425,27 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
         logger.error("SMOKE TEST FAILED: data_ready signal was never emitted.")
         return 1
 
+    # Exercise the biexponential (Logicle) transform directly. This is the exact
+    # code path that broke on Windows when bokeh (a transitive flowkit dependency)
+    # failed to resolve its own template environment inside the frozen app — it
+    # only ever triggers the first time a user renders a biexponential/log axis
+    # (e.g. a fluorescence channel), which the default linear scatter view this
+    # smoke test otherwise loads never does. Uses the loaded scatter data
+    # directly rather than driving axis-selector UI, since the bug lives in the
+    # transform call itself, not in how an axis gets selected.
+    if args.plugin_id == "flow_cytometry" and data_ready_emitted:
+        try:
+            import numpy as np
+            from biopro_plugins.flow_cytometry.analysis.transforms import (  # type: ignore[import-untyped, import-not-found]
+                biexponential_transform,
+            )
+
+            biexponential_transform(np.array([1.0, 100.0, 10_000.0, 200_000.0]))
+            logger.info("Smoke test: biexponential_transform executed successfully.")
+        except Exception as e:
+            logger.error(f"SMOKE TEST FAILED: biexponential_transform raised: {e}")
+            return 1
+
     logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
     return 0
 

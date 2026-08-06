@@ -49,6 +49,36 @@ def test_error_reporting(qtbot):
     assert len(data["history"]) > 0
 
 
+def test_listener_exception_does_not_trigger_recursive_reporting(qtbot):
+    """Regression test for a real production incident: a broken `ERROR_OCCURRED`
+    listener (a `setFont()` type mismatch in the error dialog) caused infinite
+    recursion — `report_error` -> `event_bus.emit` -> `_dispatch` -> listener
+    raises -> `event_bus.py`'s `logger.error(..., exc_info=True)` ->
+    `AutoReportHandler` -> `report_error` -> `event_bus.emit` -> ... — until the
+    Python recursion limit was hit. `AutoReportHandler` must ignore event_bus's
+    own listener-failure logs so a broken listener can't re-trigger itself.
+    """
+    engine = DiagnosticEngine()
+
+    call_count = {"n": 0}
+
+    def broken_listener(_data):
+        call_count["n"] += 1
+        raise TypeError("simulated setFont() failure")
+
+    event_bus.subscribe(BioProEvent.ERROR_OCCURRED, broken_listener)
+    try:
+        engine.report_error("trigger", plugin_id="test_plugin")
+        qtbot.wait(50)
+    finally:
+        event_bus.unsubscribe(BioProEvent.ERROR_OCCURRED, broken_listener)
+
+    # Without the fix this listener is invoked recursively (>1, until the
+    # recursion limit). With the fix, exactly once — its own failure never
+    # gets reported as a new application error.
+    assert call_count["n"] == 1
+
+
 def test_black_box_formatting():
     handler = BlackBoxHandler(capacity=1)
     handler.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))

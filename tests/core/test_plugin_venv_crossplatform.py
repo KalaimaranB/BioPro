@@ -158,6 +158,49 @@ class TestVenvPathResolution:
         assert str(unix_sp) in sys.path
         sys.path.remove(str(unix_sp))
 
+    def _write_fake_dist_info(self, site_packages: Path, name: str, version: str = "1.0.0"):
+        dist_info = site_packages / f"{name}-{version}.dist-info"
+        dist_info.mkdir(parents=True)
+        (dist_info / "METADATA").write_text(
+            f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n"
+        )
+        return dist_info
+
+    def test_installed_names_excludes_pinned_singleton_packages(self, tmp_path):
+        """Regression test for a real production incident: PyQt6 is a transitive
+        dependency of biopro_sdk, so it's installed in every plugin's own
+        site-packages too. `_installed_names()` must never surface it as a purge
+        candidate — the running process must keep exactly one Qt binding, ever.
+        Purging and reloading PyQt6 mid-session produced a QFont type mismatch
+        (`setFont(): argument 1 has unexpected type 'QFont'`) that then triggered
+        an infinite reporting loop (see test_diagnostics.py).
+        """
+        site_packages = tmp_path / "site-packages"
+        site_packages.mkdir()
+        self._write_fake_dist_info(site_packages, "PyQt6", "6.11.0")
+        self._write_fake_dist_info(site_packages, "requests", "2.32.0")
+
+        names = PluginEnvironmentInjector._installed_names(site_packages)
+
+        assert "PyQt6" not in names
+        assert "requests" in names
+
+    def test_enforce_priority_never_purges_pyqt6(self, tmp_path):
+        site_packages = tmp_path / "site-packages"
+        site_packages.mkdir()
+        self._write_fake_dist_info(site_packages, "PyQt6", "6.11.0")
+
+        # PyQt6 is genuinely already loaded in this test process (pytest-qt),
+        # and its real location is certainly not our fake tmp_path — exactly the
+        # "shadowed" condition enforce_priority looks for.
+        assert "PyQt6" in sys.modules
+        live_module = sys.modules["PyQt6"]
+
+        purged = PluginEnvironmentInjector.enforce_priority(tmp_path, site_packages)
+
+        assert "PyQt6" not in purged
+        assert sys.modules["PyQt6"] is live_module
+
 
 @pytest.mark.skipif(
     not _uv_available(), reason="uv not on PATH — skipped in environments without uv"
