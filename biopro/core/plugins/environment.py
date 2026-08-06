@@ -206,10 +206,8 @@ class PluginEnvironmentInjector:
                     if dist.files:
                         for file in dist.files:
                             # Extract first path component as the potential top-level import name
-                            parts = str(file).split("/")
-                            if parts and parts[0]:
-                                # Skip metadata directories and non-importable components
-                                component = parts[0]
+                            if hasattr(file, "parts") and file.parts:
+                                component = file.parts[0]
                                 if (
                                     not component.endswith(".dist-info")
                                     and not component.endswith(".egg-info")
