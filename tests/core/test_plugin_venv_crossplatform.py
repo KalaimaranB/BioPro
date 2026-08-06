@@ -66,9 +66,7 @@ def _uv_available() -> bool:
     return shutil.which("uv") is not None
 
 
-def _create_plugin_venv_with_package(
-    uv_path: str, venv_dir: Path, package: str
-) -> Path:
+def _create_plugin_venv_with_package(uv_path: str, venv_dir: Path, package: str) -> Path:
     """Create a virtual environment and install a package into it.
 
     Parameters:
@@ -233,7 +231,9 @@ class TestRealVenvInstallation:
         venv_dir = plugin_dir / ".venv"
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
-        sp.run([uv, "venv", str(venv_dir), "--python", python_version], capture_output=True, text=True)
+        sp.run(
+            [uv, "venv", str(venv_dir), "--python", python_version], capture_output=True, text=True
+        )
         expected_python = _expected_venv_python(venv_dir)
 
         sp.run(
@@ -267,7 +267,9 @@ class TestRealVenvInstallation:
         internal_dir = tmp_path / "biopro" / "plugins"
         venv_dir = plugin_dir / ".venv"
 
-        sp.run([uv, "venv", str(venv_dir), "--python", python_version], capture_output=True, check=True)
+        sp.run(
+            [uv, "venv", str(venv_dir), "--python", python_version], capture_output=True, check=True
+        )
         expected_python = _expected_venv_python(venv_dir)
         sp.run(
             [uv, "pip", "install", "--python", str(expected_python), self.LIGHTWEIGHT_PACKAGE],
@@ -307,7 +309,9 @@ class TestRealVenvInstallation:
         # A decoy copy elsewhere on sys.path, imported first — simulates a name
         # already claimed in sys.modules (e.g. by a frozen bundle's importer).
         fake_core_venv = tmp_path / "fake_core" / ".venv"
-        fake_core_sp = _create_plugin_venv_with_package(uv, fake_core_venv, self.LIGHTWEIGHT_PACKAGE)
+        fake_core_sp = _create_plugin_venv_with_package(
+            uv, fake_core_venv, self.LIGHTWEIGHT_PACKAGE
+        )
 
         # The plugin's own copy.
         plugin_dir = tmp_path / "cytometrics_isolation"
@@ -317,11 +321,10 @@ class TestRealVenvInstallation:
         site_packages = _create_plugin_venv_with_package(uv, venv_dir, self.LIGHTWEIGHT_PACKAGE)
 
         original_path = sys.path.copy()
-        original_mod = sys.modules.pop(pkg_name, None)
+        sys.modules.pop(pkg_name, None)
         # Snapshot all submodules for cleanup
         original_submodules = {
-            k: v for k, v in sys.modules.items()
-            if k == pkg_name or k.startswith(f"{pkg_name}.")
+            k: v for k, v in sys.modules.items() if k == pkg_name or k.startswith(f"{pkg_name}.")
         }
 
         try:
@@ -342,8 +345,7 @@ class TestRealVenvInstallation:
             sys.path[:] = original_path
             # Remove all modules and submodules from the namespace
             keys_to_remove = [
-                k for k in sys.modules
-                if k == pkg_name or k.startswith(f"{pkg_name}.")
+                k for k in sys.modules if k == pkg_name or k.startswith(f"{pkg_name}.")
             ]
             for k in keys_to_remove:
                 del sys.modules[k]
@@ -351,7 +353,9 @@ class TestRealVenvInstallation:
             sys.modules.update(original_submodules)
 
 
-def test_installed_names_derives_from_dist_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_installed_names_derives_from_dist_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that _installed_names correctly derives top-level import names from dist.files.
 
     Verifies the Pillow→PIL, scikit-learn→sklearn, and beautifulsoup4→bs4 mappings
