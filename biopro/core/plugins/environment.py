@@ -165,7 +165,7 @@ class PluginEnvironmentInjector:
         return selected_path
 
     @staticmethod
-    def _installed_names(site_packages: Path) -> list[str]:
+    def _installed_names(site_packages: Path) -> list[str]:  # noqa: C901
         """Enumerate importable module names actually installed in a site-packages dir.
 
         Deliberately based on what's *installed*, not just the plugin's own declared
@@ -201,14 +201,13 @@ class PluginEnvironmentInjector:
                 if top_level:
                     names.update(line.strip() for line in top_level.splitlines() if line.strip())
                 else:
+                    dist_names_added = False
                     # Fallback 1: Derive from dist.files (e.g., Pillow→PIL, scikit-learn→sklearn)
                     if dist.files:
                         for file in dist.files:
                             # Extract first path component as the potential top-level import name
-                            parts = str(file).split("/")
-                            if parts and parts[0]:
-                                # Skip metadata directories and non-importable components
-                                component = parts[0]
+                            if hasattr(file, "parts") and file.parts:
+                                component = file.parts[0]
                                 if (
                                     not component.endswith(".dist-info")
                                     and not component.endswith(".egg-info")
@@ -216,8 +215,9 @@ class PluginEnvironmentInjector:
                                     and component.isidentifier()
                                 ):
                                     names.add(component)
+                                    dist_names_added = True
                     # Fallback 2: Use normalized distribution name
-                    if not names:
+                    if not dist_names_added:
                         dist_name = dist.metadata.get("Name") or dist.name
                         if dist_name:
                             match = _DEP_NAME_RE.match(dist_name.strip())

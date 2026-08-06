@@ -154,7 +154,7 @@ def test_smoke_test_panel_ready_without_data_ready(monkeypatch: pytest.MonkeyPat
             app.quit()
 
 
-def test_smoke_test_panel_ready_load_workflow_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_smoke_test_panel_ready_load_workflow_raises(monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: C901
     """Verify that smoke test returns failure when load_workflow raises an exception on a panel lacking data_ready."""
     from PyQt6.QtCore import QTimer, pyqtSignal
     from PyQt6.QtWidgets import QApplication, QWidget
