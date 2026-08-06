@@ -41,6 +41,17 @@ bloat_modules = [
     'pytest_qt',
     'mock',
     'coverage',
+    # Plugin-only analysis libraries: NOT core dependencies (see
+    # pyproject.toml). Plugins bring their own complete copies in their
+    # isolated .venv. If one of these ends up installed in the build
+    # environment, PyInstaller's static analysis can sweep it into the
+    # frozen bundle incompletely (e.g. missing bokeh's jinja templates) —
+    # and because sys.modules/sys.meta_path resolution happens before
+    # sys.path, a plugin's own copy can never override a core-bundled one.
+    # Excluding them here guarantees the frozen core never claims the name.
+    'bokeh',
+    'flowkit',
+    'flowutils',
 ]
 
 import tomllib

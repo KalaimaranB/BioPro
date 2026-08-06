@@ -2,23 +2,30 @@
 
 import importlib.metadata as metadata
 import logging
+import re
 import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+_DEP_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-]+")
 
 
 class PluginEnvironmentInjector:
     """Manages the injection of isolated .venv paths into the global sys.path."""
 
     @staticmethod
-    def inject_path(plugin_path: Path, internal_plugins_dir: Path) -> None:  # noqa: C901
+    def inject_path(plugin_path: Path, internal_plugins_dir: Path) -> Path | None:  # noqa: C901
         """Inject a plugin's local packages and source directory into `sys.path`.
 
         Parameters:
             plugin_path (Path): Path to the plugin directory.
             internal_plugins_dir (Path): Directory used to position injected paths relative to
             application paths.
+
+        Returns:
+            Path | None: The plugin's site-packages directory that was injected, or `None`
+            if no plugin environment was found.
         """
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
         candidate_paths = [
@@ -48,7 +55,7 @@ class PluginEnvironmentInjector:
                 plugin_path,
                 ", ".join(str(p) for p in candidate_paths),
             )
-            return
+            return None
 
         # Insert the plugin site-packages before any application-bundle paths
         insert_index = 0
@@ -93,6 +100,139 @@ class PluginEnvironmentInjector:
                 selected_path,
             )
             PluginEnvironmentInjector._log_plugin_environment(plugin_path, selected_path)
+
+        return selected_path
+
+    @staticmethod
+    def _installed_names(site_packages: Path) -> list[str]:
+        """Enumerate importable module names actually installed in a site-packages dir.
+
+        Deliberately based on what's *installed*, not just the plugin's own declared
+        top-level dependencies (`pyproject.toml [project].dependencies`) — a plugin's
+        manifest lists `flowkit`, not `bokeh`, yet bokeh is exactly the package that
+        needs isolating, because it arrives transitively (flowkit depends on it). Any
+        transitively-installed package is just as capable of colliding with a
+        core-bundled copy, so all of them need to be covered here.
+
+        Parameters:
+            site_packages (Path): The plugin's own site-packages directory.
+
+        Returns:
+            list[str]: Best-effort importable names (falls back to the distribution
+            name, hyphens normalized to underscores, for wheels without a
+            top_level.txt — distribution name and import name can still differ, e.g.
+            "pillow" imports as "PIL", but this is a defensive check, not a source of
+            truth).
+        """
+        names: set[str] = set()
+        try:
+            for dist in metadata.distributions(path=[str(site_packages)]):
+                top_level = None
+                try:
+                    top_level = dist.read_text("top_level.txt")
+                except Exception:
+                    top_level = None
+
+                if top_level:
+                    names.update(line.strip() for line in top_level.splitlines() if line.strip())
+                else:
+                    dist_name = dist.metadata.get("Name") or dist.name
+                    if dist_name:
+                        match = _DEP_NAME_RE.match(dist_name.strip())
+                        if match:
+                            names.add(match.group(0).replace("-", "_"))
+        except Exception as e:
+            logger.debug("Failed to enumerate installed packages in %s: %s", site_packages, e)
+
+        return sorted(names)
+
+    @staticmethod
+    def enforce_priority(plugin_path: Path, site_packages: Path) -> list[str]:
+        """Force the plugin's installed dependencies to resolve from its own environment.
+
+        `sys.path` ordering (see `inject_path`) cannot override a module name that is
+        already resolved in `sys.modules` — for example a partial copy claimed by a
+        frozen PyInstaller build's importer, or a copy left behind by an earlier-loaded
+        plugin. For each package actually installed in this plugin's own site-packages
+        that is already present in `sys.modules` but not resolving from there, this
+        purges it (and its submodules) so the next import re-resolves — now correctly
+        finding the plugin's own copy via the path `inject_path` just placed first on
+        `sys.path`.
+
+        Parameters:
+            plugin_path (Path): Path to the plugin directory (used only for logging).
+            site_packages (Path): The plugin's own site-packages directory, as selected by
+            `inject_path`.
+
+        Returns:
+            list[str]: Names that were purged and forced to re-resolve.
+        """
+        purged: list[str] = []
+        site_packages_str = str(site_packages)
+
+        for name in PluginEnvironmentInjector._installed_names(site_packages):
+            mod = sys.modules.get(name)
+            if mod is None:
+                continue
+
+            origin = getattr(mod, "__file__", None)
+            if not origin:
+                path_entries = list(getattr(mod, "__path__", []) or [])
+                origin = path_entries[0] if path_entries else None
+
+            if origin and str(origin).startswith(site_packages_str):
+                continue  # Already resolving from the plugin's own environment.
+
+            keys_to_remove = [k for k in sys.modules if k == name or k.startswith(f"{name}.")]
+            for k in keys_to_remove:
+                del sys.modules[k]
+
+            purged.append(name)
+            logger.warning(
+                "Purged shadow copy of '%s' (was resolving from %s) so plugin %s can "
+                "re-resolve its own copy from %s.",
+                name,
+                origin or "<unknown>",
+                plugin_path.name,
+                site_packages,
+            )
+
+        return purged
+
+    @staticmethod
+    def verify_isolation(names: list[str], site_packages: Path) -> list[str]:
+        """Check whether previously-purged dependency names now resolve from the plugin's env.
+
+        Call this after the plugin has actually imported (so `sys.modules` has been
+        repopulated). A name still resolving outside `site_packages` means something
+        claimed it again before `sys.path`/`PathFinder` could be consulted — most likely a
+        frozen bundle's `sys.meta_path` importer. `enforce_priority`'s `sys.modules` purge
+        cannot fix that case; the module simply must not be bundled into the core app.
+
+        Parameters:
+            names (list[str]): Dependency names to re-check (typically the list returned by
+            a prior `enforce_priority` call).
+            site_packages (Path): The plugin's own site-packages directory.
+
+        Returns:
+            list[str]: Names still resolving outside the plugin's site-packages.
+        """
+        site_packages_str = str(site_packages)
+        still_shadowed = []
+        for name in names:
+            mod = sys.modules.get(name)
+            if mod is None:
+                continue
+
+            origin = getattr(mod, "__file__", None)
+            if not origin:
+                path_entries = list(getattr(mod, "__path__", []) or [])
+                origin = path_entries[0] if path_entries else None
+
+            if not origin or not str(origin).startswith(site_packages_str):
+                still_shadowed.append(name)
+
+        return still_shadowed
 
     @staticmethod
     def _log_plugin_environment(plugin_path: Path, site_packages: Path) -> None:

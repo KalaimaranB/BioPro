@@ -102,10 +102,50 @@ class ModuleManager:
         PluginLoaderFactory.verify_dependencies(Path(mod_info["path"]), mod_info["manifest"])
 
         # Inject path dynamically before loading
-        PluginEnvironmentInjector.inject_path(Path(mod_info["path"]), self.internal_plugins_dir)
+        site_packages = PluginEnvironmentInjector.inject_path(
+            Path(mod_info["path"]), self.internal_plugins_dir
+        )
+
+        # Force any of this plugin's dependencies already shadowed by a stale
+        # sys.modules entry (e.g. a partial copy claimed by the frozen core
+        # bundle) to re-resolve from the plugin's own environment.
+        purged: list[str] = []
+        if site_packages is not None:
+            purged = PluginEnvironmentInjector.enforce_priority(
+                Path(mod_info["path"]), site_packages
+            )
 
         # Load the UI safely
-        return PluginLoaderFactory.load_ui(module_id, mod_info)
+        result = PluginLoaderFactory.load_ui(module_id, mod_info)
+
+        # If a collision was found and purged above, confirm the plugin's own import
+        # actually landed correctly. If it's still shadowed, purging sys.modules alone
+        # couldn't fix it (most likely a frozen sys.meta_path importer reclaiming the
+        # name) — that's an environment problem the plugin cannot self-correct, so it
+        # must be surfaced loudly rather than left to silently degrade.
+        if purged and site_packages is not None:
+            still_shadowed = PluginEnvironmentInjector.verify_isolation(purged, site_packages)
+            if still_shadowed:
+                logger.error(
+                    "Plugin '%s' dependencies %s still resolve outside its own "
+                    "environment after isolation was enforced — likely bundled into the "
+                    "application itself. Affected features may misbehave.",
+                    module_id,
+                    still_shadowed,
+                )
+                try:
+                    from biopro.core.diagnostics import diagnostics
+
+                    diagnostics.report_error(
+                        f"Plugin '{module_id}' could not fully isolate its dependencies "
+                        f"({', '.join(still_shadowed)}) from the application. Some features "
+                        f"in this plugin may not work correctly.",
+                        fatal=True,
+                    )
+                except ImportError:
+                    pass
+
+        return result
 
     def reload_modules(self) -> None:
         """Refreshes the plugin registry to reflect installed, removed, or updated plugins."""
