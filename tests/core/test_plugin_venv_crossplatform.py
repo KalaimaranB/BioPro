@@ -303,6 +303,7 @@ class TestRealVenvInstallation:
         uv = shutil.which("uv")
         if not uv:
             pytest.skip("uv not available")
+        assert uv is not None
 
         pkg_name = self.LIGHTWEIGHT_PACKAGE.replace("-", "_")
 
