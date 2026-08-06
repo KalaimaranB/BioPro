@@ -140,10 +140,15 @@ class ModuleManager:
                         f"Plugin '{module_id}' could not fully isolate its dependencies "
                         f"({', '.join(still_shadowed)}) from the application. Some features "
                         f"in this plugin may not work correctly.",
+                        plugin_id=module_id,
                         fatal=True,
                     )
-                except ImportError:
-                    pass
+                except ImportError as e:
+                    logger.warning(
+                        "Failed to report isolation error for plugin '%s': %s",
+                        module_id,
+                        e,
+                    )
 
         return result
 
