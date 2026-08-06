@@ -208,3 +208,81 @@ class TestRealVenvInstallation:
             assert mod is not None
         finally:
             sys.path[:] = original_path
+
+    def test_enforce_priority_overrides_shadow_copy(self, tmp_path):
+        """Reproduces the bokeh/flowkit bug: a dependency already resolved from a
+        non-plugin location (simulating a frozen core bundle's copy) must be forced
+        to re-resolve from the plugin's own site-packages once `enforce_priority`
+        runs, and `inject_path`'s `sys.path` reordering alone must NOT be sufficient
+        (this is what let the real bug through undetected).
+        """
+        import subprocess as sp
+
+        uv = shutil.which("uv")
+        pkg_name = self.LIGHTWEIGHT_PACKAGE.replace("-", "_")
+
+        # A decoy copy elsewhere on sys.path, imported first — simulates a name
+        # already claimed in sys.modules (e.g. by a frozen bundle's importer).
+        fake_core_venv = tmp_path / "fake_core" / ".venv"
+        sp.run(
+            [uv, "venv", str(fake_core_venv), "--python", "3.12"],
+            capture_output=True,
+            check=True,
+        )
+        sp.run(
+            [
+                uv,
+                "pip",
+                "install",
+                "--python",
+                str(_expected_venv_python(fake_core_venv)),
+                self.LIGHTWEIGHT_PACKAGE,
+            ],
+            capture_output=True,
+            check=True,
+        )
+        fake_core_sp = _expected_site_packages(fake_core_venv)
+
+        # The plugin's own copy.
+        plugin_dir = tmp_path / "cytometrics_isolation"
+        plugin_dir.mkdir()
+        internal_dir = tmp_path / "biopro" / "plugins"
+        venv_dir = plugin_dir / ".venv"
+        sp.run([uv, "venv", str(venv_dir), "--python", "3.12"], capture_output=True, check=True)
+        sp.run(
+            [
+                uv,
+                "pip",
+                "install",
+                "--python",
+                str(_expected_venv_python(venv_dir)),
+                self.LIGHTWEIGHT_PACKAGE,
+            ],
+            capture_output=True,
+            check=True,
+        )
+        site_packages = _expected_site_packages(venv_dir)
+
+        original_path = sys.path.copy()
+        original_mod = sys.modules.pop(pkg_name, None)
+
+        try:
+            sys.path.insert(0, str(fake_core_sp))
+            decoy = importlib.import_module(pkg_name)
+            assert str(fake_core_sp) in str(decoy.__file__)
+
+            PluginEnvironmentInjector.inject_path(plugin_dir, internal_dir)
+            purged = PluginEnvironmentInjector.enforce_priority(plugin_dir, site_packages)
+            assert pkg_name in purged
+
+            resolved = importlib.import_module(pkg_name)
+            assert str(site_packages) in str(resolved.__file__)
+
+            still_shadowed = PluginEnvironmentInjector.verify_isolation(purged, site_packages)
+            assert still_shadowed == []
+        finally:
+            sys.path[:] = original_path
+            if pkg_name in sys.modules:
+                del sys.modules[pkg_name]
+            if original_mod is not None:
+                sys.modules[pkg_name] = original_mod

@@ -329,16 +329,60 @@ def _phase_2_install_dependencies(plugin_dir: Path) -> Path:
         return site_packages
 
 
+def _seed_shadow_bokeh(scratch_dir: Path) -> Path:
+    """Register a fake, template-less 'bokeh' module in sys.modules.
+
+    Simulates the actual production failure mode: a frozen core bundle's own
+    (incomplete) copy already claiming the module name in sys.modules before the
+    plugin ever gets a chance to import its own complete copy.
+    """
+    import types
+
+    fake_core_dir = scratch_dir / "_fake_frozen_core" / "bokeh"
+    fake_core_dir.mkdir(parents=True, exist_ok=True)
+    fake_init = fake_core_dir / "__init__.py"
+    fake_init.write_text("__version__ = '0.0.0-fake-core-shadow'\n")
+
+    decoy = types.ModuleType("bokeh")
+    decoy.__file__ = str(fake_init)
+    decoy.__path__ = [str(fake_core_dir)]
+    sys.modules["bokeh"] = decoy
+    return fake_core_dir
+
+
 def _phase_3_validate_imports(plugin_dir: Path, site_packages: Path | None) -> None:
     # ══════════════════════════════════════════════════════════════════════════
     # Phase 3 — Critical Import Validation
     # ══════════════════════════════════════════════════════════════════════════
     with _Phase("Critical Import Validation"):
-        # Plugin venv MUST be injected FIRST to shadow any app-bundled packages
-        if site_packages and str(site_packages) not in sys.path:
-            sys.path.insert(0, str(site_packages))
-        if str(plugin_dir) not in sys.path:
-            sys.path.insert(0, str(plugin_dir))
+        if str(REPO_ROOT) not in sys.path:
+            sys.path.insert(0, str(REPO_ROOT))
+        from biopro.core.plugins.environment import PluginEnvironmentInjector
+
+        # Reproduce the real bug instead of a condition that can never fail: seed a
+        # shadow 'bokeh' into sys.modules BEFORE the plugin's own path is injected,
+        # simulating "the core already claimed this name" (e.g. a frozen bundle's
+        # importer). A prior version of this test manually inserted the plugin's
+        # site-packages into a pristine sys.path/sys.modules — that can't fail even
+        # when this exact bug is present, because sys.modules caching (and, in a
+        # real frozen build, sys.meta_path) is checked before sys.path, so proving
+        # sys.path ordering alone proves nothing about production behavior.
+        sys.modules.pop("bokeh", None)
+        fake_core_dir = _seed_shadow_bokeh(plugin_dir.parent)
+
+        # inject_path alone reorders sys.path but cannot evict an already-imported
+        # decoy — that's exactly the gap enforce_priority exists to close.
+        selected = PluginEnvironmentInjector.inject_path(plugin_dir, plugin_dir.parent)
+        actual_site_packages = selected or site_packages
+        check(actual_site_packages is not None, "Plugin site-packages resolved by inject_path")
+        assert actual_site_packages is not None  # narrows for the calls below
+
+        # Note: bokeh is deliberately NOT a direct dependency in the plugin's own
+        # pyproject.toml — it arrives transitively via flowkit. enforce_priority must
+        # therefore check what's actually *installed* in site-packages, not just the
+        # plugin's declared top-level dependencies, or this exact case slips through.
+        purged = PluginEnvironmentInjector.enforce_priority(plugin_dir, actual_site_packages)
+        check("bokeh" in purged, "enforce_priority purged the shadow 'bokeh' copy")
 
         critical_imports = [
             "numpy",
@@ -363,12 +407,24 @@ def _phase_3_validate_imports(plugin_dir: Path, site_packages: Path | None) -> N
             except ImportError as e:
                 check(False, f"{mod} — IMPORT FAILED: {e}")
 
-        # Verify bokeh Jinja templates are present (the exact missing file from the crash)
+        # Verify bokeh re-resolved to the plugin's own copy, not the shadow decoy.
         import bokeh
 
+        check(
+            str(actual_site_packages) in str(Path(bokeh.__file__).resolve()),
+            f"bokeh resolved from plugin site-packages, not the shadow copy at {fake_core_dir}",
+        )
+
+        # Verify bokeh Jinja templates are present (the exact missing file from the crash)
         bokeh_root = Path(bokeh.__file__).parent
         jinja_template = bokeh_root / "core" / "_templates" / "file.html.jinja"
         check(jinja_template.exists(), f"bokeh Jinja template present ({jinja_template.name})")
+
+        still_shadowed = PluginEnvironmentInjector.verify_isolation(purged, actual_site_packages)
+        check(
+            still_shadowed == [],
+            f"No dependencies still shadowed after import: {still_shadowed}",
+        )
 
         # Verify flowkit exposes its Sample class and mp_context can be set
         import flowkit as fk
@@ -376,6 +432,18 @@ def _phase_3_validate_imports(plugin_dir: Path, site_packages: Path | None) -> N
         fk._conf.mp_context = "spawn"
         check(hasattr(fk, "Sample"), "flowkit.Sample class accessible")
         check(fk._conf.mp_context == "spawn", "flowkit mp_context set to 'spawn'")
+
+        # Prove the plugin's real transform used FlowKit's Logicle path — not a
+        # silent fallback (removed entirely; it would now raise instead).
+        import biopro_plugins.flow_cytometry.analysis.transforms as transforms_mod  # type: ignore[import]
+        import numpy as np
+
+        transforms_mod._flowkit_logicle_warning_issued = False
+        transforms_mod.biexponential_transform(np.array([1.0, 100.0, 10000.0, 200000.0]))
+        check(
+            getattr(transforms_mod, "_flowkit_logicle_warning_issued") is False,  # noqa: B009
+            "biexponential_transform used the real FlowKit Logicle path (no failure reported)",
+        )
 
 
 def _phase_4_load_fcs(fcs_path: Path) -> Any:

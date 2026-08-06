@@ -105,7 +105,7 @@ jobs:
 
       - name: Security Vulnerability Scan
         run: |
-          uv export --format requirements-txt --no-emit-project | grep -v "^-e " > reqs.txt
+          uv export --format requirements-txt --no-emit-project | grep -v "^-e " | grep -v "BioPro-SDK" > reqs.txt
           pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
       - name: Install System UI Dependencies

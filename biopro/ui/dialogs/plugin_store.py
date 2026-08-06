@@ -958,7 +958,7 @@ class PluginStoreDialog(QDialog):
         card = ModuleCard()  # Base styling
         card.setObjectName("StoreModuleCard")
         card.setProperty("tutorial_id", f"store_card_{plugin_id}")
-        card.setMinimumWidth(350)
+        card.setMinimumWidth(400)
 
         main_layout = QVBoxLayout(card)
         main_layout.setContentsMargins(12, 12, 12, 12)
@@ -1068,11 +1068,6 @@ class PluginStoreDialog(QDialog):
             rm_btn._apply_theme_styles()
             rm_btn.clicked.connect(lambda: self._remove_module(plugin_id))
 
-            repair_btn = SecondaryButton("Repair")
-            repair_btn.setToolTip("Diagnose & Repair")
-            repair_btn.clicked.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
-
-            bottom_row.addWidget(repair_btn)
             bottom_row.addWidget(rm_btn)
             bottom_row.addWidget(upd_btn)
         elif state == "UP_TO_DATE":
@@ -1225,7 +1220,7 @@ class PluginStoreDialog(QDialog):
         )
 
         card = ModuleCard()
-        card.setMinimumWidth(350)
+        card.setMinimumWidth(400)
 
         main_layout = QVBoxLayout(card)
         main_layout.setContentsMargins(12, 12, 12, 12)

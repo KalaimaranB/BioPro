@@ -10,14 +10,14 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def parse_version(v_str: str) -> tuple[int, int, int]:
+def parse_version(v_str: str) -> tuple[int, ...]:
     """Parse a version string into a fixed-width three-component tuple.
 
     Parameters:
         v_str (str): Version string, optionally containing a suffix after a hyphen.
 
     Returns:
-        tuple[int, int, int]: Parsed version components padded to three elements,
+        tuple[int, ...]: Parsed version components padded to at least three elements,
         or `(0, 0, 0)` when no numeric components can be parsed.
     """
     try:
@@ -33,7 +33,7 @@ def parse_version(v_str: str) -> tuple[int, int, int]:
         # Pad to exactly 3 components so "1.0" == "1.0.0"
         while len(parts) < 3:
             parts.append(0)
-        return (parts[0], parts[1], parts[2])
+        return tuple(parts)
     except (ValueError, AttributeError):
         return (0, 0, 0)
 
