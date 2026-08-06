@@ -360,9 +360,10 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
             # Connect panel_ready BEFORE calling begin_async_init to avoid race condition
             if hasattr(panel, "panel_ready"):
+                load_workflow_failed = False
 
                 def _on_panel_ready() -> None:
-                    nonlocal panel_ready_emitted
+                    nonlocal panel_ready_emitted, load_workflow_failed
                     if panel_ready_emitted:
                         logger.warning(
                             "Smoke test: panel_ready emitted multiple times, "
@@ -370,7 +371,13 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                         )
                         return
                     panel_ready_emitted = True
-                    panel.load_workflow(None, filename=args.data_file)
+                    try:
+                        panel.load_workflow(None, filename=args.data_file)
+                    except Exception as e:
+                        load_workflow_failed = True
+                        logger.exception("Smoke test: load_workflow raised exception: %s", e)
+                        app.quit()
+                        return
                     # If no data_ready signal, quit after load_workflow completes
                     if not hasattr(panel, "data_ready"):
                         logger.info(
@@ -402,6 +409,11 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
     ):
         QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
     app.exec()
+
+    # Return failure if load_workflow raised an exception
+    if args.plugin_id and args.data_file and hasattr(panel, "panel_ready") and load_workflow_failed:
+        logger.error("SMOKE TEST FAILED: load_workflow raised an exception.")
+        return 1
 
     # Return failure if we were expecting data_ready but it never arrived
     if (

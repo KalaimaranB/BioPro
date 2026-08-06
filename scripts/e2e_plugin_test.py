@@ -212,7 +212,7 @@ def main() -> None:  # noqa: D103
     shutil.copytree(
         plugin_src,
         fake_plugin_dir,
-        ignore=shutil.ignore_patterns(".plugin_venv", "__pycache__", "*.pyc", ".git"),
+        ignore=shutil.ignore_patterns(".venv", ".plugin_venv", "__pycache__", "*.pyc", ".git"),
     )
 
     if use_synthetic:
@@ -238,8 +238,8 @@ def _phase_1_clean_environment(plugin_dir: Path) -> None:
     # Phase 1 — Clean Environment Simulation
     # ══════════════════════════════════════════════════════════════════════════
     with _Phase("Clean Environment Simulation"):
-        venv_path = plugin_dir / ".plugin_venv"
-        check(not venv_path.exists(), ".plugin_venv must NOT exist yet (clean slate)")
+        venv_path = plugin_dir / ".venv"
+        check(not venv_path.exists(), ".venv must NOT exist yet (clean slate)")
 
         manifest_path = plugin_dir / "manifest.json"
         check(manifest_path.exists(), "manifest.json present")
@@ -294,9 +294,18 @@ def _phase_2_install_dependencies(plugin_dir: Path) -> Path:
 
         check(100 in progress_log, "Progress callback reached 100%")
 
-        py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
-        site_packages = plugin_dir / ".plugin_venv" / "lib" / py_ver / "site-packages"
-        check(site_packages.exists(), f"site-packages directory created at {site_packages}")
+        # Use the installer-created .venv layout with Python 3.12 interpreter
+        venv_dir = plugin_dir / ".venv"
+        check(venv_dir.exists(), f".venv directory created at {venv_dir}")
+
+        # Derive site-packages using the Python 3.12 interpreter path
+        if sys.platform == "win32":
+            site_packages = venv_dir / "Lib" / "site-packages"
+        else:
+            py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+            site_packages = venv_dir / "lib" / py_ver / "site-packages"
+
+        check(site_packages.exists(), f"site-packages directory exists at {site_packages}")
         print(f"    ℹ  Installation completed in {elapsed:.1f}s")
 
         # Verify each critical package physically on disk
@@ -438,8 +447,15 @@ def _phase_3_validate_imports(plugin_dir: Path, site_packages: Path | None) -> N
         import biopro_plugins.flow_cytometry.analysis.transforms as transforms_mod  # type: ignore[import]
         import numpy as np
 
+        check(
+            hasattr(transforms_mod, "_flowkit_logicle_warning_issued"),
+            "transforms module defines _flowkit_logicle_warning_issued attribute",
+        )
         transforms_mod._flowkit_logicle_warning_issued = False
-        transforms_mod.biexponential_transform(np.array([1.0, 100.0, 10000.0, 200000.0]))
+        output = transforms_mod.biexponential_transform(
+            np.array([1.0, 100.0, 10000.0, 200000.0])
+        )
+        check(np.all(np.isfinite(output)), "biexponential_transform output contains only finite values")
         check(
             getattr(transforms_mod, "_flowkit_logicle_warning_issued") is False,  # noqa: B009
             "biexponential_transform used the real FlowKit Logicle path (no failure reported)",

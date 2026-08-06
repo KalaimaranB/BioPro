@@ -25,6 +25,9 @@ from biopro.core.network_updater import NetworkUpdater
 from biopro.shared.ui.alerts import ask_question, show_error, show_info
 from biopro.ui.theme import Colors, theme_manager
 
+# Card layout constants
+CARD_MIN_WIDTH = 400
+
 
 class TrustPathDialog(QDialog):
     """Visualizes the exact cryptographic chain of trust for a developer."""
@@ -958,7 +961,7 @@ class PluginStoreDialog(QDialog):
         card = ModuleCard()  # Base styling
         card.setObjectName("StoreModuleCard")
         card.setProperty("tutorial_id", f"store_card_{plugin_id}")
-        card.setMinimumWidth(400)
+        card.setMinimumWidth(CARD_MIN_WIDTH)
 
         main_layout = QVBoxLayout(card)
         main_layout.setContentsMargins(12, 12, 12, 12)
@@ -1220,7 +1223,7 @@ class PluginStoreDialog(QDialog):
         )
 
         card = ModuleCard()
-        card.setMinimumWidth(400)
+        card.setMinimumWidth(CARD_MIN_WIDTH)
 
         main_layout = QVBoxLayout(card)
         main_layout.setContentsMargins(12, 12, 12, 12)

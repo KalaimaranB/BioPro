@@ -52,6 +52,8 @@ bloat_modules = [
     'bokeh',
     'flowkit',
     'flowutils',
+    'flowio',
+    'fcsparser',
 ]
 
 import tomllib

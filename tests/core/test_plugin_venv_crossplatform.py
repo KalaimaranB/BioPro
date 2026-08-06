@@ -66,6 +66,42 @@ def _uv_available() -> bool:
     return shutil.which("uv") is not None
 
 
+def _create_plugin_venv_with_package(
+    uv_path: str, venv_dir: Path, package: str
+) -> Path:
+    """Create a virtual environment and install a package into it.
+
+    Parameters:
+        uv_path (str): Path to the uv executable.
+        venv_dir (Path): Directory where the virtual environment should be created.
+        package (str): Package name to install.
+
+    Returns:
+        Path: The site-packages directory of the created virtual environment.
+    """
+    import subprocess as sp
+
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    sp.run(
+        [uv_path, "venv", str(venv_dir), "--python", python_version],
+        capture_output=True,
+        check=True,
+    )
+    sp.run(
+        [
+            uv_path,
+            "pip",
+            "install",
+            "--python",
+            str(_expected_venv_python(venv_dir)),
+            package,
+        ],
+        capture_output=True,
+        check=True,
+    )
+    return _expected_site_packages(venv_dir)
+
+
 class TestVenvPathResolution:
     """Verify interpreter + site-packages paths are OS-correct without running uv."""
 
@@ -134,9 +170,10 @@ class TestRealVenvInstallation:
 
         uv = shutil.which("uv")
         venv_dir = tmp_path / ".venv"
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
         result = sp.run(
-            [uv, "venv", str(venv_dir), "--python", "3.12"],
+            [uv, "venv", str(venv_dir), "--python", python_version],
             capture_output=True,
             text=True,
         )
@@ -151,8 +188,9 @@ class TestRealVenvInstallation:
         plugin_dir = tmp_path / "cytometrics_integration"
         plugin_dir.mkdir()
         venv_dir = plugin_dir / ".venv"
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
-        sp.run([uv, "venv", str(venv_dir), "--python", "3.12"], capture_output=True, text=True)
+        sp.run([uv, "venv", str(venv_dir), "--python", python_version], capture_output=True, text=True)
         expected_python = _expected_venv_python(venv_dir)
 
         sp.run(
@@ -179,13 +217,14 @@ class TestRealVenvInstallation:
         import subprocess as sp
 
         uv = shutil.which("uv")
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
         plugin_dir = tmp_path / "cytometrics"
         plugin_dir.mkdir()
         internal_dir = tmp_path / "biopro" / "plugins"
         venv_dir = plugin_dir / ".venv"
 
-        sp.run([uv, "venv", str(venv_dir), "--python", "3.12"], capture_output=True, check=True)
+        sp.run([uv, "venv", str(venv_dir), "--python", python_version], capture_output=True, check=True)
         expected_python = _expected_venv_python(venv_dir)
         sp.run(
             [uv, "pip", "install", "--python", str(expected_python), self.LIGHTWEIGHT_PACKAGE],
@@ -209,62 +248,38 @@ class TestRealVenvInstallation:
         finally:
             sys.path[:] = original_path
 
-    def test_enforce_priority_overrides_shadow_copy(self, tmp_path):
+    def test_enforce_priority_overrides_shadow_copy(self, tmp_path: Path) -> None:
         """Reproduces the bokeh/flowkit bug: a dependency already resolved from a
         non-plugin location (simulating a frozen core bundle's copy) must be forced
         to re-resolve from the plugin's own site-packages once `enforce_priority`
         runs, and `inject_path`'s `sys.path` reordering alone must NOT be sufficient
         (this is what let the real bug through undetected).
         """
-        import subprocess as sp
-
         uv = shutil.which("uv")
+        if not uv:
+            pytest.skip("uv not available")
+
         pkg_name = self.LIGHTWEIGHT_PACKAGE.replace("-", "_")
 
         # A decoy copy elsewhere on sys.path, imported first — simulates a name
         # already claimed in sys.modules (e.g. by a frozen bundle's importer).
         fake_core_venv = tmp_path / "fake_core" / ".venv"
-        sp.run(
-            [uv, "venv", str(fake_core_venv), "--python", "3.12"],
-            capture_output=True,
-            check=True,
-        )
-        sp.run(
-            [
-                uv,
-                "pip",
-                "install",
-                "--python",
-                str(_expected_venv_python(fake_core_venv)),
-                self.LIGHTWEIGHT_PACKAGE,
-            ],
-            capture_output=True,
-            check=True,
-        )
-        fake_core_sp = _expected_site_packages(fake_core_venv)
+        fake_core_sp = _create_plugin_venv_with_package(uv, fake_core_venv, self.LIGHTWEIGHT_PACKAGE)
 
         # The plugin's own copy.
         plugin_dir = tmp_path / "cytometrics_isolation"
         plugin_dir.mkdir()
         internal_dir = tmp_path / "biopro" / "plugins"
         venv_dir = plugin_dir / ".venv"
-        sp.run([uv, "venv", str(venv_dir), "--python", "3.12"], capture_output=True, check=True)
-        sp.run(
-            [
-                uv,
-                "pip",
-                "install",
-                "--python",
-                str(_expected_venv_python(venv_dir)),
-                self.LIGHTWEIGHT_PACKAGE,
-            ],
-            capture_output=True,
-            check=True,
-        )
-        site_packages = _expected_site_packages(venv_dir)
+        site_packages = _create_plugin_venv_with_package(uv, venv_dir, self.LIGHTWEIGHT_PACKAGE)
 
         original_path = sys.path.copy()
         original_mod = sys.modules.pop(pkg_name, None)
+        # Snapshot all submodules for cleanup
+        original_submodules = {
+            k: v for k, v in sys.modules.items()
+            if k == pkg_name or k.startswith(f"{pkg_name}.")
+        }
 
         try:
             sys.path.insert(0, str(fake_core_sp))
@@ -282,7 +297,86 @@ class TestRealVenvInstallation:
             assert still_shadowed == []
         finally:
             sys.path[:] = original_path
-            if pkg_name in sys.modules:
-                del sys.modules[pkg_name]
-            if original_mod is not None:
-                sys.modules[pkg_name] = original_mod
+            # Remove all modules and submodules from the namespace
+            keys_to_remove = [
+                k for k in sys.modules
+                if k == pkg_name or k.startswith(f"{pkg_name}.")
+            ]
+            for k in keys_to_remove:
+                del sys.modules[k]
+            # Restore original modules
+            sys.modules.update(original_submodules)
+
+
+def test_installed_names_derives_from_dist_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that _installed_names correctly derives top-level import names from dist.files.
+
+    Verifies the Pillow→PIL, scikit-learn→sklearn, and beautifulsoup4→bs4 mappings
+    when distributions lack top_level.txt metadata.
+    """
+    from unittest.mock import MagicMock
+
+    site_packages = tmp_path / "site-packages"
+    site_packages.mkdir()
+
+    # Mock distributions for Pillow, scikit-learn, and beautifulsoup4
+    mock_distributions = []
+
+    # Pillow → PIL mapping
+    pillow_dist = MagicMock()
+    pillow_dist.name = "Pillow"
+    pillow_dist.metadata.get.return_value = "Pillow"
+    pillow_dist.read_text.side_effect = Exception("No top_level.txt")
+    pillow_dist.files = [
+        Path("PIL/__init__.py"),
+        Path("PIL/Image.py"),
+        Path("PIL/ImageFilter.py"),
+        Path("Pillow-10.0.0.dist-info/METADATA"),
+    ]
+    mock_distributions.append(pillow_dist)
+
+    # scikit-learn → sklearn mapping
+    sklearn_dist = MagicMock()
+    sklearn_dist.name = "scikit-learn"
+    sklearn_dist.metadata.get.return_value = "scikit-learn"
+    sklearn_dist.read_text.side_effect = Exception("No top_level.txt")
+    sklearn_dist.files = [
+        Path("sklearn/__init__.py"),
+        Path("sklearn/ensemble.py"),
+        Path("sklearn/tree.py"),
+        Path("scikit_learn-1.3.0.dist-info/METADATA"),
+    ]
+    mock_distributions.append(sklearn_dist)
+
+    # beautifulsoup4 → bs4 mapping
+    bs4_dist = MagicMock()
+    bs4_dist.name = "beautifulsoup4"
+    bs4_dist.metadata.get.return_value = "beautifulsoup4"
+    bs4_dist.read_text.side_effect = Exception("No top_level.txt")
+    bs4_dist.files = [
+        Path("bs4/__init__.py"),
+        Path("bs4/element.py"),
+        Path("bs4/builder.py"),
+        Path("beautifulsoup4-4.12.0.dist-info/METADATA"),
+    ]
+    mock_distributions.append(bs4_dist)
+
+    # Mock importlib.metadata.distributions to return our mock distributions
+    def mock_distributions_func(path=None):
+        return mock_distributions
+
+    monkeypatch.setattr("importlib.metadata.distributions", mock_distributions_func)
+
+    # Call _installed_names
+    result = PluginEnvironmentInjector._installed_names(site_packages)
+
+    # Assert the correct import names are derived from dist.files
+    assert "PIL" in result, "Pillow should map to PIL"
+    assert "sklearn" in result, "scikit-learn should map to sklearn"
+    assert "bs4" in result, "beautifulsoup4 should map to bs4"
+
+    # Ensure we don't get the distribution names themselves
+    assert "Pillow" not in result
+    assert "scikit-learn" not in result
+    assert "scikit_learn" not in result
+    assert "beautifulsoup4" not in result

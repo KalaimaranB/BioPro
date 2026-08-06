@@ -5,10 +5,48 @@ import logging
 import re
 import sys
 from pathlib import Path
+from types import ModuleType
 
 logger = logging.getLogger(__name__)
 
 _DEP_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-]+")
+
+
+def _module_origin(mod: ModuleType) -> str | None:
+    """Extract the origin path from a module.
+
+    Parameters:
+        mod (ModuleType): The module to inspect.
+
+    Returns:
+        str | None: The module's __file__ if present, otherwise the first __path__ entry,
+        or None if neither exists.
+    """
+    origin = getattr(mod, "__file__", None)
+    if not origin:
+        path_entries = list(getattr(mod, "__path__", []) or [])
+        origin = path_entries[0] if path_entries else None
+    return origin
+
+
+def _resolves_within(origin: str | None, site_packages: Path) -> bool:
+    """Check if a module origin resolves within a given site-packages directory.
+
+    Parameters:
+        origin (str | None): The module's origin path.
+        site_packages (Path): The site-packages directory to check against.
+
+    Returns:
+        bool: True if the origin is within site_packages, False otherwise.
+    """
+    if not origin:
+        return False
+    try:
+        origin_path = Path(origin).resolve()
+        site_packages_resolved = site_packages.resolve()
+        return origin_path.is_relative_to(site_packages_resolved)
+    except (ValueError, OSError):
+        return False
 
 
 class PluginEnvironmentInjector:
@@ -136,11 +174,28 @@ class PluginEnvironmentInjector:
                 if top_level:
                     names.update(line.strip() for line in top_level.splitlines() if line.strip())
                 else:
-                    dist_name = dist.metadata.get("Name") or dist.name
-                    if dist_name:
-                        match = _DEP_NAME_RE.match(dist_name.strip())
-                        if match:
-                            names.add(match.group(0).replace("-", "_"))
+                    # Fallback 1: Derive from dist.files (e.g., Pillow→PIL, scikit-learn→sklearn)
+                    if dist.files:
+                        for file in dist.files:
+                            # Extract first path component as the potential top-level import name
+                            parts = str(file).split("/")
+                            if parts and parts[0]:
+                                # Skip metadata directories and non-importable components
+                                component = parts[0]
+                                if (
+                                    not component.endswith(".dist-info")
+                                    and not component.endswith(".egg-info")
+                                    and not component.startswith("__pycache__")
+                                    and component.isidentifier()
+                                ):
+                                    names.add(component)
+                    # Fallback 2: Use normalized distribution name
+                    if not names:
+                        dist_name = dist.metadata.get("Name") or dist.name
+                        if dist_name:
+                            match = _DEP_NAME_RE.match(dist_name.strip())
+                            if match:
+                                names.add(match.group(0).replace("-", "_"))
         except Exception as e:
             logger.debug("Failed to enumerate installed packages in %s: %s", site_packages, e)
 
@@ -168,19 +223,14 @@ class PluginEnvironmentInjector:
             list[str]: Names that were purged and forced to re-resolve.
         """
         purged: list[str] = []
-        site_packages_str = str(site_packages)
 
         for name in PluginEnvironmentInjector._installed_names(site_packages):
             mod = sys.modules.get(name)
             if mod is None:
                 continue
 
-            origin = getattr(mod, "__file__", None)
-            if not origin:
-                path_entries = list(getattr(mod, "__path__", []) or [])
-                origin = path_entries[0] if path_entries else None
-
-            if origin and str(origin).startswith(site_packages_str):
+            origin = _module_origin(mod)
+            if _resolves_within(origin, site_packages):
                 continue  # Already resolving from the plugin's own environment.
 
             keys_to_remove = [k for k in sys.modules if k == name or k.startswith(f"{name}.")]
@@ -217,19 +267,14 @@ class PluginEnvironmentInjector:
         Returns:
             list[str]: Names still resolving outside the plugin's site-packages.
         """
-        site_packages_str = str(site_packages)
         still_shadowed = []
         for name in names:
             mod = sys.modules.get(name)
             if mod is None:
                 continue
 
-            origin = getattr(mod, "__file__", None)
-            if not origin:
-                path_entries = list(getattr(mod, "__path__", []) or [])
-                origin = path_entries[0] if path_entries else None
-
-            if not origin or not str(origin).startswith(site_packages_str):
+            origin = _module_origin(mod)
+            if not _resolves_within(origin, site_packages):
                 still_shadowed.append(name)
 
         return still_shadowed
