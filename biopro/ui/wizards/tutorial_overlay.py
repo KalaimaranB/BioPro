@@ -596,6 +596,8 @@ class TutorialOverlay(QWidget):
         for task in step.sub_tasks:
             lbl = QLabel(f"☐  {task.instruction}")
             lbl.setObjectName(f"subtask_{task.id}")
+            lbl.setWordWrap(True)
+            lbl.setFixedWidth(392)
             theme_manager.apply_style(
                 lbl, "color: {FG_PRIMARY}; font-size: 13px; margin-left: 8px;"
             )
@@ -614,7 +616,9 @@ class TutorialOverlay(QWidget):
                     widget,
                     "color: {FG_PRIMARY}; font-size: 13px; margin-left: 8px; font-weight: bold;",
                 )
-        if remaining_count == 0:
+        if remaining_count == 0 and not getattr(
+            self.current_step, "auto_advance_when_complete", False
+        ):
             self.btn_next.show()
 
     def _render_branching_options(self, options: dict) -> None:

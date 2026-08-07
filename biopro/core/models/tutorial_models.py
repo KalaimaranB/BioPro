@@ -88,6 +88,7 @@ class ForcedInteractionStep(BaseStep):
     """
 
     sub_tasks: list[SubTask] = field(default_factory=list)
+    auto_advance_when_complete: bool = False
 
 
 @dataclass
