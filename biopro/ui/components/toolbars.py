@@ -32,8 +32,9 @@ class AnalysisToolBar(QWidget):
         self.btn_home.setObjectName("btn_home")
         layout.addWidget(self.btn_home)
 
-        self.btn_ai = SecondaryButton("🧠 AI Chat")
-        layout.addWidget(self.btn_ai)
+        # AI Chat feature is currently in the works - UI hidden for now
+        # self.btn_ai = SecondaryButton("🧠 AI Chat")
+        # layout.addWidget(self.btn_ai)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.VLine)

@@ -123,7 +123,8 @@ class WorkspaceWindow(QMainWindow):
         self.analysis_toolbar = AnalysisToolBar("Analysis")
         self.analysis_toolbar.btn_home.clicked.connect(self.hub_manager.show_home)
         self.analysis_toolbar.btn_close_project.clicked.connect(self.return_to_hub)
-        self.analysis_toolbar.btn_ai.clicked.connect(self.menu_manager.open_ai_chat)
+        # AI Chat feature is currently in the works - UI hidden for now
+        # self.analysis_toolbar.btn_ai.clicked.connect(self.menu_manager.open_ai_chat)
         self.analysis_toolbar.btn_academy.clicked.connect(self.hub_manager.open_academy)
         self.aurebesh_lbl = QLabel("")
         self.aurebesh_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)

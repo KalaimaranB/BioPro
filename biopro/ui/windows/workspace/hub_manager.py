@@ -100,6 +100,12 @@ class HubManager:
 
         mw = self.main_window
 
+        # Case 0: a course is already active in memory (e.g. this very course,
+        # mid-run) — starting it again would reset it back to step one, since
+        # start_course_confirmed() always jumps to steps[0]. Don't clobber it.
+        if global_tutorial_manager.active_course is not None:
+            return
+
         # Case 1: already dismissed once (they can restart from help menu)
         if core_preferences.get("core_intro_dismissed_once", False):
             return
@@ -133,6 +139,13 @@ class HubManager:
         global_tutorial_manager.reset_course("core_intro_v1")
         core_preferences.set("core_intro_dismissed_once", False)
 
+        # reset_course() only clears active_course/current_step if the course
+        # had already been completed — force-clear here too so a restart
+        # requested mid-course isn't blocked by maybe_start_core_intro()'s
+        # active-course guard.
+        global_tutorial_manager.active_course = None
+        global_tutorial_manager.current_step = None
+
         # Make sure we're on the home screen before showing the overlay
         self.show_home()
         self.maybe_start_core_intro()
@@ -140,7 +153,11 @@ class HubManager:
     def open_store(self) -> None:
         """Open the plugin store from the Hub."""
         if self.main_window.open_store_callback:
+            from biopro.core.event_bus import BioProEvent, event_bus
+
+            event_bus.emit(BioProEvent.STORE_OPENED)
             self.main_window.open_store_callback(self.main_window)
+            event_bus.emit(BioProEvent.STORE_CLOSED)
             self.main_window.close()
         return
 
