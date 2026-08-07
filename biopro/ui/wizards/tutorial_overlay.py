@@ -12,7 +12,7 @@ Design principles (SOLID):
 import math
 
 from PyQt6.QtCore import QRect, Qt
-from PyQt6.QtGui import QColor, QPainter, QPen, QRegion
+from PyQt6.QtGui import QColor, QFontMetrics, QPainter, QPen, QRegion
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -364,6 +364,23 @@ class TutorialOverlay(QWidget):
         self._update_mask()
         self._reposition_cyto_and_bubble(getattr(self, "target_rects", []))
 
+        # Freshly-added checklist widgets (ForcedInteractionStep) don't always
+        # report a settled sizeHint() on this same synchronous pass, which can
+        # leave bubble_container undersized and the checklist overlapping the
+        # header text. A deferred follow-up, once the event loop has caught
+        # up, corrects any residual sizing/position drift — same "allow
+        # layout to settle" pattern used for the very first render below.
+        from PyQt6.QtCore import QTimer
+
+        def _settle() -> None:
+            if not self._is_alive():
+                return
+            self._force_resize()
+            self._update_mask()
+            self._reposition_cyto_and_bubble(getattr(self, "target_rects", []))
+
+        QTimer.singleShot(0, _settle)
+
     # ── Spotlight geometry ────────────────────────────────────────────────────
 
     def set_targets(self, rects: list[QRect]) -> None:
@@ -665,8 +682,18 @@ class TutorialOverlay(QWidget):
         # Reset minimum height first so we don't infinitely compound during typing effect
         self.text_label.setMinimumHeight(0)
 
+        # QLabel.heightForWidth() can return a stale (too-small) value on the
+        # very first read right after setText() — its internal wrap cache
+        # hasn't settled yet, which under-reserves space for wrapped 2+ line
+        # headers and lets the checklist below overlap the header's last
+        # line. QFontMetrics.boundingRect() computes fresh from the actual
+        # font/text/width every time, with no cache to go stale.
+        fm = QFontMetrics(self.text_label.font())
+        wrapped_rect = fm.boundingRect(
+            0, 0, 392, 0, Qt.TextFlag.TextWordWrap, self.text_label.text()
+        )
         # Add 48px buffer to account for stylesheet padding and macOS line-height quirks
-        required_height = self.text_label.heightForWidth(392) + 48
+        required_height = wrapped_rect.height() + 48
         self.text_label.setMinimumHeight(required_height)
 
         self.text_label.updateGeometry()

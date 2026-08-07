@@ -71,7 +71,7 @@ QPushButton#BioToggleButton {
 QPushButton#BioToggleButton:checked {
     background-color: {ACCENT_PRIMARY};
     color: {BG_DARKEST};
-    border: none;
+    border: 1px solid {ACCENT_PRIMARY};
 }
 QPushButton#BioToggleButton:hover {
     border-color: {BORDER_FOCUS};
