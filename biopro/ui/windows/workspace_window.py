@@ -44,6 +44,7 @@ logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
 _PAGE_HOME = 0
 _PAGE_ANALYSIS = 1
 _PAGE_LOADING = 2
+TUTORIAL_VALIDATION_POLL_TICKS: int = 20
 
 
 class WorkspaceWindow(QMainWindow):
@@ -233,6 +234,43 @@ class WorkspaceWindow(QMainWindow):
                 if hasattr(canvas, "set_guide_polygon"):
                     canvas.set_guide_polygon(None)
 
+    def _process_forced_interaction_step(self, step) -> None:
+        """Process polling and validation for ForcedInteractionStep subtasks."""
+        from biopro.core.tutorial_manager import global_tutorial_manager
+
+        # Nothing in this engine ever wires SubTask.target_widget_name /
+        # event_trigger to anything, and complete_subtask() is never
+        # called elsewhere — so without this, a ForcedInteractionStep's
+        # checklist can never be satisfied no matter what the user does.
+        # Poll each incomplete sub-task's validator the same way
+        # VerificationStep polls its own, and mark it done on success —
+        # the checklist UI and Next-button reveal already react to
+        # ACADEMY_SUBTASK_COMPLETED (see TutorialOverlay._on_subtask_completed).
+        self._verification_wait += 1
+        if self._verification_wait > TUTORIAL_VALIDATION_POLL_TICKS:
+            self._verification_wait = 0
+            app_state = getattr(getattr(self, "wizard_panel", None), "state", None)
+            for task in step.sub_tasks:
+                if global_tutorial_manager.active_subtask_progress.get(task.id, False):
+                    continue
+                if not task.validator:
+                    continue
+                try:
+                    task_valid = task.validator.validate(app_state)
+                except Exception as e:
+                    from biopro.core.diagnostics import diagnostics
+
+                    logger.exception(f"SubTask validation error for {task.id}: {e}")
+                    diagnostics.report_error(f"SubTask validation error for {task.id}", e)
+                    task_valid = False
+                if task_valid:
+                    global_tutorial_manager.complete_subtask(task.id)
+            if getattr(step, "auto_advance_when_complete", False) and all(
+                global_tutorial_manager.active_subtask_progress.get(task.id, False)
+                for task in step.sub_tasks
+            ):
+                global_tutorial_manager.next_step(step.next_step_id)
+
     def timerEvent(self, event) -> None:  # noqa: N802
         """
         Updates tutorial overlays, advances tutorial steps, validates step conditions, and positions guidance targets during timer events.
@@ -331,7 +369,7 @@ class WorkspaceWindow(QMainWindow):
                                 )
         if isinstance(step, VerificationStep) and step.validator:
             self._verification_wait += 1
-            if self._verification_wait > 20:
+            if self._verification_wait > TUTORIAL_VALIDATION_POLL_TICKS:
                 self._verification_wait = 0
                 app_state = getattr(getattr(self, "wizard_panel", None), "state", None)
                 try:
@@ -355,38 +393,7 @@ class WorkspaceWindow(QMainWindow):
                     else:
                         self._verification_attempts = attempts + 1
         if isinstance(step, ForcedInteractionStep) and step.sub_tasks:
-            # Nothing in this engine ever wires SubTask.target_widget_name /
-            # event_trigger to anything, and complete_subtask() is never
-            # called elsewhere — so without this, a ForcedInteractionStep's
-            # checklist can never be satisfied no matter what the user does.
-            # Poll each incomplete sub-task's validator the same way
-            # VerificationStep polls its own, and mark it done on success —
-            # the checklist UI and Next-button reveal already react to
-            # ACADEMY_SUBTASK_COMPLETED (see TutorialOverlay._on_subtask_completed).
-            self._verification_wait += 1
-            if self._verification_wait > 20:
-                self._verification_wait = 0
-                app_state = getattr(getattr(self, "wizard_panel", None), "state", None)
-                for task in step.sub_tasks:
-                    if global_tutorial_manager.active_subtask_progress.get(task.id, False):
-                        continue
-                    if not task.validator:
-                        continue
-                    try:
-                        task_valid = task.validator.validate(app_state)
-                    except Exception as e:
-                        import traceback
-
-                        traceback.print_exc()
-                        print(f"DEBUG: SubTask validation error for {task.id}: {e}")
-                        task_valid = False
-                    if task_valid:
-                        global_tutorial_manager.complete_subtask(task.id)
-                if getattr(step, "auto_advance_when_complete", False) and all(
-                    global_tutorial_manager.active_subtask_progress.get(task.id, False)
-                    for task in step.sub_tasks
-                ):
-                    global_tutorial_manager.next_step(step.next_step_id)
+            self._process_forced_interaction_step(step)
         if step.__class__.__name__ == "ActionStep" and step.id != getattr(
             self, "_last_action_step_executed", None
         ):
