@@ -228,7 +228,7 @@ _steps = [
     InfoStep(
         id="ws_layout_bottom",
         text=(
-            "Down here: Recent Sessions. Every saved workflow in this project, one click from where you left off."  # noqa: E501
+            "Down here: Recent Sessions — empty for now, but once you save a workflow it'll show up right here, one click from where you left off."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["workflows_container"],
@@ -246,7 +246,7 @@ _steps = [
         id="ws_open_module_action",
         text=("Click the Flow Cytometry card to open it up."),
         cyto_emotion="pointing",
-        target_widget_names=["module_card_flow_cytometry_workspace"],
+        target_widget_names=["module_card_flow_cytometry"],
         event_name="MODULE_OPENED",
         allow_interaction=True,
         next_step_id="analysis_landed",

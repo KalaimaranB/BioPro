@@ -158,7 +158,6 @@ class HubManager:
             event_bus.emit(BioProEvent.STORE_OPENED)
             self.main_window.open_store_callback(self.main_window)
             event_bus.emit(BioProEvent.STORE_CLOSED)
-            self.main_window.close()
         return
 
     def on_trust_requested(self, module_id: str) -> bool:
