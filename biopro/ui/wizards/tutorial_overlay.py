@@ -38,6 +38,8 @@ from biopro.ui.theme import Colors, theme_manager
 
 # We will use Colors dynamically in the UI code rather than hardcoded hex codes.
 
+CONTENT_WIDTH: int = 392
+
 
 class TutorialOverlay(QWidget):
     """Full-screen coaching overlay.
@@ -173,7 +175,7 @@ class TutorialOverlay(QWidget):
         self.text_label.setFont(font)
         theme_manager.apply_style(self.text_label, "color: {FG_PRIMARY}; padding: 8px 0px;")
         self.text_label.setWordWrap(True)
-        self.text_label.setFixedWidth(392)  # 420 (container) - 28 (margins)
+        self.text_label.setFixedWidth(CONTENT_WIDTH)  # 420 (container) - 28 (margins)
         self.body_layout.addWidget(self.text_label)
 
         # Dynamic content (checklists, etc.)
@@ -381,6 +383,18 @@ class TutorialOverlay(QWidget):
 
         QTimer.singleShot(0, _settle)
 
+        hide_after = getattr(step, "hide_bubble_after_ms", None)
+        if hide_after is not None:
+
+            def _hide_bubble() -> None:
+                if not self._is_alive() or self.current_step is not step:
+                    return
+                self.cyto.hide()
+                self.bubble_container.hide()
+                self._update_mask()
+
+            QTimer.singleShot(hide_after, _hide_bubble)
+
     # ── Spotlight geometry ────────────────────────────────────────────────────
 
     def set_targets(self, rects: list[QRect]) -> None:
@@ -573,17 +587,25 @@ class TutorialOverlay(QWidget):
 
             mask = full.subtracted(holes)
 
-            # Re-add Cyto and Bubble so they aren't erased by the holes
-            mask = mask.united(QRegion(self.cyto.geometry()))
-            mask = mask.united(QRegion(self.bubble_container.geometry()))
+            # Re-add Cyto and Bubble so they aren't erased by the holes —
+            # unless a hide_bubble_after_ms step has hidden them, in which
+            # case reserving that space would leave a dead click zone with
+            # nothing visibly there to explain it.
+            if self.cyto.isVisible():
+                mask = mask.united(QRegion(self.cyto.geometry()))
+            if self.bubble_container.isVisible():
+                mask = mask.united(QRegion(self.bubble_container.geometry()))
 
             self.setMask(mask)
 
         elif allow:
             # No specific targets but interaction is allowed — only the bubble
             # and Cyto block clicks; everything else is pass-through.
-            mask = QRegion(self.cyto.geometry())
-            mask = mask.united(QRegion(self.bubble_container.geometry()))
+            mask = QRegion()
+            if self.cyto.isVisible():
+                mask = mask.united(QRegion(self.cyto.geometry()))
+            if self.bubble_container.isVisible():
+                mask = mask.united(QRegion(self.bubble_container.geometry()))
             self.setMask(mask)
 
         else:
@@ -596,6 +618,8 @@ class TutorialOverlay(QWidget):
         for task in step.sub_tasks:
             lbl = QLabel(f"☐  {task.instruction}")
             lbl.setObjectName(f"subtask_{task.id}")
+            lbl.setWordWrap(True)
+            lbl.setFixedWidth(CONTENT_WIDTH)
             theme_manager.apply_style(
                 lbl, "color: {FG_PRIMARY}; font-size: 13px; margin-left: 8px;"
             )
@@ -614,7 +638,9 @@ class TutorialOverlay(QWidget):
                     widget,
                     "color: {FG_PRIMARY}; font-size: 13px; margin-left: 8px; font-weight: bold;",
                 )
-        if remaining_count == 0:
+        if remaining_count == 0 and not getattr(
+            self.current_step, "auto_advance_when_complete", False
+        ):
             self.btn_next.show()
 
     def _render_branching_options(self, options: dict) -> None:
@@ -690,7 +716,7 @@ class TutorialOverlay(QWidget):
         # font/text/width every time, with no cache to go stale.
         fm = QFontMetrics(self.text_label.font())
         wrapped_rect = fm.boundingRect(
-            0, 0, 392, 0, Qt.TextFlag.TextWordWrap, self.text_label.text()
+            0, 0, CONTENT_WIDTH, 0, Qt.TextFlag.TextWordWrap, self.text_label.text()
         )
         # Add 48px buffer to account for stylesheet padding and macOS line-height quirks
         required_height = wrapped_rect.height() + 48

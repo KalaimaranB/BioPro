@@ -158,9 +158,10 @@ class ProjectLauncherWindow(QMainWindow):
         self.btn_store.clicked.connect(self._open_store)
         left_layout.addWidget(self.btn_store)
 
-        self.btn_ai = SecondaryButton("🧠 Gemma AI Assistant")
-        self.btn_ai.clicked.connect(self._open_ai_chat)
-        left_layout.addWidget(self.btn_ai)
+        # AI Chat feature is currently in the works - UI hidden for now
+        # self.btn_ai = SecondaryButton("🧠 Gemma AI Assistant")
+        # self.btn_ai.clicked.connect(self._open_ai_chat)
+        # left_layout.addWidget(self.btn_ai)
 
         main_layout.addWidget(self.left_panel)
 
@@ -222,6 +223,11 @@ class ProjectLauncherWindow(QMainWindow):
         from biopro.core.preferences import core_preferences
         from biopro.core.tutorial_manager import global_tutorial_manager
 
+        # A course already active in memory (e.g. this very course, mid-run)
+        # must not be restarted — start_course_confirmed() always jumps back
+        # to steps[0], which would silently reset an in-progress tour.
+        if global_tutorial_manager.active_course is not None:
+            return
         if global_tutorial_manager.is_core_intro_done():
             return
         if core_preferences.get("core_intro_dismissed_once", False):
@@ -606,6 +612,12 @@ class ProjectLauncherWindow(QMainWindow):
         # Clear both gates so the tour auto-starts again
         global_tutorial_manager.reset_course("core_intro_v1")
         core_preferences.set("core_intro_dismissed_once", False)
+
+        # reset_course() only clears active_course/current_step if the course
+        # had already been completed — force-clear here too so a restart
+        # requested mid-course isn't blocked by the active-course guard above.
+        global_tutorial_manager.active_course = None
+        global_tutorial_manager.current_step = None
 
         self._maybe_start_core_intro()
 

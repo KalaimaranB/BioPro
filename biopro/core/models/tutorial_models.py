@@ -27,6 +27,7 @@ class BaseStep(ABC):
     target_widget_names: list[str] = field(default_factory=list)
     allow_interaction: bool = False
     guide_poly: list[tuple[float, float]] | None = None
+    hide_bubble_after_ms: int | None = None
 
 
 @dataclass
@@ -88,6 +89,7 @@ class ForcedInteractionStep(BaseStep):
     """
 
     sub_tasks: list[SubTask] = field(default_factory=list)
+    auto_advance_when_complete: bool = False
 
 
 @dataclass
