@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.core.event_bus import BioProEvent, event_bus
+from biopro.ui.components.overlays import BioLoadingOverlay
 from biopro.ui.components.toolbars import AnalysisToolBar
 from biopro.ui.dashboards.workspace_dashboard import WorkspaceDashboard as HomeScreen
 from biopro.ui.theme import Fonts, theme_manager
@@ -141,6 +142,13 @@ class WorkspaceWindow(QMainWindow):
         self.hologram_overlay = HologramEffect(self.analysis_page)
         self.hologram_overlay.hide()
         self.root_stack.addWidget(self.analysis_page)
+
+        # Shown while a theme switch is rebuilding the UI, so the app never
+        # appears to just freeze with no feedback.
+        self.theme_loading_overlay = BioLoadingOverlay(self.root_stack)
+        self.theme_loading_overlay.set_text("Changing theme…")
+        self.theme_loading_overlay.hide()
+
         from biopro.ui.wizards.tutorial_overlay import TutorialOverlay
 
         self.tutorial_overlay = TutorialOverlay(self.analysis_page)
@@ -331,6 +339,8 @@ class WorkspaceWindow(QMainWindow):
                 for canvas in wizard_panel.findChildren(QWidget, "FlowCanvas"):
                     if hasattr(canvas, "set_guide_polygon"):
                         canvas.set_guide_polygon(guide_poly)
+                    if hasattr(canvas, "set_tutorial_guide"):
+                        canvas.set_tutorial_guide(step)
             if isinstance(step, InteractionStep) and step.target_widget_name:
                 targets = parent_page.findChildren(QWidget, step.target_widget_name)
                 for target_w in targets:
@@ -490,6 +500,8 @@ class WorkspaceWindow(QMainWindow):
             self.tutorial_overlay.setGeometry(self.analysis_page.rect())
         if hasattr(self, "home_tutorial_overlay"):
             self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
+        if hasattr(self, "theme_loading_overlay") and self.theme_loading_overlay.isVisible():
+            self.theme_loading_overlay.resize(self.root_stack.size())
         self._update_loader_geom()
 
     def moveEvent(self, event):  # noqa: N802

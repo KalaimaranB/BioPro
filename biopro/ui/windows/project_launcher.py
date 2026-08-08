@@ -12,6 +12,7 @@ from PyQt6.QtGui import (
     QKeySequence,
 )
 from PyQt6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QHBoxLayout,
     QInputDialog,
@@ -29,6 +30,7 @@ from biopro.core.project_manager import ProjectLockedError, ProjectManager
 from biopro.core.update_checker import UpdateChecker
 from biopro.shared.ui.alerts import ask_question, show_about, show_error, show_warning
 from biopro.ui.components.ai_panel import AIChatWindow
+from biopro.ui.components.overlays import BioLoadingOverlay
 from biopro.ui.components.update_banner import UpdateBannerWidget
 from biopro.ui.theme import theme_manager
 from biopro.ui.widgets.dna_loader import ProgrammaticLoader
@@ -117,6 +119,12 @@ class ProjectLauncherWindow(QMainWindow):
         self._hub_tutorial_overlay.hide()
         self._hub_tutorial_overlay.btn_next.clicked.connect(self._on_hub_tutorial_next)
         self._hub_tutorial_overlay.btn_close.clicked.connect(self._on_hub_tutorial_skip)
+
+        # Shown briefly while a theme switch is applied, so clicking a theme
+        # always gives immediate feedback instead of an unexplained pause.
+        self._theme_loading_overlay = BioLoadingOverlay(self._central_widget)
+        self._theme_loading_overlay.set_text("Changing theme…")
+        self._theme_loading_overlay.hide()
 
         # Outer vertical layout: banner on top, main panels below
         outer_layout = QVBoxLayout(self._central_widget)
@@ -245,6 +253,8 @@ class ProjectLauncherWindow(QMainWindow):
         """Keep the overlay filling the central widget."""
         if hasattr(self, "_central_widget"):
             self._hub_tutorial_overlay.setGeometry(self._central_widget.rect())
+            if hasattr(self, "_theme_loading_overlay") and self._theme_loading_overlay.isVisible():
+                self._theme_loading_overlay.resize(self._central_widget.size())
 
     def _poll_tutorial_overlay(self) -> None:
         """Lightweight timer slot: re-renders the overlay when the step changes."""
@@ -692,10 +702,31 @@ class ProjectLauncherWindow(QMainWindow):
         )
 
     def _switch_theme(self, theme_path: Path):
+        """Switches the active theme.
+
+        Shows a loading overlay and forces it onto screen (repaint +
+        processEvents) before doing the actual theme load, rather than the
+        window appearing to freeze with no feedback. A deferred callback
+        alone isn't enough here — macOS shows the spinning-wheel cursor once
+        the run loop stops responding for a stretch, regardless of what was
+        painted right before the block started.
+        """
+        overlay = getattr(self, "_theme_loading_overlay", None)
+        if overlay is not None:
+            overlay.set_text("Changing theme…")
+            overlay.start()
+            overlay.repaint()
+            app = QApplication.instance()
+            if app:
+                app.processEvents()
+
         theme_manager.load_theme(theme_path)
         from biopro.core.preferences import core_preferences
 
         core_preferences.set("theme", str(theme_path.absolute()))
+
+        if overlay is not None:
+            overlay.stop()
 
     def _on_theme_changed(self):
         """Refreshes the Hub visuals when the theme changes."""

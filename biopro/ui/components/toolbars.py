@@ -36,10 +36,9 @@ class AnalysisToolBar(QWidget):
         # self.btn_ai = SecondaryButton("🧠 AI Chat")
         # layout.addWidget(self.btn_ai)
 
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
-        theme_manager.apply_style(sep, f"color: {Colors.BORDER};")
-        layout.addWidget(sep)
+        self.sep = QFrame()
+        self.sep.setFrameShape(QFrame.Shape.VLine)
+        layout.addWidget(self.sep)
 
         self.title_lbl = QLabel(f"🔬  {title}")
         theme_manager.apply_style(
@@ -82,3 +81,4 @@ class AnalysisToolBar(QWidget):
             f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
             f" font-weight: bold; border-radius: 4px; padding: 4px 12px;",
         )
+        theme_manager.apply_style(self.sep, f"color: {Colors.BORDER};")

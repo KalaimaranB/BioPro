@@ -5,7 +5,7 @@ from PyQt6.QtCore import QPointF, QRectF, Qt, QTimer
 from PyQt6.QtGui import QColor, QFont, QLinearGradient, QPainter, QPen, QRadialGradient
 from PyQt6.QtWidgets import QWidget
 
-from biopro.ui.theme import Colors, Fonts
+from biopro.ui.theme import Colors, Fonts, get_tamil_font_family, theme_manager
 
 
 class ProgrammaticLoader(QWidget):
@@ -60,13 +60,22 @@ class ProgrammaticLoader(QWidget):
         }
 
     @property
+    def _is_tamil_active(self) -> bool:
+        """True when the default theme is active (Tamil numerals replace binary)."""
+        return theme_manager.current_theme_name == "BioPro Default"
+
+    @property
     def _glyph_pool(self) -> list[str]:
-        """Returns binary for default theme, or aggressive glyphs for Dark Side."""
+        """Returns Tamil numerals on the default theme, aggressive glyphs for
+        Dark Side, or binary everywhere else."""
         # Using .upper() to ensure the hex comparison is bulletproof
         is_dark_side = getattr(Colors, "DNA_PRIMARY", "").upper() == "#E60000"
         if is_dark_side:
             # Aggressive Sith/Imperial Style Glyphs
             return ["ᚙ", "ᚘ", "ᚕ", "ᚖ", "ᚗ", "ᚠ", "ᚥ", "ᚻ", "◢", "◥", "▚", "▞"]
+        if self._is_tamil_active:
+            # Tamil numerals 0 and 1 (௦ / ௧) stand in for binary
+            return ["௦", "௧"]
         return ["0", "1"]
 
     def _update_animation(self):
@@ -122,7 +131,12 @@ class ProgrammaticLoader(QWidget):
 
         # --- LAYER 1: BINARY STREAMS (top + bottom) ---
         font_size = max(8, int(5.5 * unit))
-        painter.setFont(QFont(Fonts.FAMILY_MONO, font_size, QFont.Weight.Bold))
+        if self._is_tamil_active:
+            # Bundled Tamil font, scoped to just these glyphs — FAMILY_MONO
+            # doesn't carry Tamil script and shouldn't change for the rest of the app.
+            painter.setFont(QFont(get_tamil_font_family(), font_size, QFont.Weight.Bold))
+        else:
+            painter.setFont(QFont(Fonts.FAMILY_MONO, font_size, QFont.Weight.Bold))
 
         for b in self.binary_bits:
             y_norm = b["y"]

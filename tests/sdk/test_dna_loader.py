@@ -28,14 +28,14 @@ class TestDNALoader:
         """Verifies that the glyph pool changes based on the theme color."""
         # 1. Test Default Theme (cyan)
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#00f2ff")
-        assert loader._glyph_pool == ["0", "1"]
+        assert loader._glyph_pool == ["௦", "௧"]
 
         # 2. Test 'Dark Side' Theme (imperial red #E60000)
         # Note: We use .upper() in the code logic
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#E60000")
         pool = loader._glyph_pool
         assert "ᚙ" in pool
-        assert "0" not in pool
+        assert "௦" not in pool
 
     def test_make_bit_structure(self, loader):
         """Verifies the internal data structure of a binary bit stream."""
@@ -58,17 +58,17 @@ class TestDNALoader:
         """Tests the logic that automatically refreshes bit glyphs on theme change."""
         # Force a known state
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#00f2ff")
-        loader.binary_bits[0]["chars"] = ["0"]
+        loader.binary_bits[0]["chars"] = ["௦"]
 
         # Swap to Sith theme
         monkeypatch.setattr(Colors, "DNA_PRIMARY", "#E60000")
 
-        # The animation loop should detect that "0" is not in the new pool and swap it
+        # The animation loop should detect that "௦" is not in the new pool and swap it
         loader._update_animation()
 
         new_char = loader.binary_bits[0]["chars"][0]
         assert new_char in loader._glyph_pool
-        assert new_char != "0"
+        assert new_char != "௦"
 
     def test_dust_particle_logic(self, loader):
         """Verifies dust particles have variations."""

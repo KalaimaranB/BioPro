@@ -27,7 +27,9 @@ class BaseStep(ABC):
     target_widget_names: list[str] = field(default_factory=list)
     allow_interaction: bool = False
     guide_poly: list[tuple[float, float]] | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
     hide_bubble_after_ms: int | None = None
+    manual_dismiss_bubble: bool = False
 
 
 @dataclass

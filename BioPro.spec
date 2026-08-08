@@ -100,6 +100,7 @@ a = Analysis(
     binaries=all_bins,
     datas=[
         ('biopro/themes', 'themes'),
+        ('biopro/resources/fonts', 'resources/fonts'),
         ('biopro/ui/styles', 'biopro/ui/styles'),
         ('biopro/ui/widgets/galactic_loader.qml', 'biopro/ui/widgets'),
         ('biopro/shared', 'biopro/shared'),

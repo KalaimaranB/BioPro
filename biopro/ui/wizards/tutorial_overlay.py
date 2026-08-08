@@ -226,6 +226,22 @@ class TutorialOverlay(QWidget):
         )
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
 
+        # Lets a step (e.g. a hands-off VerificationStep the user is meant to
+        # work through freely) offer a manual "I've got it" dismissal instead
+        # of a forced hide_bubble_after_ms timer — the timer hides Cyto's
+        # bubble on its own schedule whether or not the user finished
+        # reading it; this button hides on the user's own schedule instead.
+        self.btn_dismiss_bubble = QPushButton("Got it, I'll take it from here →")
+        theme_manager.apply_style(
+            self.btn_dismiss_bubble,
+            "background-color: transparent; color: {FG_SECONDARY};"
+            "border: 1px solid {BORDER}; border-radius: 4px;"
+            "padding: 6px 14px;",
+        )
+        self.btn_dismiss_bubble.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_dismiss_bubble.clicked.connect(self._dismiss_bubble)
+        self.btn_dismiss_bubble.hide()
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def show_completion_screen(self, course_id: str, badge_reward: str) -> None:
@@ -362,6 +378,11 @@ class TutorialOverlay(QWidget):
             # Auto-advances; no Next button needed. Show a waiting indicator.
             self.btn_next.hide()
             self._render_waiting_indicator()
+
+        if getattr(step, "manual_dismiss_bubble", False):
+            self.btn_dismiss_bubble.show()
+        else:
+            self.btn_dismiss_bubble.hide()
         self._force_resize()
         self._update_mask()
         self._reposition_cyto_and_bubble(getattr(self, "target_rects", []))
@@ -680,18 +701,30 @@ class TutorialOverlay(QWidget):
     def _populate_default_buttons(self) -> None:
         self._clear_buttons()
         self.btn_layout.addStretch()
+        self.btn_layout.addWidget(self.btn_dismiss_bubble)
         self.btn_layout.addWidget(self.btn_next)
 
     def _clear_buttons(self) -> None:
+        persistent = (getattr(self, "btn_next", None), getattr(self, "btn_dismiss_bubble", None))
         while self.btn_layout.count():
             item = self.btn_layout.takeAt(0)
             if item.widget():
                 w = item.widget()
-                if w == getattr(self, "btn_next", None):
+                if w in persistent:
                     w.hide()
                     w.setParent(None)
                 else:
                     w.deleteLater()
+
+    def _dismiss_bubble(self) -> None:
+        """Manually hides Cyto's bubble — the click-driven counterpart to
+        the hide_bubble_after_ms timer, for steps that would rather let the
+        user decide when they're done reading than hide on a fixed clock.
+        """
+        self.cyto.hide()
+        self.bubble_container.hide()
+        self.btn_dismiss_bubble.hide()
+        self._update_mask()
 
     def _clear_dynamic_content(self) -> None:
         # Stop any running WaitForEventStep pulse timer
