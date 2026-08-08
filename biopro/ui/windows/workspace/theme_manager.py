@@ -1,15 +1,24 @@
 """Theme Manager for WorkspaceWindow."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Final
 
 from PyQt6.QtWidgets import QWidget
 
 from biopro.ui.theme import Colors, Fonts, theme_manager
 
+if TYPE_CHECKING:
+    from biopro.ui.windows.workspace_window import WorkspaceWindow
+
+_RESTYLE_INTERVAL: Final[int] = 40
+_MENU_PADDING_V: Final[str] = "4px"
+_MENU_PADDING_H: Final[str] = "20px"
+
 
 class ThemeManager:
-    def __init__(self, main_window):
+    def __init__(self, main_window: "WorkspaceWindow") -> None:
         self.main_window = main_window
+        self._switching_theme = False
 
     def apply_supplemental_qss(self) -> None:
         checked_path, unchecked_path = self._write_checkbox_svgs()
@@ -55,9 +64,19 @@ class ThemeManager:
             f"QListWidget {{"
             f"  background-color: {Colors.BG_DARK}; border: 1px solid {Colors.BORDER}; border-radius: 4px;"
             f"}}"
-            f"QListWidget::item:selected {{"
-            f"  background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
-            f"}}"
+            f"QListWidget::item:selected {{\n"
+            f"  background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};\n"
+            f"}}\n"
+            f"QMenu {{\n"
+            f"  background-color: {Colors.BG_MEDIUM}; color: {Colors.FG_PRIMARY};\n"
+            f"  border: 1px solid {Colors.BORDER}; border-radius: 4px;\n"
+            f"}}\n"
+            f"QMenu::item {{\n"
+            f"  padding: {_MENU_PADDING_V} {_MENU_PADDING_H} {_MENU_PADDING_V} {_MENU_PADDING_H};\n"
+            f"}}\n"
+            f"QMenu::item:selected {{\n"
+            f"  background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};\n"
+            f"}}\n"
         )
         theme_manager.apply_style(self.main_window, self.main_window.styleSheet() + "\n" + extra)
 
@@ -98,10 +117,54 @@ class ThemeManager:
         return checked_path, unchecked_path
 
     def switch_theme(self, theme_path: Path) -> None:
-        theme_manager.load_theme(theme_path)
-        from biopro.core.preferences import core_preferences
+        """Switches the active theme.
 
-        core_preferences.set("theme", str(theme_path.absolute()))
+        Loading a theme rebuilds the entire workspace UI synchronously, which
+        can take a noticeable moment. A single deferred callback isn't enough
+        here: macOS flags the app as unresponsive (spinning-wheel cursor)
+        whenever the main run loop goes quiet for a stretch, regardless of
+        what was painted right before the block started. So we show the
+        overlay, force it onto screen immediately, and then pump the event
+        loop at checkpoints throughout the rebuild (see `_pump_events`) to
+        keep both the app responsive and the overlay animating.
+        """
+        # Pumping events mid-rebuild (below) lets a second theme click
+        # re-enter this method before the first switch finishes; ignore it
+        # rather than let two rebuilds interleave and corrupt the UI.
+        if self._switching_theme:
+            return
+        self._switching_theme = True
+
+        overlay = getattr(self.main_window, "theme_loading_overlay", None)
+        try:
+            if overlay is not None:
+                overlay.set_text("Changing theme…")
+                overlay.start()
+                overlay.repaint()
+                self._pump_events()
+
+            self._apply_theme(theme_path)
+        finally:
+            if overlay is not None:
+                overlay.stop()
+            self._switching_theme = False
+
+    def _apply_theme(self, theme_path: Path) -> None:
+        if theme_manager.load_theme(theme_path):
+            from biopro.core.preferences import core_preferences
+
+            core_preferences.set("theme", str(theme_path.absolute()))
+
+    @staticmethod
+    def _pump_events() -> None:
+        """Processes pending Qt events so the UI stays responsive and the
+        loading overlay's animation actually advances during long rebuilds."""
+        from PyQt6.QtCore import QEventLoop
+        from PyQt6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app:
+            app.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 
     def on_theme_changed(self) -> None:
         """Full workspace UI rebuild on theme swap."""
@@ -121,6 +184,7 @@ class ThemeManager:
             mw, f"background: {Colors.BG_DARKEST}; color: {Colors.FG_PRIMARY};"
         )
         self.apply_supplemental_qss()
+        self._pump_events()
 
         # 2. Update status bar and toolbar
         is_sw = "Galactic" in theme_manager.current_theme_name
@@ -147,6 +211,8 @@ class ThemeManager:
             # Remove dead python reference to avoid resizeEvent crashing
             if hasattr(mw, "home_tutorial_overlay"):
                 del mw.home_tutorial_overlay
+
+        self._pump_events()
 
         from biopro.ui.dashboards.workspace_dashboard import WorkspaceDashboard as HomeScreen
 
@@ -204,6 +270,7 @@ class ThemeManager:
             mw.hub_manager.refresh_hub_workflows()
         else:
             mw._refresh_hub_workflows()
+        self._pump_events()
 
         # Update active module UI, if present
         if hasattr(mw, "wizard_panel") and mw.wizard_panel is not None:
@@ -245,7 +312,7 @@ class ThemeManager:
         if widget.styleSheet():
             theme_manager.apply_style(widget, widget.styleSheet())
 
-        for child in widget.findChildren(QWidget):
+        for i, child in enumerate(widget.findChildren(QWidget)):
             if hasattr(child, "_apply_theme_styles"):
                 child._apply_theme_styles()
             elif hasattr(child, "refresh_styles"):
@@ -254,3 +321,9 @@ class ThemeManager:
             if child.styleSheet():
                 theme_manager.apply_style(child, child.styleSheet())
             child.update()
+
+            # Restyling can walk hundreds of widgets on a busy module panel —
+            # yield to the event loop periodically so the app stays responsive
+            # and the loading overlay keeps animating instead of stalling.
+            if i % _RESTYLE_INTERVAL == 0:
+                self._pump_events()

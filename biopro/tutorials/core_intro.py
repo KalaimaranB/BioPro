@@ -113,10 +113,30 @@ _steps = [
     InfoStep(
         id="hub_welcome",
         text=(
-            "Hey, I'm Cyto 👋 — think of me as your lab buddy. Give me two minutes and I'll show you around."  # noqa: E501
+            "Hey, I'm Cyto 👋, your built-in guide to everything BioPro. Let's have a quick tour!"  # noqa: E501
         ),
         cyto_emotion="cheering",
         cyto_animation="cheering",
+        next_step_id="hub_theme_intro",
+    ),
+    InfoStep(
+        id="hub_theme_intro",
+        text=(
+            "Before we go any further, let's get you set up. You can change your "
+            "theme anytime from the Theme menu at the top — try switching to "
+            "Galactic Light if you prefer a brighter workspace."
+        ),
+        cyto_emotion="talking",
+        next_step_id="hub_logs_intro",
+    ),
+    InfoStep(
+        id="hub_logs_intro",
+        text=(
+            "And if things ever go sideways, you can always peek under the hood: "
+            "go to Help → View Logs to see exactly what BioPro is doing behind "
+            "the scenes."
+        ),
+        cyto_emotion="pointing",
         next_step_id="hub_orientation",
     ),
     InfoStep(
@@ -350,6 +370,16 @@ _steps = [
             "Quick housekeeping: the ⚙️ gear on a session card renames or deletes it. To remove a whole project, right-click it back in the Hub's recent list."  # noqa: E501
         ),
         cyto_emotion="talking",
+        next_step_id="restart_reminder",
+    ),
+    InfoStep(
+        id="restart_reminder",
+        text=(
+            "One last thing: if you ever need a refresher, you can always take "
+            "this tour again by selecting Help → Restart Onboarding Tour from "
+            "the top menu."
+        ),
+        cyto_emotion="happy",
         next_step_id="graduation",
     ),
     InfoStep(

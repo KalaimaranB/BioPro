@@ -46,10 +46,12 @@ def _module_origin(mod: ModuleType) -> str | None:
         or None if neither exists.
     """
     origin = getattr(mod, "__file__", None)
-    if not origin:
-        path_entries = list(getattr(mod, "__path__", []) or [])
-        origin = path_entries[0] if path_entries else None
-    return origin
+    if isinstance(origin, str):
+        return origin
+    for p in getattr(mod, "__path__", []) or []:
+        if isinstance(p, str):
+            return p
+    return None
 
 
 def _resolves_within(origin: str | None, site_packages: Path) -> bool:

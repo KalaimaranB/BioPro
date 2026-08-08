@@ -125,6 +125,33 @@ class _Fonts:
 Fonts = _Fonts()
 
 
+_tamil_font_family: str | None = None
+
+
+def get_tamil_font_family() -> str:
+    """Registers the bundled Tamil font on first use and returns its family name.
+
+    Kept separate from FAMILY_MONO/FAMILY_UI so it only affects call sites that
+    explicitly opt in (e.g. the DNA loader's numeral glyphs) rather than the
+    whole app's typography.
+    """
+    global _tamil_font_family
+    if _tamil_font_family is None:
+        from PyQt6.QtGui import QFontDatabase
+
+        from biopro.core.resource_manager import resource_path
+
+        family = "Noto Sans Tamil"
+        font_path = resource_path("resources/fonts/NotoSansTamil-Variable.ttf")
+        if font_path.exists():
+            font_id = QFontDatabase.addApplicationFont(str(font_path))
+            families = QFontDatabase.applicationFontFamilies(font_id)
+            if families:
+                family = families[0]
+        _tamil_font_family = family
+    return _tamil_font_family
+
+
 class Strings:
     """Theme-dependent text values."""
 

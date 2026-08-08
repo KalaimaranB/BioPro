@@ -5,9 +5,11 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, cast
 
 logger = logging.getLogger(__name__)
+
+_VERSION_COMPONENT_COUNT: Final[int] = 3
 
 
 def parse_version(v_str: str) -> tuple[int, int, int]:
@@ -23,7 +25,7 @@ def parse_version(v_str: str) -> tuple[int, int, int]:
     """
     try:
         if not v_str or not isinstance(v_str, str):
-            return (0, 0, 0)
+            return cast(tuple[int, int, int], (0,) * _VERSION_COMPONENT_COUNT)
         clean_v = v_str.split("-")[0]
         parts = []
         for p in clean_v.split("."):
@@ -32,12 +34,12 @@ def parse_version(v_str: str) -> tuple[int, int, int]:
             else:
                 break
         # Pad to exactly 3 components so "1.0" == "1.0.0"
-        while len(parts) < 3:
+        while len(parts) < _VERSION_COMPONENT_COUNT:
             parts.append(0)
         # Return exactly the first 3 components
-        return (parts[0], parts[1], parts[2])
+        return cast(tuple[int, int, int], tuple(parts[:_VERSION_COMPONENT_COUNT]))
     except (ValueError, AttributeError):
-        return (0, 0, 0)
+        return cast(tuple[int, int, int], (0,) * _VERSION_COMPONENT_COUNT)
 
 
 def sanitize_identifier(identifier: str | None) -> str | None:

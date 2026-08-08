@@ -62,3 +62,68 @@ class TestThemeEngine:
         assert Colors.BG_DARKEST == "#990000"
         # Other colors should remain unchanged (e.g. DNA_PRIMARY which we didn't touch)
         assert Colors.DNA_PRIMARY == "#00f2ff"
+
+    def test_get_tamil_font_family_success(self, monkeypatch, tmp_path):
+        import biopro.ui.theme
+
+        biopro.ui.theme._tamil_font_family = None
+
+        def mock_resource_path(path):
+            p = tmp_path / "NotoSansTamil-Variable.ttf"
+            p.write_text("fake font")
+            return p
+
+        monkeypatch.setattr("biopro.ui.theme.resource_path", mock_resource_path)
+
+        class MockQFontDatabase:
+            @staticmethod
+            def addApplicationFont(path):  # noqa: N802
+                return 1
+
+            @staticmethod
+            def applicationFontFamilies(id):  # noqa: N802, A002
+                return ["Mock Tamil Font"]
+
+        monkeypatch.setattr("biopro.ui.theme.QFontDatabase", MockQFontDatabase)
+
+        family = biopro.ui.theme.get_tamil_font_family()
+        assert family == "Mock Tamil Font"
+
+    def test_get_tamil_font_family_missing_resource(self, monkeypatch, tmp_path):
+        import biopro.ui.theme
+
+        biopro.ui.theme._tamil_font_family = None
+
+        def mock_resource_path(path):
+            return tmp_path / "missing.ttf"
+
+        monkeypatch.setattr("biopro.ui.theme.resource_path", mock_resource_path)
+
+        family = biopro.ui.theme.get_tamil_font_family()
+        assert family == "Noto Sans Tamil"
+
+    def test_get_tamil_font_family_empty_families(self, monkeypatch, tmp_path):
+        import biopro.ui.theme
+
+        biopro.ui.theme._tamil_font_family = None
+
+        def mock_resource_path(path):
+            p = tmp_path / "NotoSansTamil-Variable.ttf"
+            p.write_text("fake font")
+            return p
+
+        monkeypatch.setattr("biopro.ui.theme.resource_path", mock_resource_path)
+
+        class MockQFontDatabase:
+            @staticmethod
+            def addApplicationFont(path):  # noqa: N802
+                return 1
+
+            @staticmethod
+            def applicationFontFamilies(id):  # noqa: N802, A002
+                return []
+
+        monkeypatch.setattr("biopro.ui.theme.QFontDatabase", MockQFontDatabase)
+
+        family = biopro.ui.theme.get_tamil_font_family()
+        assert family == "Noto Sans Tamil"

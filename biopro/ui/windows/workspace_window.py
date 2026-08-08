@@ -6,6 +6,9 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from biopro.core.models.tutorial_models import ForcedInteractionStep
+
 from PyQt6.QtCore import (
     QEasingCurve,
     QProcess,
@@ -25,6 +28,7 @@ from PyQt6.QtWidgets import (
 )
 
 from biopro.core.event_bus import BioProEvent, event_bus
+from biopro.ui.components.overlays import BioLoadingOverlay
 from biopro.ui.components.toolbars import AnalysisToolBar
 from biopro.ui.dashboards.workspace_dashboard import WorkspaceDashboard as HomeScreen
 from biopro.ui.theme import Fonts, theme_manager
@@ -141,6 +145,13 @@ class WorkspaceWindow(QMainWindow):
         self.hologram_overlay = HologramEffect(self.analysis_page)
         self.hologram_overlay.hide()
         self.root_stack.addWidget(self.analysis_page)
+
+        # Shown while a theme switch is rebuilding the UI, so the app never
+        # appears to just freeze with no feedback.
+        self.theme_loading_overlay = BioLoadingOverlay(self.root_stack)
+        self.theme_loading_overlay.set_text("Changing theme…")
+        self.theme_loading_overlay.hide()
+
         from biopro.ui.wizards.tutorial_overlay import TutorialOverlay
 
         self.tutorial_overlay = TutorialOverlay(self.analysis_page)
@@ -235,9 +246,14 @@ class WorkspaceWindow(QMainWindow):
                 if hasattr(canvas, "set_guide_polygon"):
                     canvas.set_guide_polygon(None)
 
-    def _process_forced_interaction_step(self, step) -> None:
+    def _process_forced_interaction_step(self, step: ForcedInteractionStep) -> None:
         """Process polling and validation for ForcedInteractionStep subtasks."""
         from biopro.core.tutorial_manager import global_tutorial_manager
+
+        # Track reported validator failures by (step.id, task.id)
+        if getattr(self, "_current_tutorial_step_id", None) != step.id:
+            self._current_tutorial_step_id = step.id
+            self._reported_subtask_errors: set[tuple[str, str]] = set()
 
         # Nothing in this engine ever wires SubTask.target_widget_name /
         # event_trigger to anything, and complete_subtask() is never
@@ -255,14 +271,18 @@ class WorkspaceWindow(QMainWindow):
                 if global_tutorial_manager.active_subtask_progress.get(task.id, False):
                     continue
                 if not task.validator:
+                    # Every SubTask has a completion path. Wire it to complete or require a validator.
+                    global_tutorial_manager.complete_subtask(task.id)
                     continue
                 try:
                     task_valid = task.validator.validate(app_state)
                 except Exception as e:
-                    from biopro.core.diagnostics import diagnostics
+                    if (step.id, task.id) not in self._reported_subtask_errors:
+                        from biopro.core.diagnostics import diagnostics
 
-                    logger.exception(f"SubTask validation error for {task.id}: {e}")
-                    diagnostics.report_error(f"SubTask validation error for {task.id}", e)
+                        logger.exception(f"SubTask validation error for {task.id}: {e}")
+                        diagnostics.report_error(f"SubTask validation error for {task.id}", e)
+                        self._reported_subtask_errors.add((step.id, task.id))
                     task_valid = False
                 if task_valid:
                     global_tutorial_manager.complete_subtask(task.id)
@@ -331,6 +351,8 @@ class WorkspaceWindow(QMainWindow):
                 for canvas in wizard_panel.findChildren(QWidget, "FlowCanvas"):
                     if hasattr(canvas, "set_guide_polygon"):
                         canvas.set_guide_polygon(guide_poly)
+                    if hasattr(canvas, "set_tutorial_guide"):
+                        canvas.set_tutorial_guide(step)
             if isinstance(step, InteractionStep) and step.target_widget_name:
                 targets = parent_page.findChildren(QWidget, step.target_widget_name)
                 for target_w in targets:
@@ -490,6 +512,8 @@ class WorkspaceWindow(QMainWindow):
             self.tutorial_overlay.setGeometry(self.analysis_page.rect())
         if hasattr(self, "home_tutorial_overlay"):
             self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
+        if hasattr(self, "theme_loading_overlay") and self.theme_loading_overlay.isVisible():
+            self.theme_loading_overlay.resize(self.root_stack.size())
         self._update_loader_geom()
 
     def moveEvent(self, event):  # noqa: N802
