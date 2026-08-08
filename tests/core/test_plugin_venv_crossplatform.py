@@ -213,6 +213,7 @@ class TestRealVenvInstallation:
         uv = shutil.which("uv")
         if uv is None:
             pytest.skip("uv not on PATH")
+        assert uv is not None
         return uv
 
     def test_venv_created_with_correct_interpreter(self, tmp_path):
