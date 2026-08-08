@@ -269,7 +269,7 @@ class TestRealVenvInstallation:
         """
         import subprocess as sp
 
-        uv = shutil.which("uv")
+        uv = self._require_uv()
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
         plugin_dir = tmp_path / "cytometrics"
