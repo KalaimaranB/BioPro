@@ -4,6 +4,7 @@ import importlib
 import shutil
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -156,7 +157,7 @@ class TestVenvPathResolution:
         assert str(unix_sp) in sys.path
         sys.path.remove(str(unix_sp))
 
-    def _write_fake_dist_info(self, site_packages: Path, name: str, version: str = "1.0.0"):
+    def _write_fake_dist_info(self, site_packages: Path, name: str, version: str = "1.0.0") -> Path:
         dist_info = site_packages / f"{name}-{version}.dist-info"
         dist_info.mkdir(parents=True)
         (dist_info / "METADATA").write_text(
@@ -164,7 +165,7 @@ class TestVenvPathResolution:
         )
         return dist_info
 
-    def test_installed_names_excludes_pinned_singleton_packages(self, tmp_path):
+    def test_installed_names_excludes_pinned_singleton_packages(self, tmp_path: Path) -> None:
         """Regression test for a real production incident: PyQt6 is a transitive
         dependency of biopro_sdk, so it's installed in every plugin's own
         site-packages too. `_installed_names()` must never surface it as a purge
@@ -183,7 +184,7 @@ class TestVenvPathResolution:
         assert "PyQt6" not in names
         assert "requests" in names
 
-    def test_enforce_priority_never_purges_pyqt6(self, tmp_path):
+    def test_enforce_priority_never_purges_pyqt6(self, tmp_path: Path) -> None:
         site_packages = tmp_path / "site-packages"
         site_packages.mkdir()
         self._write_fake_dist_info(site_packages, "PyQt6", "6.11.0")
@@ -206,10 +207,18 @@ class TestVenvPathResolution:
 class TestRealVenvInstallation:
     LIGHTWEIGHT_PACKAGE = "charset-normalizer"
 
+    def _require_uv(self) -> str:
+        import shutil
+
+        uv = shutil.which("uv")
+        if uv is None:
+            pytest.skip("uv not on PATH")
+        return uv
+
     def test_venv_created_with_correct_interpreter(self, tmp_path):
         import subprocess as sp
 
-        uv = shutil.which("uv")
+        uv = self._require_uv()
         venv_dir = tmp_path / ".venv"
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
@@ -225,7 +234,7 @@ class TestRealVenvInstallation:
     def test_package_installs_and_is_importable(self, tmp_path):
         import subprocess as sp
 
-        uv = shutil.which("uv")
+        uv = self._require_uv()
         plugin_dir = tmp_path / "cytometrics_integration"
         plugin_dir.mkdir()
         venv_dir = plugin_dir / ".venv"
@@ -410,7 +419,7 @@ def test_installed_names_derives_from_dist_files(
     mock_distributions.append(bs4_dist)
 
     # Mock importlib.metadata.distributions to return our mock distributions
-    def mock_distributions_func(path=None):
+    def mock_distributions_func(path: Any = None) -> list[Any]:
         return mock_distributions
 
     monkeypatch.setattr("importlib.metadata.distributions", mock_distributions_func)

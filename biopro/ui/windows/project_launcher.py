@@ -711,22 +711,29 @@ class ProjectLauncherWindow(QMainWindow):
         the run loop stops responding for a stretch, regardless of what was
         painted right before the block started.
         """
+        if getattr(self, "_switching_theme", False):
+            return
+        self._switching_theme = True
         overlay = getattr(self, "_theme_loading_overlay", None)
-        if overlay is not None:
-            overlay.set_text("Changing theme…")
-            overlay.start()
-            overlay.repaint()
-            app = QApplication.instance()
-            if app:
-                app.processEvents()
+        try:
+            if overlay is not None:
+                overlay.set_text("Changing theme…")
+                overlay.start()
+                overlay.repaint()
+                app = QApplication.instance()
+                if app:
+                    from PyQt6.QtCore import QEventLoop
 
-        theme_manager.load_theme(theme_path)
-        from biopro.core.preferences import core_preferences
+                    app.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 
-        core_preferences.set("theme", str(theme_path.absolute()))
+            if theme_manager.load_theme(theme_path):
+                from biopro.core.preferences import core_preferences
 
-        if overlay is not None:
-            overlay.stop()
+                core_preferences.set("theme", str(theme_path.absolute()))
+        finally:
+            if overlay is not None:
+                overlay.stop()
+            self._switching_theme = False
 
     def _on_theme_changed(self):
         """Refreshes the Hub visuals when the theme changes."""

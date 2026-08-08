@@ -49,7 +49,12 @@ def test_error_reporting(qtbot):
     assert len(data["history"]) > 0
 
 
-def test_listener_exception_does_not_trigger_recursive_reporting(qtbot):
+from typing import Any, Final
+
+_LISTENER_FAILURE_WAIT_MS: Final[int] = 50
+
+
+def test_listener_exception_does_not_trigger_recursive_reporting(qtbot: Any) -> None:
     """Regression test for a real production incident: a broken `ERROR_OCCURRED`
     listener (a `setFont()` type mismatch in the error dialog) caused infinite
     recursion — `report_error` -> `event_bus.emit` -> `_dispatch` -> listener
@@ -62,14 +67,14 @@ def test_listener_exception_does_not_trigger_recursive_reporting(qtbot):
 
     call_count = {"n": 0}
 
-    def broken_listener(_data):
+    def broken_listener(_data: Any) -> None:
         call_count["n"] += 1
         raise TypeError("simulated setFont() failure")
 
     event_bus.subscribe(BioProEvent.ERROR_OCCURRED, broken_listener)
     try:
         engine.report_error("trigger", plugin_id="test_plugin")
-        qtbot.wait(50)
+        qtbot.wait(_LISTENER_FAILURE_WAIT_MS)
     finally:
         event_bus.unsubscribe(BioProEvent.ERROR_OCCURRED, broken_listener)
 

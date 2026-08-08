@@ -39,6 +39,7 @@ from biopro.ui.theme import Colors, theme_manager
 # We will use Colors dynamically in the UI code rather than hardcoded hex codes.
 
 CONTENT_WIDTH: int = 392
+_HEADER_TEXT_HEIGHT_BUFFER: int = 48
 
 
 class TutorialOverlay(QWidget):
@@ -751,8 +752,8 @@ class TutorialOverlay(QWidget):
         wrapped_rect = fm.boundingRect(
             0, 0, CONTENT_WIDTH, 0, Qt.TextFlag.TextWordWrap, self.text_label.text()
         )
-        # Add 48px buffer to account for stylesheet padding and macOS line-height quirks
-        required_height = wrapped_rect.height() + 48
+        # Add buffer to account for stylesheet padding and macOS line-height quirks
+        required_height = wrapped_rect.height() + _HEADER_TEXT_HEIGHT_BUFFER
         self.text_label.setMinimumHeight(required_height)
 
         self.text_label.updateGeometry()

@@ -6,6 +6,9 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from biopro.core.models.tutorial_models import ForcedInteractionStep
+
 from PyQt6.QtCore import (
     QEasingCurve,
     QProcess,
@@ -243,9 +246,14 @@ class WorkspaceWindow(QMainWindow):
                 if hasattr(canvas, "set_guide_polygon"):
                     canvas.set_guide_polygon(None)
 
-    def _process_forced_interaction_step(self, step) -> None:
+    def _process_forced_interaction_step(self, step: ForcedInteractionStep) -> None:
         """Process polling and validation for ForcedInteractionStep subtasks."""
         from biopro.core.tutorial_manager import global_tutorial_manager
+
+        # Track reported validator failures by (step.id, task.id)
+        if getattr(self, "_current_tutorial_step_id", None) != step.id:
+            self._current_tutorial_step_id = step.id
+            self._reported_subtask_errors: set[tuple[str, str]] = set()
 
         # Nothing in this engine ever wires SubTask.target_widget_name /
         # event_trigger to anything, and complete_subtask() is never
@@ -263,14 +271,18 @@ class WorkspaceWindow(QMainWindow):
                 if global_tutorial_manager.active_subtask_progress.get(task.id, False):
                     continue
                 if not task.validator:
+                    # Every SubTask has a completion path. Wire it to complete or require a validator.
+                    global_tutorial_manager.complete_subtask(task.id)
                     continue
                 try:
                     task_valid = task.validator.validate(app_state)
                 except Exception as e:
-                    from biopro.core.diagnostics import diagnostics
+                    if (step.id, task.id) not in self._reported_subtask_errors:
+                        from biopro.core.diagnostics import diagnostics
 
-                    logger.exception(f"SubTask validation error for {task.id}: {e}")
-                    diagnostics.report_error(f"SubTask validation error for {task.id}", e)
+                        logger.exception(f"SubTask validation error for {task.id}: {e}")
+                        diagnostics.report_error(f"SubTask validation error for {task.id}", e)
+                        self._reported_subtask_errors.add((step.id, task.id))
                     task_valid = False
                 if task_valid:
                     global_tutorial_manager.complete_subtask(task.id)

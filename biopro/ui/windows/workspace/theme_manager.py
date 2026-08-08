@@ -1,14 +1,22 @@
 """Theme Manager for WorkspaceWindow."""
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Final
 
 from PyQt6.QtWidgets import QWidget
 
 from biopro.ui.theme import Colors, Fonts, theme_manager
 
+if TYPE_CHECKING:
+    from biopro.ui.windows.workspace_window import WorkspaceWindow
+
+_RESTYLE_INTERVAL: Final[int] = 40
+_MENU_PADDING_V: Final[str] = "4px"
+_MENU_PADDING_H: Final[str] = "20px"
+
 
 class ThemeManager:
-    def __init__(self, main_window):
+    def __init__(self, main_window: "WorkspaceWindow") -> None:
         self.main_window = main_window
         self._switching_theme = False
 
@@ -64,7 +72,7 @@ class ThemeManager:
             f"  border: 1px solid {Colors.BORDER}; border-radius: 4px;\n"
             f"}}\n"
             f"QMenu::item {{\n"
-            f"  padding: 4px 20px 4px 20px;\n"
+            f"  padding: {_MENU_PADDING_V} {_MENU_PADDING_H} {_MENU_PADDING_V} {_MENU_PADDING_H};\n"
             f"}}\n"
             f"QMenu::item:selected {{\n"
             f"  background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.BG_DARKEST};\n"
@@ -142,20 +150,21 @@ class ThemeManager:
             self._switching_theme = False
 
     def _apply_theme(self, theme_path: Path) -> None:
-        theme_manager.load_theme(theme_path)
-        from biopro.core.preferences import core_preferences
+        if theme_manager.load_theme(theme_path):
+            from biopro.core.preferences import core_preferences
 
-        core_preferences.set("theme", str(theme_path.absolute()))
+            core_preferences.set("theme", str(theme_path.absolute()))
 
     @staticmethod
     def _pump_events() -> None:
         """Processes pending Qt events so the UI stays responsive and the
         loading overlay's animation actually advances during long rebuilds."""
+        from PyQt6.QtCore import QEventLoop
         from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance()
         if app:
-            app.processEvents()
+            app.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
 
     def on_theme_changed(self) -> None:
         """Full workspace UI rebuild on theme swap."""
@@ -316,5 +325,5 @@ class ThemeManager:
             # Restyling can walk hundreds of widgets on a busy module panel —
             # yield to the event loop periodically so the app stays responsive
             # and the loading overlay keeps animating instead of stalling.
-            if i % 40 == 0:
+            if i % _RESTYLE_INTERVAL == 0:
                 self._pump_events()

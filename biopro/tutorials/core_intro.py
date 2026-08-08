@@ -113,7 +113,7 @@ _steps = [
     InfoStep(
         id="hub_welcome",
         text=(
-            "Hey, I'm Cyto 👋, your built in guide to everything BioPro. Let's have a quick tour!"  # noqa: E501
+            "Hey, I'm Cyto 👋, your built-in guide to everything BioPro. Let's have a quick tour!"  # noqa: E501
         ),
         cyto_emotion="cheering",
         cyto_animation="cheering",

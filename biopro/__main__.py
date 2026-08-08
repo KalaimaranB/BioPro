@@ -1,7 +1,7 @@
-import contextlib  # noqa: D100
-import logging
+import logging  # noqa: D100
 import sys
 from pathlib import Path
+from typing import Final
 
 
 # --- STABILIZATION: Bootstrap Logging ---
@@ -218,6 +218,8 @@ def bootstrap_sdk():
 # Smoke test timeout configuration
 SMOKE_TEST_TIMEOUT_MS = 15000  # Maximum time to wait for async data loading
 SMOKE_TEST_TICK_MS = 1000  # Delay before quitting when no async data expected
+
+_BIEXPONENTIAL_PROBE_VALUES: Final[tuple[float, ...]] = (1.0, 100.0, 10_000.0, 200_000.0)
 
 
 def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
@@ -440,7 +442,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                 biexponential_transform,
             )
 
-            biexponential_transform(np.array([1.0, 100.0, 10_000.0, 200_000.0]))
+            biexponential_transform(np.array(_BIEXPONENTIAL_PROBE_VALUES))
             logger.info("Smoke test: biexponential_transform executed successfully.")
         except Exception as e:
             logger.error(f"SMOKE TEST FAILED: biexponential_transform raised: {e}")
