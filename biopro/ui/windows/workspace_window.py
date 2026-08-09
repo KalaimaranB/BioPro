@@ -391,6 +391,13 @@ class WorkspaceWindow(QMainWindow):
                                     f"DEBUG: Failed to connect to {step.event_trigger} on widget {obj_id}: {e}"
                                 )
         if isinstance(step, VerificationStep) and step.validator:
+            # A validator can mutate its own step's .text in place (e.g. to
+            # report live progress on a long-running background job) —
+            # render_step() only runs on an actual step change, so without
+            # this the bubble would silently stay on its original text for
+            # the step's entire lifetime no matter how often .text changes.
+            if active_overlay.text_label.text() != step.text:
+                active_overlay.text_label.setText(step.text)
             self._verification_wait += 1
             if self._verification_wait > TUTORIAL_VALIDATION_POLL_TICKS:
                 self._verification_wait = 0
