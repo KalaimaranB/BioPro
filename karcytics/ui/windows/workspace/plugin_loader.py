@@ -644,6 +644,29 @@ class PluginLoaderManager:
                 mw._pending_workflow_payload = None
                 mw._pending_workflow_filename = None
                 mw._pending_workflow_metadata = None
+        elif "DependencyMissingError:" in exc_msg or "missing its Python environment" in exc_msg:
+            # The plugin is missing its virtual environment.
+            # Prompt/launch the DependencyInstallerDialog to attempt auto-repairing the plugin environment.
+            mod_info = mw.module_manager.modules.get(module_id, {})
+            plugin_dir = mod_info.get("path")
+            plugin_name = mod_info.get("manifest", {}).get("name", module_id)
+            if plugin_dir:
+                from pathlib import Path
+                from biopro.ui.dialogs.dependency_installer_dialog import DependencyInstallerDialog
+
+                installer = DependencyInstallerDialog(Path(plugin_dir), plugin_name, parent=mw)
+                if installer.exec():
+                    # Environment was installed/repaired successfully! Retry opening the module.
+                    manifests = mw.module_manager.get_available_modules()
+                    manifest = next((m for m in manifests if m["id"] == module_id), None)
+                    if manifest:
+                        self.open_module(manifest)
+                        return
+
+            # If repair failed or user closed dialog, discard pending workflow
+            mw._pending_workflow_payload = None
+            mw._pending_workflow_filename = None
+            mw._pending_workflow_metadata = None
         else:
             # We explicitly ignore ModuleNotFoundError here since users might
             # uninstall a plugin without removing the hub metadata cache.

@@ -53,14 +53,11 @@ class PackageManager:
         return reqs
 
     @staticmethod
-    def _resolve_uv_path() -> str:
+    def _resolve_uv_path() -> str | None:
         """Resolve the path to the uv executable.
 
         Returns:
-            str: Path to the uv executable.
-
-        Raises:
-            RuntimeError: If uv is not found.
+            str | None: Path to the uv executable, or None if uv is not found.
         """
         uv_path = None
         if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
@@ -71,20 +68,14 @@ class PackageManager:
         if not uv_path:
             uv_path = shutil.which("uv")
 
-        if not uv_path:
-            raise RuntimeError(
-                "uv is required to install plugin dependencies but was not found "
-                "(bundled uv missing and not on PATH)."
-            )
-
         return uv_path
 
     @staticmethod
-    def _create_venv(uv_path: str, venv_dir: Path, sp_kwargs: dict[str, Any]) -> Path:
+    def _create_venv(uv_path: str | None, venv_dir: Path, sp_kwargs: dict[str, Any]) -> Path:
         """Create a virtual environment for the plugin.
 
         Parameters:
-            uv_path (str): Path to the uv executable.
+            uv_path (str | None): Path to the uv executable, or None to use standard venv.
             venv_dir (Path): Directory for the virtual environment.
             sp_kwargs (dict[str, Any]): Subprocess keyword arguments.
 
@@ -94,7 +85,11 @@ class PackageManager:
         Raises:
             RuntimeError: If venv creation fails or interpreter is not found.
         """
-        venv_cmd = [uv_path, "venv", str(venv_dir), "--python", "3.12", "--seed"]
+        if uv_path:
+            venv_cmd = [uv_path, "venv", str(venv_dir), "--python", "3.12", "--seed"]
+        else:
+            venv_cmd = [sys.executable, "-m", "venv", str(venv_dir)]
+
         logger.info("Creating plugin venv: %s", " ".join(venv_cmd))
         result = subprocess.run(venv_cmd, capture_output=True, text=True, **sp_kwargs)
         if result.returncode != 0:
@@ -103,13 +98,23 @@ class PackageManager:
             )
 
         # Resolve the interpreter path cross-platform
+        venv_python = None
         if sys.platform == "win32":
             venv_python = venv_dir / "Scripts" / "python.exe"
         else:
-            venv_python = venv_dir / "bin" / "python3.12"
+            major, minor = sys.version_info.major, sys.version_info.minor
+            candidates = [
+                venv_dir / "bin" / f"python{major}.{minor}",
+                venv_dir / "bin" / "python3",
+                venv_dir / "bin" / "python",
+            ]
+            for c in candidates:
+                if c.exists():
+                    venv_python = c
+                    break
 
-        if not venv_python.exists():
-            raise RuntimeError(f"uv venv did not produce expected interpreter at {venv_python}")
+        if not venv_python or not venv_python.exists():
+            raise RuntimeError(f"Plugin venv did not produce expected interpreter in {venv_dir}")
 
         return venv_python
 
@@ -181,8 +186,8 @@ class PackageManager:
                 progress percentages.
 
         Raises:
-            RuntimeError: If `uv` is unavailable or environment creation, dependency
-                installation, interpreter discovery, or the plugin self-test fails.
+            RuntimeError: If environment creation, dependency installation, interpreter discovery,
+                or the plugin self-test fails.
         """
         if not dependencies:
             if progress_callback:
@@ -217,7 +222,11 @@ class PackageManager:
             progress_callback(15)
 
         # Install packages into the interpreter
-        install_cmd = [uv_path, "pip", "install", "--python", str(venv_python)] + reqs
+        if uv_path:
+            install_cmd = [uv_path, "pip", "install", "--python", str(venv_python)] + reqs
+        else:
+            install_cmd = [str(venv_python), "-m", "pip", "install"] + reqs
+
         logger.info("Installing plugin dependencies: %s", " ".join(install_cmd))
         result = subprocess.run(install_cmd, capture_output=True, text=True, **sp_kwargs)
         if result.returncode != 0:

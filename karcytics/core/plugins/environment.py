@@ -94,10 +94,10 @@ class PluginEnvironmentInjector:
         candidate_paths = [
             # Unix/macOS layout: lib/pythonX.Y/site-packages
             plugin_path / ".venv" / "lib" / py_ver / "site-packages",
-            plugin_path / ".venv" / "lib" / py_ver / "site-packages",
+            plugin_path / ".plugin_venv" / "lib" / py_ver / "site-packages",
             # Windows layout: Lib/site-packages (no version subdirectory)
             plugin_path / ".venv" / "Lib" / "site-packages",
-            plugin_path / ".venv" / "Lib" / "site-packages",
+            plugin_path / ".plugin_venv" / "Lib" / "site-packages",
         ]
 
         selected_path = None
@@ -118,7 +118,6 @@ class PluginEnvironmentInjector:
                 plugin_path,
                 ", ".join(str(p) for p in candidate_paths),
             )
-            return None
 
         # Insert the plugin site-packages before any application-bundle paths
         insert_index = 0
@@ -132,19 +131,25 @@ class PluginEnvironmentInjector:
             logger.debug(f"Failed to find insert index in sys.path: {e}")
             insert_index = 0
 
-        if str(selected_path) in sys.path:
-            current_idx = sys.path.index(str(selected_path))
-            if current_idx > insert_index:
-                # Move existing entry earlier to take precedence
-                sys.path.pop(current_idx)
+        if selected_path:
+            import site
+
+            if str(selected_path) in sys.path:
+                current_idx = sys.path.index(str(selected_path))
+                if current_idx > insert_index:
+                    # Move existing entry earlier to take precedence
+                    sys.path.pop(current_idx)
+                    sys.path.insert(insert_index, str(selected_path))
+                    logger.info(
+                        "Moved existing plugin path earlier in sys.path: %s (to index %d)",
+                        selected_path,
+                        insert_index,
+                    )
+            else:
+                site.addsitedir(str(selected_path))
+                if str(selected_path) in sys.path:
+                    sys.path.remove(str(selected_path))
                 sys.path.insert(insert_index, str(selected_path))
-                logger.info(
-                    "Moved existing plugin path earlier in sys.path: %s (to index %d)",
-                    selected_path,
-                    insert_index,
-                )
-        else:
-            sys.path.insert(insert_index, str(selected_path))
 
         # V3 Architecture: Also inject the plugin's src directory if it exists
         src_dir = plugin_path / "src"
@@ -396,7 +401,7 @@ class PluginEnvironmentInjector:
             norm_path = str(Path(path))
             if (
                 target_marker in norm_path
-                and (".venv" in norm_path or ".venv" in norm_path)
+                and (".venv" in norm_path or ".plugin_venv" in norm_path)
                 and ("site-packages" in norm_path)
             ):
                 sys.path.remove(path)

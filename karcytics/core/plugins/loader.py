@@ -1,3 +1,4 @@
+
 """Dynamic plugin instantiation and architecture routing."""
 
 import contextlib
@@ -215,15 +216,17 @@ class PluginLoaderFactory:
         Raises:
             RuntimeError: If the plugin's Python environment cannot be found.
         """
-        venv = plugin_path / ".venv"
+        venv_dirs = [plugin_path / ".venv", plugin_path / ".plugin_venv"]
         deps_missing = True
         candidates = []
-        if sys.platform == "win32":
-            candidates.append(venv / "Scripts" / "python.exe")
-        else:
-            major, minor = sys.version_info.major, sys.version_info.minor
-            candidates.append(venv / "bin" / f"python{major}.{minor}")
-            candidates.append(venv / "bin" / "python3")
+        for venv in venv_dirs:
+            if sys.platform == "win32":
+                candidates.append(venv / "Scripts" / "python.exe")
+            else:
+                major, minor = sys.version_info.major, sys.version_info.minor
+                candidates.append(venv / "bin" / f"python{major}.{minor}")
+                candidates.append(venv / "bin" / "python3")
+                candidates.append(venv / "bin" / "python")
 
         for c in candidates:
             if c.exists():

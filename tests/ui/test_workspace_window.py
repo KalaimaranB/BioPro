@@ -137,6 +137,30 @@ class TestWorkspaceWindow:
         qtbot.waitUntil(lambda: mock_exec.called, timeout=5000)
         mock_exec.assert_called_once()
 
+    @patch("biopro.ui.dialogs.dependency_installer_dialog.DependencyInstallerDialog.exec", return_value=True)
+    def test_open_module_dependency_missing_triggers_installer(self, mock_installer_exec, window, qtbot):
+        manifest = {"id": "plugin_a", "name": "Plugin A"}
+        window.module_manager.modules = {
+            "plugin_a": {
+                "path": "/fake/path/plugin_a",
+                "manifest": manifest,
+            }
+        }
+        # First call raises DependencyMissingError, second call succeeds with panel class
+        class MockPanel(QWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+        window.module_manager.load_module_ui.side_effect = [
+            RuntimeError("DependencyMissingError: missing its Python environment"),
+            MockPanel,
+        ]
+
+        window.plugin_manager.open_module(manifest)
+
+        qtbot.waitUntil(lambda: mock_installer_exec.called, timeout=5000)
+        mock_installer_exec.assert_called_once()
+
     def test_history_integration(self, window, qtbot):
         """Verify that UI triggers push/undo/redo on HistoryManager."""
         window.current_module_id = "plugin_a"
