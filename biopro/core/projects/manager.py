@@ -31,7 +31,7 @@ class ProjectManager:
 
         # Internal State
         self.data: dict[str, Any] = {}
-        self.history_manager = HistoryManager()
+        self.history_manager = HistoryManager(max_steps=50)
 
         # Specialized Managers
         self.locker = ProjectLock(self.project_dir)
@@ -112,11 +112,10 @@ class ProjectManager:
 
             if self.history_file.exists():
                 try:
-                    history_data = AtomicJsonFile.load(self.history_file)
-                    if history_data:
-                        self.history_manager.load_all(history_data)
+                    self.history_file.unlink()
+                    logger.info("Deleted legacy history.json file.")
                 except Exception as e:
-                    logger.error(f"Could not load history.json: {e}", exc_info=True)
+                    logger.warning(f"Could not delete legacy history.json: {e}")
 
             self.validate_assets()
             logger.info(f"Opened project: {self.project_name}")
@@ -137,14 +136,6 @@ class ProjectManager:
             # Atomic Save for Project File
             if not AtomicJsonFile.save(self.project_file, self.data):
                 raise OSError("Failed to atomically save project data.")
-
-            # Atomic Save for History
-            try:
-                history_data = self.history_manager.serialize_all()
-                if not AtomicJsonFile.save(self.history_file, history_data):
-                    raise OSError("Failed to atomically save history.")
-            except Exception as e:
-                logger.error(f"Failed to save history.json: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Failed to save project: {e}", exc_info=True)
             from biopro.core.diagnostics import diagnostics

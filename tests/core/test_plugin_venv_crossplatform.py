@@ -4,6 +4,7 @@ import importlib
 import shutil
 import sys
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -199,6 +200,59 @@ class TestVenvPathResolution:
 
         assert "PyQt6" not in purged
         assert sys.modules["PyQt6"] is live_module
+
+
+class TestPurgeOwnedAndRemovePluginPaths:
+    """Tests for the unload-time primitives used by ModuleManager.unload_module():
+    purge_owned() (explicit-name-set purge) and remove_plugin_paths() (scoped
+    sys.path cleanup), as opposed to enforce_priority()/cleanup_paths() which
+    operate reactively/globally during load.
+    """
+
+    def test_purge_owned_excludes_pinned_singletons(self) -> None:
+        sys.modules.setdefault("_fake_owned_dep", ModuleType("_fake_owned_dep"))
+        try:
+            purged = PluginEnvironmentInjector.purge_owned({"PyQt6", "_fake_owned_dep"})
+            assert "PyQt6" not in purged
+            assert "_fake_owned_dep" in purged
+            assert "PyQt6" in sys.modules
+            assert "_fake_owned_dep" not in sys.modules
+        finally:
+            sys.modules.pop("_fake_owned_dep", None)
+
+    def test_purge_owned_removes_submodules(self) -> None:
+        sys.modules["_fake_owned_pkg"] = ModuleType("_fake_owned_pkg")
+        sys.modules["_fake_owned_pkg.sub"] = ModuleType("_fake_owned_pkg.sub")
+        try:
+            purged = PluginEnvironmentInjector.purge_owned({"_fake_owned_pkg"})
+            assert purged == ["_fake_owned_pkg"]
+            assert "_fake_owned_pkg" not in sys.modules
+            assert "_fake_owned_pkg.sub" not in sys.modules
+        finally:
+            sys.modules.pop("_fake_owned_pkg", None)
+            sys.modules.pop("_fake_owned_pkg.sub", None)
+
+    def test_purge_owned_ignores_names_not_in_sys_modules(self) -> None:
+        purged = PluginEnvironmentInjector.purge_owned({"_nonexistent_module_xyz"})
+        assert purged == []
+
+    def test_remove_plugin_paths_is_scoped(self, tmp_path: Path) -> None:
+        site_packages_a = tmp_path / "plugin_a" / "site-packages"
+        site_packages_b = tmp_path / "plugin_b" / "site-packages"
+        site_packages_a.mkdir(parents=True)
+        site_packages_b.mkdir(parents=True)
+
+        sys.path.insert(0, str(site_packages_a))
+        sys.path.insert(0, str(site_packages_b))
+        try:
+            PluginEnvironmentInjector.remove_plugin_paths([site_packages_a])
+
+            assert str(site_packages_a) not in sys.path
+            assert str(site_packages_b) in sys.path
+        finally:
+            for p in (str(site_packages_a), str(site_packages_b)):
+                if p in sys.path:
+                    sys.path.remove(p)
 
 
 @pytest.mark.skipif(

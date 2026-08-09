@@ -60,9 +60,19 @@ class AssetManager:
                     target_dir = self.assets_dir / subfolder
                     target_dir.mkdir(parents=True, exist_ok=True)
 
-                dest_filename = f"{filepath.stem}_{file_hash[:8]}{filepath.suffix}"
+                dest_filename = filepath.name
                 dest_path = target_dir / dest_filename
-                shutil.copy2(filepath, dest_path)
+
+                counter = 1
+                while dest_path.exists():
+                    if self.compute_hash(dest_path) == file_hash:
+                        break
+                    dest_filename = f"{filepath.stem}_{counter}{filepath.suffix}"
+                    dest_path = target_dir / dest_filename
+                    counter += 1
+
+                if filepath.resolve() != dest_path.resolve():
+                    shutil.copy2(filepath, dest_path)
                 local_path = str(dest_path.relative_to(self.project_dir))
                 logger.info(f"Copied asset to workspace: {local_path}")
 

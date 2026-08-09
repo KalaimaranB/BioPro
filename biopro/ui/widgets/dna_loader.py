@@ -283,12 +283,15 @@ class ProgrammaticLoader(QWidget):
         size = (4.0 * unit) * (1.2 + z * 0.4)
         color = QColor(color_str)
 
-        if is_front:
+        # Glow logic
+        # Start glowing slightly when it's still in the back (z > -0.5)
+        glow_intensity = max(0.0, z + 0.5)
+        if glow_intensity > 0:
             # Outer bloom — wide, soft halo
             glow_radius = size * 2.5
             glow = QRadialGradient(x, y, glow_radius)
             gc = QColor(color)
-            gc.setAlpha(int(70 * (z + 0.5) * fade))  # was 25 → now 70
+            gc.setAlpha(int(70 * glow_intensity * fade))
             glow.setColorAt(0, gc)
             glow.setColorAt(1, QColor(0, 0, 0, 0))
             painter.setBrush(glow)
@@ -301,7 +304,7 @@ class ProgrammaticLoader(QWidget):
             inner_radius = size * 2.0
             inner_glow = QRadialGradient(x, y, inner_radius)
             ic = QColor(color)
-            ic.setAlpha(int(100 * (z + 0.5) * fade))
+            ic.setAlpha(int(100 * glow_intensity * fade))
             inner_glow.setColorAt(0, ic)
             inner_glow.setColorAt(1, QColor(0, 0, 0, 0))
             painter.setBrush(inner_glow)
@@ -309,16 +312,40 @@ class ProgrammaticLoader(QWidget):
                 QRectF(x - inner_radius, y - inner_radius, inner_radius * 2, inner_radius * 2)
             )
 
-            # Sphere body
-            color.setAlpha(int(255 * fade))
-            grad = QRadialGradient(x - size * 0.2, y - size * 0.2, size)
-            grad.setColorAt(0, QColor(255, 255, 255, int(255 * fade)))
-            grad.setColorAt(0.3, color)
-            grad.setColorAt(1, QColor(color.darker(150).name()))
-            painter.setBrush(grad)
-        else:
-            color.setAlpha(int((60 + (z + 1) * 30) * fade))
-            painter.setBrush(color)
+        # Body logic
+        # Blend between flat color (back) and 3D sphere gradient (front)
+        sphere_blend = max(0.0, min(1.0, (z + 0.5) / 1.0))
 
+        flat_alpha = int((60 + (z + 1) * 30) * fade)
+        sphere_alpha = int(255 * fade)
+
+        c0_flat = QColor(color)
+        c0_flat.setAlpha(flat_alpha)
+        c0_sphere = QColor(255, 255, 255, sphere_alpha)
+
+        c3_flat = QColor(color)
+        c3_flat.setAlpha(flat_alpha)
+        c3_sphere = QColor(color)
+        c3_sphere.setAlpha(sphere_alpha)
+
+        c1_flat = QColor(color)
+        c1_flat.setAlpha(flat_alpha)
+        c1_sphere = color.darker(150)
+        c1_sphere.setAlpha(sphere_alpha)
+
+        def blend_colors(c1, c2, factor):
+            return QColor(
+                int(c1.red() * (1 - factor) + c2.red() * factor),
+                int(c1.green() * (1 - factor) + c2.green() * factor),
+                int(c1.blue() * (1 - factor) + c2.blue() * factor),
+                int(c1.alpha() * (1 - factor) + c2.alpha() * factor),
+            )
+
+        grad = QRadialGradient(x - size * 0.2, y - size * 0.2, size)
+        grad.setColorAt(0, blend_colors(c0_flat, c0_sphere, sphere_blend))
+        grad.setColorAt(0.3, blend_colors(c3_flat, c3_sphere, sphere_blend))
+        grad.setColorAt(1, blend_colors(c1_flat, c1_sphere, sphere_blend))
+
+        painter.setBrush(grad)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(QRectF(x - size / 2, y - size / 2, size, size))

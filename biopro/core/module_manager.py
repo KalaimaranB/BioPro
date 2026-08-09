@@ -108,15 +108,35 @@ class ModuleManager:
 
         # Force any of this plugin's dependencies already shadowed by a stale
         # sys.modules entry (e.g. a partial copy claimed by the frozen core
-        # bundle) to re-resolve from the plugin's own environment.
+        # bundle) to re-resolve from the plugin's own environment. This is a
+        # fallback net — in the common case `unload_module()` already purged the
+        # previous module's dependencies before this load started, so there's
+        # nothing left to shadow.
         purged: list[str] = []
         if site_packages is not None:
             purged = PluginEnvironmentInjector.enforce_priority(
                 Path(mod_info["path"]), site_packages
             )
 
+        # Snapshot sys.modules so we know exactly what this load introduces —
+        # this is what unload_module() will purge later, and (unlike
+        # enforce_priority's site-packages heuristic) it also naturally covers the
+        # plugin's own injected src/ package tree. Only recorded on a genuine fresh
+        # load: PluginLoaderFactory.load_ui() short-circuits and returns the cached
+        # panel class when the module is already loaded, so re-diffing here would
+        # wipe out the real ownership set with an empty one.
+        was_already_loaded = mod_info.get("loaded", False)
+        pre_load_modules = set(sys.modules)
+
         # Load the UI safely
         result = PluginLoaderFactory.load_ui(module_id, mod_info)
+
+        if not was_already_loaded:
+            mod_info["_owned_modules"] = set(sys.modules) - pre_load_modules
+            mod_info["_owned_paths"] = [p for p in (site_packages,) if p is not None]
+            src_dir = Path(mod_info["path"]) / "src"
+            if src_dir.exists():
+                mod_info["_owned_paths"].append(src_dir)
 
         # If a collision was found and purged above, confirm the plugin's own import
         # actually landed correctly. If it's still shadowed, purging sys.modules alone
@@ -151,6 +171,42 @@ class ModuleManager:
                     )
 
         return result
+
+    def unload_module(self, module_id: str) -> None:
+        """Release a loaded module's plugin instance, owned modules, and injected paths.
+
+        Must be called only after the module's UI widget has already been fully torn
+        down (cleanup() called, C++ object confirmed destroyed) — this purges the
+        `sys.modules`/`sys.path` state that widget's live objects may still reference,
+        so purging first would risk exactly the shadow-copy/dangling-pointer collision
+        this method exists to prevent.
+
+        Parameters:
+            module_id (str): Identifier of the module to unload.
+        """
+        if module_id not in self.modules:
+            return
+
+        mod_info = self.modules[module_id]
+        if not mod_info.get("loaded"):
+            return
+
+        plugin_ref = mod_info.get("plugin_ref")
+        if plugin_ref is not None:
+            if hasattr(plugin_ref, "cleanup"):
+                plugin_ref.cleanup()
+            if hasattr(plugin_ref, "shutdown"):
+                plugin_ref.shutdown()
+
+        PluginEnvironmentInjector.purge_owned(mod_info.get("_owned_modules", set()))
+        PluginEnvironmentInjector.remove_plugin_paths(mod_info.get("_owned_paths", []))
+
+        mod_info["loaded"] = False
+        mod_info["plugin_ref"] = None
+        mod_info["_owned_modules"] = set()
+        mod_info["_owned_paths"] = []
+
+        logger.info(f"Unloaded module: {module_id}")
 
     def reload_modules(self) -> None:
         """Refreshes the plugin registry to reflect installed, removed, or updated plugins."""

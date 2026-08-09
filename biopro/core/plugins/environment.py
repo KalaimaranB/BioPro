@@ -279,6 +279,60 @@ class PluginEnvironmentInjector:
         return purged
 
     @staticmethod
+    def purge_owned(owned_names: set[str]) -> list[str]:
+        """Purge an explicit set of module names (and their submodules) from `sys.modules`.
+
+        Unlike `enforce_priority`, which *guesses* purge candidates from a plugin's
+        `.venv/site-packages` contents, this operates on an explicit name set — typically
+        a `sys.modules` snapshot diff captured around a plugin's own load, which also
+        covers names that never appear in site-packages at all (e.g. a plugin's own
+        `src/`-tree package). This is the primary mechanism for releasing a module's
+        dependencies on unload; `enforce_priority` remains a reactive fallback for
+        cases with no prior ownership record.
+
+        Parameters:
+            owned_names (set[str]): Top-level module names to purge, e.g. captured via
+            `set(sys.modules) - snapshot_before_load`.
+
+        Returns:
+            list[str]: Names actually purged (excludes anything in
+            `_PINNED_SINGLETON_PACKAGES`, even if present in `owned_names`).
+        """
+        purged: list[str] = []
+
+        for name in sorted(owned_names - _PINNED_SINGLETON_PACKAGES):
+            if name not in sys.modules:
+                continue
+
+            keys_to_remove = [k for k in sys.modules if k == name or k.startswith(f"{name}.")]
+            for k in keys_to_remove:
+                del sys.modules[k]
+
+            purged.append(name)
+            logger.info("Purged owned module '%s' on plugin unload.", name)
+
+        return purged
+
+    @staticmethod
+    def remove_plugin_paths(paths: list[Path]) -> None:
+        """Remove specific plugin path entries from `sys.path`.
+
+        Scoped sibling of `cleanup_paths()`: that method sweeps *every* plugin venv
+        path process-wide, which is correct for a full registry reload but wrong for
+        unloading a single module while other plugins may still be active. This only
+        removes the exact paths given (typically a module's own `site_packages` and
+        `src_dir`, as recorded by `inject_path`).
+
+        Parameters:
+            paths (list[Path]): Exact `sys.path` entries to remove.
+        """
+        for path in paths:
+            path_str = str(path)
+            if path_str in sys.path:
+                sys.path.remove(path_str)
+                logger.info("Removed plugin path from sys.path on unload: %s", path_str)
+
+    @staticmethod
     def verify_isolation(names: list[str], site_packages: Path) -> list[str]:
         """Check whether previously-purged dependency names now resolve from the plugin's env.
 

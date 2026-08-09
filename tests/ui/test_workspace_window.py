@@ -65,6 +65,68 @@ class TestWorkspaceWindow:
         mock_err.assert_not_called()
 
     @patch("biopro.ui.dialogs.error_report.ErrorReportDialog.exec")
+    def test_open_module_switch_unloads_previous_before_loading_next(self, mock_err, window, qtbot):
+        """Regression test for the hot-swap crash: switching from module A to
+        module B must fully destroy A's panel and call module_manager.unload_module
+        for it *before* B's panel is created — not race the two, which is what
+        produced the ModuleNotFoundError / "wrapped C/C++ object" crash.
+        """
+
+        class PanelA(QWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.load_state = MagicMock()
+                self.export_state = MagicMock()
+
+        class PanelB(QWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.load_state = MagicMock()
+                self.export_state = MagicMock()
+
+        manifest_a = {"id": "plugin_a", "display_name": "Plugin A", "name": "Plugin A", "icon": "A"}
+        manifest_b = {"id": "plugin_b", "display_name": "Plugin B", "name": "Plugin B", "icon": "B"}
+
+        window.module_manager.load_module_ui.return_value = PanelA
+        window.plugin_manager.open_module(manifest_a)
+        qtbot.waitUntil(lambda: window.wizard_panel is not None, timeout=5000)
+        assert isinstance(window.wizard_panel, PanelA)
+
+        window.module_manager.load_module_ui.return_value = PanelB
+        window.plugin_manager.open_module(manifest_b)
+
+        # unload_module for the outgoing module must fire as part of the switch —
+        # and only after PanelA's C++ object was actually destroyed, which
+        # qtbot.waitUntil's event-loop pumping is what allows to happen at all.
+        qtbot.waitUntil(lambda: window.module_manager.unload_module.called, timeout=5000)
+        window.module_manager.unload_module.assert_called_once_with("plugin_a")
+
+        qtbot.waitUntil(lambda: isinstance(window.wizard_panel, PanelB), timeout=5000)
+        assert window.current_module_id == "plugin_b"
+        mock_err.assert_not_called()
+
+    def test_open_module_ignores_reentrant_call_during_switch(self, window, qtbot):
+        """A second open_module() call while one is already in flight must be
+        ignored rather than racing a second unload/load sequence against the first.
+        """
+
+        class SlowPanel(QWidget):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+        manifest_a = {"id": "plugin_a", "display_name": "Plugin A", "name": "Plugin A", "icon": "A"}
+        window.module_manager.load_module_ui.return_value = SlowPanel
+
+        window.plugin_manager.open_module(manifest_a)
+        assert window._switch_in_progress is True
+
+        # Re-entrant call while the first switch is still in flight.
+        window.plugin_manager.open_module(manifest_a)
+
+        qtbot.waitUntil(lambda: window.wizard_panel is not None, timeout=5000)
+        assert window.module_manager.load_module_ui.call_count == 1
+
+    @patch("biopro.ui.dialogs.error_report.ErrorReportDialog.exec")
     def test_open_module_failure(self, mock_exec, window, qtbot):
         manifest = {"id": "broken", "name": "Broken"}
         window.module_manager.load_module_ui.side_effect = Exception("Load Failed")
