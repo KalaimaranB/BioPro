@@ -37,10 +37,13 @@ The global `HistoryManager` routes keyboard events (e.g., Ctrl+Z) to the current
 
 ---
 
-## State Serialization
+## Session-Only State (No Serialization)
 
-To support session continuity, state snapshots are serialized to disk (`history.json`) when a project is saved.
-This allows the application to recreate the exact undo/redo stack upon subsequent loading, maintaining deterministic reproducibility.
+History snapshots are intentionally kept **in-memory only**. Undo/redo is designed as a temporary, in-session feature.
+To prevent massive project sizes and disk bloat, history is deliberately **not** serialized to disk when a project is saved.
+If a legacy `history.json` file is found when a project is opened, it is automatically deleted.
+
+For persistent data storage, users should use the workflow save/load features instead of relying on the undo stack.
 
 ---
 

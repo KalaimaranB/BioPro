@@ -51,6 +51,14 @@ class PluginLoaderManager:
         mw = self.main_window
         module_id = manifest["id"]
         module_name = manifest.get("display_name", "Analysis Module")
+
+        if getattr(mw, "_switch_in_progress", False):
+            logger.warning(
+                f"PluginLoader: Ignoring open_module('{module_id}') — a module switch "
+                "is already in progress."
+            )
+            return
+
         logger.info(f"PluginLoader: Starting async load sequence for module '{module_id}'")
 
         # --- Trust Gate ---
@@ -69,6 +77,8 @@ class PluginLoaderManager:
             else:
                 # User declined — do not load
                 return
+
+        mw._switch_in_progress = True
 
         from biopro.ui.widgets.galactic_loader import GalacticLoader
 
@@ -91,7 +101,78 @@ class PluginLoaderManager:
             mw._module_thread.quit()
             mw._module_thread.wait()
 
-        # 3. Kick off the background worker
+        # 3. Fully tear down the outgoing module (if any) before loading the next
+        # one. The load below purges sys.modules entries that a still-alive old
+        # panel may reference (matplotlib canvases, shared numpy/pandas copies) —
+        # starting it before the old panel's C++ object is actually gone is what
+        # produces the ModuleNotFoundError / "wrapped C/C++ object has been
+        # deleted" crash this sequencing exists to prevent.
+        old_panel = getattr(mw, "wizard_panel", None)
+        old_module_id = getattr(mw, "current_module_id", None)
+        if old_panel is not None and old_module_id is not None:
+            self._begin_unload(old_panel, old_module_id, lambda: self._begin_module_load(manifest))
+        else:
+            self._begin_module_load(manifest)
+
+    def _begin_unload(self, old_panel, old_module_id: str, on_complete) -> None:
+        """
+        Tears down the outgoing module's widget and purges its owned Python modules
+        and sys.path entries before invoking `on_complete`, so the next module's
+        load never races against this module's still-live objects.
+
+        Parameters:
+            old_panel: The outgoing module's panel widget.
+            old_module_id (str): Identifier of the outgoing module.
+            on_complete: Callback invoked once teardown is confirmed complete.
+        """
+        mw = self.main_window
+
+        if hasattr(mw, "loader_widget") and mw.loader_widget:
+            mw.loader_widget.set_status_message("Closing module…")
+
+        finalized = {"done": False}
+
+        def finalize(*_args) -> None:
+            if finalized["done"]:
+                return
+            finalized["done"] = True
+            if getattr(self, "_unload_safety", None):
+                self._unload_safety.stop()
+                self._unload_safety = None
+            mw.module_manager.unload_module(old_module_id)
+            on_complete()
+
+        try:
+            old_panel.destroyed.connect(finalize)
+        except RuntimeError:
+            # C++ object was already gone by the time we got here.
+            finalize()
+            return
+
+        if hasattr(old_panel, "cleanup"):
+            old_panel.cleanup()
+        old_panel.setParent(None)
+        old_panel.deleteLater()
+
+        # Safety net: don't let a widget that never emits `destroyed` (e.g. a
+        # broken plugin overriding deleteLater) hang the switch forever.
+        from PyQt6.QtCore import QTimer
+
+        self._unload_safety = QTimer(mw)
+        self._unload_safety.setSingleShot(True)
+        self._unload_safety.timeout.connect(finalize)
+        self._unload_safety.start(5_000)
+
+    def _begin_module_load(self, manifest: dict) -> None:
+        """
+        Starts the background import/load of a module's UI class.
+
+        Parameters:
+            manifest (dict): Module manifest containing the module identifier.
+        """
+        mw = self.main_window
+        module_id = manifest["id"]
+
         mw._module_thread = QThread(mw)
         mw._module_worker = PluginUIWorker(mw.module_manager, module_id)
         mw._module_worker.moveToThread(mw._module_thread)
@@ -308,12 +389,9 @@ class PluginLoaderManager:
         module_id = manifest["id"]
         logger.info(f"PluginLoader: Instantiating UI panel for '{module_id}' and wiring events.")
         try:
-            if mw.wizard_panel is not None:
-                if hasattr(mw.wizard_panel, "cleanup"):
-                    mw.wizard_panel.cleanup()
-                mw.wizard_panel.setParent(None)
-                mw.wizard_panel.deleteLater()
-
+            # Note: the outgoing module's panel (if any) was already torn down and
+            # unloaded in open_module()'s _begin_unload() step, before this module's
+            # load even started — see that method for why the ordering matters.
             mw.wizard_panel = PanelClass()
             assert mw.wizard_panel is not None
             mw.wizard_panel.project_manager = mw.project_manager
@@ -370,6 +448,8 @@ class PluginLoaderManager:
 
             logging.getLogger(__name__).error(f"Failed to initialize module: {e}", exc_info=True)
             self.on_module_load_error(module_id, traceback.format_exc())
+        finally:
+            mw._switch_in_progress = False
 
     def crossfade_to_analysis(self) -> None:
         """
@@ -412,6 +492,7 @@ class PluginLoaderManager:
             error_msg (str): Traceback or error message describing the failure.
         """
         mw = self.main_window
+        mw._switch_in_progress = False
 
         # Cleanup loader
         if hasattr(mw, "loader_widget") and mw.loader_widget:

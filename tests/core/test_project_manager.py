@@ -333,26 +333,16 @@ class TestProjectManager:
         with pytest.raises(FileNotFoundError):
             pm.open_project()
 
-    def test_open_project_corrupted_history(self, open_project):
-        """Verify that project loading continues even if the history file is corrupted."""
+    def test_open_project_legacy_history_deleted(self, open_project):
+        """Verify that legacy history.json files are automatically deleted upon project open."""
         pm = open_project
         pm.close()  # Release lock from fixture
-        pm.history_file.write_text("corrupted history data")
-        # Should not crash, just log a warning and proceed
-        pm.open_project()
+        pm.history_file.write_text("legacy history data")
+        assert pm.history_file.exists()
 
-    def test_save_history_failure_diagnostics(self, open_project):
-        """Verify that history save failures are reported to the diagnostics engine."""
-        pm = open_project
-        # Mock serialize_all to fail
-        with (
-            patch.object(
-                pm.history_manager, "serialize_all", side_effect=RuntimeError("Serialization fail")
-            ),
-            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
-        ):
-            pm.save()
-            mock_diag.assert_called()
+        # Opening the project should trigger the auto-delete repair
+        pm.open_project()
+        assert not pm.history_file.exists()
 
     def test_project_save_fatal_failure(self, open_project):
         """Verify that fatal save failures are reported to the diagnostics engine."""

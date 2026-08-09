@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -267,6 +268,132 @@ class TestModuleManager:
             assert mm.modules["test_module_a"]["loaded"] is True
             assert mm.modules["test_module_a"]["plugin_ref"] == plugin_instance
 
+    def test_load_module_ui_snapshot_diff_excludes_preexisting_modules(
+        self, mock_plugin_environment
+    ):
+        """The ownership snapshot must only capture modules newly imported during
+        this load, not ones already present in sys.modules beforehand — this is
+        the mechanism that replaces enforce_priority's site-packages heuristic and
+        (unlike it) also covers a plugin's own injected src/ package tree.
+        """
+
+        class DummyPlugin:
+            def get_panel_class(self):
+                return MagicMock()
+
+            __version__ = "1.0.0"
+            __plugin_id__ = "test_module_a"
+
+            def cleanup(self):
+                pass
+
+            def shutdown(self):
+                pass
+
+        plugin_instance = DummyPlugin()
+
+        def fake_import(name, *args, **kwargs):
+            # Simulate the plugin's own import machinery pulling in a brand-new
+            # dependency (this is what a real `importlib.import_module` call
+            # would do as a side effect; the test mocks the call itself).
+            sys.modules["_fake_plugin_owned_dep"] = ModuleType("_fake_plugin_owned_dep")
+            return plugin_instance
+
+        with patch(
+            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        venv_bin = (
+            mm.modules["test_module_a"]["path"]
+            / ".venv"
+            / ("Scripts" if sys.platform == "win32" else "bin")
+        )
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+
+        try:
+            with (
+                patch("biopro.core.plugins.environment.PluginEnvironmentInjector.inject_path"),
+                patch("importlib.import_module", side_effect=fake_import),
+            ):
+                mm.load_module_ui("test_module_a")
+
+            owned = mm.modules["test_module_a"]["_owned_modules"]
+            assert "_fake_plugin_owned_dep" in owned
+            assert "os" not in owned
+            assert "sys" not in owned
+        finally:
+            sys.modules.pop("_fake_plugin_owned_dep", None)
+
+    def test_unload_module_calls_cleanup_and_shutdown(self, mock_plugin_environment):
+        """Verifies unload_module() invokes the SDK's documented cleanup()/shutdown()
+        contract and resets the module's loaded state."""
+        with patch(
+            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mock_plugin = MagicMock()
+        mm.modules["test_module_a"]["loaded"] = True
+        mm.modules["test_module_a"]["plugin_ref"] = mock_plugin
+        mm.modules["test_module_a"]["_owned_modules"] = set()
+        mm.modules["test_module_a"]["_owned_paths"] = []
+
+        mm.unload_module("test_module_a")
+
+        mock_plugin.cleanup.assert_called_once()
+        mock_plugin.shutdown.assert_called_once()
+        assert mm.modules["test_module_a"]["loaded"] is False
+        assert mm.modules["test_module_a"]["plugin_ref"] is None
+
+    def test_unload_module_purges_only_owned_sys_modules(self, mock_plugin_environment):
+        """unload_module() must purge exactly the recorded owned set — nothing else
+        in sys.modules should be touched."""
+        with patch(
+            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        sys.modules["_fake_owned_dep_mm"] = ModuleType("_fake_owned_dep_mm")
+        try:
+            mm.modules["test_module_a"]["loaded"] = True
+            mm.modules["test_module_a"]["plugin_ref"] = MagicMock()
+            mm.modules["test_module_a"]["_owned_modules"] = {"_fake_owned_dep_mm"}
+            mm.modules["test_module_a"]["_owned_paths"] = []
+
+            mm.unload_module("test_module_a")
+
+            assert "_fake_owned_dep_mm" not in sys.modules
+            assert "os" in sys.modules
+        finally:
+            sys.modules.pop("_fake_owned_dep_mm", None)
+
+    def test_unload_module_noop_if_not_loaded(self, mock_plugin_environment):
+        """Calling unload_module() on a module that isn't currently loaded must be
+        a safe no-op (e.g. a stale/duplicate call from the UI layer)."""
+        with patch(
+            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        assert mm.modules["test_module_a"]["loaded"] is False
+        mm.unload_module("test_module_a")
+        assert mm.modules["test_module_a"]["loaded"] is False
+
+    def test_unload_module_unknown_id_is_noop(self, mock_plugin_environment):
+        with patch(
+            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mm.unload_module("does_not_exist")  # must not raise
+
     def test_load_module_ui_invalid_interface(self, mock_plugin_environment):
         """Verifies that a module not implementing the BioProPlugin interface is rejected."""
         with patch(
@@ -333,3 +460,138 @@ class TestModuleManager:
             mm.trust_manager.overrides.trust_current_state.assert_called_once_with(
                 "test_module_a", {"file.py": "new_hash"}
             )
+
+
+def _module_with_file(name: str, file_path: Path) -> ModuleType:
+    """Build a fake module object whose __file__ resolves within a given directory,
+    for simulating which plugin's copy of a shared dependency is currently active.
+    """
+    mod = ModuleType(name)
+    mod.__file__ = str(file_path)
+    return mod
+
+
+def _module_file(name: str) -> str:
+    """Return sys.modules[name].__file__, asserting it's set (test helper only)."""
+    origin = sys.modules[name].__file__
+    assert origin is not None
+    return origin
+
+
+class TestModuleHotswap:
+    """End-to-end regression test for the reported hot-swap crash: switching from
+    one module to another must not leave sys.modules/sys.path in a state where the
+    outgoing module's dependencies collide with the incoming one's. Drives the real
+    ModuleManager.load_module_ui()/unload_module() pair — the same sequence
+    PluginLoaderManager.open_module() now uses — rather than testing the
+    environment-layer primitives in isolation.
+    """
+
+    class _DummyPlugin:
+        def __init__(self, plugin_id: str):
+            self._plugin_id = plugin_id
+            self.cleanup = MagicMock()
+            self.shutdown = MagicMock()
+
+        def get_panel_class(self):
+            return MagicMock()
+
+        __version__ = "1.0.0"
+
+        @property
+        def __plugin_id__(self):
+            return self._plugin_id
+
+    @pytest.fixture
+    def hotswap_env(self, tmp_path, monkeypatch):
+        """Two plugins, each declaring their own installed copy of a colliding
+        'shared_dep' distribution — mirrors the real matplotlib/pandas collision
+        between Flow Cytometry and Synthetic Biology.
+        """
+        fake_home = tmp_path / "home"
+        user_plugins = fake_home / ".biopro" / "plugins"
+        user_plugins.mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: fake_home)
+
+        def make_plugin(plugin_id: str, name: str) -> Path:
+            plugin_dir = user_plugins / plugin_id
+            plugin_dir.mkdir()
+            with open(plugin_dir / "pyproject.toml", "w", encoding="utf-8") as f:
+                f.write(_dict_to_toml(make_v2_manifest(plugin_id, name)))
+
+            py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
+            site_packages = plugin_dir / ".venv" / "lib" / py_ver / "site-packages"
+            site_packages.mkdir(parents=True)
+            dist_info = site_packages / "shared_dep-1.0.0.dist-info"
+            dist_info.mkdir()
+            (dist_info / "METADATA").write_text(
+                "Metadata-Version: 2.1\nName: shared_dep\nVersion: 1.0.0\n"
+            )
+
+            venv_bin = plugin_dir / ".venv" / ("Scripts" if sys.platform == "win32" else "bin")
+            venv_bin.mkdir(parents=True)
+            (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+            return site_packages
+
+        site_packages_a = make_plugin("hotswap_a", "Module A")
+        site_packages_b = make_plugin("hotswap_b", "Module B")
+        return site_packages_a, site_packages_b
+
+    def test_switching_modules_unloads_a_and_isolates_shared_dependency_for_b(self, hotswap_env):
+        site_packages_a, site_packages_b = hotswap_env
+
+        with patch(
+            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        plugin_a = self._DummyPlugin("hotswap_a")
+        plugin_b = self._DummyPlugin("hotswap_b")
+
+        def fake_import_a(name, *args, **kwargs):
+            sys.modules["shared_dep"] = _module_with_file(
+                "shared_dep", site_packages_a / "shared_dep" / "__init__.py"
+            )
+            return plugin_a
+
+        def fake_import_b(name, *args, **kwargs):
+            sys.modules["shared_dep"] = _module_with_file(
+                "shared_dep", site_packages_b / "shared_dep" / "__init__.py"
+            )
+            return plugin_b
+
+        try:
+            # 1. Load module A. Its own copy of shared_dep resolves and is recorded
+            # as owned.
+            with patch("importlib.import_module", side_effect=fake_import_a):
+                mm.load_module_ui("hotswap_a")
+
+            assert mm.modules["hotswap_a"]["loaded"] is True
+            assert "shared_dep" in mm.modules["hotswap_a"]["_owned_modules"]
+            assert str(site_packages_a) in _module_file("shared_dep")
+            assert str(site_packages_a) in sys.path
+
+            # 2. Switch away from A — this is exactly what PluginLoaderManager's
+            # _begin_unload() now does once A's panel is confirmed destroyed, and
+            # must happen (and succeed) before B's load ever starts.
+            mm.unload_module("hotswap_a")
+
+            plugin_a.cleanup.assert_called_once()
+            plugin_a.shutdown.assert_called_once()
+            assert mm.modules["hotswap_a"]["loaded"] is False
+            assert "shared_dep" not in sys.modules
+            assert str(site_packages_a) not in sys.path
+
+            # 3. Load module B. No crash, and it resolves its own copy of the
+            # dependency rather than colliding with (or shadow-purging) A's.
+            with patch("importlib.import_module", side_effect=fake_import_b):
+                mm.load_module_ui("hotswap_b")
+
+            assert mm.modules["hotswap_b"]["loaded"] is True
+            assert str(site_packages_b) in _module_file("shared_dep")
+        finally:
+            sys.modules.pop("shared_dep", None)
+            for p in (str(site_packages_a), str(site_packages_b)):
+                if p in sys.path:
+                    sys.path.remove(p)

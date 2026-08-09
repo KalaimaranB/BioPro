@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 class ModuleHistory:
     """Manages the undo/redo stacks for a single, specific module."""
 
-    def __init__(self, module_id: str, heavy_checker: Callable[[Any], bool] | None = None) -> None:  # noqa: D107
+    def __init__(
+        self,
+        module_id: str,
+        heavy_checker: Callable[[Any], bool] | None = None,
+        max_steps: int = 50,
+    ) -> None:  # noqa: D107
         """Initialize history tracking for a module.
 
         Parameters:
@@ -24,6 +29,7 @@ class ModuleHistory:
         self.undo_stack: list[dict[str, Any]] = []
         self.redo_stack: list[dict[str, Any]] = []
         self.heavy_checker = heavy_checker
+        self.max_steps = max_steps
 
     def push(self, state: dict) -> None:
         """Add a state snapshot to the undo history and clear redo history.
@@ -60,6 +66,11 @@ class ModuleHistory:
             return
 
         self.undo_stack.append(cleaned_state)
+
+        # Enforce memory cap
+        if len(self.undo_stack) > self.max_steps:
+            self.undo_stack.pop(0)
+
         self.redo_stack.clear()
         logger.debug(
             f"[{self.module_id}] State pushed with Structural Sharing. Depth: {len(self.undo_stack)}"  # noqa: E501
@@ -149,15 +160,28 @@ class ModuleHistory:
 class HistoryManager:
     """Central registry that holds independent histories for every module in a project."""
 
-    def __init__(self, heavy_checker: Callable[[Any], bool] | None = None) -> None:  # noqa: D107
+    def __init__(
+        self,
+        heavy_checker: Callable[[Any], bool] | None = None,
+        max_steps: int = 50,
+    ) -> None:
+        """Initialize the central history registry.
+
+        Parameters:
+            heavy_checker: Optional custom function to determine if a resource is heavy.
+            max_steps: Maximum number of undo states kept in memory per module before truncation.
+        """
         # Dictionary mapping: module_id -> ModuleHistory instance
         self.histories: dict[str, ModuleHistory] = {}
         self.heavy_checker = heavy_checker
+        self.max_steps = max_steps
 
     def get_module_history(self, module_id: str) -> ModuleHistory:
         """Retrieves or creates the history tracker for a specific module."""
         if module_id not in self.histories:
-            self.histories[module_id] = ModuleHistory(module_id, heavy_checker=self.heavy_checker)
+            self.histories[module_id] = ModuleHistory(
+                module_id, heavy_checker=self.heavy_checker, max_steps=self.max_steps
+            )
         return self.histories[module_id]
 
     def serialize_all(self) -> dict:
