@@ -83,13 +83,13 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ "$BASE_REF" = "main" ]; then
-            if [ "$HEAD_REF" != "develop" ] && [[ "$HEAD_REF" != hotfix/* ]]; then
-              echo "::error::main only accepts PRs from 'develop' or 'hotfix/*'. Got: $HEAD_REF"
+            if [ "$HEAD_REF" != "develop" ] && [[ "$HEAD_REF" != hotfix/* ]] && [[ "$HEAD_REF" != docs/* ]]; then
+              echo "::error::main only accepts PRs from 'develop', 'hotfix/*', or 'docs/*'. Got: $HEAD_REF"
               exit 1
             fi
           elif [ "$BASE_REF" = "develop" ]; then
-            if ! [[ "$HEAD_REF" =~ ^(feature|fix|chore|docs|hotfix)/ ]]; then
-              echo "::error::develop only accepts feature/fix/chore/docs/hotfix branches. Got: $HEAD_REF"
+            if ! [[ "$HEAD_REF" =~ ^(feature|fix|chore|docs|hotfix|ci)/ ]]; then
+              echo "::error::develop only accepts feature/fix/chore/docs/hotfix/ci branches. Got: $HEAD_REF"
               exit 1
             fi
           fi
