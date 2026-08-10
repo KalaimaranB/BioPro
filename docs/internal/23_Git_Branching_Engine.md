@@ -13,10 +13,10 @@ This document explains the *system*, not the commands — what each branch is fo
 
 ```mermaid
 gitGraph
-   commit id: "..."
+   commit id: "initial"
    branch develop
    checkout develop
-   commit id: "..."
+   commit id: "dev-base"
    branch feature/x
    checkout feature/x
    commit id: "feat: x"
@@ -32,7 +32,7 @@ gitGraph
    merge develop tag: "promotion"
    branch hotfix/z
    checkout hotfix/z
-   commit id: "fix: z, patch bump"
+   commit id: "fix: z"
    checkout main
    merge hotfix/z tag: "squash"
    checkout develop
