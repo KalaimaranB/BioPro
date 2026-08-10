@@ -41,10 +41,14 @@ jobs:
 
           BODY="Automated back-merge triggered by a push to main. Keeps develop in sync after a docs/* or hotfix/* branch merged directly to main. Review for conflicts before merging."
 
-          if ! gh pr create \
+          if PR_URL=$(gh pr create \
             --base develop \
             --head "$BRANCH" \
             --title "chore: back-merge main into develop (${SHA})" \
-            --body "$BODY"; then
+            --body "$BODY"); then
+            echo "PR created: $PR_URL"
+            # Attempt to auto-merge the PR once CI passes
+            gh pr merge "$PR_URL" --auto --squash || echo "Auto-merge could not be enabled. Please enable 'Allow auto-merge' in Repo Settings."
+          else
             echo "PR already exists or no changes needed, skipping."
           fi
