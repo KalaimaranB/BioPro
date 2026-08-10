@@ -29,7 +29,11 @@ def mock_updater_with_update():
     updater = MagicMock()
     updater.check_for_core_updates.return_value = (
         True,
-        {"version": "2.0.0", "download_url": "https://github.com/KalaimaranB/BioPro/releases"},
+        {
+            "version": "2.0.0",
+            "download_url": "https://github.com/KalaimaranB/BioPro/releases",
+            "notes": "- feat: something new",
+        },
     )
     return updater
 
@@ -68,6 +72,7 @@ class TestUpdateCheckerEmitsEvent:
             BioProEvent.CORE_UPDATE_AVAILABLE,
             "2.0.0",
             "https://github.com/KalaimaranB/BioPro/releases",
+            "- feat: something new",
         )
 
     def test_no_emit_when_up_to_date(self, mock_updater_up_to_date, mock_config, mock_event_bus):
@@ -108,6 +113,7 @@ class TestUpdateCheckerEmitsEvent:
             BioProEvent.CORE_UPDATE_AVAILABLE,
             "2.0.0",
             "https://github.com/KalaimaranB/BioPro/releases",
+            "- feat: something new",
         )
 
     def test_no_emit_when_updater_raises(self, mock_config, mock_event_bus):

@@ -31,6 +31,7 @@ class NetworkUpdater:
         """
         self.core_version = AppConfig.CORE_VERSION
         self.registry_url = AppConfig.REGISTRY_URL
+        self.core_registry_url = AppConfig.CORE_REGISTRY_URL
         self.authority_url = AppConfig.AUTHORITY_REGISTRY_URL
 
         self.plugin_dir = Path.home() / ".biopro" / "plugins"
@@ -121,12 +122,15 @@ class NetworkUpdater:
     def check_for_core_updates(self) -> tuple[bool, dict[str, Any] | None]:
         """Determine whether a newer core application version is available.
 
+        Fetches BioPro's own self-published registry.json (a GitHub Release asset on
+        the BioPro repo itself) rather than going through BioPro-Distribution, since
+        the core app always knows exactly where its own releases live.
+
         Returns:
             tuple: A boolean and core application details when an update is available;
                 otherwise, `False` and `None`.
         """
-        remote_data = self.fetch_remote_registry(self.registry_url)
-        core_info = remote_data.get("core_app", {})
+        core_info = self.fetch_remote_registry(self.core_registry_url)
         remote_version = core_info.get("version", "0.0.0")
 
         if parse_version(self.core_version) < parse_version(remote_version):  # noqa: E501
@@ -139,8 +143,7 @@ class NetworkUpdater:
         Returns:
             bool: `True` if the download page was opened, `False` if no URL is configured.
         """
-        remote_data = self.fetch_remote_registry(self.registry_url)
-        core_info = remote_data.get("core_app", {})
+        core_info = self.fetch_remote_registry(self.core_registry_url)
         download_url = core_info.get("download_url")
 
         if download_url:
