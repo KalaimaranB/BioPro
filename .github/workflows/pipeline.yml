@@ -173,6 +173,22 @@ jobs:
   # Only runs against main (the develop -> main promotion path) or manual dispatch —
   # develop-targeted PRs get audit-and-lint's ubuntu tests only, to keep day-to-day
   # feature work cheap. The full macOS/Windows matrix is reserved for the promotion gate.
+  
+  # 3a: Dummy job to satisfy required matrix checks for docs-only PRs without booting macOS/Windows
+  test-skip:
+    name: Run Tests (${{ matrix.os }})
+    needs: [check-version]
+    if: |
+      success() &&
+      startsWith(github.head_ref, 'docs/') &&
+      github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: ["macos-latest", "windows-latest"]
+    steps:
+      - run: echo "Skipping expensive tests for docs branch."
+
   test:
     name: Run Tests (${{ matrix.os }})
     needs: [check-version, audit-and-lint]
