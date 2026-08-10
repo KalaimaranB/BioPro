@@ -8,7 +8,8 @@ This document explains the *system*, not the commands — what each branch is fo
 | --- | --- | --- | --- |
 | `main` | Production. What a released build was compiled from. | Protected, `enforce_admins: true`, requires `audit-and-lint` + `test` + `enforce-workflow` | Permanent |
 | `develop` | Staging/integration. Where feature work lands and accumulates before a release. | Protected, `enforce_admins: true`, requires `audit-and-lint` + `enforce-workflow` | Permanent |
-| `feature/*`, `fix/*`, `chore/*`, `docs/*` | A single unit of work | None (auto-deleted on merge) | Days |
+| `feature/*`, `fix/*`, `chore/*` | A single unit of work | None (auto-deleted on merge) | Days |
+| `docs/*` | Documentation updates (can bypass full test matrix) | None (auto-deleted on merge) | Days |
 | `hotfix/*` | An urgent fix that can't wait for the next `develop → main` promotion | None (auto-deleted on merge) | Hours |
 
 ```mermaid
@@ -30,6 +31,9 @@ gitGraph
    commit id: "next work"
    checkout main
    merge develop tag: "promotion"
+   checkout develop
+   commit id: "next work"
+   checkout main
    branch hotfix/z
    checkout hotfix/z
    commit id: "fix: z"
@@ -47,15 +51,16 @@ Everything short-lived (`feature/*`, `fix/*`, `chore/*`, `docs/*`, `hotfix/*`) p
 
 - **Every PR into `develop`**: `audit-and-lint` (ruff, mypy, pip-audit, one ubuntu pytest run) + `enforce-workflow`. This is the cheap, fast-fail tier — cheap enough to run on every small feature merge without worrying about cloud spend.
 - **Only the `develop → main` promotion PR** (or a direct push to `main`, or manual dispatch): additionally runs the `test` job's full macOS + Windows matrix, and — if `pyproject.toml`'s version was bumped — `build` (PyInstaller compilation on both platforms), `generate-registry`, SLSA provenance, and the GitHub Release itself.
+- **`docs/*` branches**: Skip both `audit-and-lint` and `test` jobs entirely. They run `docs-lint` (markdown linting and mermaid validation) and `enforce-workflow`. Merging a `docs/*` branch directly to `main` triggers a back-merge to `develop` automatically without running expensive runner matrices.
 
-The tradeoff being made: cross-platform coverage and packaging are expensive (multiple paid runner-minutes per run) and only actually matter right before something ships. Day-to-day feature work doesn't need macOS/Windows executables built on every commit — it needs fast feedback. Concentrating the expensive tier at the promotion point means you pay for full coverage exactly once per release, not once per feature branch.
+The tradeoff being made: cross-platform coverage and packaging are expensive (multiple paid runner-minutes per run) and only actually matter right before something ships. Day-to-day feature work doesn't need macOS/Windows executables built on every commit — it needs fast feedback. Concentrating the expensive tier at the promotion point means you pay for full coverage exactly once per release, not once per feature branch. Documentation changes skip the matrix entirely.
 
 ## How `enforce-workflow` is a hard gate, not a suggestion
 
 `enforce-workflow` is a required status check on both `develop` and `main` branch protection, with `enforce_admins: true`. Concretely, on every `pull_request` event it:
 
 1. Regex-checks the PR title against Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, optional `(scope)` and `!`).
-2. Checks `github.base_ref`/`github.head_ref`: a PR targeting `main` must come from `develop` or `hotfix/*`; a PR targeting `develop` must come from `feature/*`, `fix/*`, `chore/*`, `docs/*`, or `hotfix/*`.
+2. Checks `github.base_ref`/`github.head_ref`: a PR targeting `main` must come from `develop`, `hotfix/*`, or `docs/*`; a PR targeting `develop` must come from `feature/*`, `fix/*`, `chore/*`, `docs/*`, `hotfix/*`, or `ci/*`.
 
 If either check fails, the job exits non-zero and the check goes red. Because it's a *required* check on a *protected* branch with admin enforcement on, GitHub's merge button is disabled for that PR — there is no environment where a `feature/x → main` PR or a non-conventional title can be merged through the UI or API, including by the repo owner. This is what makes the branch model real instead of a convention that erodes the moment things get busy.
 

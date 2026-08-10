@@ -3,11 +3,6 @@ name: Docs Lint
 on:
   pull_request:
     branches: ["main", "develop"]
-    paths:
-      - "docs/**"
-      - "CONTRIBUTING.md"
-      - "README.md"
-      - "**/*.md"
 
 permissions:
   contents: read
