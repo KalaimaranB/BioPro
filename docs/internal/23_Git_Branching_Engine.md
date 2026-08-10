@@ -31,6 +31,7 @@ gitGraph
    merge develop tag: "promotion"
    checkout develop
    commit id: "next work"
+   checkout main
    branch hotfix/z
    checkout hotfix/z
    commit id: "fix: z, patch bump"
