@@ -30,7 +30,7 @@ jobs:
       - name: Create back-merge branch and open PR
         if: steps.check.outputs.behind != '0'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.BOT_TOKEN || github.token }}
         run: |
           SHA=$(git rev-parse --short origin/main)
           BRANCH="chore/back-merge-main-${SHA}"
