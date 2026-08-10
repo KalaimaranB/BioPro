@@ -40,3 +40,9 @@ repos:
         entry: env PYTHONPATH=. uv run python -c "from biopro.core.sbom import SBOMGenerator; SBOMGenerator().to_json()"
         language: system
         pass_filenames: false
+
+      - id: conventional-commit-msg
+        name: Conventional Commit Message
+        entry: uv run python scripts/check_commit_msg.py
+        language: system
+        stages: [commit-msg]

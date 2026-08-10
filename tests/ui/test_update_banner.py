@@ -68,6 +68,19 @@ class TestUpdateBannerWidget:
         assert banner._remote_version == "2.0.0"
         assert banner._download_url == "https://example.com/release"
 
+    def test_banner_sets_notes_tooltip(self, banner, qtbot):
+        """When notes are provided, the label's tooltip must carry the changelog text."""
+        bus = get_event_bus()
+        bus.emit(
+            BioProEvent.CORE_UPDATE_AVAILABLE,
+            "2.0.0",
+            "https://example.com/release",
+            "- fix: something",
+        )
+        qtbot.wait(100)
+
+        assert banner.lbl_message.toolTip() == "- fix: something"
+
     def test_close_button_hides_banner(self, banner, qtbot):
         """The X button hides the banner without persisting a skip."""
         bus = get_event_bus()

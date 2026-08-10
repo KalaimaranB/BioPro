@@ -88,6 +88,7 @@ class UpdateBannerWidget(QWidget):
         self._update_checker = update_checker
         self._remote_version: str = ""
         self._download_url: str = ""
+        self._notes: str = ""
 
         self.setObjectName("UpdateBanner")
         self._build_ui()
@@ -170,16 +171,18 @@ class UpdateBannerWidget(QWidget):
 
     # ── Event Handlers ────────────────────────────────────────────────────────
 
-    def _on_update_available(self, remote_version: str, download_url: str) -> None:
+    def _on_update_available(self, remote_version: str, download_url: str, notes: str = "") -> None:
         """Called from the event bus when a core update is detected."""
         self._remote_version = remote_version
         self._download_url = download_url
+        self._notes = notes
 
         from biopro import __version__ as current_version
 
         self.lbl_message.setText(
             f"🎉  BioPro v{remote_version} is available  —  you have v{current_version}"
         )
+        self.lbl_message.setToolTip(notes)
         self.show()
         logger.info(f"Update banner shown for v{remote_version}")
 
