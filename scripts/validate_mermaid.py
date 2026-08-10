@@ -49,11 +49,13 @@ def validate_diagram(source: str, label: str) -> str | None:
     """Render diagram via mmdc. Returns error message string on failure, None on success."""
     with tempfile.NamedTemporaryFile(suffix=".mmd", mode="w", delete=False, encoding="utf-8") as f:
         f.write(source)
-        tmp_path = f.name
+        tmp_in = f.name
+
+    tmp_out = tmp_in.replace(".mmd", ".svg")
 
     try:
         result = subprocess.run(
-            ["mmdc", "-i", tmp_path, "-o", "/dev/null", "--quiet"],
+            ["mmdc", "-i", tmp_in, "-o", tmp_out, "--quiet"],
             capture_output=True,
             text=True,
             timeout=30,
@@ -71,7 +73,8 @@ def validate_diagram(source: str, label: str) -> str | None:
     except subprocess.TimeoutExpired:
         return f"{label}\n    Timed out after 30s"
     finally:
-        Path(tmp_path).unlink(missing_ok=True)
+        Path(tmp_in).unlink(missing_ok=True)
+        Path(tmp_out).unlink(missing_ok=True)
 
 
 def main() -> int:

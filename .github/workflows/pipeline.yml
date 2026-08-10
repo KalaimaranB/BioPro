@@ -88,8 +88,8 @@ jobs:
               exit 1
             fi
           elif [ "$BASE_REF" = "develop" ]; then
-            if ! [[ "$HEAD_REF" =~ ^(feature|fix|chore|docs|hotfix)/ ]]; then
-              echo "::error::develop only accepts feature/fix/chore/docs/hotfix branches. Got: $HEAD_REF"
+            if ! [[ "$HEAD_REF" =~ ^(feature|fix|chore|docs|hotfix|ci)/ ]]; then
+              echo "::error::develop only accepts feature/fix/chore/docs/hotfix/ci branches. Got: $HEAD_REF"
               exit 1
             fi
           fi
