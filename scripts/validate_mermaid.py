@@ -56,7 +56,7 @@ def validate_diagram(source: str, label: str, puppeteer_config: str | None = Non
     try:
         cmd = ["mmdc", "-i", tmp_in, "-o", tmp_out, "--quiet"]
         if puppeteer_config:
-            cmd += ["--puppeteerConfig", puppeteer_config]
+            cmd += ["--puppeteerConfigFile", puppeteer_config]
         result = subprocess.run(
             cmd,
             capture_output=True,
