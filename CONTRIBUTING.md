@@ -9,7 +9,7 @@ This is the practical, day-to-day guide: how to branch, commit, open a PR, and s
 | `feature/<slug>` | `develop` | `develop` | New functionality |
 | `fix/<slug>` | `develop` | `develop` | Non-urgent bug fix |
 | `chore/<slug>` | `develop` | `develop` | Tooling, CI, deps, cleanup |
-| `docs/<slug>` | `develop` | `develop` | Documentation only |
+| `docs/<slug>` | `develop` or `main` | `develop` or `main` | Documentation only |
 | `hotfix/<slug>` | `main` | `main`, then back-merged to `develop` | Urgent production fix |
 
 Branch names and PR titles are **checked automatically** by the `enforce-workflow` CI job — a branch or title that doesn't match will fail the required check and cannot merge.
@@ -43,8 +43,8 @@ pre-commit install --hook-type commit-msg
 - All merges are **squash merges** — one clean commit per PR on both `develop` and `main`.
 - Branches are **auto-deleted on merge**.
 - Required status checks must pass before merge:
-  - Into `develop`: `audit-and-lint`, `enforce-workflow`.
-  - Into `main`: `audit-and-lint`, `test` (full macOS/Windows matrix), `enforce-workflow`.
+  - Into `develop`: `audit-and-lint`, `enforce-workflow`. (Except `docs/*` branches, which skip `audit-and-lint` and run `docs-lint`).
+  - Into `main`: `audit-and-lint`, `test` (full macOS/Windows matrix), `enforce-workflow`. (Except `docs/*` branches, which skip both and run `docs-lint`).
 - Branch protection applies to administrators too — there's no silent bypass, including for the repo owner.
 
 ## Day-to-day lifecycle
@@ -68,7 +68,15 @@ pre-commit install --hook-type commit-msg
 1. Branch off `main`: `git checkout main && git pull && git checkout -b hotfix/urgent-thing`
 2. Fix, commit, bump `pyproject.toml`'s **PATCH** version (see below — this is what makes the hotfix auto-ship).
 3. PR into `main` (title like `fix: ...`). `enforce-workflow` allows `hotfix/*` branches to target `main` directly.
-4. After merge, **also merge/cherry-pick the fix into `develop`** so it isn't lost on the next promotion.
+4. After merge, **also merge/cherry-pick the fix into `develop`** so it isn't lost on the next promotion. (An automated back-merge PR will be created for you).
+
+## Documentation updates
+
+1. Branch off `main`: `git checkout main && git pull && git checkout -b docs/add-new-guide`
+2. Write docs. PR into `main`. 
+3. `enforce-workflow` allows `docs/*` branches to target `main` directly.
+4. The expensive `audit-and-lint` and `test` CI jobs are bypassed to save runner time. Only `docs-lint` (markdown formatting and mermaid validation) runs.
+5. After merge, an automated PR is opened to back-merge `main` into `develop` so your docs propagate everywhere.
 
 ## Versioning & release mechanics
 
