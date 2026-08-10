@@ -39,7 +39,6 @@ gitGraph
    merge main tag: "back-merge"
 ```
 
-
 Everything short-lived (`feature/*`, `fix/*`, `chore/*`, `docs/*`, `hotfix/*`) points at `develop` or `main` and disappears on merge. Only `main` and `develop` are permanent — that's deliberate: a permanent branch is something you have to protect, gate, and reason about forever, so the count is kept to exactly the two that need it.
 
 ## Why CI cost differs by branch

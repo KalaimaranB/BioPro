@@ -45,7 +45,7 @@ def extract_diagrams(md_path: Path) -> list[tuple[int, str]]:
     return results
 
 
-def validate_diagram(source: str, label: str) -> str | None:
+def validate_diagram(source: str, label: str, puppeteer_config: str | None = None) -> str | None:
     """Render diagram via mmdc. Returns error message string on failure, None on success."""
     with tempfile.NamedTemporaryFile(suffix=".mmd", mode="w", delete=False, encoding="utf-8") as f:
         f.write(source)
@@ -54,8 +54,11 @@ def validate_diagram(source: str, label: str) -> str | None:
     tmp_out = tmp_in.replace(".mmd", ".svg")
 
     try:
+        cmd = ["mmdc", "-i", tmp_in, "-o", tmp_out, "--quiet"]
+        if puppeteer_config:
+            cmd += ["--puppeteerConfig", puppeteer_config]
         result = subprocess.run(
-            ["mmdc", "-i", tmp_in, "-o", tmp_out, "--quiet"],
+            cmd,
             capture_output=True,
             text=True,
             timeout=30,
@@ -86,6 +89,12 @@ def main() -> int:
         default=Path("."),
         help="Root directory to scan (default: current directory)",
     )
+    parser.add_argument(
+        "--puppeteer-config",
+        dest="puppeteer_config",
+        default=None,
+        help="Path to a Puppeteer JSON config file passed to mmdc (e.g. for --no-sandbox)",
+    )
     args = parser.parse_args()
 
     root = args.root.resolve()
@@ -104,7 +113,7 @@ def main() -> int:
             total += 1
             rel = md_path.relative_to(root)
             label = f"{rel}:{line_no}"
-            error = validate_diagram(source, label)
+            error = validate_diagram(source, label, puppeteer_config=args.puppeteer_config)
             if error:
                 failures.append(error)
                 print(f"::error file={rel},line={line_no}::Mermaid diagram failed to render")
