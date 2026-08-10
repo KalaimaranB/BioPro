@@ -39,13 +39,12 @@ jobs:
           git checkout -b "$BRANCH" origin/main
           git push origin "$BRANCH"
 
-          # Open PR — chore/ prefix satisfies enforce-workflow for develop
-          gh pr create \
+          BODY="Automated back-merge triggered by a push to main. Keeps develop in sync after a docs/* or hotfix/* branch merged directly to main. Review for conflicts before merging."
+
+          if ! gh pr create \
             --base develop \
             --head "$BRANCH" \
             --title "chore: back-merge main into develop (${SHA})" \
-            --body "Automated back-merge triggered by a push to \`main\`.
-
-Keeps \`develop\` in sync after a \`docs/*\` or \`hotfix/*\` branch merged directly to \`main\`.
-Review for conflicts before merging." \
-          || echo "PR already exists, skipping."
+            --body "$BODY"; then
+            echo "PR already exists or no changes needed, skipping."
+          fi
