@@ -29,6 +29,8 @@ gitGraph
    merge fix/y tag: "squash"
    checkout main
    merge develop tag: "promotion"
+   checkout develop
+   commit id: "next work"
    branch hotfix/z
    checkout hotfix/z
    commit id: "fix: z, patch bump"
