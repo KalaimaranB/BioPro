@@ -263,18 +263,30 @@ class TestNetworkUpdaterExpanded:
 
     def test_check_for_core_updates_detection(self, updater):
         """Tests core update detection logic."""
-        # Case 1: Newer version available
-        remote_data = {"core_app": {"version": "9.9.9", "download_url": "http://biopro.io"}}
+        # Case 1: Newer version available (self-published registry.json, flat shape)
+        remote_data = {
+            "version": "9.9.9",
+            "download_url": "http://biopro.io",
+            "notes": "- fix: something",
+        }
         with patch.object(updater, "fetch_remote_registry", return_value=remote_data):
             needed, info = updater.check_for_core_updates()
             assert needed is True
             assert info["version"] == "9.9.9"
 
         # Case 2: Current or older version
-        remote_data = {"core_app": {"version": "0.0.1"}}
+        remote_data = {"version": "0.0.1"}
         with patch.object(updater, "fetch_remote_registry", return_value=remote_data):
             needed, _ = updater.check_for_core_updates()
             assert needed is False
+
+    def test_check_for_core_updates_uses_core_registry_url(self, updater):
+        """Ensures the core update-check fetches BioPro's own registry.json, not distribution's."""
+        with patch.object(
+            updater, "fetch_remote_registry", return_value={"version": "0.0.1"}
+        ) as mock_fetch:
+            updater.check_for_core_updates()
+            mock_fetch.assert_called_once_with(updater.core_registry_url)
 
     @patch("biopro.core.network.client.requests.get")
     def test_install_plugin_updates_local_registry(self, mock_get, updater):

@@ -2,9 +2,9 @@ name: BioPro CI/CD Pipeline
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "develop"]
   workflow_dispatch:
 
 permissions:
@@ -57,6 +57,40 @@ jobs:
               echo "changed=true" >> $GITHUB_OUTPUT
             else
               echo "changed=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # Job 1b: Enforce branch topology and Conventional Commits PR titles.
+  # This is a hard gate, not a lint suggestion — it's a required status check on
+  # both develop and main branch protection, so an out-of-policy PR cannot merge.
+  enforce-workflow:
+    name: Enforce Branch & Commit Policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title (Conventional Commits)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if ! echo "$PR_TITLE" | grep -qE '^(feat|fix|chore|docs|refactor|test|ci)(\(.+\))?!?: .+'; then
+            echo "::error::PR title must follow Conventional Commits, e.g. 'feat: add X'. Got: $PR_TITLE"
+            exit 1
+          fi
+
+      - name: Validate branch topology
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$BASE_REF" = "main" ]; then
+            if [ "$HEAD_REF" != "develop" ] && [[ "$HEAD_REF" != hotfix/* ]]; then
+              echo "::error::main only accepts PRs from 'develop' or 'hotfix/*'. Got: $HEAD_REF"
+              exit 1
+            fi
+          elif [ "$BASE_REF" = "develop" ]; then
+            if ! [[ "$HEAD_REF" =~ ^(feature|fix|chore|docs|hotfix)/ ]]; then
+              echo "::error::develop only accepts feature/fix/chore/docs/hotfix branches. Got: $HEAD_REF"
+              exit 1
             fi
           fi
 
@@ -135,14 +169,17 @@ jobs:
 
 
   # Job 3: Cross-platform tests
+  # Only runs against main (the develop -> main promotion path) or manual dispatch —
+  # develop-targeted PRs get audit-and-lint's ubuntu tests only, to keep day-to-day
+  # feature work cheap. The full macOS/Windows matrix is reserved for the promotion gate.
   test:
     name: Run Tests (${{ matrix.os }})
     needs: [check-version, audit-and-lint]
     if: |
       success() &&
-      (github.event_name == 'pull_request' || 
-       github.event_name == 'workflow_dispatch' || 
-       needs.check-version.outputs.changed == 'true')
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' && github.base_ref == 'main') ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -285,6 +322,52 @@ jobs:
             dist/sbom.json
             dist/sbom.json.sha256
 
+  # Job 4b: Self-published core registry metadata (feeds the in-app update banner)
+  generate-registry:
+    name: Generate Registry Metadata
+    needs: [check-version]
+    if: |
+      always() &&
+      (needs.check-version.outputs.changed == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0
+
+      - name: Generate registry.json
+        shell: bash
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            NOTES=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" --no-merges)
+          else
+            NOTES="- Initial release"
+          fi
+          python3 - "$VERSION" "$NOTES" <<'EOF'
+          import json
+          import sys
+          import datetime
+
+          version, notes = sys.argv[1], sys.argv[2]
+          data = {
+              "version": version.lstrip("v"),
+              "download_url": "https://github.com/KalaimaranB/BioPro/releases/latest",
+              "notes": notes,
+              "release_date": datetime.date.today().isoformat(),
+          }
+          with open("registry.json", "w") as f:
+              json.dump(data, f, indent=2)
+          EOF
+
+      - name: Upload Registry Artifact
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: registry-json
+          path: registry.json
+
   # Job 5: Hash Collection
   collect-hashes:
     name: Collect Artifact Hashes
@@ -320,7 +403,7 @@ jobs:
   # Job 7: Push GitHub Release
   release:
     name: Create GitHub Release
-    needs: [check-version, build, provenance, test]
+    needs: [check-version, build, provenance, test, generate-registry]
     if: needs.check-version.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -360,3 +443,4 @@ jobs:
             release_artifacts/sbom.json
             release_artifacts/sbom.json.sha256
             release_artifacts/*.intoto.jsonl
+            release_artifacts/registry.json

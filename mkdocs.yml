@@ -75,3 +75,4 @@ nav:
     - "Security and Signing Guide": internal/20_Security_and_Signing.md
     - "Supply Chain Security": internal/21_Supply_Chain_Security.md
     - "Plugin Documentation Kit": internal/22_Plugin_Documentation.md
+    - "Git Branching Engine": internal/23_Git_Branching_Engine.md

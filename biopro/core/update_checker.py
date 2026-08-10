@@ -77,6 +77,7 @@ class UpdateChecker:
 
         remote_version = core_info.get("version", "")
         download_url = core_info.get("download_url", "")
+        notes = core_info.get("notes", "")
 
         if self.is_version_skipped(remote_version):
             logger.debug(f"Update v{remote_version} was previously skipped by the user.")
@@ -84,7 +85,7 @@ class UpdateChecker:
 
         logger.info(f"Core update available: v{remote_version}")
 
-        self._event_bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, remote_version, download_url)
+        self._event_bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, remote_version, download_url, notes)
 
     def skip_version(self, version: str) -> None:
         """Persist a version skip so check_and_notify() won't fire again for it."""

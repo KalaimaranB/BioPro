@@ -16,6 +16,9 @@ class AppConfig:
     REGISTRY_URL = (
         "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/registry.json"
     )
+    CORE_REGISTRY_URL = (
+        "https://github.com/KalaimaranB/BioPro/releases/latest/download/registry.json"
+    )
     AUTHORITY_REGISTRY_URL = (
         "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/authorities.json"
     )
