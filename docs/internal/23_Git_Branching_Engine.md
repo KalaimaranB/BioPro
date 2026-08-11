@@ -23,25 +23,29 @@ gitGraph
    commit id: "feat: x"
    checkout develop
    merge feature/x tag: "squash"
-   branch fix/y
-   checkout fix/y
-   commit id: "fix: y"
-   checkout develop
-   merge fix/y tag: "squash"
    commit id: "next work"
    checkout main
    merge develop tag: "promotion"
    checkout develop
-   commit id: "next work"
+   commit id: "more dev work"
    checkout main
-   branch hotfix/z
-   checkout hotfix/z
-   commit id: "fix: z"
+   branch docs/guide
+   checkout docs/guide
+   commit id: "docs: guide"
    checkout main
-   merge hotfix/z tag: "squash"
+   merge docs/guide tag: "squash"
    checkout develop
    merge main tag: "back-merge"
 ```
+
+## Core Merge Strategies
+
+To keep this engine running flawlessly, there is a strict dichotomy in how branches are merged:
+
+1. **Incoming Work = Squash Merge**
+   Whenever human work (`feature/*`, `fix/*` into `develop`, or `docs/*`, `hotfix/*` into `main`) is merged, you must use **Squash and Merge**. This collapses all messy work-in-progress commits into a single, clean release note dot on the target branch.
+2. **Environment Syncs = Standard Merge**
+   Whenever environments are synchronized (`develop` promoting to `main`, or the automated `main` back-merge to `develop`), it must use a **Standard Merge Commit**. This preserves the topological graph history and proves to Git that both branches share identical DNA, preventing massive text conflicts in the future.
 
 Everything short-lived (`feature/*`, `fix/*`, `chore/*`, `docs/*`, `hotfix/*`) points at `develop` or `main` and disappears on merge. Only `main` and `develop` are permanent — that's deliberate: a permanent branch is something you have to protect, gate, and reason about forever, so the count is kept to exactly the two that need it.
 
