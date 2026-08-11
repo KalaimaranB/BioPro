@@ -1,51 +1,78 @@
 # Security and Trust Architecture
 
-BioPro implements a public key infrastructure (PKI) based trust model to verify the integrity and origin of analysis plugins. This prevents the execution of unauthorized or tampered code.
+BioPro protects end users by verifying the origin and integrity of analysis plugins before they run.
 
 ---
 
-## The Trust Hierarchy
+## How BioPro Verifies Plugins
 
-BioPro utilizes cryptographic signatures to establish trust.
+When BioPro loads a plugin, it checks:
 
-```mermaid
-graph TD
-    Root[BioPro Core Authority] -->|Signs| Uni[Institutional Anchor]
-    Uni -->|Signs| Lab[Research Lab]
-    Lab -->|Signs| Dev[Developer Key]
-    Dev -->|Signs| Plugin[Analysis Plugin]
+* The plugin files match the signed manifest.
+* The manifest signature is valid for the developer key.
+* The developer key is trusted through a known authority or a local trust exception.
 
-    subgraph "Local Trust"
-        User[End User] -->|Trusts manually| Indie[Independent Developer]
-    end
-```
-
-### 1. Root Anchors
-The BioPro application includes hardcoded public keys representing the root authority. Official plugins must be cryptographically traceable to these root keys.
-
-### 2. Delegated Authorities
-Institutions or labs can be issued delegated signing authority. A developer's public key is signed by a higher authority, and this signature (delegation) is bundled with the plugin to prove its authenticity.
-
-### 3. Local Trust
-Users can manually configure trust for independent developers. By adding a developer's public key to the local trusted roots (`~/.biopro/trusted_roots/`), the local BioPro instance will recognize and execute their plugins.
+If any check fails, BioPro may block the plugin from running.
 
 ---
 
-## Plugin Verification Process
+## Trust Sources
 
-Upon loading a plugin, the `TrustManager` module executes three primary validation steps:
+BioPro accepts trust from two sources:
 
-1.  **Hash Verification**: It calculates the SHA-256 hash of every file within the plugin directory and compares them against the hashes listed in the plugin's signed manifest. If there is a mismatch, the plugin is rejected.
-2.  **Signature Verification**: It verifies the digital signature of the manifest using the developer's bundled public key.
-3.  **Chain of Trust Verification**: It traverses the delegation chain to ensure the developer's key is signed by a recognized anchor (either a root authority or a locally trusted key).
+* **Remote authorities** — signed registries and trusted developer lists synced from BioPro’s upstream registry services.
+* **Local trust anchors** — developer keys that you explicitly approve and store in `~/.biopro/trusted_roots/`.
+
+### Remote authorities
+
+BioPro periodically synchronizes trusted developer keys and authority registries from the configured network services.
+
+* Registry data is fetched from a remote `registry.json` service.
+* Trusted developer keys are persisted as local `network_*.pub` files.
+* Authorities are synced as `auth_*.pub` files after verifying a root signature.
+
+### Local trust anchors
+
+If a developer is not part of the remote trust chain, you can still approve them manually.
+
+* The first time you try to use an untrusted developer’s plugin, BioPro may show a trust dialog.
+* Choose **Trust this Developer** only if you know and trust the source.
+* Approved keys are stored locally and enable those developer plugins to run in the future.
 
 ---
 
-## Developer Signing Process
+## Verification Outcomes
 
-Developers must sign their plugins prior to distribution:
-1.  **Key Generation**: Use the SDK CLI to generate a key pair (`biopro-sign init`).
-2.  **Delegation (Optional)**: Obtain a signature from an authority to create a delegation chain.
-3.  **Plugin Signing**: Use the SDK CLI to sign the plugin directory (`biopro-sign sign <folder>`). This generates the manifest and signature files.
+BioPro exposes several trust statuses:
 
-For detailed instructions, refer to the [Security and Signing Guide](../internal/20_Security_and_Signing.md).
+* **Verified Secure** — The plugin is cryptographically verified and the developer identity is trusted.
+* **Untrusted** — The plugin is intact, but the developer is not yet trusted by a known authority.
+* **Outdated** — The plugin may still be valid, but it requires a newer version of BioPro or the plugin registry.
+
+When a plugin is untrusted, BioPro may prevent it from loading until you resolve the trust state.
+
+---
+
+## Why this matters
+
+Plugins can execute code on your computer. Verification ensures:
+
+* The plugin has not been modified since it was signed.
+* The declared developer identity matches the provided public key.
+* The plugin is part of a trusted distribution path or approved locally.
+
+This reduces the risk of running tampered or malicious analysis modules.
+
+---
+
+## When to use the Security and Signing Guide
+
+If you are building or distributing your own plugin, refer to the Developer Security Guide:
+
+* [Security and Signing Guide](../internal/20_Security_and_Signing.md)
+
+For most end users, the key actions are:
+
+* Install modules from the Plugin Store.
+* Review trust badges before running new plugins.
+* Approve a developer only when you trust the source.

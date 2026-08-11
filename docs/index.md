@@ -8,7 +8,7 @@ Welcome to the official **BioPro Documentation Portal**. BioPro is an open-sourc
 
 -   **User Manuals**
     
-    Get started with the interface, wizards, project managers, and the Help Center.
+    Get started with the interface, installation, project workflows, and the Plugin Store.
     
     [View User Guides](user/01_User_Guide.md)
 
@@ -48,6 +48,7 @@ An integrated AI Assistant provides contextual help with biological pipelines, n
 ---
 
 ### Getting Started
-If you are new to the platform, jump straight into the installation guides to configure your environment:
+If you are new to the platform, jump straight into the installation and onboarding guides:
+*   [Installation](user/06_Installation.md)
 *   [Getting Started & Launching](user/02_Getting_Started.md)
-*   [Running Your First Analysis Wizard](user/03_Tutorial_First_Analysis.md)
+*   [Running Your First Analysis](user/03_Tutorial_First_Analysis.md)

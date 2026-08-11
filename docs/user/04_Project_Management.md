@@ -1,50 +1,98 @@
-# Project Management and Data Formats
+# Project Management
 
-BioPro organizes scientific workflows into specific project directories. This structure ensures that raw data, analysis results, and history are kept logically grouped.
+BioPro stores all of your work inside a project folder. Each project contains its own state file, managed assets, saved workflows, and a temporary lock file while the project is open.
 
 ---
 
-## The Project Directory Structure
+## Project Folder Layout
 
-When a project is created, BioPro initializes a hidden `.biopro` directory within the chosen workspace to manage metadata.
+A BioPro project directory typically contains:
 
 ```text
-Project_Workspace/
-├── .biopro/
-│   ├── project_manifest.json  # Core metadata and system state
-│   ├── history_ledger.db      # SQLite database tracking state changes
-│   └── .lock                  # Process lock to prevent concurrent writes
-├── raw_data/                  # (User defined) Input files
-└── analysis_results/          # (User defined) Output files
+ProjectName/
+├── project.biopro      # Core project state saved by BioPro
+├── assets/             # Managed assets such as imported images or attachments
+├── workflows/          # Saved workflow snapshots created by plugins
+└── .biopro.lock        # Temporary lock file during an open session
 ```
 
-### Process Locking
-BioPro implements OS-level file locking (`.lock`). Attempting to open the same project simultaneously in multiple BioPro instances will be blocked. This protects the `history_ledger.db` from concurrent write corruption.
+### What each item means
+
+* `project.biopro` — The main project state file in JSON format.
+* `assets/` — Stores project assets managed through BioPro, including files copied into the project.
+* `workflows/` — Stores saved workflows and attachments produced by analysis modules.
+* `.biopro.lock` — A lock file created while the project is open to prevent concurrent use.
+
+> [!NOTE]
+> The application data folder `~/.biopro` is separate from the project folder. It stores installed plugins, logs, and global settings.
 
 ---
 
-## Project Sharing
+## Saving and Reliability
 
-BioPro projects can be shared across different machines by transferring the entire project directory.
-1.  **Package**: Compress the entire project directory (including the `.biopro` folder) into an archive (e.g., `.zip`).
-2.  **Transfer**: Send the archive to the recipient.
-3.  **Open**: The recipient can extract the archive and open the directory in their BioPro instance. The application will restore the last saved state and history.
-Note: If a project requires a plugin the recipient has not installed, BioPro will prompt them to install it.
+BioPro saves project state atomically to minimize corruption.
 
----
-
-## Supported Data Formats
-
-BioPro's core supports common structured formats. Specialized formats are handled by specific plugins.
-
-| Format | Common Usage |
-| :--- | :--- |
-| `.fcs` | Flow Cytometry data |
-| `.tiff / .png / .jpg` | Imaging data (Microscopy, Blots) |
-| `.csv / .tsv` | Tabular data exports |
+* Changes are committed to `project.biopro` when you save or close the project.
+* If BioPro encounters a corrupted state file, it will attempt to recover a default project state and continue safely.
+* Legacy `history.json` files are automatically removed when a project is opened.
 
 ---
 
-## File Integrity
+## Project Locking
 
-BioPro records the hashes of loaded input files within the project state. If underlying files are modified outside of the application, BioPro may flag associated analysis steps as stale or requiring re-computation.
+While a project is open, BioPro creates `.biopro.lock` in the project folder.
+
+* This prevents the same project from being opened by more than one instance of BioPro at a time.
+* If the lock file exists and the recorded process is no longer running, BioPro treats it as stale and may override it.
+* If BioPro crashes, a stale `.biopro.lock` file may remain. Remove it only after confirming no other BioPro instance is using the project.
+
+---
+
+## Sharing Projects
+
+To share a BioPro project with a colleague:
+
+1. Compress the entire project folder, including `project.biopro`, `assets/`, and `workflows/`.
+2. Send the archive to the recipient.
+3. The recipient extracts the folder and opens it in BioPro.
+
+### Important sharing notes
+
+* Always include the whole project folder.
+* If the project depends on a plugin that the recipient does not have installed, BioPro will prompt them to install it when opening the project.
+* Do not edit `project.biopro` manually unless you understand the JSON structure.
+
+---
+
+## Workflow Files
+
+BioPro saves module snapshots in the `workflows/` folder. Each workflow file is a JSON document that contains:
+
+* module metadata
+* analysis payload
+* optional attachments and supporting files
+
+Workflows are useful for preserving specific analysis steps or exporting a reproducible configuration.
+
+---
+
+## Common Data Formats
+
+BioPro's core application is plugin-driven, so supported file formats depend on the active modules.
+
+Common formats used by modules include:
+
+* `.csv` / `.tsv` — tabular data exports and input tables
+* `.tiff`, `.png`, `.jpg` — image data
+* `.fcs` — flow cytometry data (plugin support required)
+
+If a file format is not supported, look for a module that declares compatibility with that type in the Plugin Store.
+
+---
+
+## File Integrity and External Changes
+
+BioPro tracks the analysis state for files imported into the project.
+
+* If a source file changes outside the app, BioPro may mark dependent steps as stale.
+* To avoid inconsistency, keep raw input files in one place and do not edit them while the project is open.

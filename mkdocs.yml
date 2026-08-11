@@ -56,10 +56,11 @@ nav:
   - "Welcome": index.md
   - "User Manuals":
     - "User Guide Hub": user/01_User_Guide.md
+    - "Installation": user/06_Installation.md
     - "Getting Started": user/02_Getting_Started.md
     - "Tutorial: First Analysis": user/03_Tutorial_First_Analysis.md
     - "Project Management": user/04_Project_Management.md
-    - "Security Settings & Trust": user/security_settings.md
+    - "Plugin Store & Security": user/07_Plugin_Store_and_Security.md
     - "Security and Trust Architecture": user/10_Security_and_Trust.md
     - "FAQ & Troubleshooting": user/05_FAQ_Troubleshooting.md
   - "Internal Architecture":

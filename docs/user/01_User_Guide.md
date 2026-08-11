@@ -1,48 +1,48 @@
 # BioPro User Guide
 
-Welcome to the **BioPro User Guide**. This document provides operational instructions for biological researchers and lab technicians using BioPro to analyze their data.
+Welcome to the **BioPro User Guide**. This collection of end-user documentation describes the current BioPro desktop experience, including installation, project workflows, the Plugin Store, security, and troubleshooting.
 
 ---
 
 ## Guide Index
 
-BioPro is organized into a modular workflow. Depending on your current task, select the relevant documentation below:
+Choose the topic that matches your current task:
 
-### Initial Setup
-If you are running BioPro for the first time, refer to the installation and initialization instructions.
-- [Getting Started](02_Getting_Started.md)
+### Installation and Setup
+* [Installation](06_Installation.md) — Download and install BioPro on Windows and macOS, then install analysis modules from the Marketplace.
+* [Getting Started](02_Getting_Started.md) — Launch BioPro, create or open a project, and learn the core Hub navigation.
 
-### Running Analysis
-Learn the standard workflows in BioPro. Depending on the loaded module, you will encounter either a step-by-step wizard or a multi-panel workspace.
-- [Tutorial: Navigating Your First Analysis](03_Tutorial_First_Analysis.md)
+### Running Your Work
+* [Tutorial: First Analysis](03_Tutorial_First_Analysis.md) — Step through a basic analysis workflow and learn how wizards and workspace modules behave.
+* [Project Management](04_Project_Management.md) — Understand BioPro project structure, asset storage, workflow files, and safe sharing.
 
-### Project Data and Sharing
-Understand how BioPro stores your experimental data in projects and the supported data formats for exporting and sharing.
-- [Project Management](04_Project_Management.md)
+### Plugins and Security
+* [Plugin Store & Security](07_Plugin_Store_and_Security.md) — Manage plugins, review trust status, and inspect plugin identities.
+* [Security and Trust Architecture](10_Security_and_Trust.md) — Advanced guidance on how BioPro verifies plugins and uses trusted authorities.
 
-### Troubleshooting
-Review solutions to common operational issues.
-- [FAQ & Troubleshooting](05_FAQ_Troubleshooting.md)
-
-### AI Assistance
-BioPro includes an integrated AI Assistant that can help explain functionalities and navigate workflows based on the loaded context.
-- [AI Assistant Overview](../internal/17_AI_Assistant.md)
+### Support
+* [FAQ & Troubleshooting](05_FAQ_Troubleshooting.md) — Solve common problems and learn where to find logs and support resources.
 
 ---
 
-## Core Operational Features
+## What BioPro Does
 
-### Plugin Signature Verification
-BioPro utilizes cryptographic signature checks to verify that installed analysis plugins have not been tampered with.
-- [Security and Trust Overview](10_Security_and_Trust.md)
+BioPro is a modular analysis hub built for laboratory scientists, students, and research teams.
 
-### State Management
-BioPro records state changes during analysis. You can undo or redo actions securely, ensuring your data manipulation steps are tracked.
-
-### Extensible Modules
-BioPro acts as a host application. Specialized analysis tools are installed as plugins via the Plugin Store.
+* **Core application:** Provides the overall project workspace, update notifications, and help center.
+* **Plugins / modules:** Delivered through the Marketplace, these add analysis-specific capabilities and file format support.
+* **Project-aware:** Each analysis is saved inside a project directory with managed assets and workflow snapshots.
+* **Security first:** Plugin execution is gated by cryptographic trust checks and a local developer trust store.
+* **User assistance:** The app includes a Help Center and restartable onboarding tour.
 
 ---
+
+## How to Use This Guide
+
+* Start with **Installation** if you have not yet installed BioPro.
+* Use **Getting Started** on your first launch to create a project and open the Hub.
+* Jump to **Plugin Store & Security** before you install new modules.
+* Return to **FAQ & Troubleshooting** whenever something behaves unexpectedly.
 
 > [!NOTE]
-> **Developer Documentation:** If you want to build your own analysis modules using the SDK, refer to the [Developer Onboarding Guide](../internal/19_Developer_Onboarding.md).
+> The AI Assistant panel is part of BioPro’s wider roadmap. In the current release, the AI chat window is not exposed in the main toolbar, but the rest of the application workflows remain fully usable.
