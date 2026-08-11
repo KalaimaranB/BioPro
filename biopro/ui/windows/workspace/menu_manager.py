@@ -42,25 +42,18 @@ class MenuManager:
         edit_menu.addAction(redo_action)
         # -----------------------------
 
-        open_action = QAction("&Open File...", mw)
-        open_action.setShortcut("Ctrl+O")
-        open_action.triggered.connect(
-            mw._on_open_file if hasattr(mw, "_on_open_file") else lambda: None
-        )
-        file_menu.addAction(open_action)
-        file_menu.addSeparator()
-
-        home_action = QAction("&Home Screen", mw)
-        home_action.setShortcut("Ctrl+H")
-        home_action.triggered.connect(
+        project_view_action = QAction("&Project View", mw)
+        project_view_action.setShortcut("Ctrl+H")
+        project_view_action.triggered.connect(
             mw.hub_manager.show_home if hasattr(mw, "hub_manager") else mw._show_home
         )
-        file_menu.addAction(home_action)
-        file_menu.addSeparator()
+        file_menu.addAction(project_view_action)
 
         close_project_action = QAction("Close Project && Return to Hub", mw)
         close_project_action.triggered.connect(mw.return_to_hub)
         file_menu.addAction(close_project_action)
+
+        file_menu.addSeparator()
 
         exit_action = QAction("E&xit", mw)
         exit_action.setShortcut("Ctrl+Q")
