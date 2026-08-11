@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from biopro.core.network.client import NetworkClient
+from biopro.core.network.plugin_registry_fetcher import PluginRegistryFetcher
 from biopro.core.utils import AtomicJsonFile, parse_version, sanitize_identifier
 
 logger = logging.getLogger(__name__)
@@ -77,42 +78,13 @@ class RegistrySync:
             return {}
 
     @staticmethod
-    def fetch_remote_developers(registry_url: str) -> list:
-        """Load developer profiles from the developers registry associated with the registry URL.
-
-        Parameters:
-            registry_url (str): URL of the remote plugin registry.
-
-        Returns:
-            list: Developer profiles, or an empty list when the data cannot be loaded.
-        """
-        # Only derive developers.json URL if registry.json is present in the URL
-        if "registry.json" not in registry_url:
-            return []
-        dev_url = registry_url.replace("registry.json", "developers.json")
-        try:
-            response = NetworkClient.get(dev_url)
-            if response.status_code == 200:
-                data = response.json()
-                devs_data = data.get("developers", {})
-                if isinstance(devs_data, dict):
-                    dev_list = []
-                    for dev_id, info in devs_data.items():
-                        dev_item = dict(info)
-                        dev_item["developer_id"] = dev_id
-                        dev_list.append(dev_item)
-                    return dev_list
-                if isinstance(devs_data, list):
-                    return devs_data
-        except Exception as e:
-            logger.debug(f"Could not fetch separate developers.json, falling back: {e}")
-        return []
-
-    @staticmethod
     def evaluate_store_state(
         core_version: str, registry_url: str, plugin_dir: Path, local_registry_path: Path
     ):  # noqa: E501
         """Compare installed plugins with the remote registry and classify their availability.
+
+        Eagerly enriches each entry from the plugin's own ``pyproject.toml``
+        (fetched via ``PluginRegistryFetcher``).
 
         Parameters:
             core_version (str): Current application core version.
@@ -128,7 +100,6 @@ class RegistrySync:
         store_inventory = {}
         plugins_data = remote_data.get("plugins", {})
 
-        # Use the parse_version utility
         app_v = parse_version(core_version)
 
         logger.info(f"Checking Store State. App Version: {core_version} (Parsed: {app_v})")
@@ -146,30 +117,56 @@ class RegistrySync:
                 state = "INCOMPATIBLE"
                 logger.warning(f"MARKING {plugin_id} AS INCOMPATIBLE: {app_v} < {min_core_v}")
             elif plugin_id in local_data:
-                local_v = parse_version(local_data[plugin_id].get("version", "0.0.0"))  # noqa: E501
+                local_v = parse_version(local_data[plugin_id].get("version", "0.0.0"))
                 remote_v = parse_version(remote_info.get("version", "0.0.0"))
-
                 state = "UPDATE" if local_v < remote_v else "UP_TO_DATE"
-
-            # Check if the developer is Verified
-            is_verified = False
-            author_id = remote_info.get("author_id", remote_info.get("author"))
-            if author_id:
-                sanitized_author_id = sanitize_identifier(author_id)
-                if sanitized_author_id:
-                    roots_dir = Path.home() / ".biopro" / "trusted_roots"
-                    if (roots_dir / f"network_{sanitized_author_id}.pub").exists():
-                        is_verified = True
 
             store_inventory[plugin_id] = {
                 "info": remote_info,
                 "state": state,
                 "local_version": local_data.get(plugin_id, {}).get("version", None),
-                "is_verified": is_verified,
+                "is_verified": False,  # Resolved after enrichment below
             }
 
-        trusted_devs = RegistrySync.fetch_remote_developers(registry_url)
-        if not trusted_devs:
-            trusted_devs = remote_data.get("trusted_developers", [])
+        # Eagerly enrich every entry from each plugin's own pyproject.toml
+        store_inventory = PluginRegistryFetcher.fetch_all(store_inventory)
+
+        # Resolve verified status now that author keys are populated from pyproject.toml
+        roots_dir = Path.home() / ".biopro" / "trusted_roots"
+        for entry in store_inventory.values():
+            authors = entry["info"].get("authors", [])
+            is_verified = False
+            for author in authors if isinstance(authors, list) else []:
+                author_id = author.get("github") or author.get("name", "")
+                sanitized = sanitize_identifier(author_id)
+                if sanitized and (roots_dir / f"network_{sanitized}.pub").exists():
+                    is_verified = True
+                    break
+            entry["is_verified"] = is_verified
+
+        # Collect all authors across enriched entries as the trusted developer list
+        trusted_devs = RegistrySync._extract_authors_from_inventory(store_inventory)
 
         return store_inventory, trusted_devs, remote_data
+
+    @staticmethod
+    def _extract_authors_from_inventory(store_inventory: dict[str, Any]) -> list[dict[str, Any]]:
+        """Collect the union of ``authors`` lists from all enriched store entries.
+
+        Parameters:
+            store_inventory (dict): Enriched store inventory.
+
+        Returns:
+            list: Deduplicated author records for ``TrustSync.sync_trusted_developers``.
+        """
+        seen: set[str] = set()
+        authors: list[dict[str, Any]] = []
+        for entry in store_inventory.values():
+            for author in entry.get("info", {}).get("authors", []):
+                key = author.get("github") or author.get("name", "")
+                if key and key not in seen:
+                    seen.add(key)
+                    normalized = dict(author)
+                    normalized.setdefault("developer_id", key)
+                    authors.append(normalized)
+        return authors

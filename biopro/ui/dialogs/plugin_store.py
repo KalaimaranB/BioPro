@@ -527,61 +527,37 @@ class StoreLoaderWorker(QThread):
         inventory = {}
         trusted_devs = []
         try:
-            if self.filter_type == "developers":
-                trusted_devs = self.updater.fetch_remote_developers()
-                if not trusted_devs:
-                    remote_data = self.updater.fetch_remote_registry(self.updater.registry_url)
-                    if remote_data:
-                        trusted_devs = remote_data.get("trusted_developers", [])
-                if not trusted_devs:
-                    try:
-                        from biopro.core.developer_database import DeveloperProfileDatabase
+            # evaluate_store_state eagerly fetches each plugin's pyproject.toml and
+            # returns the full author list extracted from the enriched inventory.
+            inventory = self.updater.evaluate_store_state()
 
-                        db = DeveloperProfileDatabase()
-                        trusted_devs = list(db.profiles.values())
-                    except Exception as e:
-                        import logging
-
-                        logging.getLogger(__name__).debug(
-                            f"Failed to fetch developer database: {e}"
-                        )
-
-                # Scan local manual keys
-                manual_keys_dir = AppConfig.APP_DATA_DIR / "trusted_roots"
-                known_dev_ids = {d.get("developer_id") for d in trusted_devs if "developer_id" in d}
-                if manual_keys_dir.exists():
-                    for key_file in manual_keys_dir.glob("manual_*.pub"):
-                        dev_id = key_file.stem.replace("manual_", "")
-                        if dev_id not in known_dev_ids:
-                            try:
-                                with open(key_file) as f:
-                                    pub_key_hex = f.read().strip()
-                                trusted_devs.append(
-                                    {
-                                        "developer_id": dev_id,
-                                        "public_key": pub_key_hex,
-                                        "name": f"Developer '{dev_id}'",
-                                        "role": "Manually Trusted Local Exception",
-                                        "is_manual": True,
-                                    }
-                                )
-                            except Exception as e:
-                                import logging
-
-                                logging.getLogger(__name__).debug(
-                                    f"Failed to read local developer key: {e}"
-                                )
-            else:
-                inventory = self.updater.evaluate_store_state()
+            # Augment with any manually-trusted local keys not covered by the remote registry
+            manual_keys_dir = AppConfig.APP_DATA_DIR / "trusted_roots"
+            known_dev_ids = {d.get("developer_id") for d in trusted_devs if "developer_id" in d}
+            if manual_keys_dir.exists():
+                for key_file in manual_keys_dir.glob("manual_*.pub"):
+                    dev_id = key_file.stem.replace("manual_", "")
+                    if dev_id not in known_dev_ids:
+                        try:
+                            with open(key_file) as f:
+                                pub_key_hex = f.read().strip()
+                            trusted_devs.append(
+                                {
+                                    "developer_id": dev_id,
+                                    "public_key": pub_key_hex,
+                                    "name": f"Developer '{dev_id}'",
+                                    "role": "Manually Trusted Local Exception",
+                                    "is_manual": True,
+                                }
+                            )
+                        except Exception as e:
+                            logging.getLogger(__name__).debug(
+                                f"Failed to read local developer key: {e}"
+                            )
         except Exception as e:
-            import logging
-
             logging.getLogger(__name__).error(
                 f"StoreLoaderWorker encountered an error: {e}", exc_info=True
             )
-            pass
-
-        import logging
 
         logging.getLogger(__name__).debug(
             f"StoreLoaderWorker finished for filter_type: '{self.filter_type}'"
@@ -702,6 +678,13 @@ class PluginStoreDialog(QDialog):
         self.repair_all_btn = SecondaryButton("Repair All Plugins")
         self.repair_all_btn.clicked.connect(self._repair_all_plugins)
         header_layout.addWidget(self.repair_all_btn)
+
+        header_layout.addSpacing(10)
+
+        self.refresh_btn = SecondaryButton("↻ Refresh")
+        self.refresh_btn.setToolTip("Clear the plugin registry cache and reload fresh metadata")
+        self.refresh_btn.clicked.connect(self._on_refresh_clicked)
+        header_layout.addWidget(self.refresh_btn)
 
         header_layout.addSpacing(10)
 
@@ -1123,6 +1106,15 @@ class PluginStoreDialog(QDialog):
 
         # Refresh the store UI to reflect any repairs made
         self._load_store_data()
+
+    def _on_refresh_clicked(self) -> None:
+        """Invalidate the plugin registry cache and reload the store with fresh metadata."""
+        self.refresh_btn.setEnabled(False)
+        self.refresh_btn.setText("Refreshing…")
+        self.updater.invalidate_plugin_registry_cache()
+        self._load_store_data()
+        self.refresh_btn.setEnabled(True)
+        self.refresh_btn.setText("↻ Refresh")
 
     def _repair_all_plugins(self):
         from biopro.ui.dialogs.plugin_doctor_dialog import PluginDoctorDialog
