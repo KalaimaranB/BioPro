@@ -41,7 +41,7 @@ All standard work (`feature/*`, `fix/*`, `chore/*`) MUST target `develop`.
    gh pr create --base develop --head feature/my-awesome-feature --title "feat: added new UI dashboard"
    ```
 4. **Merge (Squash Only)**
-   Once CI passes, merge your PR using **Squash and Merge**. This compresses all your messy granular commits into a single, clean dot on the `develop` history.
+   Once CI passes, click the green **Squash and Merge** button on GitHub. This compresses all your messy granular commits into a single, clean dot on the `develop` history.
 
 ---
 
@@ -58,7 +58,12 @@ When `develop` is stable and ready to ship to users, we promote it to `main`.
    gh pr create --base main --head develop --title "chore: promote v1.6.0"
    ```
 3. **Merge (Standard Merge Only)**
-   You MUST merge promotions using a **Create a Merge Commit** (Standard Merge). Do NOT Squash and Merge! Using a standard merge preserves the common history between `main` and `develop`. If you squash it, Git will forget the two branches are related and you will encounter massive textual merge conflicts on your next promotion.
+   > [!WARNING]
+   > You MUST merge promotions using a **Create a Merge Commit** (Standard Merge). Do NOT click "Squash and Merge"! 
+   > 
+   > To do this, click the dropdown arrow next to the green merge button on GitHub and select **Create a merge commit**.
+   
+   Using a standard merge preserves the common history between `main` and `develop`. If you squash it, Git will forget the two branches are related and you will encounter massive textual merge conflicts on your next promotion.
 
 ---
 
@@ -79,7 +84,7 @@ Urgent fixes (`hotfix/*`) and documentation updates (`docs/*`) bypass `develop` 
    gh pr create --base main --head docs/update-readme --title "docs: update readme instructions"
    ```
 3. **Merge (Squash Only)**
-   Merge this PR into `main` using **Squash and Merge**.
+   Once CI passes, click the green **Squash and Merge** button on GitHub to merge this PR into `main`.
 
 ### The Automated Back-Merge
 Because you just pushed new code directly to production (`main`), staging (`develop`) is now out of date! Do not panic.
@@ -103,3 +108,21 @@ Run these anywhere in your terminal:
 ### Reading the Graph
 - **Squash Merge**: You will see a straight line with a single dot. This is used for bringing features into `develop`, or hotfixes into `main`, keeping the history clean.
 - **Standard Merge**: You will see a line loop out and reconnect. This is used for Promotions (`develop` -> `main`) and Back-merges (`main` -> `develop`) to prove to Git that the environments share identical history.
+
+---
+
+## 6. GitHub UI & Code Reviews
+
+When dealing with PRs, you will encounter automated bots and features. Here is how to handle them:
+
+### CodeRabbit AI
+CodeRabbit AI is our automated code reviewer. By default, it automatically ignores any PR whose title starts with `docs:`, `chore:`, or `ci:`.
+It does this to save compute resources, as these branches do not contain core logic changes. 
+If CodeRabbit says "Review skipped" but all other required CI checks (like tests and linters) have passed, **you are clear to merge**.
+
+### Auto-Merge
+Some of our GitHub Action robots (like the back-merge robot) are configured to automatically merge their own PRs once CI passes.
+If an automated PR ever gets stuck or has a merge conflict, it will pause. If you need to manually intervene and stop the robot from merging, you can disable the auto-merge setting directly from the GitHub UI, or by running this command locally:
+```bash
+gh pr merge <PR_NUMBER> --disable-auto
+```
