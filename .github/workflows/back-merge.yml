@@ -30,7 +30,7 @@ jobs:
       - name: Create back-merge branch and open PR
         if: steps.check.outputs.behind != '0'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.BOT_TOKEN || github.token }}
         run: |
           SHA=$(git rev-parse --short origin/main)
           BRANCH="chore/back-merge-main-${SHA}"
@@ -48,7 +48,7 @@ jobs:
             --body "$BODY"); then
             echo "PR created: $PR_URL"
             # Attempt to auto-merge the PR once CI passes
-            gh pr merge "$PR_URL" --auto --squash || echo "Auto-merge could not be enabled. Please enable 'Allow auto-merge' in Repo Settings."
+            gh pr merge "$PR_URL" --auto --merge || echo "Auto-merge could not be enabled. Please enable 'Allow auto-merge' in Repo Settings."
           else
             echo "PR already exists or no changes needed, skipping."
           fi
