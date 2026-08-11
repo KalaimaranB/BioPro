@@ -52,3 +52,4 @@ If you are new to the platform, jump straight into the installation and onboardi
 *   [Installation](user/06_Installation.md)
 *   [Getting Started & Launching](user/02_Getting_Started.md)
 *   [Running Your First Analysis](user/03_Tutorial_First_Analysis.md)
+*   [Cyto Academy & Startup Guide](user/08_Cyto_Academy.md)

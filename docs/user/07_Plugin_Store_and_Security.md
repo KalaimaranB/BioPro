@@ -1,3 +1,4 @@
+
 # Plugin Store and Security
 
 BioPro uses a verified plugin architecture to separate the core application from analysis tools. Plugins are installed, updated, and managed from the in-app Marketplace, while security controls protect your system from modified or untrusted modules.
@@ -21,6 +22,8 @@ The Plugin Store is the central place to discover and manage analysis modules fo
 ## Marketplace Collections
 
 The Plugin Store divides modules into a few helpful collections:
+
+![1786426333527](image/07_Plugin_Store_and_Security/1786426333527.png)
 
 * **All Modules** — Browse every module that the registry knows about.
 * **Available Updates** — See plugins that have newer versions available.
@@ -73,6 +76,9 @@ When you install or inspect a plugin, the app may display one of the following t
 * **Unverified Self-Signed Identity** — The developer key is present, but no trusted root or authority path is available.
 
 ### Approving an untrusted developer
+
+> [!NOTE]
+> Screenshot placeholder: plugin trust approval dialog with developer identity, public key, and trust options.
 
 When BioPro asks you to trust a new developer, review the developer name and public key carefully. If you recognize the source:
 

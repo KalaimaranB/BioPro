@@ -14,6 +14,7 @@ Choose the topic that matches your current task:
 
 ### Running Your Work
 * [Tutorial: First Analysis](03_Tutorial_First_Analysis.md) — Step through a basic analysis workflow and learn how wizards and workspace modules behave.
+* [Cyto Academy & Startup Guide](08_Cyto_Academy.md) — Learn BioPro with Cyto’s guided onboarding and workflow lessons.
 * [Project Management](04_Project_Management.md) — Understand BioPro project structure, asset storage, workflow files, and safe sharing.
 
 ### Plugins and Security

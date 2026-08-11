@@ -26,6 +26,14 @@ From the Home Screen, select an analysis module card.
 
 ---
 
+## Want an interactive walkthrough?
+
+If you prefer a guided experience, open **🎓 Academy** and start the Cyto startup course before continuing with this tutorial.
+
+Cyto will step through the same core concepts and workflow setup in a training-friendly mode.
+
+---
+
 ## Step 3: Use the Wizard Flow
 
 Many modules use a guided wizard interface. The normal workflow is:

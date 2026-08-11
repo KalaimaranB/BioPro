@@ -59,7 +59,7 @@ To share a BioPro project with a colleague:
 ### Important sharing notes
 
 * Always include the whole project folder.
-* If the project depends on a plugin that the recipient does not have installed, BioPro will prompt them to install it when opening the project.
+* If the project depends on a plugin that the recipient does not have installed, BioPro will prompt them to install it when opening the project. If plugin or core versions do not match, the files might not load correctly.
 * Do not edit `project.biopro` manually unless you understand the JSON structure.
 
 ---

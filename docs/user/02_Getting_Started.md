@@ -25,8 +25,7 @@ BioPro stores its application data in your home folder under `~/.biopro`. This i
 
 ## The Project Hub
 
-> [!NOTE]
-> Screenshot placeholder: Add a screenshot of the BioPro Project Hub showing Recent Projects and action buttons here.
+![1786425540776](image/02_Getting_Started/1786425540776.png)
 
 The Project Hub has two primary areas:
 
@@ -38,6 +37,7 @@ The Project Hub has two primary areas:
 * **Create New Project** — Start a new saved workspace for your experiment.
 * **Open Project** — Select an existing BioPro project directory.
 * **☁️ Marketplace** — Install and manage analysis modules.
+* **🎓 Academy** — Launch Cyto’s guided learning experience for beginner onboarding and module tutorials.
 
 > [!NOTE]
 > The Hub also displays update notifications when a new BioPro core version is available.
@@ -82,6 +82,19 @@ BioPro includes a built-in Help Center for offline documentation.
 * Press **F1** to open the Help Center from any workspace.
 * In the Help menu, choose **📖 BioPro Help Center**.
 * Use the **Restart Onboarding Tour** action under Help if you want to replay the guided introduction.
+
+---
+
+## Using Cyto Academy
+
+Use the **🎓 Academy** button in the home ribbon or workspace toolbar to launch Cyto’s guided startup lessons.
+
+* The startup course walks you through opening a project, installing a plugin, and running your first analysis.
+* If a module is required for the course, Cyto will prompt you to install it from the Marketplace.
+* Academy lessons are a great way to learn the app without affecting your main project data.
+
+> [!NOTE]
+> Screenshot placeholder: Cyto Academy launch button and guided startup workflow.
 
 ---
 

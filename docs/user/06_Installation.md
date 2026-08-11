@@ -6,8 +6,7 @@ BioPro is distributed as a desktop application with a lightweight plugin ecosyst
 
 ## Downloading BioPro
 
-> [!NOTE]
-> Screenshot placeholder: Add a screenshot of the GitHub Releases page showing BioPro assets here.
+![1786425455778](image/06_Installation/1786425455778.png)
 
 Use the official GitHub Releases page for the latest stable downloads:
 
@@ -32,7 +31,6 @@ Look for the latest asset that matches your platform:
 
 > [!NOTE]
 > Keep the extracted folder in a stable location. Moving or deleting files after first launch may break the app or installed plugins.
-
 
 ### First launch on Windows
 
@@ -73,7 +71,6 @@ BioPro itself is a host application. The actual analysis tools are delivered as 
 
 > [!TIP]
 > The Plugin Store has filters for **All Modules**, **Available Updates**, **Installed**, and **Trusted Developers**.
-
 
 ### Core application updates
 
