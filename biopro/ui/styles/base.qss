@@ -177,6 +177,7 @@ QLabel#LauncherRecentLabel {
 }
 QListWidget#LauncherRecentList {
     border: none;
+    outline: none;
     background: transparent;
     color: {FG_SECONDARY};
 }
