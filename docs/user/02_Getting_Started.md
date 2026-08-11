@@ -1,25 +1,103 @@
 # Getting Started
 
-**BioPro** is a cross-platform desktop application designed for biological data analysis. It uses a plugin architecture to provide various analysis modules within a unified environment.
+This guide helps you launch BioPro for the first time, create or open a project, and find the main controls in the Project Hub.
 
 ---
 
-## Core Workflow
+## Before You Begin
 
-### 1. Project Initialization
-When you launch BioPro, the application opens the **Project Hub**. BioPro organizes work by experiment; you must create a new project or open an existing one before running any analysis.
+If BioPro is not yet installed, start with the [Installation](06_Installation.md) page first.
 
-### 2. Loading Analysis Modules
-BioPro's functionality is provided by plugins. These modules typically follow one of two interaction models:
-1.  **Standard Wizards**: A sequential, step-by-step interface for routine tasks.
-2.  **Professional Workspaces**: Multi-panel layouts for exploratory data analysis.
-
-### 3. Plugin Verification
-When a plugin is loaded, BioPro's TrustManager verifies the module's cryptographic signature against your configured trust settings to ensure the plugin has not been modified. You can manage developer keys in the Security Center.
+BioPro stores its application data in your home folder under `~/.biopro`. This includes installed plugins, trusted developer keys, logs, and recent project settings.
 
 ---
 
-## Next Steps
-*   [Tutorial: Navigating Your First Analysis](03_Tutorial_First_Analysis.md) — Learn how to interact with plugins.
-*   [Project Management](04_Project_Management.md) — Understand BioPro's data storage format.
-*   [Developer Onboarding Guide](../internal/19_Developer_Onboarding.md) — Instructions for building custom plugins with the BioPro SDK.
+## Launching BioPro
+
+1. Open BioPro from your operating system’s application launcher or the extracted installation folder.
+2. On first launch, BioPro displays the **Project Hub**.
+3. The Hub is where you select a project, install plugins, and access help.
+
+> [!NOTE]
+> You can reopen the Hub from the workspace by choosing **File → Home Screen** or by clicking the home button in the top toolbar.
+
+---
+
+## The Project Hub
+
+![1786425540776](image/02_Getting_Started/1786425540776.png)
+
+The Project Hub has two primary areas:
+
+* **Recent Projects** — A list of your most recently opened projects.
+* **Action Buttons** — Create a new project, open an existing project, or open the Marketplace.
+
+### What you can do from the Hub
+
+* **Create New Project** — Start a new saved workspace for your experiment.
+* **Open Project** — Select an existing BioPro project directory.
+* **☁️ Marketplace** — Install and manage analysis modules.
+* **🎓 Academy** — Launch Cyto’s guided learning experience for beginner onboarding and module tutorials.
+
+> [!NOTE]
+> The Hub also displays update notifications when a new BioPro core version is available.
+
+---
+
+## Creating a New Project
+
+1. Click **✨ Create New Project**.
+2. Enter a project name.
+3. Choose a folder on your computer where the project will live.
+4. Confirm to create the project.
+
+BioPro saves every project as a directory containing:
+
+* `project.biopro` — the main project state file.
+* `assets/` — managed assets such as images and attachments.
+* `workflows/` — saved workflow snapshots produced by analysis modules.
+* `.biopro.lock` — a temporary lock file created while the project is open.
+
+> [!WARNING]
+> Do not open the same project in more than one instance of BioPro at the same time.
+
+---
+
+## Opening an Existing Project
+
+1. Click **📁 Open Project...**.
+2. Navigate to the project folder that contains `project.biopro`.
+3. Select the folder and open it.
+
+If another instance of BioPro is already using the project, the app will warn you and prevent the second open to avoid data corruption.
+
+If BioPro crashed previously and left a stale lock file, you may safely remove `.biopro.lock` from the project folder before reopening.
+
+---
+
+## Navigating the Help Center
+
+BioPro includes a built-in Help Center for offline documentation.
+
+* Press **F1** to open the Help Center from any workspace.
+* In the Help menu, choose **📖 BioPro Help Center**.
+* Use the **Restart Onboarding Tour** action under Help if you want to replay the guided introduction.
+
+---
+
+## Using Cyto Academy
+
+Use the **🎓 Academy** button in the home ribbon or workspace toolbar to launch Cyto’s guided startup lessons.
+
+* The startup course walks you through opening a project, installing a plugin, and running your first analysis.
+* If a module is required for the course, Cyto will prompt you to install it from the Marketplace.
+* Academy lessons are a great way to learn the app without affecting your main project data.
+
+> [!NOTE]
+> Screenshot placeholder: Cyto Academy launch button and guided startup workflow.
+
+---
+
+## What Comes Next
+
+Once you have a project open, install the analysis tools you need from the Marketplace and then follow the [Tutorial](03_Tutorial_First_Analysis.md) for a first analysis.
