@@ -105,6 +105,6 @@ The AI Assistant panel is part of the application roadmap but is not currently e
 
 ## Additional support
 
-* **GitHub Issues:** https://github.com/KalaimaranB/BioPro/issues
-* **Documentation portal:** https://kalaimaranb.github.io/BioPro/
+* **GitHub Issues:** [https://github.com/KalaimaranB/BioPro/issues](https://github.com/KalaimaranB/BioPro/issues)
+* **Documentation portal:** [https://kalaimaranb.github.io/BioPro/](https://kalaimaranb.github.io/BioPro/)
 * **Log file:** `~/.biopro/biopro.log`

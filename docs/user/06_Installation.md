@@ -10,7 +10,7 @@ BioPro is distributed as a desktop application with a lightweight plugin ecosyst
 
 Use the official GitHub Releases page for the latest stable downloads:
 
-* https://github.com/KalaimaranB/BioPro/releases
+* [BioPro Releases](https://github.com/KalaimaranB/BioPro/releases)
 
 Look for the latest asset that matches your platform:
 
