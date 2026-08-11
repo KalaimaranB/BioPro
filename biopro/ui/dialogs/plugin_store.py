@@ -25,6 +25,31 @@ from biopro.core.network_updater import NetworkUpdater
 from biopro.shared.ui.alerts import ask_question, show_error, show_info
 from biopro.ui.theme import Colors, theme_manager
 
+
+class AvatarLoaderWorker(QThread):
+    """Background thread to download avatar images without freezing the UI."""
+
+    finished = pyqtSignal(str, str)  # Emit (author_id, cached_path)
+
+    def __init__(self, author_id: str, avatar_url: str):
+        super().__init__()
+        self.author_id = author_id
+        self.avatar_url = avatar_url
+
+    def run(self):
+        try:
+            from biopro.core.developer_database import AvatarManager
+
+            manager = AvatarManager()
+            cached_path = manager.fetch_and_cache_avatar(self.author_id, self.avatar_url)
+            self.finished.emit(self.author_id, cached_path or "")
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"Failed to fetch avatar: {e}")
+            self.finished.emit(self.author_id, "")
+
+
 # Card layout constants
 CARD_MIN_WIDTH = 400
 
@@ -202,6 +227,7 @@ class PluginDetailsDialog(QDialog):
 
     def __init__(self, plugin_id: str, data: dict, parent=None):
         super().__init__(parent)
+        self.avatar_workers = []
         self.setObjectName("ModuleDetailsPanel")
         self.setWindowTitle(f"Plugin Details: {data['info'].get('name', plugin_id)}")
         self.setMinimumSize(600, 500)
@@ -316,17 +342,30 @@ class PluginDetailsDialog(QDialog):
                 gradient = get_developer_gradient_css(author.get("name", "Unknown"))
                 avatar_lbl.setText(initials)
                 avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                theme_manager.apply_style(
-                    avatar_lbl,
-                    f"""
-                    border-radius: 18px;
-                    background: {gradient};
-                    color: #ffffff;
-                    font-size: 11px;
-                    font-weight: 800;
-                    border: 1px solid {Colors.BORDER};
-                """,
-                )
+
+                if author.get("avatar_url"):
+                    worker = AvatarLoaderWorker(
+                        author.get("github", author.get("name", "Unknown")), author["avatar_url"]
+                    )
+                    worker.finished.connect(
+                        lambda dev_id, path, lbl=avatar_lbl: self._on_avatar_fetched(
+                            dev_id, path, lbl
+                        )
+                    )
+                    self.avatar_workers.append(worker)
+                    worker.start()
+                else:
+                    theme_manager.apply_style(
+                        avatar_lbl,
+                        f"""
+                        border-radius: 18px;
+                        background: {gradient};
+                        color: #ffffff;
+                        font-size: 11px;
+                        font-weight: 800;
+                        border: 1px solid {Colors.BORDER};
+                    """,
+                    )
                 ac_layout.addWidget(avatar_lbl)
 
                 text_layout = QVBoxLayout()
@@ -372,7 +411,7 @@ class PluginDetailsDialog(QDialog):
 
                 ac_layout.addLayout(text_layout)
                 scroll_layout.addWidget(author_card)
-        else:
+        if not all_people:
             # Try to lookup author_id in the DeveloperProfileDatabase
             author_id = data["info"].get("author_id", data["info"].get("author"))
             dev_profile = None
@@ -527,6 +566,23 @@ class PluginDetailsDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
+
+    def _on_avatar_fetched(self, _dev_id: str, cached_path: str, lbl: QLabel):
+        """Callback to set the avatar pixmap on a QLabel once it's fetched."""
+        if cached_path:
+            pixmap = QPixmap(cached_path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(
+                    36,
+                    36,
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                lbl.setText("")
+                lbl.setPixmap(pixmap)
+                theme_manager.apply_style(
+                    lbl, f"border-radius: 18px; border: 1px solid {Colors.BORDER};"
+                )
 
 
 class StoreLoaderWorker(QThread):
