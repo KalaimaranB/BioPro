@@ -290,8 +290,16 @@ class PluginDetailsDialog(QDialog):
         scroll_layout.addWidget(authors_title)
 
         authors_data = data["info"].get("authors", [])
+        contributors_data = data["info"].get("contributors", [])
+
+        all_people = []
         if authors_data and isinstance(authors_data, list):
-            for author in authors_data:
+            all_people.extend(authors_data)
+        if contributors_data and isinstance(contributors_data, list):
+            all_people.extend(contributors_data)
+
+        if all_people:
+            for author in all_people:
                 author_card = QWidget()
                 theme_manager.apply_style(
                     author_card,
@@ -351,6 +359,16 @@ class PluginDetailsDialog(QDialog):
                         a_git, f"font-size: 11px; color: {Colors.DNA_PRIMARY}; border: none;"
                     )
                     text_layout.addWidget(a_git)
+
+                if author.get("profile"):
+                    a_prof = QLabel(
+                        f'<a href="{author["profile"]}" style="color: {Colors.DNA_PRIMARY}; text-decoration: none;">Profile: {author["profile"]}</a>'
+                    )
+                    a_prof.setOpenExternalLinks(True)
+                    theme_manager.apply_style(
+                        a_prof, f"font-size: 11px; color: {Colors.DNA_PRIMARY}; border: none;"
+                    )
+                    text_layout.addWidget(a_prof)
 
                 ac_layout.addLayout(text_layout)
                 scroll_layout.addWidget(author_card)
