@@ -286,6 +286,40 @@ class ThemeManager(QObject):
         themes.sort(key=lambda x: 0 if "Default" in x[0] else 1)
         return themes
 
+    def get_categorized_themes(self) -> dict[str, list[tuple[str, Path]]]:
+        """Returns themes grouped into categories: Accessible, Light, and Dark."""
+        themes = self.discover_themes()
+        categorized: dict[str, list[tuple[str, Path]]] = {
+            "Dark Themes": [],
+            "Light Themes": [],
+            "Accessible Themes": [],
+        }
+
+        for name, path in themes:
+            if "Accessible" in name or "Okabe" in name:
+                categorized["Accessible Themes"].append((name, path))
+                continue
+
+            try:
+                from biopro.core.utils import AtomicJsonFile
+
+                data = AtomicJsonFile.load(path)
+                if data:
+                    bg_hex = data.get("BG_DARKEST", "#000000").lstrip("#")
+                    r, g, b = tuple(int(bg_hex[i : i + 2], 16) for i in (0, 2, 4))
+                    luminance = 0.299 * r + 0.587 * g + 0.114 * b
+                    if luminance > 128:
+                        categorized["Light Themes"].append((name, path))
+                    else:
+                        categorized["Dark Themes"].append((name, path))
+                else:
+                    categorized["Dark Themes"].append((name, path))
+            except Exception:
+                categorized["Dark Themes"].append((name, path))
+
+        # Remove empty categories
+        return {k: v for k, v in categorized.items() if v}
+
     def _apply_global_stylesheet(self) -> None:
         """Compiles the master base.qss template using the current Colors
         and applies it natively to the global QApplication instance.
