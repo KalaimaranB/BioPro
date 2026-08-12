@@ -273,6 +273,15 @@ class PluginDetailsDialog(QDialog):
             )
             header.addWidget(badge)
 
+        # Beta Badge
+        if data["info"].get("beta", False) or data["info"].get("is_beta", False):
+            beta_badge = QLabel("🧪 BETA")
+            theme_manager.apply_style(
+                beta_badge,
+                f"background: {Colors.ACCENT_WARNING}22; color: {Colors.ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {Colors.ACCENT_WARNING}44;",
+            )
+            header.addWidget(beta_badge)
+
         layout.addLayout(header)
 
         # Divider
@@ -799,9 +808,10 @@ class PluginStoreDialog(QDialog):
 
         header_layout.addStretch()
 
-        self.repair_all_btn = SecondaryButton("Repair All Plugins")
-        self.repair_all_btn.clicked.connect(self._repair_all_plugins)
-        header_layout.addWidget(self.repair_all_btn)
+        # TODO: Temporarily hidden as the 'Repair All' feature is not needed right now
+        # self.repair_all_btn = SecondaryButton("Repair All Plugins")
+        # self.repair_all_btn.clicked.connect(self._repair_all_plugins)
+        # header_layout.addWidget(self.repair_all_btn)
 
         header_layout.addSpacing(10)
 
@@ -1102,6 +1112,15 @@ class PluginStoreDialog(QDialog):
             )
             header.addWidget(badge)
 
+        # Badge for Beta
+        if mod_data.get("beta", False) or mod_data.get("is_beta", False):
+            beta_badge = QLabel("🧪 BETA")
+            theme_manager.apply_style(
+                beta_badge,
+                f"background: {Colors.ACCENT_WARNING}22; color: {Colors.ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_WARNING}44;",
+            )
+            header.addWidget(beta_badge)
+
         main_layout.addLayout(header)
 
         # Description (Fixed height to prevent jumping)
@@ -1163,10 +1182,11 @@ class PluginStoreDialog(QDialog):
             )
             bottom_row.addWidget(ok_lbl)
 
-            repair_btn = SecondaryButton("Repair")
-            repair_btn.setToolTip("Diagnose & Repair")
-            repair_btn.clicked.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
-            bottom_row.addWidget(repair_btn)
+            # TODO: Temporarily hidden as the 'Repair Module' feature is not needed right now
+            # repair_btn = SecondaryButton("Repair")
+            # repair_btn.setToolTip("Diagnose & Repair")
+            # repair_btn.clicked.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
+            # bottom_row.addWidget(repair_btn)
 
             rm_btn = DangerButton("Remove")
             rm_btn.clicked.connect(lambda: self._remove_module(plugin_id))
@@ -1174,12 +1194,13 @@ class PluginStoreDialog(QDialog):
 
         main_layout.addLayout(bottom_row)
 
+        # TODO: Temporarily hidden as the 'Repair Module' feature is not needed right now
         # Add Context Menu for Diagnose & Repair if installed
-        if state in ["UP_TO_DATE", "UPDATE", "INCOMPATIBLE"]:
-            card.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-            card.customContextMenuRequested.connect(
-                lambda pos, pid=plugin_id, pd=data: self._show_card_context_menu(card, pos, pid, pd)
-            )
+        # if state in ["UP_TO_DATE", "UPDATE", "INCOMPATIBLE"]:
+        #     card.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        #     card.customContextMenuRequested.connect(
+        #         lambda pos, pid=plugin_id, pd=data: self._show_card_context_menu(card, pos, pid, pd)
+        #     )
 
         return card
 
