@@ -269,7 +269,7 @@ class PluginDetailsDialog(QDialog):
             badge = QLabel("🛡️ VERIFIED ROOT")
             theme_manager.apply_style(
                 badge,
-                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;",
+                "background: {ACCENT_SUCCESS}22; color: {ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {ACCENT_SUCCESS}44;",
             )
             header.addWidget(badge)
 
@@ -278,7 +278,7 @@ class PluginDetailsDialog(QDialog):
             beta_badge = QLabel("🧪 BETA")
             theme_manager.apply_style(
                 beta_badge,
-                f"background: {Colors.ACCENT_WARNING}22; color: {Colors.ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {Colors.ACCENT_WARNING}44;",
+                "background: {ACCENT_WARNING}22; color: {ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {ACCENT_WARNING}44;",
             )
             header.addWidget(beta_badge)
 
@@ -1117,7 +1117,7 @@ class PluginStoreDialog(QDialog):
             badge = QLabel("🛡️ VERIFIED")
             theme_manager.apply_style(
                 badge,
-                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;",
+                "background: {ACCENT_SUCCESS}22; color: {ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {ACCENT_SUCCESS}44;",
             )
             header.addWidget(badge)
 
@@ -1126,7 +1126,7 @@ class PluginStoreDialog(QDialog):
             beta_badge = QLabel("🧪 BETA")
             theme_manager.apply_style(
                 beta_badge,
-                f"background: {Colors.ACCENT_WARNING}22; color: {Colors.ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_WARNING}44;",
+                "background: {ACCENT_WARNING}22; color: {ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {ACCENT_WARNING}44;",
             )
             header.addWidget(beta_badge)
 
