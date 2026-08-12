@@ -31,8 +31,9 @@ def on_analysis_finished(result):
     # run in main thread: update UI
     ui_widget.display(result)
 
-EventBus.subscribe('analysis.finished', on_analysis_finished)
-EventBus.publish('analysis.finished', {'success': True, 'data': ...})
+
+EventBus.subscribe("analysis.finished", on_analysis_finished)
+EventBus.publish("analysis.finished", {"success": True, "data": ...})
 ```
 
 ## Best practices

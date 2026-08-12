@@ -37,6 +37,7 @@ class PluginBase:
 from biopro.plugins.sdk_utils import PluginConfig, get_plugin_logger
 from biopro_sdk.core import PluginBase as SDKPluginBase
 
+
 class MyPlugin(SDKPluginBase):
     def __init__(self, plugin_id: str, parent=None):
         super().__init__(plugin_id, parent=parent)
@@ -51,6 +52,7 @@ class MyPlugin(SDKPluginBase):
     def cleanup(self):
         # stop workers, drop heavy arrays
         pass
+
 
 def get_plugin():
     return MyPlugin(plugin_id="example.my_plugin")
