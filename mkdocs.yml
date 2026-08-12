@@ -52,6 +52,10 @@ markdown_extensions:
   - attr_list
   - md_in_html
 
+plugins:
+  - search
+  - mkdocstrings
+
 nav:
   - "Welcome": index.md
   - "User Manuals":
@@ -70,7 +74,9 @@ nav:
     - "State and History Management": internal/13_The_Time_Machine_Engine.md
     - "Performance and Scaling": internal/14_High_Performance_Scaling.md
     - "Dynamic Plugin Internals": internal/15_Dynamic_Plugin_Internals.md
-    - "API Reference": internal/16_API_Reference_Core.md
+    - "Module Manager & Plugin Contract": internal/15_ModuleManager_and_PluginContract.md
+    - "API Reference (Auto)": internal/16_API_Reference_Auto.md
+    - "PluginBase & SDK Contract": internal/16_PluginBase_and_SDK_Contract.md
     - "AI Assistant": internal/17_AI_Assistant.md
     - "Testing Philosophy": internal/18_Testing_Philosophy.md
     - "Developer Onboarding Guide": internal/19_Developer_Onboarding.md

@@ -125,4 +125,49 @@ Some of our GitHub Action robots (like the back-merge robot) are configured to a
 If an automated PR ever gets stuck or has a merge conflict, it will pause. If you need to manually intervene and stop the robot from merging, you can disable the auto-merge setting directly from the GitHub UI, or by running this command locally:
 ```bash
 gh pr merge <PR_NUMBER> --disable-auto
+
+---
+
+## 7. Documentation Contributions
+
+We welcome documentation updates. Follow these lightweight rules to keep the docs professional and consistent.
+
+### Docstring & Style
+- Use Google-style docstrings for public modules, classes, and functions.
+- Keep docstrings concise: module summary (one line), extended description (optional), Args, Returns, Raises, Examples.
+- Prefer type hints in signatures and short descriptions in docstrings — `mkdocstrings` will render types automatically.
+
+Example:
+```py
+def compute(signal: np.ndarray, threshold: float) -> dict:
+   """Compute metrics on `signal` above `threshold`.
+
+   Args:
+      signal: Input array of samples.
+      threshold: Value to threshold the signal.
+
+   Returns:
+      A mapping of metric name to value.
+   """
+   ...
+```
+
+### Local Preview
+- Build the docs locally before opening a PR:
+
+```bash
+python -m pip install -r reqs.txt  # or use the repo venv
+python -m pip install -e .[dev]
+mkdocs build
+mkdocs serve  # optional for live preview
+```
+
+### PR Checklist for Docs Changes
+- Title starts with `docs:` for documentation-only PRs.
+- Run `mkdocs build` locally and ensure no warnings.
+- Add or update API docstrings for any public API changes.
+- Run `markdownlint` (CI will run this automatically).
+- Add examples or tutorials in `docs/user/` for user-facing features.
+
+If your change touches both code and docs, create a single PR describing both the code change and the documentation updates.
 ```
