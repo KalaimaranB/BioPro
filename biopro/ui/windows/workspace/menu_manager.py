@@ -4,7 +4,6 @@ from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import QMenu
 
 from biopro.core.config import AppConfig
-from biopro.shared.ui.alerts import show_about
 from biopro.ui.theme import theme_manager
 
 
@@ -88,9 +87,22 @@ class MenuManager:
         wiki_action.triggered.connect(self.open_wiki_online)
         help_menu.addAction(wiki_action)
 
-        about_action = QAction("🧬 &About BioPro", mw)
+        about_action = QAction("About BioPro", mw)
+        about_me_action = QAction("About the Developer", mw)
+
+        if not getattr(AppConfig, "_mac_menus_set", False):
+            about_action.setMenuRole(QAction.MenuRole.AboutRole)
+            about_me_action.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)
+            AppConfig._mac_menus_set = True
+        else:
+            about_action.setVisible(False)
+            about_me_action.setVisible(False)
+
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
+
+        about_me_action.triggered.connect(self.show_about_developer)
+        help_menu.addAction(about_me_action)
 
         help_menu.addSeparator()
 
@@ -136,17 +148,18 @@ class MenuManager:
         dialog.exec()
 
     def show_about(self) -> None:
-        # Dynamic Version from Config!
-        show_about(
-            self.main_window,
-            "About BioPro",
-            f"<h2>🧬 BioPro v{AppConfig.CORE_VERSION}</h2>"
-            "<p>Bio Analysis Made Simple</p>"
-            "<p>An open-source, intuitive platform for lab students "
-            "and professionals.</p>"
-            "<p>© 2026 BioPro Contributors<br>"
-            "Licensed under the MIT License</p>",
-        )
+        """Show the About BioPro dialog."""
+        from biopro.ui.dialogs.about_biopro import AboutBioProDialog
+
+        dialog = AboutBioProDialog(self.main_window)
+        dialog.exec()
+
+    def show_about_developer(self) -> None:
+        """Show the About Developer dialog."""
+        from biopro.ui.dialogs.about_developer import AboutDeveloperDialog
+
+        dialog = AboutDeveloperDialog(self.main_window)
+        dialog.exec()
 
     def open_ai_chat(self):
         """Opens the AI floating panel for contextual help."""
