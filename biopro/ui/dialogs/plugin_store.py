@@ -225,8 +225,9 @@ class TrustPathDialog(QDialog):
 class PluginDetailsDialog(QDialog):
     """Inspects detailed plugin credentials, co-signing ledger histories, and contributor teams."""
 
-    def __init__(self, plugin_id: str, data: dict, parent=None):
+    def __init__(self, plugin_id: str, data: dict, parent=None, module_manager=None):
         super().__init__(parent)
+        self.module_manager = module_manager
         self.avatar_workers = []
         self.setObjectName("ModuleDetailsPanel")
         self.setWindowTitle(f"Plugin Details: {data['info'].get('name', plugin_id)}")
@@ -534,26 +535,75 @@ class PluginDetailsDialog(QDialog):
         sc_layout.setContentsMargins(12, 12, 12, 12)
         sc_layout.setSpacing(6)
 
-        if data.get("is_verified", False):
-            sc_layout.addWidget(QLabel("🛡️ Verification: Cryptographically Verified"))
-            sc_layout.addWidget(QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}"))
-            sc_layout.addWidget(
-                QLabel("Consensus Validation: Green (Fully trusted co-signing chain present)")
-            )
+        is_installed = self.module_manager and plugin_id in self.module_manager.modules
+
+        if is_installed:
+            mod_info = self.module_manager.modules[plugin_id]
+            from pathlib import Path
+
+            plugin_path = Path(mod_info["path"])
+            trust_manager = self.module_manager.trust_manager
+            verification_result = trust_manager.verify_plugin(plugin_path)
+
+            if verification_result.success:
+                sc_layout.addWidget(QLabel("🛡️ Verification: Cryptographically Verified (Local)"))
+                sc_layout.addWidget(
+                    QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}")
+                )
+                sc_layout.addWidget(
+                    QLabel("Consensus Validation: Green (Local Files Match Digital Signature)")
+                )
+                theme_manager.apply_style(
+                    status_card,
+                    f"background: {Colors.ACCENT_SUCCESS}11; border: 1px solid {Colors.ACCENT_SUCCESS}44; border-radius: 6px;",
+                )
+            else:
+                error_msg = verification_result.error_message or "Unknown verification error."
+                sc_layout.addWidget(QLabel("⚠️ Verification: FAILED (Local)"))
+                sc_layout.addWidget(
+                    QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}")
+                )
+
+                err_lbl = QLabel(f"Error Details: {error_msg}")
+                err_lbl.setObjectName("ErrorMessage")
+                err_lbl.setWordWrap(True)
+                sc_layout.addWidget(err_lbl)
+
+                theme_manager.apply_style(
+                    status_card,
+                    f"background: {Colors.ACCENT_ERROR}22; border: 1px solid {Colors.ACCENT_ERROR}; border-radius: 6px;",
+                )
         else:
-            sc_layout.addWidget(QLabel("⚠️ Verification: Self-Signed / Local Registry Key Only"))
-            sc_layout.addWidget(
-                QLabel("Consensus Validation: Yellow (Developer key verified, not signed by root)")
-            )
+            if data.get("is_verified", False):
+                sc_layout.addWidget(
+                    QLabel("🛡️ Verification: Remote Verification Only (Not Installed)")
+                )
+                sc_layout.addWidget(
+                    QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}")
+                )
+                sc_layout.addWidget(QLabel("Consensus Validation: Remote Registry Key is Trusted"))
+            else:
+                sc_layout.addWidget(QLabel("⚠️ Verification: Self-Signed / Local Registry Key Only"))
+                sc_layout.addWidget(
+                    QLabel(
+                        "Consensus Validation: Yellow (Developer key verified, not signed by root)"
+                    )
+                )
 
         for i in range(sc_layout.count()):
             item = sc_layout.itemAt(i)
             if item is not None:
                 w = item.widget()
                 if w is not None:
-                    theme_manager.apply_style(
-                        w, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
-                    )
+                    if w.objectName() == "ErrorMessage":
+                        theme_manager.apply_style(
+                            w,
+                            f"font-size: 11px; font-weight: bold; color: {Colors.ACCENT_ERROR}; border: none;",
+                        )
+                    else:
+                        theme_manager.apply_style(
+                            w, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                        )
 
         scroll_layout.addWidget(status_card)
         scroll.setWidget(scroll_content)
@@ -1249,7 +1299,7 @@ class PluginStoreDialog(QDialog):
     def _view_plugin_details(self, plugin_id: str, data: dict):
         """Displays detailed V2 meta inspection dialog."""
         event_bus.emit(BioProEvent.STORE_MODULE_DETAILS_OPENED)
-        dialog = PluginDetailsDialog(plugin_id, data, self)
+        dialog = PluginDetailsDialog(plugin_id, data, self, self.module_manager)
         dialog.exec()
 
     def _create_developer_card(self, dev: dict):
