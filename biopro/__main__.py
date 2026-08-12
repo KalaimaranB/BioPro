@@ -183,6 +183,9 @@ def bootstrap_sdk():
     we prepend it to sys.path so the application runs the updated version.
     Otherwise, we fall back to the built-in system biopro-sdk.
     """
+    # Temporarily disabled due to security concerns
+    return False
+
     import sys
     from pathlib import Path
 
