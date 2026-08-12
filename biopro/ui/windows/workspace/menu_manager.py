@@ -88,9 +88,24 @@ class MenuManager:
         wiki_action.triggered.connect(self.open_wiki_online)
         help_menu.addAction(wiki_action)
 
-        about_action = QAction("🧬 &About BioPro", mw)
+        about_action = QAction("About BioPro", mw)
+        about_me_action = QAction("About the Developer", mw)
+
+        from biopro.core.config import AppConfig
+
+        if not getattr(AppConfig, "_mac_menus_set", False):
+            about_action.setMenuRole(QAction.MenuRole.AboutRole)
+            about_me_action.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)
+            AppConfig._mac_menus_set = True
+        else:
+            about_action.setVisible(False)
+            about_me_action.setVisible(False)
+
         about_action.triggered.connect(self.show_about)
         help_menu.addAction(about_action)
+
+        about_me_action.triggered.connect(self.show_about_developer)
+        help_menu.addAction(about_me_action)
 
         help_menu.addSeparator()
 
@@ -147,6 +162,13 @@ class MenuManager:
             "<p>© 2026 BioPro Contributors<br>"
             "Licensed under the MIT License</p>",
         )
+
+    def show_about_developer(self) -> None:
+        """Show the About Developer dialog."""
+        from biopro.ui.dialogs.about_developer import AboutDeveloperDialog
+
+        dialog = AboutDeveloperDialog(self.main_window)
+        dialog.exec()
 
     def open_ai_chat(self):
         """Opens the AI floating panel for contextual help."""

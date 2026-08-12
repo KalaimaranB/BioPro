@@ -572,9 +572,24 @@ class ProjectLauncherWindow(QMainWindow):
         wiki_action.triggered.connect(self._open_wiki_online)
         help_menu.addAction(wiki_action)
 
-        about_action = QAction("🧬 &About BioPro", self)
+        about_action = QAction("About BioPro", self)
+        about_me_action = QAction("About the Developer", self)
+
+        from biopro.core.config import AppConfig
+
+        if not getattr(AppConfig, "_mac_menus_set", False):
+            about_action.setMenuRole(QAction.MenuRole.AboutRole)
+            about_me_action.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)
+            AppConfig._mac_menus_set = True
+        else:
+            about_action.setVisible(False)
+            about_me_action.setVisible(False)
+
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
+
+        about_me_action.triggered.connect(self._show_about_developer)
+        help_menu.addAction(about_me_action)
 
         help_menu.addSeparator()
 
@@ -700,6 +715,12 @@ class ProjectLauncherWindow(QMainWindow):
             "<p>© 2026 BioPro Contributors<br>"
             "Licensed under the MIT License</p>",
         )
+
+    def _show_about_developer(self) -> None:
+        from biopro.ui.dialogs.about_developer import AboutDeveloperDialog
+
+        dialog = AboutDeveloperDialog(self)
+        dialog.exec()
 
     def _switch_theme(self, theme_path: Path):
         """Switches the active theme.
