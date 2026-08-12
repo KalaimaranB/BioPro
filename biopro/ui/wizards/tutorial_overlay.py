@@ -172,10 +172,9 @@ class TutorialOverlay(QWidget):
 
         # Step text
         self.text_label = QLabel("Welcome to BioPro Academy!")
-        self.text_label.setTextFormat(Qt.TextFormat.PlainText)
+        self.text_label.setTextFormat(Qt.TextFormat.RichText)
         font = self.text_label.font()
         font.setPixelSize(16)
-        font.setBold(True)
         font.setFamily("sans-serif")
         self.text_label.setFont(font)
         theme_manager.apply_style(self.text_label, "color: {FG_PRIMARY}; padding: 8px 0px;")
@@ -360,7 +359,26 @@ class TutorialOverlay(QWidget):
                 current = getattr(self, "_last_main_step_idx", 1)
             self.set_progress(current, max(total, 1))
 
-        self.text_label.setText(step.text)
+        import re
+
+        text = step.text
+
+        # Replace newlines with <br>
+        text = text.replace("\\n", "<br>")
+
+        # Replace **text** with highlighted accent color
+        text = re.sub(r"\*\*(.*?)\*\*", f'<b style="color: {Colors.ACCENT_PRIMARY};">\\1</b>', text)
+        # Replace *text* or _text_ with italic
+        text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
+        text = re.sub(r"_(.*?)_", r"<i>\1</i>", text)
+        # Replace `text` with inline code style
+        text = re.sub(
+            r"`(.*?)`",
+            f'<code style="color: {Colors.FG_PRIMARY}; background-color: {Colors.BG_DARKER}; padding: 2px 4px; border-radius: 3px;">\\1</code>',
+            text,
+        )
+
+        self.text_label.setText(text)
 
         emotion = getattr(step, "cyto_emotion", "idle")
         self.cyto.set_emotion(emotion)
