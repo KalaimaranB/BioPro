@@ -153,16 +153,16 @@ We welcome documentation updates. Follow these lightweight rules to keep the doc
 Example:
 ```py
 def compute(signal: np.ndarray, threshold: float) -> dict:
-   """Compute metrics on `signal` above `threshold`.
+    """Compute metrics on `signal` above `threshold`.
 
-   Args:
-      signal: Input array of samples.
-      threshold: Value to threshold the signal.
+    Args:
+       signal: Input array of samples.
+       threshold: Value to threshold the signal.
 
-   Returns:
-      A mapping of metric name to value.
-   """
-   ...
+    Returns:
+       A mapping of metric name to value.
+    """
+    ...
 ```
 
 ### Local Preview
