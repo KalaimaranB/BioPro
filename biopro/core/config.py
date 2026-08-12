@@ -23,6 +23,12 @@ class AppConfig:
         "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/authorities.json"
     )
 
+    # Decentralized plugin registry settings
+    PLUGIN_REGISTRY_CACHE_TTL_SECONDS: int = 3600  # 1 hour
+    PLUGIN_REGISTRY_CACHE_DIR = Path.home() / ".biopro" / "plugin_registry_cache"
+    # Only GitHub-hosted avatars are permitted (SSRF prevention)
+    AVATAR_ALLOWED_HOSTS: frozenset[str] = frozenset({"avatars.githubusercontent.com"})
+
     APP_DATA_DIR = Path.home() / ".biopro"
 
     def __init__(self) -> None:

@@ -73,7 +73,7 @@ class TestThemeEngine:
             p.write_text("fake font")
             return p
 
-        monkeypatch.setattr("biopro.ui.theme.resource_path", mock_resource_path)
+        monkeypatch.setattr("biopro.core.resource_manager.resource_path", mock_resource_path)
 
         class MockQFontDatabase:
             @staticmethod
@@ -84,7 +84,7 @@ class TestThemeEngine:
             def applicationFontFamilies(id):  # noqa: N802, A002
                 return ["Mock Tamil Font"]
 
-        monkeypatch.setattr("biopro.ui.theme.QFontDatabase", MockQFontDatabase)
+        monkeypatch.setattr("PyQt6.QtGui.QFontDatabase", MockQFontDatabase)
 
         family = biopro.ui.theme.get_tamil_font_family()
         assert family == "Mock Tamil Font"
@@ -97,7 +97,7 @@ class TestThemeEngine:
         def mock_resource_path(path):
             return tmp_path / "missing.ttf"
 
-        monkeypatch.setattr("biopro.ui.theme.resource_path", mock_resource_path)
+        monkeypatch.setattr("biopro.core.resource_manager.resource_path", mock_resource_path)
 
         family = biopro.ui.theme.get_tamil_font_family()
         assert family == "Noto Sans Tamil"
@@ -112,7 +112,7 @@ class TestThemeEngine:
             p.write_text("fake font")
             return p
 
-        monkeypatch.setattr("biopro.ui.theme.resource_path", mock_resource_path)
+        monkeypatch.setattr("biopro.core.resource_manager.resource_path", mock_resource_path)
 
         class MockQFontDatabase:
             @staticmethod
@@ -123,7 +123,7 @@ class TestThemeEngine:
             def applicationFontFamilies(id):  # noqa: N802, A002
                 return []
 
-        monkeypatch.setattr("biopro.ui.theme.QFontDatabase", MockQFontDatabase)
+        monkeypatch.setattr("PyQt6.QtGui.QFontDatabase", MockQFontDatabase)
 
         family = biopro.ui.theme.get_tamil_font_family()
         assert family == "Noto Sans Tamil"

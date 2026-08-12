@@ -411,7 +411,7 @@ class TestTrustArchitecture:
             print(f"VERIFICATION FAILED: {result.error_message}")
 
         assert result.success is True, result.error_message
-        # UBC -> MICB Lab -> Dr. Alice (3 verified links in list)
+        # Dr. Alice -> MICB Lab -> UBC -> BioPro Core (4 verified links in list)
         assert len(result.trust_path) == 4
-        assert result.trust_path[1]["name"] == "UBC"
-        assert result.trust_path[3]["name"] == "Dr. Alice"
+        assert result.trust_path[1]["name"] == "Dr. Alice"
+        assert result.trust_path[3]["name"] == "UBC"

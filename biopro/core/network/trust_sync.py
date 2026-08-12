@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 from biopro_sdk.host import BIOPRO_ROOT_PUBLIC_KEY_HEX
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
+from biopro.core.config import AppConfig
 from biopro.core.network.client import NetworkClient
 from biopro.core.utils import sanitize_identifier
 
@@ -178,7 +179,7 @@ class TrustSync:
             logger.warning(f"Could not sync developer profile database: {e}")
             return
 
-        allowed_hosts = {"avatars.githubusercontent.com", "secure.gravatar.com"}
+        allowed_hosts = AppConfig.AVATAR_ALLOWED_HOSTS
 
         for dev in trusted_list:
             try:

@@ -25,6 +25,31 @@ from biopro.core.network_updater import NetworkUpdater
 from biopro.shared.ui.alerts import ask_question, show_error, show_info
 from biopro.ui.theme import Colors, theme_manager
 
+
+class AvatarLoaderWorker(QThread):
+    """Background thread to download avatar images without freezing the UI."""
+
+    finished = pyqtSignal(str, str)  # Emit (author_id, cached_path)
+
+    def __init__(self, author_id: str, avatar_url: str):
+        super().__init__()
+        self.author_id = author_id
+        self.avatar_url = avatar_url
+
+    def run(self):
+        try:
+            from biopro.core.developer_database import AvatarManager
+
+            manager = AvatarManager()
+            cached_path = manager.fetch_and_cache_avatar(self.author_id, self.avatar_url)
+            self.finished.emit(self.author_id, cached_path or "")
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(f"Failed to fetch avatar: {e}")
+            self.finished.emit(self.author_id, "")
+
+
 # Card layout constants
 CARD_MIN_WIDTH = 400
 
@@ -200,8 +225,10 @@ class TrustPathDialog(QDialog):
 class PluginDetailsDialog(QDialog):
     """Inspects detailed plugin credentials, co-signing ledger histories, and contributor teams."""
 
-    def __init__(self, plugin_id: str, data: dict, parent=None):
+    def __init__(self, plugin_id: str, data: dict, parent=None, module_manager=None):
         super().__init__(parent)
+        self.module_manager = module_manager
+        self.avatar_workers = []
         self.setObjectName("ModuleDetailsPanel")
         self.setWindowTitle(f"Plugin Details: {data['info'].get('name', plugin_id)}")
         self.setMinimumSize(600, 500)
@@ -290,8 +317,16 @@ class PluginDetailsDialog(QDialog):
         scroll_layout.addWidget(authors_title)
 
         authors_data = data["info"].get("authors", [])
+        contributors_data = data["info"].get("contributors", [])
+
+        all_people = []
         if authors_data and isinstance(authors_data, list):
-            for author in authors_data:
+            all_people.extend(authors_data)
+        if contributors_data and isinstance(contributors_data, list):
+            all_people.extend(contributors_data)
+
+        if all_people:
+            for author in all_people:
                 author_card = QWidget()
                 theme_manager.apply_style(
                     author_card,
@@ -308,17 +343,30 @@ class PluginDetailsDialog(QDialog):
                 gradient = get_developer_gradient_css(author.get("name", "Unknown"))
                 avatar_lbl.setText(initials)
                 avatar_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                theme_manager.apply_style(
-                    avatar_lbl,
-                    f"""
-                    border-radius: 18px;
-                    background: {gradient};
-                    color: #ffffff;
-                    font-size: 11px;
-                    font-weight: 800;
-                    border: 1px solid {Colors.BORDER};
-                """,
-                )
+
+                if author.get("avatar_url"):
+                    worker = AvatarLoaderWorker(
+                        author.get("github", author.get("name", "Unknown")), author["avatar_url"]
+                    )
+                    worker.finished.connect(
+                        lambda dev_id, path, lbl=avatar_lbl: self._on_avatar_fetched(
+                            dev_id, path, lbl
+                        )
+                    )
+                    self.avatar_workers.append(worker)
+                    worker.start()
+                else:
+                    theme_manager.apply_style(
+                        avatar_lbl,
+                        f"""
+                        border-radius: 18px;
+                        background: {gradient};
+                        color: #ffffff;
+                        font-size: 11px;
+                        font-weight: 800;
+                        border: 1px solid {Colors.BORDER};
+                    """,
+                    )
                 ac_layout.addWidget(avatar_lbl)
 
                 text_layout = QVBoxLayout()
@@ -352,9 +400,19 @@ class PluginDetailsDialog(QDialog):
                     )
                     text_layout.addWidget(a_git)
 
+                if author.get("profile"):
+                    a_prof = QLabel(
+                        f'<a href="{author["profile"]}" style="color: {Colors.DNA_PRIMARY}; text-decoration: none;">Profile: {author["profile"]}</a>'
+                    )
+                    a_prof.setOpenExternalLinks(True)
+                    theme_manager.apply_style(
+                        a_prof, f"font-size: 11px; color: {Colors.DNA_PRIMARY}; border: none;"
+                    )
+                    text_layout.addWidget(a_prof)
+
                 ac_layout.addLayout(text_layout)
                 scroll_layout.addWidget(author_card)
-        else:
+        if not all_people:
             # Try to lookup author_id in the DeveloperProfileDatabase
             author_id = data["info"].get("author_id", data["info"].get("author"))
             dev_profile = None
@@ -477,26 +535,75 @@ class PluginDetailsDialog(QDialog):
         sc_layout.setContentsMargins(12, 12, 12, 12)
         sc_layout.setSpacing(6)
 
-        if data.get("is_verified", False):
-            sc_layout.addWidget(QLabel("🛡️ Verification: Cryptographically Verified"))
-            sc_layout.addWidget(QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}"))
-            sc_layout.addWidget(
-                QLabel("Consensus Validation: Green (Fully trusted co-signing chain present)")
-            )
+        is_installed = self.module_manager and plugin_id in self.module_manager.modules
+
+        if is_installed:
+            mod_info = self.module_manager.modules[plugin_id]
+            from pathlib import Path
+
+            plugin_path = Path(mod_info["path"])
+            trust_manager = self.module_manager.trust_manager
+            verification_result = trust_manager.verify_plugin(plugin_path)
+
+            if verification_result.success:
+                sc_layout.addWidget(QLabel("🛡️ Verification: Cryptographically Verified (Local)"))
+                sc_layout.addWidget(
+                    QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}")
+                )
+                sc_layout.addWidget(
+                    QLabel("Consensus Validation: Green (Local Files Match Digital Signature)")
+                )
+                theme_manager.apply_style(
+                    status_card,
+                    f"background: {Colors.ACCENT_SUCCESS}11; border: 1px solid {Colors.ACCENT_SUCCESS}44; border-radius: 6px;",
+                )
+            else:
+                error_msg = verification_result.error_message or "Unknown verification error."
+                sc_layout.addWidget(QLabel("⚠️ Verification: FAILED (Local)"))
+                sc_layout.addWidget(
+                    QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}")
+                )
+
+                err_lbl = QLabel(f"Error Details: {error_msg}")
+                err_lbl.setObjectName("ErrorMessage")
+                err_lbl.setWordWrap(True)
+                sc_layout.addWidget(err_lbl)
+
+                theme_manager.apply_style(
+                    status_card,
+                    f"background: {Colors.ACCENT_ERROR}22; border: 1px solid {Colors.ACCENT_ERROR}; border-radius: 6px;",
+                )
         else:
-            sc_layout.addWidget(QLabel("⚠️ Verification: Self-Signed / Local Registry Key Only"))
-            sc_layout.addWidget(
-                QLabel("Consensus Validation: Yellow (Developer key verified, not signed by root)")
-            )
+            if data.get("is_verified", False):
+                sc_layout.addWidget(
+                    QLabel("🛡️ Verification: Remote Verification Only (Not Installed)")
+                )
+                sc_layout.addWidget(
+                    QLabel(f"Publisher Identity ID: {data['info'].get('author_id')}")
+                )
+                sc_layout.addWidget(QLabel("Consensus Validation: Remote Registry Key is Trusted"))
+            else:
+                sc_layout.addWidget(QLabel("⚠️ Verification: Self-Signed / Local Registry Key Only"))
+                sc_layout.addWidget(
+                    QLabel(
+                        "Consensus Validation: Yellow (Developer key verified, not signed by root)"
+                    )
+                )
 
         for i in range(sc_layout.count()):
             item = sc_layout.itemAt(i)
             if item is not None:
                 w = item.widget()
                 if w is not None:
-                    theme_manager.apply_style(
-                        w, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
-                    )
+                    if w.objectName() == "ErrorMessage":
+                        theme_manager.apply_style(
+                            w,
+                            f"font-size: 11px; font-weight: bold; color: {Colors.ACCENT_ERROR}; border: none;",
+                        )
+                    else:
+                        theme_manager.apply_style(
+                            w, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
+                        )
 
         scroll_layout.addWidget(status_card)
         scroll.setWidget(scroll_content)
@@ -509,6 +616,23 @@ class PluginDetailsDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
         layout.addLayout(btn_layout)
+
+    def _on_avatar_fetched(self, _dev_id: str, cached_path: str, lbl: QLabel):
+        """Callback to set the avatar pixmap on a QLabel once it's fetched."""
+        if cached_path:
+            pixmap = QPixmap(cached_path)
+            if not pixmap.isNull():
+                pixmap = pixmap.scaled(
+                    36,
+                    36,
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                lbl.setText("")
+                lbl.setPixmap(pixmap)
+                theme_manager.apply_style(
+                    lbl, f"border-radius: 18px; border: 1px solid {Colors.BORDER};"
+                )
 
 
 class StoreLoaderWorker(QThread):
@@ -527,61 +651,37 @@ class StoreLoaderWorker(QThread):
         inventory = {}
         trusted_devs = []
         try:
-            if self.filter_type == "developers":
-                trusted_devs = self.updater.fetch_remote_developers()
-                if not trusted_devs:
-                    remote_data = self.updater.fetch_remote_registry(self.updater.registry_url)
-                    if remote_data:
-                        trusted_devs = remote_data.get("trusted_developers", [])
-                if not trusted_devs:
-                    try:
-                        from biopro.core.developer_database import DeveloperProfileDatabase
+            # evaluate_store_state eagerly fetches each plugin's pyproject.toml and
+            # returns the full author list extracted from the enriched inventory.
+            inventory = self.updater.evaluate_store_state()
 
-                        db = DeveloperProfileDatabase()
-                        trusted_devs = list(db.profiles.values())
-                    except Exception as e:
-                        import logging
-
-                        logging.getLogger(__name__).debug(
-                            f"Failed to fetch developer database: {e}"
-                        )
-
-                # Scan local manual keys
-                manual_keys_dir = AppConfig.APP_DATA_DIR / "trusted_roots"
-                known_dev_ids = {d.get("developer_id") for d in trusted_devs if "developer_id" in d}
-                if manual_keys_dir.exists():
-                    for key_file in manual_keys_dir.glob("manual_*.pub"):
-                        dev_id = key_file.stem.replace("manual_", "")
-                        if dev_id not in known_dev_ids:
-                            try:
-                                with open(key_file) as f:
-                                    pub_key_hex = f.read().strip()
-                                trusted_devs.append(
-                                    {
-                                        "developer_id": dev_id,
-                                        "public_key": pub_key_hex,
-                                        "name": f"Developer '{dev_id}'",
-                                        "role": "Manually Trusted Local Exception",
-                                        "is_manual": True,
-                                    }
-                                )
-                            except Exception as e:
-                                import logging
-
-                                logging.getLogger(__name__).debug(
-                                    f"Failed to read local developer key: {e}"
-                                )
-            else:
-                inventory = self.updater.evaluate_store_state()
+            # Augment with any manually-trusted local keys not covered by the remote registry
+            manual_keys_dir = AppConfig.APP_DATA_DIR / "trusted_roots"
+            known_dev_ids = {d.get("developer_id") for d in trusted_devs if "developer_id" in d}
+            if manual_keys_dir.exists():
+                for key_file in manual_keys_dir.glob("manual_*.pub"):
+                    dev_id = key_file.stem.replace("manual_", "")
+                    if dev_id not in known_dev_ids:
+                        try:
+                            with open(key_file) as f:
+                                pub_key_hex = f.read().strip()
+                            trusted_devs.append(
+                                {
+                                    "developer_id": dev_id,
+                                    "public_key": pub_key_hex,
+                                    "name": f"Developer '{dev_id}'",
+                                    "role": "Manually Trusted Local Exception",
+                                    "is_manual": True,
+                                }
+                            )
+                        except Exception as e:
+                            logging.getLogger(__name__).debug(
+                                f"Failed to read local developer key: {e}"
+                            )
         except Exception as e:
-            import logging
-
             logging.getLogger(__name__).error(
                 f"StoreLoaderWorker encountered an error: {e}", exc_info=True
             )
-            pass
-
-        import logging
 
         logging.getLogger(__name__).debug(
             f"StoreLoaderWorker finished for filter_type: '{self.filter_type}'"
@@ -702,6 +802,13 @@ class PluginStoreDialog(QDialog):
         self.repair_all_btn = SecondaryButton("Repair All Plugins")
         self.repair_all_btn.clicked.connect(self._repair_all_plugins)
         header_layout.addWidget(self.repair_all_btn)
+
+        header_layout.addSpacing(10)
+
+        self.refresh_btn = SecondaryButton("↻ Refresh")
+        self.refresh_btn.setToolTip("Clear the plugin registry cache and reload fresh metadata")
+        self.refresh_btn.clicked.connect(self._on_refresh_clicked)
+        header_layout.addWidget(self.refresh_btn)
 
         header_layout.addSpacing(10)
 
@@ -1124,6 +1231,15 @@ class PluginStoreDialog(QDialog):
         # Refresh the store UI to reflect any repairs made
         self._load_store_data()
 
+    def _on_refresh_clicked(self) -> None:
+        """Invalidate the plugin registry cache and reload the store with fresh metadata."""
+        self.refresh_btn.setEnabled(False)
+        self.refresh_btn.setText("Refreshing…")
+        self.updater.invalidate_plugin_registry_cache()
+        self._load_store_data()
+        self.refresh_btn.setEnabled(True)
+        self.refresh_btn.setText("↻ Refresh")
+
     def _repair_all_plugins(self):
         from biopro.ui.dialogs.plugin_doctor_dialog import PluginDoctorDialog
 
@@ -1183,7 +1299,7 @@ class PluginStoreDialog(QDialog):
     def _view_plugin_details(self, plugin_id: str, data: dict):
         """Displays detailed V2 meta inspection dialog."""
         event_bus.emit(BioProEvent.STORE_MODULE_DETAILS_OPENED)
-        dialog = PluginDetailsDialog(plugin_id, data, self)
+        dialog = PluginDetailsDialog(plugin_id, data, self, self.module_manager)
         dialog.exec()
 
     def _create_developer_card(self, dev: dict):

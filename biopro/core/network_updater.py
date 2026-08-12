@@ -80,24 +80,16 @@ class NetworkUpdater:
         """
         return RegistrySync.fetch_remote_registry(registry_url)
 
-    def fetch_remote_developers(self) -> list[dict[str, Any]]:
-        """Fetches the developers listed in the remote registry.
-
-        Returns:
-                list: The remote developer records.
-        """
-        return RegistrySync.fetch_remote_developers(self.registry_url)
-
     def evaluate_store_state(self) -> dict:
         """Evaluate store state and synchronize related trust and system asset data.
 
         Returns:
-                dict: The evaluated store inventory.
+                dict: The evaluated store inventory (enriched with per-plugin metadata).
         """
-        store_inventory, trusted_devs, remote_data = RegistrySync.evaluate_store_state(
+        store_inventory, author_list, remote_data = RegistrySync.evaluate_store_state(
             self.core_version, self.registry_url, self.plugin_dir, self.local_registry_path
         )
-        self.sync_trusted_developers(trusted_devs)
+        self.sync_trusted_developers(author_list)
         self.fetch_and_sync_authorities()
         SystemAssetSync.sync_assets(remote_data, self.plugin_dir)
         return store_inventory
@@ -106,7 +98,7 @@ class NetworkUpdater:
         """Fetch and synchronize authority data from the configured authority service."""
         TrustSync.fetch_and_sync_authorities(self.authority_url)
 
-    def sync_trusted_developers(self, trusted_list: list[dict[str, Any]]) -> None:
+    def sync_trusted_developers(self, trusted_list: list[dict[Any, Any]]) -> None:
         """Synchronize the configured trusted developer records.
 
         Parameters:
@@ -118,6 +110,16 @@ class NetworkUpdater:
         """Synchronize system assets using the remote registry data."""
         remote_data = self.fetch_remote_registry(self.registry_url)
         SystemAssetSync.sync_assets(remote_data, self.plugin_dir)
+
+    def invalidate_plugin_registry_cache(self) -> None:
+        """Clear the per-plugin pyproject.toml cache so the next store load fetches fresh data.
+
+        Called by the Refresh button in the Marketplace dialog.
+        """
+        from biopro.core.network.plugin_registry_fetcher import PluginRegistryFetcher
+
+        PluginRegistryFetcher.invalidate_cache()
+        logger.info("Plugin registry cache invalidated — next store open will fetch fresh data.")
 
     def check_for_core_updates(self) -> tuple[bool, dict[str, Any] | None]:
         """Determine whether a newer core application version is available.
