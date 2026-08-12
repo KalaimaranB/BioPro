@@ -39,7 +39,7 @@ jobs:
           git checkout -b "$BRANCH" origin/main
           git push origin "$BRANCH"
 
-          BODY="Automated back-merge triggered by a push to main. Keeps develop in sync after a docs/* or hotfix/* branch merged directly to main. Review for conflicts before merging."
+          BODY="Automated back-merge triggered by a push to main. Keeps develop in sync after a hotfix/* branch (or a promotion) merged into main. Review for conflicts before merging."
 
           if PR_URL=$(gh pr create \
             --base develop \

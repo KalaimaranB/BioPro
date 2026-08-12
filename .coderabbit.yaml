@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 reviews:
   profile: "assertive"
   review_status: false
@@ -7,14 +8,22 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    ignore_title_keywords:
-      - "chore"
-      - "docs"
-      - "ci"
+    base_branches:
+      - "^main$"
+  path_filters:
+    - "!dist/**"
+    - "!site/**"
+    - "!docs/plugin_template/**"
+    - "!**/*.lock"
   path_instructions:
     - path: "**/*.py"
       instructions: |
-        Ensure all Python code adheres to strict type hinting (Mypy) and avoids God Classes. 
+        Ensure all Python code adheres to strict type hinting (Mypy) and avoids God Classes.
         BioPro Core must not import from UI frameworks directly; UI separation is critical.
         Check that all new functions are modular, have a McCabe complexity under 10, and do not use magic numbers.
         Encourage the use of the centralized `biopro.core.logging` and `biopro.core.diagnostics` instead of standard `print()`.
+    - path: "tests/**/*.py"
+      instructions: |
+        Test code may use magic numbers and simple helper functions without the same complexity
+        or modularity constraints as production code. Focus feedback on test correctness,
+        coverage of edge cases, and avoiding flaky/order-dependent tests.
