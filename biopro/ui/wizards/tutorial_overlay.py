@@ -88,6 +88,9 @@ class TutorialOverlay(QWidget):
         event_bus.subscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
         event_bus.subscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self._on_course_cb)
 
+        self._on_theme_cb = self._on_theme_changed
+        theme_manager.theme_changed.connect(self._on_theme_cb)
+
         self.destroyed.connect(self._cleanup)
 
         self._populate_default_buttons()
@@ -108,6 +111,11 @@ class TutorialOverlay(QWidget):
         event_bus.unsubscribe(BioProEvent.ACADEMY_STEP_CHANGED, self._render_step_cb)
         event_bus.unsubscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
         event_bus.unsubscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self._on_course_cb)
+
+        import contextlib
+
+        with contextlib.suppress(TypeError):
+            theme_manager.theme_changed.disconnect(self._on_theme_cb)
 
     def _is_alive(self) -> bool:
         """Safely check if the underlying C++ object has been deleted."""
@@ -247,6 +255,37 @@ class TutorialOverlay(QWidget):
         self.btn_dismiss_bubble.clicked.connect(self._dismiss_bubble)
         self.btn_dismiss_bubble.hide()
 
+    def on_cyto_clicked(self) -> None:
+        """User clicked Cyto directly (e.g. to hear a fun tip)."""
+        pass
+
+    def _on_theme_changed(self) -> None:
+        """Re-render current step text so inline HTML colors match the new theme."""
+        if self.current_step:
+            self._update_text_rendering(self.current_step.text)
+
+    def _update_text_rendering(self, text: str) -> None:
+        import re
+
+        from biopro.ui.theme import Colors
+
+        # Replace newlines with <br>
+        text = text.replace("\\n", "<br>")
+
+        # Replace **text** with highlighted accent color
+        text = re.sub(r"\*\*(.*?)\*\*", f'<b style="color: {Colors.ACCENT_PRIMARY};">\\1</b>', text)
+        # Replace *text* or _text_ with italic
+        text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
+        text = re.sub(r"_(.*?)_", r"<i>\1</i>", text)
+        # Replace `text` with inline code style
+        text = re.sub(
+            r"`(.*?)`",
+            f'<code style="color: {Colors.FG_PRIMARY}; background-color: {Colors.BG_DARKER}; padding: 2px 4px; border-radius: 3px;">\\1</code>',
+            text,
+        )
+
+        self.text_label.setText(text)
+
     def _prompt_close(self) -> None:
         """Prompts the user before emitting skip_requested."""
         from biopro.shared.ui.alerts import ask_question
@@ -358,27 +397,7 @@ class TutorialOverlay(QWidget):
             else:
                 current = getattr(self, "_last_main_step_idx", 1)
             self.set_progress(current, max(total, 1))
-
-        import re
-
-        text = step.text
-
-        # Replace newlines with <br>
-        text = text.replace("\\n", "<br>")
-
-        # Replace **text** with highlighted accent color
-        text = re.sub(r"\*\*(.*?)\*\*", f'<b style="color: {Colors.ACCENT_PRIMARY};">\\1</b>', text)
-        # Replace *text* or _text_ with italic
-        text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
-        text = re.sub(r"_(.*?)_", r"<i>\1</i>", text)
-        # Replace `text` with inline code style
-        text = re.sub(
-            r"`(.*?)`",
-            f'<code style="color: {Colors.FG_PRIMARY}; background-color: {Colors.BG_DARKER}; padding: 2px 4px; border-radius: 3px;">\\1</code>',
-            text,
-        )
-
-        self.text_label.setText(text)
+        self._update_text_rendering(step.text)
 
         emotion = getattr(step, "cyto_emotion", "idle")
         self.cyto.set_emotion(emotion)
