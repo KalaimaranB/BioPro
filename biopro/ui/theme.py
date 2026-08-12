@@ -55,8 +55,8 @@ class _Fonts:
     SIZE_XLARGE = 24
 
     # --- NEW: Font Families ---
-    FAMILY_HEADINGS = "Arial, sans-serif"
-    FAMILY_UI = "Arial, sans-serif"
+    FAMILY_HEADINGS = "Arial, Sans Serif"
+    FAMILY_UI = "Arial, Sans Serif"
     FAMILY_MONO = "Monaco, 'Courier New', monospace"
     # ---------------------------
 
