@@ -672,8 +672,8 @@ class StoreLoaderWorker(QThread):
                     dev_id = key_file.stem.replace("manual_", "")
                     if dev_id not in known_dev_ids:
                         try:
-                            with open(key_file) as f:
-                                pub_key_hex = f.read().strip()
+                            with open(key_file, "rb") as f:
+                                pub_key_hex = f.read().hex()
                             trusted_devs.append(
                                 {
                                     "developer_id": dev_id,
@@ -705,6 +705,11 @@ class PluginStoreDialog(QDialog):
         self.updater = updater
         self.filter_list = None
         self.scroll_area = None
+
+        self.search_timer = QTimer(self)
+        self.search_timer.setSingleShot(True)
+        self.search_timer.setInterval(400)
+        self.search_timer.timeout.connect(self._on_search_timer_timeout)
 
         self.setWindowTitle("Marketplace")
         self.setMinimumSize(600, 450)
@@ -959,7 +964,11 @@ class PluginStoreDialog(QDialog):
         layout.addWidget(self.status_lbl)
 
     def _on_search_changed(self, text: str):  # noqa: ARG002
-        """Reload the marketplace data when the search query changes."""
+        """Restart the debounce timer when search query changes."""
+        self.search_timer.start()
+
+    def _on_search_timer_timeout(self):
+        """Reload the marketplace data when the search query settles."""
         self._load_store_data()
 
     def _on_filter_changed(self, row: int):  # noqa: ARG002
