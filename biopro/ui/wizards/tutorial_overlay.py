@@ -12,7 +12,7 @@ Design principles (SOLID):
 import math
 
 from PyQt6.QtCore import QRect, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFontMetrics, QPainter, QPen, QRegion
+from PyQt6.QtGui import QColor, QPainter, QPen, QRegion
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -794,28 +794,29 @@ class TutorialOverlay(QWidget):
                 item.widget().deleteLater()
 
     def _force_resize(self) -> None:
-        # Explicitly calculate the required height for the fixed width (392px)
-        # and enforce it as the minimum height so the container layout expands.
-        # Reset minimum height first so we don't infinitely compound during typing effect
+        # Reset minimum height first so we don't infinitely compound
         self.text_label.setMinimumHeight(0)
 
-        # QLabel.heightForWidth() can return a stale (too-small) value on the
-        # very first read right after setText() — its internal wrap cache
-        # hasn't settled yet, which under-reserves space for wrapped 2+ line
-        # headers and lets the checklist below overlap the header's last
-        # line. QFontMetrics.boundingRect() computes fresh from the actual
-        # font/text/width every time, with no cache to go stale.
-        fm = QFontMetrics(self.text_label.font())
-        wrapped_rect = fm.boundingRect(
-            0, 0, CONTENT_WIDTH, 0, Qt.TextFlag.TextWordWrap, self.text_label.text()
-        )
+        # QFontMetrics doesn't accurately measure HTML rich text.
+        # We must use QTextDocument to get the exact rendered height of the rich text.
+        from PyQt6.QtGui import QTextDocument
+
+        doc = QTextDocument()
+        doc.setDefaultFont(self.text_label.font())
+        doc.setHtml(self.text_label.text())
+        doc.setTextWidth(CONTENT_WIDTH)
+
         # Add buffer to account for stylesheet padding and macOS line-height quirks
-        required_height = wrapped_rect.height() + _HEADER_TEXT_HEIGHT_BUFFER
+        required_height = int(doc.size().height()) + _HEADER_TEXT_HEIGHT_BUFFER
         self.text_label.setMinimumHeight(required_height)
 
         self.text_label.updateGeometry()
+        self.dynamic_content.invalidate()
         self.body_layout.invalidate()
         self.body_container.updateGeometry()
         self.bubble_layout.invalidate()
         self.bubble_container.updateGeometry()
+
+        # Force layouts to activate and calculate their sizes synchronously
+        self.bubble_layout.activate()
         self.bubble_container.resize(self.bubble_layout.sizeHint())

@@ -113,7 +113,7 @@ _steps = [
     InfoStep(
         id="hub_welcome",
         text=(
-            "Hey, I'm Cyto 👋, your built-in guide to everything BioPro. Let's have a quick tour!"  # noqa: E501
+            "Hey, I'm **Cyto** 👋, your built-in guide to everything BioPro. Let's have a quick tour!"  # noqa: E501
         ),
         cyto_emotion="cheering",
         cyto_animation="cheering",
@@ -123,8 +123,8 @@ _steps = [
         id="hub_theme_intro",
         text=(
             "Before we go any further, let's get you set up. You can change your "
-            "theme anytime from the **Theme** menu at the top — try switching to "
-            "**Galactic Light** if you prefer a brighter workspace."
+            "theme anytime from the **Theme** menu at the top left — try switching to "
+            "a different theme if you prefer."
         ),
         cyto_emotion="talking",
         next_step_id="hub_logs_intro",
@@ -248,7 +248,7 @@ _steps = [
     InfoStep(
         id="ws_layout_bottom",
         text=(
-            "Down here: **Recent Sessions** — empty for now, but once you save a workflow it'll show up right here, one click from where you left off."  # noqa: E501
+            "Below your module cards, you'll find **Recent Sessions** — empty for now, but once you save a workflow it'll show up right here, one click from where you left off."  # noqa: E501
         ),
         cyto_emotion="talking",
         target_widget_names=["workflows_container"],
@@ -316,8 +316,8 @@ _steps = [
     InteractionStep(
         id="analysis_import_action",
         text=(
-            "Click **➕ Add Samples** in the ribbon and pick that demo "
-            "`` `.fcs` `` file from Downloads."
+            "Click **➕ Add Samples** in the ribbon and pick that"
+            "`` `demo_tutorial.fcs` `` file from Downloads."
         ),
         target_widget_name="ImportDataButton",
         event_trigger="clicked",
