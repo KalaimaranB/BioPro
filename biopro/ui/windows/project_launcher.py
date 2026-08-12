@@ -570,8 +570,6 @@ class ProjectLauncherWindow(QMainWindow):
         docs_action.triggered.connect(self._open_help_center)
         help_menu.addAction(docs_action)
 
-        help_menu.addSeparator()
-
         wiki_action = QAction("🌐 View GitHub Wiki Online", self)
         wiki_action.triggered.connect(self._open_wiki_online)
         help_menu.addAction(wiki_action)
@@ -628,10 +626,10 @@ class ProjectLauncherWindow(QMainWindow):
         dialog.exec()
 
     def _open_wiki_online(self):
-        """Open the public wiki in the browser."""
+        """Open the online documentation in the browser."""
         import webbrowser
 
-        webbrowser.open("https://github.com/KalaimaranB/BioPro/wiki")
+        webbrowser.open("https://kalaimaranb.github.io/BioPro/")
 
     def _restart_core_intro(self) -> None:
         """Resets core intro progress and re-launches the onboarding tour."""
