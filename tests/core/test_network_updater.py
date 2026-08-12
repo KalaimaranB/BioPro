@@ -127,7 +127,9 @@ def test_plugin_installer_zip_slip(mock_get, temp_plugin_dir, monkeypatch):
     mock_response.content = create_malicious_zip()
     mock_response.raise_for_status.return_value = None
 
-    installer = PluginInstallerWorker("evil_plugin", "https://fake.url", Path("dummy"))
+    installer = PluginInstallerWorker(
+        "evil_plugin", "https://fake.url", temp_plugin_dir / "evil_plugin.zip"
+    )
     installer.run()
 
 
@@ -141,7 +143,9 @@ def test_plugin_installer_ssl_verify(mock_get, temp_plugin_dir, monkeypatch):
     mock_response = mock_get.return_value
     mock_response.content = create_safe_zip()
 
-    installer = PluginInstallerWorker("safe_plugin", "https://fake.url", Path("dummy"))
+    installer = PluginInstallerWorker(
+        "safe_plugin", "https://fake.url", temp_plugin_dir / "safe_plugin.zip"
+    )
     installer.run()
 
     # Verify requests.get was called with verify=certifi.where()

@@ -96,7 +96,6 @@ class WorkspaceWindow(QMainWindow):
         self._setup_central_widget()
         self._setup_status_bar()
         self.menu_manager.setup_menu_bar()
-        self.menu_manager.setup_shortcuts()
         self._connect_signals()
         event_bus.subscribe(BioProEvent.PLUGIN_INSTALLED, lambda _: self.refresh_ui())
         event_bus.subscribe(BioProEvent.PLUGIN_REMOVED, lambda _: self.refresh_ui())
