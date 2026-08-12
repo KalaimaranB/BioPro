@@ -894,7 +894,8 @@ class PluginStoreDialog(QDialog):
             ("All Modules", "all"),
             ("Available Updates", "updates"),
             ("Installed", "installed"),
-            ("Trusted Developers", "developers"),
+            # TODO: Temporarily hidden as 'Trusted Developers' feature is not needed right now
+            # ("Trusted Developers", "developers"),
         ]
 
         for label, data in collections:
@@ -903,7 +904,9 @@ class PluginStoreDialog(QDialog):
             self.filter_list.addItem(item)
 
         self.filter_list.setCurrentRow(0)
-        self.filter_list.setFixedHeight(140)  # Adjusted height for 4 options
+        self.filter_list.setFixedHeight(
+            110
+        )  # Adjusted height for 3 options (Trusted Developers hidden)
         self.filter_list.currentRowChanged.connect(self._on_filter_changed)
         sidebar_layout.addWidget(self.filter_list)
 
@@ -1085,36 +1088,8 @@ class PluginStoreDialog(QDialog):
         theme_manager.apply_style(name_lbl, "font-size: 15px; font-weight: 800; border: none;")
         name_layout.addWidget(name_lbl)
 
-        authors_data = mod_data.get("authors", [])
-        if authors_data and isinstance(authors_data, list):
-            names = [a.get("name", "Unknown") for a in authors_data]
-            author_text = f"by {', '.join(names)}"
-        else:
-            # Fallback to single author / author_id lookup in database
-            author_text = None
-            author_id = mod_data.get("author_id")
-            if author_id:
-                try:
-                    from biopro.core.developer_database import DeveloperProfileDatabase
-
-                    db = DeveloperProfileDatabase()
-                    dev_profile = db.get_profile(author_id)
-                    author_text = (
-                        f"by {dev_profile.get('name', dev_profile.get('developer_id', author_id))}"
-                    )
-                except Exception as e:
-                    import logging
-
-                    logging.getLogger(__name__).debug(f"Failed to fetch developer name: {e}")
-                    author_text = f"by {author_id}"
-            if not author_text:
-                author_text = f"by {mod_data.get('author', 'Community')}"
-
-        author_lbl = QLabel(author_text)
-        theme_manager.apply_style(
-            author_lbl, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
-        )
-        name_layout.addWidget(author_lbl)
+        # The 'By X' author field is intentionally removed because plugins
+        # can have multiple authors/co-authors, and a single string doesn't scale well in the UI.
         header.addLayout(name_layout)
         header.addStretch()
 
