@@ -571,7 +571,7 @@ class PluginDetailsDialog(QDialog):
 
                 theme_manager.apply_style(
                     status_card,
-                    f"background: {Colors.ACCENT_ERROR}22; border: 1px solid {Colors.ACCENT_ERROR}; border-radius: 6px;",
+                    f"background: {Colors.ACCENT_DANGER}22; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 6px;",
                 )
         else:
             if data.get("is_verified", False):
@@ -598,7 +598,7 @@ class PluginDetailsDialog(QDialog):
                     if w.objectName() == "ErrorMessage":
                         theme_manager.apply_style(
                             w,
-                            f"font-size: 11px; font-weight: bold; color: {Colors.ACCENT_ERROR}; border: none;",
+                            f"font-size: 11px; font-weight: bold; color: {Colors.ACCENT_DANGER}; border: none;",
                         )
                     else:
                         theme_manager.apply_style(
