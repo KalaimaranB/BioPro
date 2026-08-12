@@ -28,7 +28,7 @@ from biopro.core.config import AppConfig
 from biopro.core.event_bus import get_event_bus
 from biopro.core.project_manager import ProjectLockedError, ProjectManager
 from biopro.core.update_checker import UpdateChecker
-from biopro.shared.ui.alerts import ask_question, show_about, show_error, show_warning
+from biopro.shared.ui.alerts import ask_question, show_error, show_warning
 from biopro.ui.components.ai_panel import AIChatWindow
 from biopro.ui.components.overlays import BioLoadingOverlay
 from biopro.ui.components.update_banner import UpdateBannerWidget
@@ -703,18 +703,10 @@ class ProjectLauncherWindow(QMainWindow):
             self._cleanup_worker.start()
 
     def _show_about(self) -> None:
-        from biopro.core.config import AppConfig
+        from biopro.ui.dialogs.about_biopro import AboutBioProDialog
 
-        show_about(
-            self,
-            "About BioPro",
-            f"<h2>🧬 BioPro v{AppConfig.CORE_VERSION}</h2>"
-            "<p>Bio Analysis Made Simple</p>"
-            "<p>An open-source, intuitive platform for lab students "
-            "and professionals.</p>"
-            "<p>© 2026 BioPro Contributors<br>"
-            "Licensed under the MIT License</p>",
-        )
+        dialog = AboutBioProDialog(self)
+        dialog.exec()
 
     def _show_about_developer(self) -> None:
         from biopro.ui.dialogs.about_developer import AboutDeveloperDialog

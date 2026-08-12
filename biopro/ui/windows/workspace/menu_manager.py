@@ -4,7 +4,6 @@ from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import QMenu
 
 from biopro.core.config import AppConfig
-from biopro.shared.ui.alerts import show_about
 from biopro.ui.theme import theme_manager
 
 
@@ -91,8 +90,6 @@ class MenuManager:
         about_action = QAction("About BioPro", mw)
         about_me_action = QAction("About the Developer", mw)
 
-        from biopro.core.config import AppConfig
-
         if not getattr(AppConfig, "_mac_menus_set", False):
             about_action.setMenuRole(QAction.MenuRole.AboutRole)
             about_me_action.setMenuRole(QAction.MenuRole.ApplicationSpecificRole)
@@ -151,17 +148,11 @@ class MenuManager:
         dialog.exec()
 
     def show_about(self) -> None:
-        # Dynamic Version from Config!
-        show_about(
-            self.main_window,
-            "About BioPro",
-            f"<h2>🧬 BioPro v{AppConfig.CORE_VERSION}</h2>"
-            "<p>Bio Analysis Made Simple</p>"
-            "<p>An open-source, intuitive platform for lab students "
-            "and professionals.</p>"
-            "<p>© 2026 BioPro Contributors<br>"
-            "Licensed under the MIT License</p>",
-        )
+        """Show the About BioPro dialog."""
+        from biopro.ui.dialogs.about_biopro import AboutBioProDialog
+
+        dialog = AboutBioProDialog(self.main_window)
+        dialog.exec()
 
     def show_about_developer(self) -> None:
         """Show the About Developer dialog."""
