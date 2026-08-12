@@ -727,7 +727,7 @@ class PluginStoreDialog(QDialog):
         self.tutorial_overlay = TutorialOverlay(self)
         self.tutorial_overlay.hide()
         self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
-        self.tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
+        self.tutorial_overlay.skip_requested.connect(self._on_tutorial_skip)
 
         # If a tutorial is already active (e.g. STORE_OPENED just fired), render it now
         from biopro.core.tutorial_manager import global_tutorial_manager

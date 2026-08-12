@@ -119,7 +119,7 @@ class ProjectLauncherWindow(QMainWindow):
         self._hub_tutorial_overlay = TutorialOverlay(self._central_widget, compact_mode=True)
         self._hub_tutorial_overlay.hide()
         self._hub_tutorial_overlay.btn_next.clicked.connect(self._on_hub_tutorial_next)
-        self._hub_tutorial_overlay.btn_close.clicked.connect(self._on_hub_tutorial_skip)
+        self._hub_tutorial_overlay.skip_requested.connect(self._on_hub_tutorial_skip)
 
         # Shown briefly while a theme switch is applied, so clicking a theme
         # always gives immediate feedback instead of an unexplained pause.

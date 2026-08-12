@@ -224,7 +224,7 @@ class ThemeManager:
         mw.home_tutorial_overlay = TutorialOverlay(mw.home_screen)
         mw.home_tutorial_overlay.hide()
         mw.home_tutorial_overlay.btn_next.clicked.connect(mw._on_tutorial_next)
-        mw.home_tutorial_overlay.btn_close.clicked.connect(mw._on_tutorial_skip)
+        mw.home_tutorial_overlay.skip_requested.connect(mw._on_tutorial_skip)
 
         # Rewire signals
         mw.home_screen.module_selected.connect(

@@ -159,9 +159,9 @@ class WorkspaceWindow(QMainWindow):
         self.home_tutorial_overlay = TutorialOverlay(self.home_screen)
         self.home_tutorial_overlay.hide()
         self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
-        self.tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
+        self.tutorial_overlay.skip_requested.connect(self._on_tutorial_skip)
         self.home_tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
-        self.home_tutorial_overlay.btn_close.clicked.connect(self._on_tutorial_skip)
+        self.home_tutorial_overlay.skip_requested.connect(self._on_tutorial_skip)
         self._tutorial_connections: dict = {}
         self._tutorial_last_step_id: str | None = None
         self._verification_wait: int = 0

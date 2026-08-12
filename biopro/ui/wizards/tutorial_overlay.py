@@ -11,8 +11,8 @@ Design principles (SOLID):
 
 import math
 
-from PyQt6.QtCore import QRect, Qt
-from PyQt6.QtGui import QColor, QFontMetrics, QPainter, QPen, QRegion
+from PyQt6.QtCore import QRect, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter, QPen, QRegion
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -57,6 +57,8 @@ class TutorialOverlay(QWidget):
     set_progress(cur, total) Update the progress bar.
     """
 
+    skip_requested = pyqtSignal()
+
     def __init__(self, parent: QWidget | None = None, compact_mode: bool = False) -> None:
         """
         Initialize the tutorial overlay and synchronize it with the current tutorial state.
@@ -86,6 +88,9 @@ class TutorialOverlay(QWidget):
         event_bus.subscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
         event_bus.subscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self._on_course_cb)
 
+        self._on_theme_cb = self._on_theme_changed
+        theme_manager.theme_changed.connect(self._on_theme_cb)
+
         self.destroyed.connect(self._cleanup)
 
         self._populate_default_buttons()
@@ -106,6 +111,11 @@ class TutorialOverlay(QWidget):
         event_bus.unsubscribe(BioProEvent.ACADEMY_STEP_CHANGED, self._render_step_cb)
         event_bus.unsubscribe(BioProEvent.ACADEMY_SUBTASK_COMPLETED, self._on_subtask_cb)
         event_bus.unsubscribe(BioProEvent.ACADEMY_COURSE_COMPLETED, self._on_course_cb)
+
+        import contextlib
+
+        with contextlib.suppress(TypeError):
+            theme_manager.theme_changed.disconnect(self._on_theme_cb)
 
     def _is_alive(self) -> bool:
         """Safely check if the underlying C++ object has been deleted."""
@@ -161,6 +171,8 @@ class TutorialOverlay(QWidget):
         self.btn_close.leaveEvent = lambda e: self.btn_close.setStyleSheet(  # type: ignore # noqa: ARG005
             f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;"
         )
+        self.btn_close.clicked.connect(self._prompt_close)
+
         header.addWidget(self.lbl_progress)
         header.addStretch()
         header.addWidget(self.btn_close)
@@ -168,10 +180,9 @@ class TutorialOverlay(QWidget):
 
         # Step text
         self.text_label = QLabel("Welcome to BioPro Academy!")
-        self.text_label.setTextFormat(Qt.TextFormat.PlainText)
+        self.text_label.setTextFormat(Qt.TextFormat.RichText)
         font = self.text_label.font()
         font.setPixelSize(16)
-        font.setBold(True)
         font.setFamily("sans-serif")
         self.text_label.setFont(font)
         theme_manager.apply_style(self.text_label, "color: {FG_PRIMARY}; padding: 8px 0px;")
@@ -241,7 +252,50 @@ class TutorialOverlay(QWidget):
         )
         self.btn_dismiss_bubble.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_dismiss_bubble.clicked.connect(self._dismiss_bubble)
+        self.btn_dismiss_bubble.clicked.connect(self._dismiss_bubble)
         self.btn_dismiss_bubble.hide()
+
+    def on_cyto_clicked(self) -> None:
+        """User clicked Cyto directly (e.g. to hear a fun tip)."""
+        pass
+
+    def _on_theme_changed(self) -> None:
+        """Re-render current step text so inline HTML colors match the new theme."""
+        if self.current_step:
+            self._update_text_rendering(self.current_step.text)
+
+    def _update_text_rendering(self, text: str) -> None:
+        import re
+
+        from biopro.ui.theme import Colors
+
+        # Replace newlines with <br>
+        text = text.replace("\\n", "<br>")
+
+        # Replace **text** with highlighted accent color
+        text = re.sub(r"\*\*(.*?)\*\*", f'<b style="color: {Colors.ACCENT_PRIMARY};">\\1</b>', text)
+        # Replace *text* or _text_ with italic
+        text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
+        text = re.sub(r"_(.*?)_", r"<i>\1</i>", text)
+        # Replace `text` with inline code style
+        text = re.sub(
+            r"`(.*?)`",
+            f'<code style="color: {Colors.FG_PRIMARY}; background-color: {Colors.BG_DARKER}; padding: 2px 4px; border-radius: 3px;">\\1</code>',
+            text,
+        )
+
+        self.text_label.setText(text)
+
+    def _prompt_close(self) -> None:
+        """Prompts the user before emitting skip_requested."""
+        from biopro.shared.ui.alerts import ask_question
+
+        if ask_question(
+            self,
+            "Exit Cyto Academy?",
+            "Leaving a tutorial means you will have to restart the course from the beginning next time you launch it.<br><br>Are you sure you want to exit?",
+        ):
+            self.skip_requested.emit()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -343,8 +397,7 @@ class TutorialOverlay(QWidget):
             else:
                 current = getattr(self, "_last_main_step_idx", 1)
             self.set_progress(current, max(total, 1))
-
-        self.text_label.setText(step.text)
+        self._update_text_rendering(step.text)
 
         emotion = getattr(step, "cyto_emotion", "idle")
         self.cyto.set_emotion(emotion)
@@ -359,6 +412,8 @@ class TutorialOverlay(QWidget):
         elif isinstance(step, InteractionStep):
             # Auto-advances when the target widget fires its signal.
             self.btn_next.hide()
+            if getattr(step, "show_waiting_indicator", False):
+                self._render_waiting_indicator()
 
         elif isinstance(step, VerificationStep):
             self.btn_next.hide()
@@ -709,11 +764,13 @@ class TutorialOverlay(QWidget):
         persistent = (getattr(self, "btn_next", None), getattr(self, "btn_dismiss_bubble", None))
         while self.btn_layout.count():
             item = self.btn_layout.takeAt(0)
-            if item.widget():
-                w = item.widget()
+            if item is None:
+                break
+            w = item.widget()
+            if w is not None:
                 if w in persistent:
                     w.hide()
-                    w.setParent(None)
+                    w.setParent(None)  # type: ignore[arg-type]
                 else:
                     w.deleteLater()
 
@@ -737,28 +794,29 @@ class TutorialOverlay(QWidget):
                 item.widget().deleteLater()
 
     def _force_resize(self) -> None:
-        # Explicitly calculate the required height for the fixed width (392px)
-        # and enforce it as the minimum height so the container layout expands.
-        # Reset minimum height first so we don't infinitely compound during typing effect
+        # Reset minimum height first so we don't infinitely compound
         self.text_label.setMinimumHeight(0)
 
-        # QLabel.heightForWidth() can return a stale (too-small) value on the
-        # very first read right after setText() — its internal wrap cache
-        # hasn't settled yet, which under-reserves space for wrapped 2+ line
-        # headers and lets the checklist below overlap the header's last
-        # line. QFontMetrics.boundingRect() computes fresh from the actual
-        # font/text/width every time, with no cache to go stale.
-        fm = QFontMetrics(self.text_label.font())
-        wrapped_rect = fm.boundingRect(
-            0, 0, CONTENT_WIDTH, 0, Qt.TextFlag.TextWordWrap, self.text_label.text()
-        )
+        # QFontMetrics doesn't accurately measure HTML rich text.
+        # We must use QTextDocument to get the exact rendered height of the rich text.
+        from PyQt6.QtGui import QTextDocument
+
+        doc = QTextDocument()
+        doc.setDefaultFont(self.text_label.font())
+        doc.setHtml(self.text_label.text())
+        doc.setTextWidth(CONTENT_WIDTH)
+
         # Add buffer to account for stylesheet padding and macOS line-height quirks
-        required_height = wrapped_rect.height() + _HEADER_TEXT_HEIGHT_BUFFER
+        required_height = int(doc.size().height()) + _HEADER_TEXT_HEIGHT_BUFFER
         self.text_label.setMinimumHeight(required_height)
 
         self.text_label.updateGeometry()
+        self.dynamic_content.invalidate()
         self.body_layout.invalidate()
         self.body_container.updateGeometry()
         self.bubble_layout.invalidate()
         self.bubble_container.updateGeometry()
+
+        # Force layouts to activate and calculate their sizes synchronously
+        self.bubble_layout.activate()
         self.bubble_container.resize(self.bubble_layout.sizeHint())
