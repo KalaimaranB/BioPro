@@ -325,3 +325,14 @@ QLabel#TrustKey {
     font-size: 10px;
     color: {FG_SECONDARY};
 }
+
+/* --- STORE MODULE CARD --- */
+QFrame#StoreModuleCard {
+    background-color: {BG_DARK};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}
+QFrame#StoreModuleCard:hover {
+    border: 1px solid {ACCENT_PRIMARY};
+    background-color: {BG_MEDIUM};
+}
