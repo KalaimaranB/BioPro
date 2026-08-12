@@ -745,11 +745,13 @@ class TutorialOverlay(QWidget):
         persistent = (getattr(self, "btn_next", None), getattr(self, "btn_dismiss_bubble", None))
         while self.btn_layout.count():
             item = self.btn_layout.takeAt(0)
-            if item.widget():
-                w = item.widget()
+            if item is None:
+                break
+            w = item.widget()
+            if w is not None:
                 if w in persistent:
                     w.hide()
-                    w.setParent(None)
+                    w.setParent(None)  # type: ignore[arg-type]
                 else:
                     w.deleteLater()
 
