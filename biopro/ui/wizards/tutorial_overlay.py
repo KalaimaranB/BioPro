@@ -375,6 +375,8 @@ class TutorialOverlay(QWidget):
         elif isinstance(step, InteractionStep):
             # Auto-advances when the target widget fires its signal.
             self.btn_next.hide()
+            if getattr(step, "show_waiting_indicator", False):
+                self._render_waiting_indicator()
 
         elif isinstance(step, VerificationStep):
             self.btn_next.hide()

@@ -45,6 +45,7 @@ class InteractionStep(BaseStep):
 
     target_widget_name: str = ""
     event_trigger: str = "clicked"  # The Qt signal to listen for (e.g., 'clicked', 'toggled')
+    show_waiting_indicator: bool = False
 
 
 @dataclass
