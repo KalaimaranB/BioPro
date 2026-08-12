@@ -9,7 +9,6 @@ from biopro_sdk.plugin import SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
-    QKeySequence,
 )
 from PyQt6.QtWidgets import (
     QApplication,
@@ -566,7 +565,6 @@ class ProjectLauncherWindow(QMainWindow):
         help_menu = menubar.addMenu("&Help")
 
         docs_action = QAction("📖 BioPro &Help Center", self)
-        docs_action.setShortcut(QKeySequence("F1"))
         docs_action.triggered.connect(self._open_help_center)
         help_menu.addAction(docs_action)
 

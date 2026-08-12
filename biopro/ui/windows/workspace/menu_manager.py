@@ -82,11 +82,8 @@ class MenuManager:
         menubar.addMenu(help_menu)
 
         docs_action = QAction("📖 BioPro &Help Center", mw)
-        docs_action.setShortcut(QKeySequence("F1"))
         docs_action.triggered.connect(self.open_help_center)
         help_menu.addAction(docs_action)
-
-        help_menu.addSeparator()
 
         wiki_action = QAction("🌐 View GitHub Wiki Online", mw)
         wiki_action.triggered.connect(self.open_wiki_online)
@@ -123,13 +120,6 @@ class MenuManager:
         view_logs_action.triggered.connect(self.view_logs)
         help_menu.addAction(view_logs_action)
 
-    def setup_shortcuts(self):
-        """Register global app shortcuts."""
-        help_shortcut = QAction(self.main_window)
-        help_shortcut.setShortcut(QKeySequence("F1"))
-        help_shortcut.triggered.connect(self.open_help_center)
-        self.main_window.addAction(help_shortcut)
-
     def open_help_center(self):
         """Launch the localized help center."""
         from biopro.ui.dialogs.help_dialog import HelpCenterDialog
@@ -140,10 +130,10 @@ class MenuManager:
         dialog.exec()
 
     def open_wiki_online(self):
-        """Open the public wiki in the browser."""
+        """Open the online documentation in the browser."""
         import webbrowser
 
-        webbrowser.open("https://github.com/KalaimaranB/BioPro/wiki")
+        webbrowser.open("https://kalaimaranb.github.io/BioPro/")
 
     def view_logs(self):
         """View application logs."""
