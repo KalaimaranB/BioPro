@@ -9,9 +9,22 @@ Explore the full, beautifully compiled documentation portal online:
 👉 **[BioPro Documentation Portal](https://kalaimaranb.github.io/BioPro/)**
 
 Or read the raw Markdown guides directly in this repository:
-*   [**User Guide Hub**](docs/user/01_User_Guide.md) - For researchers and lab technicians.
-*   [**Getting Started Guide**](docs/user/02_Getting_Started.md) - Fast-track to your first analysis.
-*   [**Internal Architecture Hub**](docs/internal/11_Core_Nervous_System.md) - For core developers and architects.
+- [**User Guide Hub**](docs/user/01_User_Guide.md) - For researchers and lab technicians.
+- [**Getting Started Guide**](docs/user/02_Getting_Started.md) - Fast-track to your first analysis.
+- [**Internal Architecture Hub**](docs/internal/11_Core_Nervous_System.md) - For core developers and architects.
+
+Developer-oriented docs notes:
+- The site is built with `mkdocs` + Material and uses `mkdocstrings` to auto-generate the API reference from in-source docstrings.
+- Local preview / build:
+
+```bash
+python -m pip install -r reqs.txt
+python -m pip install -e .[dev]
+mkdocs serve    # live preview at http://127.0.0.1:8000
+mkdocs build    # generate site/ for CI or local inspection
+```
+
+- The plugin template and a runnable minimal plugin example live under `plugin_template/example_minimal_plugin/` — use it as the starting point for authors.
 
 
 ---
@@ -66,6 +79,11 @@ BioPro uses a split-update architecture to ensure your tools are always cutting-
 BioPro is designed to be extensible. You can build your own analysis modules using the [**BioPro SDK**](https://github.com/KalaimaranB/BioPro-SDK). The SDK provides a powerful CLI and a suite of UI/analysis base classes to help you build verified plugins quickly. 
 
 For detailed instructions on setting up your environment, authoring plugins, and cryptographically signing them, see the [**Developer Onboarding & Contribution Manual**](https://kalaimaranb.github.io/BioPro/internal/19_Developer_Onboarding/) on our documentation portal!
+
+Docs & contribution highlights for developers:
+- API docs are generated from docstrings; please keep public docstrings concise (one-line summary + args/returns) so `mkdocstrings` renders well.
+- Use the `plugin_template/` example when starting a plugin repository — it includes example `pyproject.toml`, docs scaffold, and CI examples.
+- When changing public APIs, update docstrings and run `mkdocs build` locally before opening a PR.
 
 ### Repository Architecture
 
