@@ -11,7 +11,7 @@ Design principles (SOLID):
 
 import math
 
-from PyQt6.QtCore import QRect, Qt
+from PyQt6.QtCore import QRect, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFontMetrics, QPainter, QPen, QRegion
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -56,6 +56,8 @@ class TutorialOverlay(QWidget):
     set_targets(rects)       Update spotlight rectangles + reposition Cyto.
     set_progress(cur, total) Update the progress bar.
     """
+
+    skip_requested = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None, compact_mode: bool = False) -> None:
         """
@@ -161,6 +163,8 @@ class TutorialOverlay(QWidget):
         self.btn_close.leaveEvent = lambda e: self.btn_close.setStyleSheet(  # type: ignore # noqa: ARG005
             f"color: {Colors.FG_SECONDARY}; border: none; font-size: 16px; font-weight: bold;"
         )
+        self.btn_close.clicked.connect(self._prompt_close)
+
         header.addWidget(self.lbl_progress)
         header.addStretch()
         header.addWidget(self.btn_close)
@@ -241,7 +245,19 @@ class TutorialOverlay(QWidget):
         )
         self.btn_dismiss_bubble.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_dismiss_bubble.clicked.connect(self._dismiss_bubble)
+        self.btn_dismiss_bubble.clicked.connect(self._dismiss_bubble)
         self.btn_dismiss_bubble.hide()
+
+    def _prompt_close(self) -> None:
+        """Prompts the user before emitting skip_requested."""
+        from biopro.shared.ui.alerts import ask_question
+
+        if ask_question(
+            self,
+            "Exit Cyto Academy?",
+            "Leaving a tutorial means you will have to restart the course from the beginning next time you launch it.<br><br>Are you sure you want to exit?",
+        ):
+            self.skip_requested.emit()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
