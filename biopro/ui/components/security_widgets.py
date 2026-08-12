@@ -334,7 +334,9 @@ class TrustDirectoryWidget(QFrame):
                     QPushButton:hover {{ background-color: {Colors.ACCENT_DANGER}33; border: 1px solid {Colors.ACCENT_DANGER}; }}
                 """,
                 )
-                revoke_btn.clicked.connect(lambda checked, path=key_file: self._revoke_anchor(path))  # noqa: ARG005
+                revoke_btn.clicked.connect(
+                    lambda _checked, path=key_file: self._revoke_anchor(path)
+                )
                 item_layout.addWidget(revoke_btn)
 
                 list_item = QListWidgetItem(self.list_widget)

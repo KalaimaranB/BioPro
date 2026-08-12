@@ -63,14 +63,19 @@ class MenuManager:
         menubar.addMenu(theme_menu)
 
         # DYNAMIC THEME DISCOVERY
-        available_themes = theme_manager.discover_themes()
-        for name, path in available_themes:
-            action = QAction(name, mw)
-            if hasattr(mw, "theme_manager"):
-                action.triggered.connect(lambda checked, p=path: mw.theme_manager.switch_theme(p))  # noqa: ARG005
-            else:
-                action.triggered.connect(lambda checked, p=path: mw._switch_theme(p))  # noqa: ARG005
-            theme_menu.addAction(action)
+        categorized_themes = theme_manager.get_categorized_themes()
+        for category, themes in categorized_themes.items():
+            submenu = QMenu(category, mw)
+            for name, path in themes:
+                action = QAction(name, mw)
+                if hasattr(mw, "theme_manager"):
+                    action.triggered.connect(
+                        lambda _checked, p=path: mw.theme_manager.switch_theme(p)
+                    )
+                else:
+                    action.triggered.connect(lambda _checked, p=path: mw._switch_theme(p))
+                submenu.addAction(action)
+            theme_menu.addMenu(submenu)
 
         # Help Menu
         help_menu = QMenu("&Help", mw)

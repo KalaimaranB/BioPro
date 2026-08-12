@@ -684,7 +684,7 @@ class TutorialOverlay(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             # Use default argument capture for target_id inside the lambda
             btn.clicked.connect(
-                lambda checked, tid=target_id: global_tutorial_manager.next_step(tid)  # noqa: ARG005
+                lambda _checked, tid=target_id: global_tutorial_manager.next_step(tid)
             )
             self.btn_layout.addWidget(btn)
 

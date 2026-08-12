@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QVBoxLayout,
     QWidget,
 )
@@ -552,11 +553,14 @@ class ProjectLauncherWindow(QMainWindow):
         theme_menu = menubar.addMenu("&Theme")
 
         # DYNAMIC THEME DISCOVERY
-        available_themes = theme_manager.discover_themes()
-        for name, path in available_themes:
-            action = QAction(name, self)
-            action.triggered.connect(lambda checked, p=path: self._switch_theme(p))  # noqa: ARG005
-            theme_menu.addAction(action)
+        categorized_themes = theme_manager.get_categorized_themes()
+        for category, themes in categorized_themes.items():
+            submenu = QMenu(category, self)
+            for name, path in themes:
+                action = QAction(name, self)
+                action.triggered.connect(lambda _checked, p=path: self._switch_theme(p))
+                submenu.addAction(action)
+            theme_menu.addMenu(submenu)
 
         # HELP MENU
         help_menu = menubar.addMenu("&Help")
