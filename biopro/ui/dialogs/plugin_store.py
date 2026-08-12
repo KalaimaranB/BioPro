@@ -269,9 +269,18 @@ class PluginDetailsDialog(QDialog):
             badge = QLabel("🛡️ VERIFIED ROOT")
             theme_manager.apply_style(
                 badge,
-                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;",
+                "background: {ACCENT_SUCCESS}22; color: {ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {ACCENT_SUCCESS}44;",
             )
             header.addWidget(badge)
+
+        # Beta Badge
+        if data["info"].get("beta", False) or data["info"].get("is_beta", False):
+            beta_badge = QLabel("🧪 BETA")
+            theme_manager.apply_style(
+                beta_badge,
+                "background: {ACCENT_WARNING}22; color: {ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 10px; border-radius: 4px; border: 1px solid {ACCENT_WARNING}44;",
+            )
+            header.addWidget(beta_badge)
 
         layout.addLayout(header)
 
@@ -571,7 +580,7 @@ class PluginDetailsDialog(QDialog):
 
                 theme_manager.apply_style(
                     status_card,
-                    f"background: {Colors.ACCENT_ERROR}22; border: 1px solid {Colors.ACCENT_ERROR}; border-radius: 6px;",
+                    f"background: {Colors.ACCENT_DANGER}22; border: 1px solid {Colors.ACCENT_DANGER}; border-radius: 6px;",
                 )
         else:
             if data.get("is_verified", False):
@@ -598,7 +607,7 @@ class PluginDetailsDialog(QDialog):
                     if w.objectName() == "ErrorMessage":
                         theme_manager.apply_style(
                             w,
-                            f"font-size: 11px; font-weight: bold; color: {Colors.ACCENT_ERROR}; border: none;",
+                            f"font-size: 11px; font-weight: bold; color: {Colors.ACCENT_DANGER}; border: none;",
                         )
                     else:
                         theme_manager.apply_style(
@@ -663,8 +672,8 @@ class StoreLoaderWorker(QThread):
                     dev_id = key_file.stem.replace("manual_", "")
                     if dev_id not in known_dev_ids:
                         try:
-                            with open(key_file) as f:
-                                pub_key_hex = f.read().strip()
+                            with open(key_file, "rb") as f:
+                                pub_key_hex = f.read().hex()
                             trusted_devs.append(
                                 {
                                     "developer_id": dev_id,
@@ -696,6 +705,11 @@ class PluginStoreDialog(QDialog):
         self.updater = updater
         self.filter_list = None
         self.scroll_area = None
+
+        self.search_timer = QTimer(self)
+        self.search_timer.setSingleShot(True)
+        self.search_timer.setInterval(400)
+        self.search_timer.timeout.connect(self._on_search_timer_timeout)
 
         self.setWindowTitle("Marketplace")
         self.setMinimumSize(600, 450)
@@ -799,9 +813,10 @@ class PluginStoreDialog(QDialog):
 
         header_layout.addStretch()
 
-        self.repair_all_btn = SecondaryButton("Repair All Plugins")
-        self.repair_all_btn.clicked.connect(self._repair_all_plugins)
-        header_layout.addWidget(self.repair_all_btn)
+        # TODO: Temporarily hidden as the 'Repair All' feature is not needed right now
+        # self.repair_all_btn = SecondaryButton("Repair All Plugins")
+        # self.repair_all_btn.clicked.connect(self._repair_all_plugins)
+        # header_layout.addWidget(self.repair_all_btn)
 
         header_layout.addSpacing(10)
 
@@ -894,7 +909,8 @@ class PluginStoreDialog(QDialog):
             ("All Modules", "all"),
             ("Available Updates", "updates"),
             ("Installed", "installed"),
-            ("Trusted Developers", "developers"),
+            # TODO: Temporarily hidden as 'Trusted Developers' feature is not needed right now
+            # ("Trusted Developers", "developers"),
         ]
 
         for label, data in collections:
@@ -903,7 +919,9 @@ class PluginStoreDialog(QDialog):
             self.filter_list.addItem(item)
 
         self.filter_list.setCurrentRow(0)
-        self.filter_list.setFixedHeight(140)  # Adjusted height for 4 options
+        self.filter_list.setFixedHeight(
+            110
+        )  # Adjusted height for 3 options (Trusted Developers hidden)
         self.filter_list.currentRowChanged.connect(self._on_filter_changed)
         sidebar_layout.addWidget(self.filter_list)
 
@@ -946,7 +964,11 @@ class PluginStoreDialog(QDialog):
         layout.addWidget(self.status_lbl)
 
     def _on_search_changed(self, text: str):  # noqa: ARG002
-        """Reload the marketplace data when the search query changes."""
+        """Restart the debounce timer when search query changes."""
+        self.search_timer.start()
+
+    def _on_search_timer_timeout(self):
+        """Reload the marketplace data when the search query settles."""
         self._load_store_data()
 
     def _on_filter_changed(self, row: int):  # noqa: ARG002
@@ -1085,36 +1107,8 @@ class PluginStoreDialog(QDialog):
         theme_manager.apply_style(name_lbl, "font-size: 15px; font-weight: 800; border: none;")
         name_layout.addWidget(name_lbl)
 
-        authors_data = mod_data.get("authors", [])
-        if authors_data and isinstance(authors_data, list):
-            names = [a.get("name", "Unknown") for a in authors_data]
-            author_text = f"by {', '.join(names)}"
-        else:
-            # Fallback to single author / author_id lookup in database
-            author_text = None
-            author_id = mod_data.get("author_id")
-            if author_id:
-                try:
-                    from biopro.core.developer_database import DeveloperProfileDatabase
-
-                    db = DeveloperProfileDatabase()
-                    dev_profile = db.get_profile(author_id)
-                    author_text = (
-                        f"by {dev_profile.get('name', dev_profile.get('developer_id', author_id))}"
-                    )
-                except Exception as e:
-                    import logging
-
-                    logging.getLogger(__name__).debug(f"Failed to fetch developer name: {e}")
-                    author_text = f"by {author_id}"
-            if not author_text:
-                author_text = f"by {mod_data.get('author', 'Community')}"
-
-        author_lbl = QLabel(author_text)
-        theme_manager.apply_style(
-            author_lbl, f"font-size: 11px; color: {Colors.FG_SECONDARY}; border: none;"
-        )
-        name_layout.addWidget(author_lbl)
+        # The 'By X' author field is intentionally removed because plugins
+        # can have multiple authors/co-authors, and a single string doesn't scale well in the UI.
         header.addLayout(name_layout)
         header.addStretch()
 
@@ -1123,9 +1117,18 @@ class PluginStoreDialog(QDialog):
             badge = QLabel("🛡️ VERIFIED")
             theme_manager.apply_style(
                 badge,
-                f"background: {Colors.ACCENT_SUCCESS}22; color: {Colors.ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {Colors.ACCENT_SUCCESS}44;",
+                "background: {ACCENT_SUCCESS}22; color: {ACCENT_SUCCESS}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {ACCENT_SUCCESS}44;",
             )
             header.addWidget(badge)
+
+        # Badge for Beta
+        if mod_data.get("beta", False) or mod_data.get("is_beta", False):
+            beta_badge = QLabel("🧪 BETA")
+            theme_manager.apply_style(
+                beta_badge,
+                "background: {ACCENT_WARNING}22; color: {ACCENT_WARNING}; font-size: 9px; font-weight: 900; padding: 4px 8px; border-radius: 4px; border: 1px solid {ACCENT_WARNING}44;",
+            )
+            header.addWidget(beta_badge)
 
         main_layout.addLayout(header)
 
@@ -1188,10 +1191,11 @@ class PluginStoreDialog(QDialog):
             )
             bottom_row.addWidget(ok_lbl)
 
-            repair_btn = SecondaryButton("Repair")
-            repair_btn.setToolTip("Diagnose & Repair")
-            repair_btn.clicked.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
-            bottom_row.addWidget(repair_btn)
+            # TODO: Temporarily hidden as the 'Repair Module' feature is not needed right now
+            # repair_btn = SecondaryButton("Repair")
+            # repair_btn.setToolTip("Diagnose & Repair")
+            # repair_btn.clicked.connect(lambda: self._view_plugin_diagnostics(plugin_id, data))
+            # bottom_row.addWidget(repair_btn)
 
             rm_btn = DangerButton("Remove")
             rm_btn.clicked.connect(lambda: self._remove_module(plugin_id))
@@ -1199,12 +1203,13 @@ class PluginStoreDialog(QDialog):
 
         main_layout.addLayout(bottom_row)
 
+        # TODO: Temporarily hidden as the 'Repair Module' feature is not needed right now
         # Add Context Menu for Diagnose & Repair if installed
-        if state in ["UP_TO_DATE", "UPDATE", "INCOMPATIBLE"]:
-            card.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-            card.customContextMenuRequested.connect(
-                lambda pos, pid=plugin_id, pd=data: self._show_card_context_menu(card, pos, pid, pd)
-            )
+        # if state in ["UP_TO_DATE", "UPDATE", "INCOMPATIBLE"]:
+        #     card.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        #     card.customContextMenuRequested.connect(
+        #         lambda pos, pid=plugin_id, pd=data: self._show_card_context_menu(card, pos, pid, pd)
+        #     )
 
         return card
 

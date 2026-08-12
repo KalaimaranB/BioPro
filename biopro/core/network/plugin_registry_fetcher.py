@@ -194,7 +194,7 @@ class PluginRegistryFetcher:
             info["min_core_version"] = plugin_table["min_core_version"]
 
         # Standard metadata mapping
-        for field in ("description", "icon", "tags", "homepage"):
+        for field in ("description", "icon", "tags", "homepage", "is_beta", "beta"):
             value = plugin_table.get(field)
             if value is not None:
                 info[field] = value
