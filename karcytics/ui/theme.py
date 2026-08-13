@@ -156,7 +156,7 @@ class Strings:
     """Theme-dependent text values."""
 
     TAGLINE = "Bio Analysis Made Simple"
-    APP_TITLE = "Karcytics — Bio Analysis"
+    APP_TITLE = "Karcytics™ — Bio Analysis"
     GREETING = "Good morning"  # Will be adjusted by time of day if default
 
 

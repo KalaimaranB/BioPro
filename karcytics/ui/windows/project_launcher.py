@@ -187,7 +187,7 @@ class ProjectLauncherWindow(QMainWindow):
         title_layout = QHBoxLayout()
         title_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.lbl_title = QLabel("Karcytics")
+        self.lbl_title = QLabel("Karcytics™")
         self.lbl_title.setObjectName("LauncherTitle")
 
         self.lbl_badge = QLabel("BETA")

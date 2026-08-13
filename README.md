@@ -1,6 +1,6 @@
-# 🔬 Karcytics: The Modular Lab Analysis Hub
+# 🔬 Karcytics™: The Modular Lab Analysis Hub
 
-**Karcytics** is a cross-platform desktop suite designed to bridge the gap between "messy" raw lab data and publication-ready results. Built on a dynamic plugin architecture, Karcytics provides a unified, mathematically rigorous environment for biological image analysis without the steep learning curve of traditional tools.
+**Karcytics™** is a cross-platform desktop suite designed to bridge the gap between "messy" raw lab data and publication-ready results. Built on a dynamic plugin architecture, Karcytics provides a unified, mathematically rigorous environment for biological image analysis without the steep learning curve of traditional tools.
 
 ---
 

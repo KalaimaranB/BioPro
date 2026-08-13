@@ -26,7 +26,7 @@ class TestProjectLauncher:
     def test_launcher_initialization(self, launcher):
         """Verify window titles and branding elements."""
         assert "Karcytics Hub" in launcher.windowTitle()
-        assert launcher.lbl_title.text() == "Karcytics"
+        assert launcher.lbl_title.text() == "Karcytics™"
         assert launcher.lbl_badge.text() == "BETA"
 
     @patch("karcytics.ui.windows.project_launcher.AppConfig")
