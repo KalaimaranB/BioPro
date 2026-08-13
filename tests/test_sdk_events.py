@@ -1,4 +1,4 @@
-from biopro_sdk.plugin import CentralEventBus
+from karcytics_sdk.plugin import CentralEventBus
 from PyQt6.QtCore import QCoreApplication, QObject
 
 

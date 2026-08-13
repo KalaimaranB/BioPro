@@ -40,10 +40,10 @@ def _dict_to_toml(d):
 
 
 import pytest
-from biopro_sdk.host.trust_manager import TrustManager
-from biopro_sdk.host.trust_path import TrustChain, TrustLink
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from karcytics_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_path import TrustChain, TrustLink
 
 
 class MockAuthorityAndSigner:

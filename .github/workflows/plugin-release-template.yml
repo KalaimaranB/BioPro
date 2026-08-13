@@ -34,9 +34,9 @@ jobs:
 
       - name: Setup Project Signing Key
         run: |
-          mkdir -p ~/.biopro
-          echo "${{ secrets.KARCYTICS_PROJECT_PRIVATE_KEY }}" > ~/.biopro/dev_private_key.pem
-          chmod 600 ~/.biopro/dev_private_key.pem
+          mkdir -p ~/.karcytics
+          echo "${{ secrets.KARCYTICS_PROJECT_PRIVATE_KEY }}" > ~/.karcytics/dev_private_key.pem
+          chmod 600 ~/.karcytics/dev_private_key.pem
           # Initialize the local chain and cert using the project key
           uv run karcytics sdk init-identity --project
 

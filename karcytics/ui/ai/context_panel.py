@@ -1,4 +1,4 @@
-from biopro_sdk.host.ai import AIAssistant
+from karcytics_sdk.host.ai import AIAssistant
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QCheckBox, QLabel, QLineEdit, QScrollArea, QVBoxLayout, QWidget
 

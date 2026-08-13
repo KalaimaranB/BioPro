@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from biopro_sdk.host import TrustManager
+from karcytics_sdk.host import TrustManager
 
 if TYPE_CHECKING:
     from PyQt6.QtWidgets import QWidget
@@ -37,7 +37,7 @@ class ModuleManager:
         self.internal_plugins_dir = resource_path("karcytics/plugins")
 
         # 2. The dynamic downloaded plugins (safe from macOS code-signing blocks)
-        self.user_plugins_dir = Path.home() / ".biopro" / "plugins"
+        self.user_plugins_dir = Path.home() / ".karcytics" / "plugins"
         self.user_plugins_dir.mkdir(parents=True, exist_ok=True)
 
         # 3. Bind the user folder to the internal plugin namespace

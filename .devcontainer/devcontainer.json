@@ -18,5 +18,5 @@
             }
         }
     },
-    "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.cargo/bin:$PATH\" && uv venv && uv pip install -e .[dev] biopro-sdk"
+    "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.cargo/bin:$PATH\" && uv venv && uv pip install -e .[dev] karcytics-sdk"
 }

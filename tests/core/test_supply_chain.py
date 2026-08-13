@@ -27,7 +27,7 @@ def test_requirements_integrity():
             for wheel in pkg["wheels"]:
                 if "hash" in wheel:
                     has_hash = True
-        if not has_hash and pkg["name"] not in ["karcytics", "biopro-sdk"]:
+        if not has_hash and pkg["name"] not in ["karcytics", "karcytics-sdk"]:
             unhashed.append(pkg["name"])
 
     assert not unhashed, (

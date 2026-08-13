@@ -107,7 +107,7 @@ class AboutDeveloperDialog(QDialog):
         from PyQt6.QtGui import QImage, QPainter, QPainterPath
 
         try:
-            cache_dir = Path.home() / ".biopro" / "cache"
+            cache_dir = Path.home() / ".karcytics" / "cache"
             cache_dir.mkdir(parents=True, exist_ok=True)
             avatar_path = cache_dir / "kalaimaran_avatar.png"
 

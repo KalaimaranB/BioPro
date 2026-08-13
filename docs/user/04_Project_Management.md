@@ -24,7 +24,7 @@ ProjectName/
 * `.karcytics.lock` — A lock file created while the project is open to prevent concurrent use.
 
 > [!NOTE]
-> The application data folder `~/.biopro` is separate from the project folder. It stores installed plugins, logs, and global settings.
+> The application data folder `~/.karcytics` is separate from the project folder. It stores installed plugins, logs, and global settings.
 
 ---
 

@@ -14,7 +14,7 @@ class TestDeveloperDatabase:
     @pytest.fixture
     def temp_env(self, tmp_path):
         """Creates a temporary isolated test environment representing home configuration."""
-        config_dir = tmp_path / ".biopro"
+        config_dir = tmp_path / ".karcytics"
         config_dir.mkdir()
         avatar_dir = config_dir / "avatars"
         avatar_dir.mkdir()

@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from biopro_sdk.plugin import SecondaryButton
+from karcytics_sdk.plugin import SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
@@ -529,7 +529,7 @@ class ProjectLauncherWindow(QMainWindow):
         self._hub_poll_timer.stop()
 
         # Don't save geometry if we are clearing app data,
-        # otherwise it will recreate the .biopro folder!
+        # otherwise it will recreate the .karcytics folder!
         if getattr(self, "_is_clearing_data", False):
             super().closeEvent(event)
             return
@@ -807,7 +807,7 @@ class _UpdateCheckWorker(QThread):
 
 
 class _CleanupWorker(QThread):
-    """Background worker to delete the ~/.biopro folder."""
+    """Background worker to delete the ~/.karcytics folder."""
 
     error = pyqtSignal(str)
 
@@ -816,7 +816,7 @@ class _CleanupWorker(QThread):
         from pathlib import Path
 
         try:
-            target_path = Path.home() / ".biopro"
+            target_path = Path.home() / ".karcytics"
             if target_path.exists() and target_path.is_dir():
                 shutil.rmtree(target_path)
         except Exception as e:

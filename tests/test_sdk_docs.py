@@ -1,4 +1,4 @@
-from biopro_sdk.host.docs import PluginDocumentation
+from karcytics_sdk.host.docs import PluginDocumentation
 
 
 def test_plugin_documentation_registration():

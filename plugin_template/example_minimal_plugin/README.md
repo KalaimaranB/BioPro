@@ -14,4 +14,4 @@ Structure:
 
 Notes:
 
-- This plugin depends on `biopro-sdk` and is intended as a starter template for authors.
+- This plugin depends on `karcytics-sdk` and is intended as a starter template for authors.

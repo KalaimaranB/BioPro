@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton
+from karcytics_sdk.plugin import DangerButton, ModuleCard, PrimaryButton
 from PyQt6.QtWidgets import QPushButton
 
 from karcytics.core.event_bus import KarcyticsEvent, event_bus

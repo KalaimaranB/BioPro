@@ -168,7 +168,7 @@ class TestVenvPathResolution:
 
     def test_installed_names_excludes_pinned_singleton_packages(self, tmp_path: Path) -> None:
         """Regression test for a real production incident: PyQt6 is a transitive
-        dependency of biopro_sdk, so it's installed in every plugin's own
+        dependency of karcytics_sdk, so it's installed in every plugin's own
         site-packages too. `_installed_names()` must never surface it as a purge
         candidate — the running process must keep exactly one Qt binding, ever.
         Purging and reloading PyQt6 mid-session produced a QFont type mismatch

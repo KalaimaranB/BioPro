@@ -46,8 +46,8 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-from biopro_sdk.host import TrustManager
-from biopro_sdk.sdk_cli import SDKCLI
+from karcytics_sdk.host import TrustManager
+from karcytics_sdk.sdk_cli import SDKCLI
 
 
 def test_trust_manager_ignore_list():

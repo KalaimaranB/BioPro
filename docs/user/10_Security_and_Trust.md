@@ -21,7 +21,7 @@ If any check fails, Karcytics may block the plugin from running.
 Karcytics accepts trust from two sources:
 
 * **Remote authorities** — signed registries and trusted developer lists synced from Karcytics’s upstream registry services.
-* **Local trust anchors** — developer keys that you explicitly approve and store in `~/.biopro/trusted_roots/`.
+* **Local trust anchors** — developer keys that you explicitly approve and store in `~/.karcytics/trusted_roots/`.
 
 ### Remote authorities
 

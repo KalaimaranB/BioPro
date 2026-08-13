@@ -42,7 +42,7 @@ def _dict_to_toml(d):
 from pathlib import Path
 
 import pytest
-from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
+from karcytics_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
 
 
 class TestManifestParserIntegration:
@@ -93,8 +93,8 @@ class TestInitIdentity:
     """TDD tests for karcytics sdk init-identity (developer and project modes)."""
 
     def test_developer_mode_creates_expected_files(self, tmp_path, monkeypatch):
-        """init_identity() creates V2 developer key files in ~/.biopro/dev_keys/."""
-        from biopro_sdk.sdk_cli import SDKCLI
+        """init_identity() creates V2 developer key files in ~/.karcytics/dev_keys/."""
+        from karcytics_sdk.sdk_cli import SDKCLI
 
         fake_home = tmp_path / "home"
         fake_home.mkdir()
@@ -103,13 +103,13 @@ class TestInitIdentity:
         cli = SDKCLI()
         cli.init_identity()
 
-        dev_keys_dir = fake_home / ".biopro" / "dev_keys"
+        dev_keys_dir = fake_home / ".karcytics" / "dev_keys"
         assert (dev_keys_dir / "private.key").exists()
         assert (dev_keys_dir / "public.pub").exists()
 
     def test_developer_mode_cert_is_96_bytes(self, tmp_path, monkeypatch):
         """public.pub must be exactly 32 bytes (raw Ed25519 public key)."""
-        from biopro_sdk.sdk_cli import SDKCLI
+        from karcytics_sdk.sdk_cli import SDKCLI
 
         fake_home = tmp_path / "home"
         fake_home.mkdir()
@@ -118,6 +118,6 @@ class TestInitIdentity:
         cli = SDKCLI()
         cli.init_identity()
 
-        dev_keys_dir = fake_home / ".biopro" / "dev_keys"
+        dev_keys_dir = fake_home / ".karcytics" / "dev_keys"
         pub_key = (dev_keys_dir / "public.pub").read_bytes()
         assert len(pub_key) == 32, f"Expected 32 bytes, got {len(pub_key)}"

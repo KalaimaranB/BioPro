@@ -45,9 +45,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from biopro_sdk.host.sign_plugin import PluginSigner
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from karcytics_sdk.host.sign_plugin import PluginSigner
 
 
 @pytest.fixture
@@ -159,7 +159,7 @@ class TestDoubleSigningPipeline:
         project_pem, project_pub = generate_mock_keypair()
 
         # 3. Create a valid delegation from the developer to the CI runner
-        from biopro_sdk.host.trust_path import TrustLink
+        from karcytics_sdk.host.trust_path import TrustLink
 
         dev_priv = signer_env.load_private_key()
         delegation_payload = f"Karcytics GitHub Actions CI|{project_pub.hex()}".encode()
@@ -170,7 +170,7 @@ class TestDoubleSigningPipeline:
             issuer_name="Alice",
             signature=delegation_sig.hex(),
         )
-        from biopro_sdk.host.trust_path import TrustChain
+        from karcytics_sdk.host.trust_path import TrustChain
 
         delegation_chain = TrustChain(links=[delegation_link])
         delegation_file = plugin_dir / "runner_delegation.json"
@@ -214,7 +214,7 @@ class TestDoubleSigningPipeline:
 
         project_pem, _ = generate_mock_keypair()
 
-        with patch("biopro_sdk.host.sign_plugin.logger.error") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
             signer_env.project_sign_plugin(plugin_dir, project_private_key_pem=project_pem)
             mock_log.assert_called_with(
                 "Developer signature (signature.bin) or security ledger is missing. Rejecting pipeline."
@@ -248,7 +248,7 @@ class TestDoubleSigningPipeline:
 
         project_pem, _ = generate_mock_keypair()
 
-        with patch("biopro_sdk.host.sign_plugin.logger.error") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
             signer_env.project_sign_plugin(plugin_dir, project_private_key_pem=project_pem)
             args_list = [call.args[0] for call in mock_log.call_args_list if call.args]
             assert any(

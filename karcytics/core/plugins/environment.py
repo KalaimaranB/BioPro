@@ -13,7 +13,7 @@ _DEP_NAME_RE = re.compile(r"^[A-Za-z0-9_.\-]+")
 
 # Packages that must NEVER be purged from sys.modules, even if a plugin's own
 # site-packages happens to have a copy (usually as a transitive dependency of
-# biopro_sdk, which every plugin depends on). These own process-wide C-level
+# karcytics_sdk, which every plugin depends on). These own process-wide C-level
 # singleton state — one running QApplication, one widget/font/style registry —
 # and loading a second, independent copy mid-session doesn't "fix" isolation,
 # it corrupts it: objects built by one binding (e.g. a QFont) are no longer
@@ -391,7 +391,7 @@ class PluginEnvironmentInjector:
     @staticmethod
     def cleanup_paths() -> None:
         """Remove plugin virtual-environment site-packages entries from sys.path."""
-        target_marker = str(Path(".biopro") / "plugins")
+        target_marker = str(Path(".karcytics") / "plugins")
         for path in list(sys.path):
             norm_path = str(Path(path))
             if (

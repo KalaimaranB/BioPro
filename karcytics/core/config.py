@@ -14,27 +14,27 @@ class AppConfig:
     from karcytics import __version__ as CORE_VERSION  # noqa: N812
 
     REGISTRY_URL = (
-        "https://raw.githubusercontent.com/KalaimaranB/Karcytics-Distribution/main/registry.json"
+        "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/registry.json"
     )
     CORE_REGISTRY_URL = (
         "https://github.com/KalaimaranB/Karcytics/releases/latest/download/registry.json"
     )
     AUTHORITY_REGISTRY_URL = (
-        "https://raw.githubusercontent.com/KalaimaranB/Karcytics-Distribution/main/authorities.json"
+        "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/authorities.json"
     )
 
     # Decentralized plugin registry settings
     PLUGIN_REGISTRY_CACHE_TTL_SECONDS: int = 3600  # 1 hour
-    PLUGIN_REGISTRY_CACHE_DIR = Path.home() / ".biopro" / "plugin_registry_cache"
+    PLUGIN_REGISTRY_CACHE_DIR = Path.home() / ".karcytics" / "plugin_registry_cache"
     # Only GitHub-hosted avatars are permitted (SSRF prevention)
     AVATAR_ALLOWED_HOSTS: frozenset[str] = frozenset({"avatars.githubusercontent.com"})
 
-    APP_DATA_DIR = Path.home() / ".biopro"
+    APP_DATA_DIR = Path.home() / ".karcytics"
 
     def __init__(self) -> None:
         """Initialize application configuration paths and load persisted settings."""
         # We re-evaluate Path.home() here so that pytest monkeypatching works correctly.
-        self.config_dir = Path.home() / ".biopro"
+        self.config_dir = Path.home() / ".karcytics"
         self.config_file = self.config_dir / "config.json"
         self.data = {"recent_projects": [], "ai_enabled": True}
         self._load()

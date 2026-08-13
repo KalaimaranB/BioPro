@@ -6,7 +6,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from biopro_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_manager import TrustManager
 
 from karcytics.core.config import AppConfig
 from karcytics.core.module_manager import ModuleManager
@@ -16,7 +16,7 @@ class TestKarcyticsBoot(unittest.TestCase):
     """Smoke tests to verify the core application can boot without crashes."""
 
     def setUp(self):
-        # We use the real AppConfig but it targets ~/.biopro which should be writable
+        # We use the real AppConfig but it targets ~/.karcytics which should be writable
         self.config = AppConfig()
 
     def test_trust_manager_write_access(self):

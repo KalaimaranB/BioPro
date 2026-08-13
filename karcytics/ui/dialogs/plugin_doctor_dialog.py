@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from biopro_sdk.plugin import PrimaryButton, SecondaryButton
+from karcytics_sdk.plugin import PrimaryButton, SecondaryButton
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import (

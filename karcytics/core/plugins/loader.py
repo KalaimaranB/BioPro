@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from biopro_sdk.plugin import BioProPlugin
+from karcytics_sdk.plugin import KarcyticsPlugin
 from PyQt6.QtWidgets import QWidget
 
 logger = logging.getLogger(__name__)
@@ -70,8 +70,8 @@ class PluginLoaderFactory:
             with isolate_frozen_environment():
                 if "entry_point" in manifest_dict:
                     # V3 Architecture with entry point and PluginContext
-                    from biopro_sdk.plugin.context import PluginContext
-                    from biopro_sdk.plugin.manifest import PluginManifest
+                    from karcytics_sdk.plugin.context import PluginContext
+                    from karcytics_sdk.plugin.manifest import PluginManifest
 
                     from karcytics.core.task_scheduler import task_scheduler
 
@@ -100,7 +100,7 @@ class PluginLoaderFactory:
                     plugin_module = importlib.import_module(package_name)
 
                     # Perform strict contract validation
-                    if not isinstance(plugin_module, BioProPlugin):  # type: ignore
+                    if not isinstance(plugin_module, KarcyticsPlugin):  # type: ignore
                         msg = f"Module {module_id} failed interface validation. Missing required hooks."  # noqa: E501
                         logger.error(msg)
                         raise TypeError(msg)

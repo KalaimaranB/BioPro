@@ -10,7 +10,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from biopro_sdk.plugin.manifest_parser import ManifestParser
+from karcytics_sdk.plugin.manifest_parser import ManifestParser
 
 from karcytics.core.network_updater import NetworkUpdater
 from karcytics.core.trust.strategies import TrustStrategyFactory

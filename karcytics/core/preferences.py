@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from biopro_sdk.plugin import PreferenceManagerProtocol
+from karcytics_sdk.plugin import PreferenceManagerProtocol
 
 from karcytics.core.config import AppConfig
 from karcytics.core.utils import AtomicJsonFile
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class CorePreferenceManager(PreferenceManagerProtocol):
     """Manages UI layout and visual preferences for the core application.
 
-    Stores settings in ~/.biopro/preferences.json, separating UI state
+    Stores settings in ~/.karcytics/preferences.json, separating UI state
     from global system config.
     """
 

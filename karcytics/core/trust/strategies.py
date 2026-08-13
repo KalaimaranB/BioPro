@@ -4,7 +4,7 @@ import abc
 from pathlib import Path
 from typing import Any
 
-from biopro_sdk.host.trust_manager import TrustManager, VerificationResult
+from karcytics_sdk.host.trust_manager import TrustManager, VerificationResult
 
 
 class ITrustStrategy(abc.ABC):
