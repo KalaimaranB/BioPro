@@ -1,11 +1,48 @@
 """Core module."""
 
 import logging
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 from karcytics.core.utils import AtomicJsonFile
 
 logger = logging.getLogger(__name__)
+
+LEGACY_APP_DATA_DIR = Path.home() / ".biopro"
+_LEGACY_MIGRATION_SKIP_NAMES = {".DS_Store"}
+
+
+def migrate_legacy_app_data() -> None:
+    """Backfill ``~/.karcytics`` with any files still only present in the pre-rebrand ``~/.biopro``.
+
+    Runs at most once per machine (guarded by a marker file) and only ever fills in files that
+    don't already exist at the destination, so it never overwrites state the renamed app has
+    already written. Source files are copied, not moved, leaving ``~/.biopro`` untouched.
+    """
+    new_dir = Path.home() / ".karcytics"
+    marker = new_dir / ".biopro_migration_complete"
+
+    if marker.exists() or not LEGACY_APP_DATA_DIR.exists():
+        return
+
+    new_dir.mkdir(parents=True, exist_ok=True)
+
+    migrated = 0
+    for src in LEGACY_APP_DATA_DIR.rglob("*"):
+        if src.is_dir() or src.name in _LEGACY_MIGRATION_SKIP_NAMES or src.suffix == ".log":
+            continue
+
+        dst = new_dir / src.relative_to(LEGACY_APP_DATA_DIR)
+        if dst.exists():
+            continue
+
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        migrated += 1
+
+    marker.write_text(datetime.now().isoformat())
+    logger.info(f"Migrated {migrated} file(s) from legacy {LEGACY_APP_DATA_DIR} to {new_dir}.")
 
 
 class AppConfig:

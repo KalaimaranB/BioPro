@@ -462,6 +462,11 @@ def main():
     application initialization, and fatal startup errors.
     """
     log_file = setup_logging()
+
+    from karcytics.core.config import migrate_legacy_app_data
+
+    migrate_legacy_app_data()
+
     bootstrap_sdk()
 
     # Handle SDK CLI commands if detected
