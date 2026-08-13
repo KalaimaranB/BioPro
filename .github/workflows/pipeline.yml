@@ -1,4 +1,4 @@
-name: BioPro CI/CD Pipeline
+name: Karcytics CI/CD Pipeline
 
 on:
   push:
@@ -138,7 +138,7 @@ jobs:
         run: ruff format --check .
 
       - name: Run Mypy Type Checker
-        run: mypy --explicit-package-bases biopro tests
+        run: mypy --explicit-package-bases karcytics tests
 
       - name: Security Vulnerability Scan
         run: |
@@ -164,7 +164,7 @@ jobs:
           uv run pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
             tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
             --tb=short -q \
-            --cov=biopro --cov-report=xml --cov-report=term-missing
+            --cov=karcytics --cov-report=xml --cov-report=term-missing
         env:
           QT_QPA_PLATFORM: offscreen
           DISPLAY: ":99"
@@ -221,7 +221,7 @@ jobs:
           uv run pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
             tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
             --tb=short -q \
-            --cov=biopro --cov-report=xml --cov-report=term-missing
+            --cov=karcytics --cov-report=xml --cov-report=term-missing
         env:
           QT_QPA_PLATFORM: offscreen
           DISPLAY: ":99"
@@ -277,33 +277,33 @@ jobs:
         run: uv run pytest tests/core/test_supply_chain.py
 
       - name: Run PyInstaller Build
-        run: uv run pyinstaller BioPro.spec
+        run: uv run pyinstaller Karcytics.spec
 
       - name: Run E2E Smoke Test (macOS)
         if: runner.os == 'macOS'
-        run: ./dist/BioPro.app/Contents/MacOS/BioPro --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
+        run: ./dist/Karcytics.app/Contents/MacOS/Karcytics --smoke-test flow_cytometry karcytics/tutorials/assets/demo_tutorial.fcs
 
       - name: Run E2E Smoke Test (Windows)
         if: runner.os == 'Windows'
-        run: .\dist\BioPro\BioPro.exe --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
+        run: .\dist\Karcytics\Karcytics.exe --smoke-test flow_cytometry karcytics/tutorials/assets/demo_tutorial.fcs
 
       - name: Compress Artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
           cd dist
-          Compress-Archive -Path BioPro\* -DestinationPath BioPro-Windows.zip
+          Compress-Archive -Path Karcytics\* -DestinationPath Karcytics-Windows.zip
 
       - name: Compress Artifacts (macOS)
         if: runner.os == 'macOS'
         run: |
           cd dist
-          tar -czf BioPro-macOS.tar.gz BioPro.app
+          tar -czf Karcytics-macOS.tar.gz Karcytics.app
 
       - name: Generate SBOM
         shell: bash
         run: |
           export PYTHONPATH=$PYTHONPATH:.
-          uv run python -c "from biopro.core.sbom import SBOMGenerator; print(SBOMGenerator().to_json())" > dist/sbom.json
+          uv run python -c "from karcytics.core.sbom import SBOMGenerator; print(SBOMGenerator().to_json())" > dist/sbom.json
 
       - name: Generate Checksum
         shell: bash
@@ -322,7 +322,7 @@ jobs:
       - name: Upload Artifacts
         uses: "actions/upload-artifact@v4"
         with:
-          name: BioPro-Executable-${{ runner.os }}
+          name: Karcytics-Executable-${{ runner.os }}
           path: |
             dist/*.tar.gz
             dist/*.zip
@@ -361,7 +361,7 @@ jobs:
           version, notes = sys.argv[1], sys.argv[2]
           data = {
               "version": version.lstrip("v"),
-              "download_url": "https://github.com/KalaimaranB/BioPro/releases/latest",
+              "download_url": "https://github.com/KalaimaranB/Karcytics/releases/latest",
               "notes": notes,
               "release_date": datetime.date.today().isoformat(),
           }
@@ -426,26 +426,26 @@ jobs:
         uses: "softprops/action-gh-release@v2"
         with:
           tag_name: ${{ needs.check-version.outputs.version }}
-          name: BioPro ${{ needs.check-version.outputs.version }}
+          name: Karcytics ${{ needs.check-version.outputs.version }}
           body: |
-            ## BioPro ${{ needs.check-version.outputs.version }}
+            ## Karcytics ${{ needs.check-version.outputs.version }}
 
             An open-source platform for biological data analysis and visualization, built around a modular plugin architecture for reproducible lab workflows.
 
             ### 📦 Install
-            New here? Start with the [Installation Guide](https://kalaimaranb.github.io/BioPro/user/06_Installation/).
+            New here? Start with the [Installation Guide](https://kalaimaranb.github.io/Karcytics/user/06_Installation/).
 
-            - **macOS**: download `BioPro-macOS.tar.gz`, extract, drag `BioPro.app` into Applications.
-            - **Windows**: download `BioPro-Windows.zip`, extract, run `BioPro.exe`.
+            - **macOS**: download `Karcytics-macOS.tar.gz`, extract, drag `Karcytics.app` into Applications.
+            - **Windows**: download `Karcytics-Windows.zip`, extract, run `Karcytics.exe`.
 
             ### 🛡️ Security & Supply Chain
             Every release ships cryptographic attestations to verify what you're running:
-            - **Checksums** — verify the download itself: `shasum -a 256 -c BioPro-macOS.tar.gz.sha256` (swap in the Windows filename as needed).
+            - **Checksums** — verify the download itself: `shasum -a 256 -c Karcytics-macOS.tar.gz.sha256` (swap in the Windows filename as needed).
             - **SBOM** (`sbom.json`) — full dependency manifest: `shasum -a 256 -c sbom.json.sha256`.
-            - **SLSA Provenance** (`*.intoto.jsonl`) — cryptographic proof of build origin: `slsa-verifier verify-artifact BioPro-macOS.tar.gz --provenance-path multiple.intoto.jsonl --source-uri github.com/KalaimaranB/BioPro`.
+            - **SLSA Provenance** (`*.intoto.jsonl`) — cryptographic proof of build origin: `slsa-verifier verify-artifact Karcytics-macOS.tar.gz --provenance-path multiple.intoto.jsonl --source-uri github.com/KalaimaranB/Karcytics`.
 
             ### 📝 What's Changed
-            See the auto-generated changelog below. Found a bug? [Open an issue](https://github.com/KalaimaranB/BioPro/issues).
+            See the auto-generated changelog below. Found a bug? [Open an issue](https://github.com/KalaimaranB/Karcytics/issues).
           prerelease: ${{ needs.check-version.outputs.prerelease == 'true' }}
           generate_release_notes: true
           files: |

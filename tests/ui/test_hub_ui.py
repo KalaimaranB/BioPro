@@ -1,9 +1,9 @@
-"""Basic UI smoke tests for the BioPro Hub window."""
+"""Basic UI smoke tests for the Karcytics Hub window."""
 
 import pytest
 
-from biopro.core.module_manager import ModuleManager
-from biopro.ui.windows.project_launcher import ProjectLauncherWindow
+from karcytics.core.module_manager import ModuleManager
+from karcytics.ui.windows.project_launcher import ProjectLauncherWindow
 
 
 @pytest.fixture
@@ -40,8 +40,8 @@ class TestHubUI:
         print(f"DEBUG: Title={launcher.windowTitle()}")
         print(f"DEBUG: lbl_title={launcher.lbl_title.text()}")
 
-        assert "BioPro Hub" in launcher.windowTitle()
-        assert "BioPro" in launcher.lbl_title.text()
+        assert "Karcytics Hub" in launcher.windowTitle()
+        assert "Karcytics" in launcher.lbl_title.text()
 
     def test_recent_projects_list_exists(self, launcher):
         """Verifies the recent projects panel is initialized."""

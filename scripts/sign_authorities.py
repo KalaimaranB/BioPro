@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BioPro Authorities Registry Signing Tool.
+"""Karcytics Authorities Registry Signing Tool.
 
 This script signs the 'authorities' array inside 'authorities.json' using your
 hex-encoded Ed25519 private key and outputs the fully-signed JSON structure.
@@ -18,7 +18,7 @@ def main():
     signs its authorities data, and writes the updated registry back to disk.
     """
     # 1. Ask for the Hex Private Key
-    print("=== BioPro Authority Registry Signer ===")
+    print("=== Karcytics Authority Registry Signer ===")
     hex_key = input("Enter your 32-byte Ed25519 Private Key (hex format): ").strip()
 
     try:
@@ -44,12 +44,12 @@ def main():
         print(f"authorities.json not found at {auth_file}. Creating a template...")
         default_data = {
             "version": "1",
-            "signed_by": "biopro_core",
+            "signed_by": "karcytics_core",
             "signature": "",
             "authorities": [
                 {
-                    "id": "biopro_core",
-                    "name": "BioPro Core Authority",
+                    "id": "karcytics_core",
+                    "name": "Karcytics Core Authority",
                     "public_key": "08f4319b6f979057b36b0db2b8faaee6eff8782f3aafd5e924ba79b04d4c8366",  # noqa: E501
                 }
             ],

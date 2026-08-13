@@ -2,7 +2,7 @@
 
 import sys
 
-from biopro.core.plugins.loader import isolate_frozen_environment
+from karcytics.core.plugins.loader import isolate_frozen_environment
 
 
 def test_isolate_frozen_environment_context_manager(monkeypatch) -> None:

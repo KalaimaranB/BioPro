@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BioPro: Local Windows Parity & Path-Separator Verification Script.
+"""Karcytics: Local Windows Parity & Path-Separator Verification Script.
 
 Emulates the strict C++ initialization constraints of Windows on local macOS
 environments, and runs a static analyzer to find hardcoded Unix-style path assertions
@@ -24,7 +24,7 @@ print("\n[Step 1] Checking lazy module import behavior...")
 try:
     from typing import Any, cast
 
-    from biopro.core.task_scheduler import task_scheduler
+    from karcytics.core.task_scheduler import task_scheduler
 
     # At this point, task_scheduler is a proxy. The underlying C++ QObject should be None.
     is_lazy = cast(Any, task_scheduler)._instance is None

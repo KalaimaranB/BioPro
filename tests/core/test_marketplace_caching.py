@@ -79,7 +79,7 @@ class TestMarketplaceCachingSuite:
         target_path = cache_service.get_cache_path("segmenter_plugin", "avatars", "alice.png")
 
         # Download
-        query_service.download_asset("https://biopro.org/assets/alice.png", target_path)
+        query_service.download_asset("https://karcytics.org/assets/alice.png", target_path)
         assert target_path.exists()
         assert target_path.read_bytes() == mock_remote_assets["avatar"]["content"]
 

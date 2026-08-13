@@ -29,4 +29,4 @@ This page expands on `HistoryManager` and `ModuleHistory` semantics described in
 
 ## Links
 
-- Source: `biopro/core/history_manager.py`
+- Source: `karcytics/core/history_manager.py`

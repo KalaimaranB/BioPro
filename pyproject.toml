@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "BioPro"
-version = "1.5.2"
+name = "Karcytics"
+version = "2.0.0"
 description = "High-performance molecular data processing and analysis tool — Open Source, Free and Accessible to all."
 readme = "README.md"
 license = "MIT"
 requires-python = "==3.12.*"
 authors = [
-    { name = "BioPro Contributors" },
+    { name = "Karcytics Contributors" },
 ]
 keywords = ["biology", "image-analysis", "western-blot", "densitometry", "gel-analysis"]
 classifiers = [
@@ -63,17 +63,19 @@ dev = [
 ]
 
 [project.scripts]
-biopro = "biopro.__main__:main"
-biopro-sign = "biopro.core.sign_plugin:main"
+karcytics = "karcytics.__main__:main"
+karcytics-sign = "karcytics.core.sign_plugin:main"
 
 [project.urls]
-Homepage = "https://github.com/BioPro/biopro"
-Documentation = "https://github.com/BioPro/biopro#readme"
-Repository = "https://github.com/BioPro/biopro"
-Issues = "https://github.com/BioPro/biopro/issues"
+Homepage = "https://github.com/KalaimaranB/Karcytics"
+Documentation = "https://github.com/KalaimaranB/Karcytics#readme"
+Repository = "https://github.com/KalaimaranB/Karcytics"
+Issues = "https://github.com/KalaimaranB/Karcytics/issues"
 
 [tool.setuptools.packages.find]
-include = ["biopro*"]
+# "biopro*" is a temporary compat shim for biopro_sdk's soft imports of the
+# core app under its old name -- remove once Karcytics-SDK is renamed.
+include = ["karcytics*", "biopro", "biopro.*"]
 exclude = ["tests*", "test_*"]
 
 [tool.ruff]
@@ -94,14 +96,14 @@ max-complexity = 10
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "E501", "E402", "PLR0915", "PLR0913", "ARG"]
 "tests/**/*.py" = ["D", "E501", "E402", "PLR0915", "PLR0913", "ARG"]
-"biopro/ui/**/*.py" = ["D", "E501", "C90", "PLR"]
-"biopro/plugins/**/*.py" = ["D", "E501", "PLR"]
+"karcytics/ui/**/*.py" = ["D", "E501", "C90", "PLR"]
+"karcytics/plugins/**/*.py" = ["D", "E501", "PLR"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.ruff.lint.isort]
-known-first-party = ["biopro"]
+known-first-party = ["karcytics"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -148,7 +150,7 @@ ignore_missing_imports = true
 
 
 [[tool.mypy.overrides]]
-module = "biopro.ui.*"
+module = "karcytics.ui.*"
 ignore_errors = true
 
 [tool.uv.sources]

@@ -15,7 +15,7 @@ This section collects short, example-driven tutorials for maintainers and contri
 pip install -e plugin_template/example_minimal_plugin
 ```
 
-1. Use the `biopro` CLI or copy the package into the plugin directory to test loading in the app.
+1. Use the `karcytics` CLI or copy the package into the plugin directory to test loading in the app.
 
 See `plugin_template/docs/index.md` for the template and further guidance.
 

@@ -1,7 +1,7 @@
 [project]
 name = "example-minimal-plugin"
 version = "0.1.0"
-description = "Minimal example plugin for BioPro"
+description = "Minimal example plugin for Karcytics"
 readme = "README.md"
 requires-python = ">=3.11"
 

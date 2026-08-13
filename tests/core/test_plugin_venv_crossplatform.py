@@ -1,4 +1,4 @@
-"""Tests for biopro.core.plugins.environment cross-platform plugin venv resolution."""
+"""Tests for karcytics.core.plugins.environment cross-platform plugin venv resolution."""
 
 import importlib
 import shutil
@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from biopro.core.plugins.environment import PluginEnvironmentInjector
+from karcytics.core.plugins.environment import PluginEnvironmentInjector
 
 
 def _dict_to_toml(d):
@@ -18,7 +18,7 @@ def _dict_to_toml(d):
     Convert a flat dictionary into a minimal pyproject.toml configuration string.
 
     Parameters:
-        d (dict): Configuration values for the project and BioPro plugin.
+        d (dict): Configuration values for the project and Karcytics plugin.
 
     Returns:
         str: TOML-formatted project and plugin configuration.
@@ -132,7 +132,7 @@ class TestVenvPathResolution:
     def test_inject_plugin_path_finds_windows_layout(self, tmp_path):
         plugin_dir = tmp_path / "cytometrics"
         plugin_dir.mkdir()
-        internal_dir = tmp_path / "biopro" / "plugins"
+        internal_dir = tmp_path / "karcytics" / "plugins"
 
         # Simulate Windows venv layout
         win_sp = plugin_dir / ".venv" / "Lib" / "site-packages"
@@ -146,7 +146,7 @@ class TestVenvPathResolution:
     def test_inject_plugin_path_finds_unix_layout(self, tmp_path):
         plugin_dir = tmp_path / "cytometrics"
         plugin_dir.mkdir()
-        internal_dir = tmp_path / "biopro" / "plugins"
+        internal_dir = tmp_path / "karcytics" / "plugins"
 
         # Simulate Unix venv layout
         py_ver = f"python{sys.version_info.major}.{sys.version_info.minor}"
@@ -328,7 +328,7 @@ class TestRealVenvInstallation:
 
         plugin_dir = tmp_path / "cytometrics"
         plugin_dir.mkdir()
-        internal_dir = tmp_path / "biopro" / "plugins"
+        internal_dir = tmp_path / "karcytics" / "plugins"
         venv_dir = plugin_dir / ".venv"
 
         sp.run(
@@ -381,7 +381,7 @@ class TestRealVenvInstallation:
         # The plugin's own copy.
         plugin_dir = tmp_path / "cytometrics_isolation"
         plugin_dir.mkdir()
-        internal_dir = tmp_path / "biopro" / "plugins"
+        internal_dir = tmp_path / "karcytics" / "plugins"
         venv_dir = plugin_dir / ".venv"
         site_packages = _create_plugin_venv_with_package(uv, venv_dir, self.LIGHTWEIGHT_PACKAGE)
 

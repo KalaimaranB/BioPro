@@ -1,6 +1,6 @@
-# Contributing to BioPro
+# Contributing to Karcytics
 
-This is the practical, day-to-day guide for BioPro engineers: how to branch, commit, open a Pull Request (PR), and ship a release. BioPro uses a dual-branch topology (`develop` as staging, `main` as production) driven by automated CI/CD pipelines.
+This is the practical, day-to-day guide for Karcytics engineers: how to branch, commit, open a Pull Request (PR), and ship a release. Karcytics uses a dual-branch topology (`develop` as staging, `main` as production) driven by automated CI/CD pipelines.
 
 For an architectural explanation of *why* the system is shaped this way, see the [Git Branching Engine](docs/internal/23_Git_Branching_Engine.md).
 

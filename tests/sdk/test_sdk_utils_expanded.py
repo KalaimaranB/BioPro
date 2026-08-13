@@ -1,11 +1,11 @@
-"""Comprehensive tests for biopro.plugins.sdk_utils."""
+"""Comprehensive tests for karcytics.plugins.sdk_utils."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from PyQt6.QtWidgets import QMessageBox
 
-from biopro.plugins.sdk_utils import (
+from karcytics.plugins.sdk_utils import (
     PluginConfig,
     ProgressDialog,
     ask_ok_cancel,
@@ -24,13 +24,13 @@ from biopro.plugins.sdk_utils import (
     validate_file_exists,
     validate_value_range,
 )
-from biopro.shared.ui.alerts import show_error, show_info, show_warning
+from karcytics.shared.ui.alerts import show_error, show_info, show_warning
 
 
 class TestSDKFileDialogs:
     """Tests for file and directory selection dialogs."""
 
-    @patch("biopro.plugins.sdk_utils.QFileDialog.getOpenFileName")
+    @patch("karcytics.plugins.sdk_utils.QFileDialog.getOpenFileName")
     def test_get_image_path(self, mock_dialog):
         mock_dialog.return_value = ("/path/to/img.png", "filter")
         assert get_image_path() == "/path/to/img.png"
@@ -38,17 +38,17 @@ class TestSDKFileDialogs:
         mock_dialog.return_value = ("", "")
         assert get_image_path() is None
 
-    @patch("biopro.plugins.sdk_utils.QFileDialog.getOpenFileNames")
+    @patch("karcytics.plugins.sdk_utils.QFileDialog.getOpenFileNames")
     def test_get_image_paths(self, mock_dialog):
         mock_dialog.return_value = (["/a.png", "/b.png"], "filter")
         assert get_image_paths() == ["/a.png", "/b.png"]
 
-    @patch("biopro.plugins.sdk_utils.QFileDialog.getSaveFileName")
+    @patch("karcytics.plugins.sdk_utils.QFileDialog.getSaveFileName")
     def test_get_save_path(self, mock_dialog):
         mock_dialog.return_value = ("/save/here.csv", "filter")
         assert get_save_path() == "/save/here.csv"
 
-    @patch("biopro.plugins.sdk_utils.QFileDialog.getExistingDirectory")
+    @patch("karcytics.plugins.sdk_utils.QFileDialog.getExistingDirectory")
     def test_get_directory(self, mock_dialog):
         mock_dialog.return_value = "/some/dir"
         assert get_directory() == "/some/dir"
@@ -57,25 +57,25 @@ class TestSDKFileDialogs:
 class TestSDKMessaging:
     """Tests for standard message boxes (info, warning, error, questions)."""
 
-    @patch("biopro.shared.ui.alerts.QMessageBox.information")
+    @patch("karcytics.shared.ui.alerts.QMessageBox.information")
     def test_show_info(self, mock_info):
         """Test show_info dialog."""
         show_info(None, "Test Info", "Info Message")
         mock_info.assert_called_once_with(None, "Test Info", "Info Message")
 
-    @patch("biopro.shared.ui.alerts.QMessageBox.warning")
+    @patch("karcytics.shared.ui.alerts.QMessageBox.warning")
     def test_show_warning(self, mock_warning):
         """Test show_warning dialog."""
         show_warning(None, "Test Warning", "Warning Message")
         mock_warning.assert_called_once_with(None, "Test Warning", "Warning Message")
 
-    @patch("biopro.shared.ui.alerts.QMessageBox.critical")
+    @patch("karcytics.shared.ui.alerts.QMessageBox.critical")
     def test_show_error(self, mock_error):
         """Test show_error dialog."""
         show_error(None, "Test Error", "Error Message")
         mock_error.assert_called_once_with(None, "Test Error", "Error Message")
 
-    @patch("biopro.plugins.sdk_utils.QMessageBox.question")
+    @patch("karcytics.plugins.sdk_utils.QMessageBox.question")
     def test_ask_yes_no(self, mock_quest):
         mock_quest.return_value = QMessageBox.StandardButton.Yes
         assert ask_yes_no() is True
@@ -83,7 +83,7 @@ class TestSDKMessaging:
         mock_quest.return_value = QMessageBox.StandardButton.No
         assert ask_yes_no() is False
 
-    @patch("biopro.plugins.sdk_utils.QMessageBox.question")
+    @patch("karcytics.plugins.sdk_utils.QMessageBox.question")
     def test_ask_ok_cancel(self, mock_quest):
         mock_quest.return_value = QMessageBox.StandardButton.Ok
         assert ask_ok_cancel() is True
@@ -92,17 +92,17 @@ class TestSDKMessaging:
 class TestSDKInputHelpers:
     """Tests for standard input dialogs (text, int, double)."""
 
-    @patch("biopro.plugins.sdk_utils.QInputDialog.getText")
+    @patch("karcytics.plugins.sdk_utils.QInputDialog.getText")
     def test_get_text(self, mock_input):
         mock_input.return_value = ("hello", True)
         assert get_text() == "hello"
 
-    @patch("biopro.plugins.sdk_utils.QInputDialog.getInt")
+    @patch("karcytics.plugins.sdk_utils.QInputDialog.getInt")
     def test_get_number(self, mock_input):
         mock_input.return_value = (42, True)
         assert get_number() == 42
 
-    @patch("biopro.plugins.sdk_utils.QInputDialog.getDouble")
+    @patch("karcytics.plugins.sdk_utils.QInputDialog.getDouble")
     def test_get_double(self, mock_input):
         mock_input.return_value = (3.14, True)
         assert get_double() == 3.14
@@ -111,8 +111,8 @@ class TestSDKInputHelpers:
 class TestSDKWorkflowIntegration:
     """Tests for high-level workflow utility functions."""
 
-    @patch("biopro.plugins.sdk_utils.ask_yes_no")
-    @patch("biopro.plugins.sdk_utils.get_text")
+    @patch("karcytics.plugins.sdk_utils.ask_yes_no")
+    @patch("karcytics.plugins.sdk_utils.get_text")
     def test_import_assets_workflow_full(self, mock_get_text, mock_ask):
         pm = MagicMock()
         mock_ask.side_effect = [True, True]
@@ -187,4 +187,4 @@ class TestSDKLogging:
 
     def test_plugin_logger_naming(self):
         logger = get_plugin_logger("my_cool_plugin")
-        assert logger.name == "biopro.plugins.my_cool_plugin"
+        assert logger.name == "karcytics.plugins.my_cool_plugin"

@@ -6,8 +6,8 @@ import pytest
 from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton
 from PyQt6.QtWidgets import QPushButton
 
-from biopro.core.event_bus import BioProEvent, event_bus
-from biopro.ui.dialogs.plugin_store import PluginStoreDialog
+from karcytics.core.event_bus import KarcyticsEvent, event_bus
+from karcytics.ui.dialogs.plugin_store import PluginStoreDialog
 
 
 class TestPluginStore:
@@ -75,13 +75,13 @@ class TestPluginStore:
         store.updater.install_plugin.return_value = (True, "Success")
 
         with (
-            patch("biopro.ui.dialogs.dependency_installer_dialog.DependencyInstallerDialog"),
+            patch("karcytics.ui.dialogs.dependency_installer_dialog.DependencyInstallerDialog"),
             patch.object(store, "_load_store_data") as mock_refresh,
         ):
             store._install_module("test_id", mod_data)
 
             # Simulate the "Nervous System" pulse
-            event_bus.emit(BioProEvent.PLUGIN_INSTALLED, "test_id")
+            event_bus.emit(KarcyticsEvent.PLUGIN_INSTALLED, "test_id")
             from PyQt6.QtWidgets import QApplication
 
             QApplication.processEvents()
@@ -97,7 +97,7 @@ class TestPluginStore:
             store._remove_module("test_id")
 
             # Simulate the "Nervous System" pulse
-            event_bus.emit(BioProEvent.PLUGIN_REMOVED, "test_id")
+            event_bus.emit(KarcyticsEvent.PLUGIN_REMOVED, "test_id")
             from PyQt6.QtWidgets import QApplication
 
             QApplication.processEvents()

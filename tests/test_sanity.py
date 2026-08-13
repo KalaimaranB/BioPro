@@ -7,7 +7,7 @@ def test_environment_is_sane():
 
 
 def test_imports_work():
-    """Ensures our test suite can 'see' the biopro core package."""
-    import biopro.core.config
+    """Ensures our test suite can 'see' the karcytics core package."""
+    import karcytics.core.config
 
-    assert biopro.core.config.AppConfig is not None
+    assert karcytics.core.config.AppConfig is not None

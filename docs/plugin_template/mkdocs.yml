@@ -1,6 +1,6 @@
 site_name: <PLUGIN_NAME> Documentation
 site_url: https://<GITHUB_USERNAME>.github.io/<REPOSITORY_NAME>
-site_description: Documentation for the <PLUGIN_NAME> BioPro plugin.
+site_description: Documentation for the <PLUGIN_NAME> Karcytics plugin.
 site_author: <YOUR_NAME>
 
 repo_name: <PLUGIN_NAME>

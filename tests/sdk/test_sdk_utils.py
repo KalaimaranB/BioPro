@@ -1,4 +1,4 @@
-"""Tests for biopro.plugins.sdk_utils module."""
+"""Tests for karcytics.plugins.sdk_utils module."""
 
 import json
 import tempfile
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from biopro.plugins.sdk_utils import (
+from karcytics.plugins.sdk_utils import (
     PluginConfig,
     get_plugin_logger,
     load_json,
@@ -230,7 +230,7 @@ class TestPluginLogger:
 
         assert logger is not None
         assert "my_plugin" in logger.name
-        assert "biopro.plugins" in logger.name
+        assert "karcytics.plugins" in logger.name
 
 
 class TestConfigIntegration:
@@ -282,11 +282,11 @@ class TestAssetWorkflow:
         """Verifies workflow asks for subfolder and copy permission."""
         from unittest.mock import patch
 
-        from biopro.plugins.sdk_utils import import_assets_workflow
+        from karcytics.plugins.sdk_utils import import_assets_workflow
 
         with (
-            patch("biopro.plugins.sdk_utils.ask_yes_no") as mock_ask,
-            patch("biopro.plugins.sdk_utils.get_text") as mock_text,
+            patch("karcytics.plugins.sdk_utils.ask_yes_no") as mock_ask,
+            patch("karcytics.plugins.sdk_utils.get_text") as mock_text,
         ):
             # Setup user choices: Yes to group, Yes to copy
             mock_ask.side_effect = [True, True]
@@ -307,9 +307,9 @@ class TestAssetWorkflow:
         """Verifies workflow when user declines subfolder grouping."""
         from unittest.mock import patch
 
-        from biopro.plugins.sdk_utils import import_assets_workflow
+        from karcytics.plugins.sdk_utils import import_assets_workflow
 
-        with patch("biopro.plugins.sdk_utils.ask_yes_no") as mock_ask:
+        with patch("karcytics.plugins.sdk_utils.ask_yes_no") as mock_ask:
             # Setup user choices: No to group, Yes to copy
             mock_ask.side_effect = [False, True]
 

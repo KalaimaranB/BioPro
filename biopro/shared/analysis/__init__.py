@@ -1,3 +1,1 @@
-from . import image_utils  # noqa: D104
-
-__all__ = ["image_utils"]
+"""Compat re-export namespace -- see biopro/__init__.py."""

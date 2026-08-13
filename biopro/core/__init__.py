@@ -1,1 +1,1 @@
-"""BioPro Core — Configuration, history, module management, and plugin SDK."""
+"""Compat re-export namespace -- see biopro/__init__.py."""

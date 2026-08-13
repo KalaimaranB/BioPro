@@ -1,9 +1,9 @@
-"""Generate the minimal demo_tutorial.fcs file for the BioPro onboarding tour.
+"""Generate the minimal demo_tutorial.fcs file for the Karcytics onboarding tour.
 
 Run this script from the repo root to regenerate the asset:
     python scripts/generate_demo_fcs.py
 
-The output is committed at biopro/tutorials/assets/demo_tutorial.fcs.
+The output is committed at karcytics/tutorials/assets/demo_tutorial.fcs.
 The file is a valid FCS 3.0 file with zero events (TOT=0) — parseable by
 the Flow Cytometry module without crashing, but containing no real data.
 """
@@ -11,7 +11,7 @@ the Flow Cytometry module without crashing, but containing no real data.
 import os
 from pathlib import Path
 
-OUTPUT = Path(__file__).parent.parent / "biopro" / "tutorials" / "assets" / "demo_tutorial.fcs"
+OUTPUT = Path(__file__).parent.parent / "karcytics" / "tutorials" / "assets" / "demo_tutorial.fcs"
 
 DELIMITER = "\\"
 
@@ -27,9 +27,9 @@ KV_PAIRS = [
     ("$PAR", "0"),
     ("$TOT", "0"),
     ("$FIL", "demo_tutorial.fcs"),
-    ("$SYS", "BioPro Tutorial"),
-    ("$INST", "BioPro Demo"),
-    ("$OP", "BioPro"),
+    ("$SYS", "Karcytics Tutorial"),
+    ("$INST", "Karcytics Demo"),
+    ("$OP", "Karcytics"),
     ("$EXP", "Onboarding Tutorial"),
     ("$DATE", "01-JAN-2026"),
     ("$BTIM", "00:00:00"),

@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PyQt6.QtWidgets import QWidget
 
-from biopro.ui.theme import theme_manager
-from biopro.ui.windows.workspace_window import _PAGE_ANALYSIS, _PAGE_HOME, WorkspaceWindow
+from karcytics.ui.theme import theme_manager
+from karcytics.ui.windows.workspace_window import _PAGE_ANALYSIS, _PAGE_HOME, WorkspaceWindow
 
 
 class TestWorkspaceWindow:
@@ -29,7 +29,7 @@ class TestWorkspaceWindow:
 
         store_cb = MagicMock()
 
-        with patch("biopro.ui.windows.workspace.hub_manager.HubManager.maybe_start_core_intro"):
+        with patch("karcytics.ui.windows.workspace.hub_manager.HubManager.maybe_start_core_intro"):
             win = WorkspaceWindow(pm, mm, up, store_cb, hub_cb)
             qtbot.addWidget(win)
             return win
@@ -40,7 +40,7 @@ class TestWorkspaceWindow:
         # Verify populated modules
         assert window.home_screen.modules_layout.count() == 1
 
-    @patch("biopro.ui.dialogs.error_report.ErrorReportDialog.exec")
+    @patch("karcytics.ui.dialogs.error_report.ErrorReportDialog.exec")
     def test_open_module_success(self, mock_err, window, qtbot):
         manifest = {"id": "plugin_a", "display_name": "Plugin A", "name": "Plugin A", "icon": "A"}
 
@@ -64,7 +64,7 @@ class TestWorkspaceWindow:
         assert "Plugin A" in window.analysis_toolbar.title_lbl.text()
         mock_err.assert_not_called()
 
-    @patch("biopro.ui.dialogs.error_report.ErrorReportDialog.exec")
+    @patch("karcytics.ui.dialogs.error_report.ErrorReportDialog.exec")
     def test_open_module_switch_unloads_previous_before_loading_next(self, mock_err, window, qtbot):
         """Regression test for the hot-swap crash: switching from module A to
         module B must fully destroy A's panel and call module_manager.unload_module
@@ -126,7 +126,7 @@ class TestWorkspaceWindow:
         qtbot.waitUntil(lambda: window.wizard_panel is not None, timeout=5000)
         assert window.module_manager.load_module_ui.call_count == 1
 
-    @patch("biopro.ui.dialogs.error_report.ErrorReportDialog.exec")
+    @patch("karcytics.ui.dialogs.error_report.ErrorReportDialog.exec")
     def test_open_module_failure(self, mock_exec, window, qtbot):
         manifest = {"id": "broken", "name": "Broken"}
         window.module_manager.load_module_ui.side_effect = Exception("Load Failed")

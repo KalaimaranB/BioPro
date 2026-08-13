@@ -1,10 +1,10 @@
-site_name: BioPro Documentation
-site_url: https://kalaimaranb.github.io/BioPro
+site_name: Karcytics Documentation
+site_url: https://kalaimaranb.github.io/Karcytics
 site_description: An open-source biological analysis tool.
-site_author: BioPro Contributors
+site_author: Karcytics Contributors
 
-repo_name: BioPro
-repo_url: https://github.com/KalaimaranB/BioPro
+repo_name: Karcytics
+repo_url: https://github.com/KalaimaranB/Karcytics
 
 theme:
   name: material

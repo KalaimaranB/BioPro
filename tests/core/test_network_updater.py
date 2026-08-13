@@ -6,11 +6,11 @@ from unittest.mock import patch
 
 import pytest
 
-from biopro.core.network.trust_sync import TrustSync
+from karcytics.core.network.trust_sync import TrustSync
 
 # Import from the facade and new network modules
-from biopro.core.network_updater import NetworkUpdater
-from biopro.ui.workers.plugin_installer import PluginInstallerWorker
+from karcytics.core.network_updater import NetworkUpdater
+from karcytics.ui.workers.plugin_installer import PluginInstallerWorker
 
 
 def _dict_to_toml(d):
@@ -22,7 +22,7 @@ def _dict_to_toml(d):
         d: Flat plugin metadata dictionary.
 
     Returns:
-        A TOML string containing project and BioPro plugin metadata.
+        A TOML string containing project and Karcytics plugin metadata.
     """
     lines = []
 
@@ -118,7 +118,7 @@ def create_safe_zip() -> bytes:
     return buffer.getvalue()
 
 
-@patch("biopro.core.network.client.requests.get")
+@patch("karcytics.core.network.client.requests.get")
 def test_plugin_installer_zip_slip(mock_get, temp_plugin_dir, monkeypatch):
     """Verify that the Zip Slip vulnerability is blocked by safe extraction."""
     monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
@@ -133,7 +133,7 @@ def test_plugin_installer_zip_slip(mock_get, temp_plugin_dir, monkeypatch):
     installer.run()
 
 
-@patch("biopro.core.network.client.requests.get")
+@patch("karcytics.core.network.client.requests.get")
 def test_plugin_installer_ssl_verify(mock_get, temp_plugin_dir, monkeypatch):
     """Ensure requests.get is called with properly configured SSL certs."""
     import certifi
@@ -154,7 +154,7 @@ def test_plugin_installer_ssl_verify(mock_get, temp_plugin_dir, monkeypatch):
         stream=True,
         timeout=15,
         headers={
-            "User-Agent": "BioPro-App",
+            "User-Agent": "Karcytics-App",
             "Cache-Control": "no-cache, no-store",
             "Pragma": "no-cache",
         },
@@ -162,7 +162,7 @@ def test_plugin_installer_ssl_verify(mock_get, temp_plugin_dir, monkeypatch):
     )
 
 
-@patch("biopro.core.network.client.requests.get")
+@patch("karcytics.core.network.client.requests.get")
 def test_network_updater_fetch_registry(mock_get, temp_plugin_dir, monkeypatch):
     """Ensure NetworkUpdater uses requests with verify=certifi.where() and no-cache headers."""
     import certifi
@@ -181,7 +181,7 @@ def test_network_updater_fetch_registry(mock_get, temp_plugin_dir, monkeypatch):
         stream=False,
         timeout=15,  # Default client timeout
         headers={
-            "User-Agent": "BioPro-App",
+            "User-Agent": "Karcytics-App",
             "Cache-Control": "no-cache, no-store",
             "Pragma": "no-cache",
         },
@@ -206,7 +206,7 @@ class TestNetworkUpdaterExpanded:
         monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
         return NetworkUpdater()
 
-    @patch("biopro.core.network.client.requests.get")
+    @patch("karcytics.core.network.client.requests.get")
     def test_evaluate_store_state_scenarios(self, mock_get, updater):
         """Classify plugins as INSTALL, UPDATE, UP_TO_DATE, or INCOMPATIBLE based on local and remote state."""
         mock_response = mock_get.return_value
@@ -250,11 +250,11 @@ class TestNetworkUpdaterExpanded:
 
         with (
             patch(
-                "biopro.core.network.registry_sync.RegistrySync.fetch_remote_registry",
+                "karcytics.core.network.registry_sync.RegistrySync.fetch_remote_registry",
                 return_value=remote_registry,
             ),
             patch(
-                "biopro.core.network.registry_sync.RegistrySync.get_local_state",
+                "karcytics.core.network.registry_sync.RegistrySync.get_local_state",
                 return_value=local_data,
             ),
         ):
@@ -270,7 +270,7 @@ class TestNetworkUpdaterExpanded:
         # Case 1: Newer version available (self-published registry.json, flat shape)
         remote_data = {
             "version": "9.9.9",
-            "download_url": "http://biopro.io",
+            "download_url": "http://karcytics.io",
             "notes": "- fix: something",
         }
         with patch.object(updater, "fetch_remote_registry", return_value=remote_data):
@@ -285,14 +285,14 @@ class TestNetworkUpdaterExpanded:
             assert needed is False
 
     def test_check_for_core_updates_uses_core_registry_url(self, updater):
-        """Ensures the core update-check fetches BioPro's own registry.json, not distribution's."""
+        """Ensures the core update-check fetches Karcytics's own registry.json, not distribution's."""
         with patch.object(
             updater, "fetch_remote_registry", return_value={"version": "0.0.1"}
         ) as mock_fetch:
             updater.check_for_core_updates()
             mock_fetch.assert_called_once_with(updater.core_registry_url)
 
-    @patch("biopro.core.network.client.requests.get")
+    @patch("karcytics.core.network.client.requests.get")
     def test_install_plugin_updates_local_registry(self, mock_get, updater):
         """Verify that successful installation updates the local registry file."""
         mock_response = mock_get.return_value
@@ -334,7 +334,7 @@ class TestNetworkUpdaterExpanded:
 
     def test_fetch_remote_registry_error(self, updater):
         """Ensures that network errors during registry fetch return an empty dict."""
-        with patch("biopro.core.network.client.requests.get", side_effect=Exception("Timeout")):
+        with patch("karcytics.core.network.client.requests.get", side_effect=Exception("Timeout")):
             res = updater.fetch_remote_registry("http://bad.url")
             assert res == {}
 
@@ -358,7 +358,7 @@ class TestNetworkUpdaterExpanded:
 
     def test_install_plugin_failure_path(self, updater):
         """Ensures that installation failures are caught and reported."""
-        with patch("biopro.core.network.client.requests.get", side_effect=Exception("IO Error")):
+        with patch("karcytics.core.network.client.requests.get", side_effect=Exception("IO Error")):
             success, msg = updater.install_plugin("fail", {"download_url": "..."})
             assert success is False
             assert "Failed to install" in msg
@@ -410,7 +410,7 @@ class TestNetworkUpdaterExpanded:
         roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
 
-        with patch("biopro.core.network.client.requests.get") as mock_get:
+        with patch("karcytics.core.network.client.requests.get") as mock_get:
             mock_get.return_value.status_code = 404
             # Should not raise
             updater.fetch_and_sync_authorities()
@@ -419,7 +419,7 @@ class TestNetworkUpdaterExpanded:
             auth_keys = list(roots_dir.glob("auth_*.pub"))
             assert len(auth_keys) == 0, "No authority keys should be synchronized after 404"
 
-    @patch("biopro.core.network.trust_sync.BIOPRO_ROOT_PUBLIC_KEY_HEX", "0" * 64)
+    @patch("karcytics.core.network.trust_sync.BIOPRO_ROOT_PUBLIC_KEY_HEX", "0" * 64)
     def test_authority_sync_signature_verification_failure(self, updater):
         """Verifies that authority sync aborts if signature verification fails."""
         from cryptography.hazmat.primitives.asymmetric import ed25519
@@ -430,11 +430,11 @@ class TestNetworkUpdaterExpanded:
         canonical_bytes = json.dumps(authorities, sort_keys=True).encode()
         sig = private_key.sign(canonical_bytes).hex()
 
-        with patch("biopro.core.network.client.requests.get") as mock_get:
+        with patch("karcytics.core.network.client.requests.get") as mock_get:
             mock_get.return_value.status_code = 200
             mock_get.return_value.json.return_value = {"authorities": authorities, "signature": sig}
             # This should fail because the root public key hex was patched to 00...
-            with patch("biopro.core.network.trust_sync.TrustSync.sync_keys") as mock_sync:
+            with patch("karcytics.core.network.trust_sync.TrustSync.sync_keys") as mock_sync:
                 updater.fetch_and_sync_authorities()
                 mock_sync.assert_not_called()
 
@@ -456,10 +456,10 @@ class TestNetworkUpdaterExpanded:
 
         with (
             patch.object(updater, "fetch_remote_registry", return_value=remote_data),
-            patch("biopro.core.network.client.requests.get") as mock_get,
+            patch("karcytics.core.network.client.requests.get") as mock_get,
             patch("shutil.rmtree"),
             patch("zipfile.ZipFile"),
-            patch("biopro.core.network.system_assets.safe_extract"),
+            patch("karcytics.core.network.system_assets.safe_extract"),
         ):
             mock_get.return_value.raise_for_status.return_value = None
             mock_get.return_value.content = fake_content
@@ -474,11 +474,13 @@ class TestNetworkUpdaterExpanded:
 
     def test_plugin_installer_worker_exceptions(self, tmp_path):
         """Verify exception handling in the PluginInstallerWorker thread."""
-        from biopro.ui.workers.plugin_installer import PluginInstallerWorker
+        from karcytics.ui.workers.plugin_installer import PluginInstallerWorker
 
         # Patch the signal on the class before instantiation
         with patch.object(PluginInstallerWorker, "finished") as mock_finished:
             worker = PluginInstallerWorker("test", "url", tmp_path)
-            with patch("biopro.core.network.client.requests.get", side_effect=Exception("Crash")):
+            with patch(
+                "karcytics.core.network.client.requests.get", side_effect=Exception("Crash")
+            ):
                 worker.run()
                 mock_finished.emit.assert_called_with(False, "Installation error: Crash")

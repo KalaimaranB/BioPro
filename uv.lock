@@ -64,84 +64,6 @@ wheels = [
 ]
 
 [[package]]
-name = "biopro"
-version = "1.5.2"
-source = { editable = "." }
-dependencies = [
-    { name = "biopro-sdk" },
-    { name = "certifi" },
-    { name = "cryptography" },
-    { name = "markdown" },
-    { name = "matplotlib" },
-    { name = "msgpack" },
-    { name = "numpy" },
-    { name = "opencv-python-headless" },
-    { name = "openpyxl" },
-    { name = "pandas" },
-    { name = "psutil" },
-    { name = "pygments" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'" },
-    { name = "pyqt6" },
-    { name = "pyqt6-webengine" },
-    { name = "requests" },
-    { name = "scikit-image" },
-    { name = "scipy" },
-    { name = "tifffile" },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "coverage" },
-    { name = "mkdocs" },
-    { name = "mkdocs-material" },
-    { name = "mypy" },
-    { name = "pip-audit" },
-    { name = "pre-commit" },
-    { name = "pyinstaller" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-qt" },
-    { name = "ruff" },
-    { name = "types-requests" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "biopro-sdk", editable = "../BioPro-SDK" },
-    { name = "certifi" },
-    { name = "coverage", marker = "extra == 'dev'" },
-    { name = "cryptography", specifier = ">=50.0.0" },
-    { name = "markdown" },
-    { name = "matplotlib", specifier = "==3.11.0" },
-    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.5" },
-    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5" },
-    { name = "msgpack", specifier = ">=1.0.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.9" },
-    { name = "numpy", specifier = "==1.26.4" },
-    { name = "opencv-python-headless", specifier = ">=4.9" },
-    { name = "openpyxl", specifier = ">=3.1" },
-    { name = "pandas", specifier = "==3.0.3" },
-    { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.7.0" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.6" },
-    { name = "psutil", specifier = ">=6.0" },
-    { name = "pygments" },
-    { name = "pyinstaller", marker = "extra == 'dev'" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'", specifier = ">=12.2.1" },
-    { name = "pyqt6", specifier = ">=6.6" },
-    { name = "pyqt6-webengine", specifier = ">=6.6" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.3" },
-    { name = "requests", specifier = ">=2.31" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3" },
-    { name = "scikit-image", specifier = ">=0.22" },
-    { name = "scipy", specifier = "==1.17.1" },
-    { name = "tifffile" },
-    { name = "types-requests", marker = "extra == 'dev'" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "biopro-sdk"
 version = "1.4.1"
 source = { editable = "../BioPro-SDK" }
@@ -511,6 +433,84 @@ sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899, upload-time = "2025-03-05T20:05:00.369Z" },
 ]
+
+[[package]]
+name = "karcytics"
+version = "2.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "biopro-sdk" },
+    { name = "certifi" },
+    { name = "cryptography" },
+    { name = "markdown" },
+    { name = "matplotlib" },
+    { name = "msgpack" },
+    { name = "numpy" },
+    { name = "opencv-python-headless" },
+    { name = "openpyxl" },
+    { name = "pandas" },
+    { name = "psutil" },
+    { name = "pygments" },
+    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'" },
+    { name = "pyqt6" },
+    { name = "pyqt6-webengine" },
+    { name = "requests" },
+    { name = "scikit-image" },
+    { name = "scipy" },
+    { name = "tifffile" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "coverage" },
+    { name = "mkdocs" },
+    { name = "mkdocs-material" },
+    { name = "mypy" },
+    { name = "pip-audit" },
+    { name = "pre-commit" },
+    { name = "pyinstaller" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-qt" },
+    { name = "ruff" },
+    { name = "types-requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "biopro-sdk", editable = "../BioPro-SDK" },
+    { name = "certifi" },
+    { name = "coverage", marker = "extra == 'dev'" },
+    { name = "cryptography", specifier = ">=50.0.0" },
+    { name = "markdown" },
+    { name = "matplotlib", specifier = "==3.11.0" },
+    { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.5" },
+    { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5" },
+    { name = "msgpack", specifier = ">=1.0.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.9" },
+    { name = "numpy", specifier = "==1.26.4" },
+    { name = "opencv-python-headless", specifier = ">=4.9" },
+    { name = "openpyxl", specifier = ">=3.1" },
+    { name = "pandas", specifier = "==3.0.3" },
+    { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.7.0" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.6" },
+    { name = "psutil", specifier = ">=6.0" },
+    { name = "pygments" },
+    { name = "pyinstaller", marker = "extra == 'dev'" },
+    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin'", specifier = ">=12.2.1" },
+    { name = "pyqt6", specifier = ">=6.6" },
+    { name = "pyqt6-webengine", specifier = ">=6.6" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
+    { name = "pytest-qt", marker = "extra == 'dev'", specifier = ">=4.3" },
+    { name = "requests", specifier = ">=2.31" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.3" },
+    { name = "scikit-image", specifier = ">=0.22" },
+    { name = "scipy", specifier = "==1.17.1" },
+    { name = "tifffile" },
+    { name = "types-requests", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "kiwisolver"

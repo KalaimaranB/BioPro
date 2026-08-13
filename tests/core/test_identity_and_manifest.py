@@ -90,7 +90,7 @@ class TestManifestParserIntegration:
 
 
 class TestInitIdentity:
-    """TDD tests for biopro sdk init-identity (developer and project modes)."""
+    """TDD tests for karcytics sdk init-identity (developer and project modes)."""
 
     def test_developer_mode_creates_expected_files(self, tmp_path, monkeypatch):
         """init_identity() creates V2 developer key files in ~/.biopro/dev_keys/."""

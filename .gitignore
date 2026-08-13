@@ -48,16 +48,16 @@ build/
 
 # PyInstaller Specific
 *.spec
-!BioPro.spec
+!Karcytics.spec
 
 # Application Logs
 *.log
 
 # ── Plugins & Security ──
 # Ignore the contents of plugin subfolders if they are separate repos
-biopro/plugins/*/
+karcytics/plugins/*/
 # But keep the directory structure itself
-!biopro/plugins/.gitkeep
+!karcytics/plugins/.gitkeep
 
 # Security & Trust transients
 trust_debug.log

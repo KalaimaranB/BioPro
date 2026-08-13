@@ -1,11 +1,11 @@
-"""Tests for the BioPro Event Bus (The Nervous System)."""
+"""Tests for the Karcytics Event Bus (The Nervous System)."""
 
 from unittest.mock import MagicMock
 
 import pytest
 from PyQt6.QtCore import QThread
 
-from biopro.core.event_bus import BioProEvent, EventManager
+from karcytics.core.event_bus import EventManager, KarcyticsEvent
 
 
 class TestEventBus:
@@ -18,9 +18,9 @@ class TestEventBus:
     def test_emit_receive(self, bus):
         """Verify basic publish/subscribe functionality."""
         callback = MagicMock()
-        bus.subscribe(BioProEvent.PLUGIN_INSTALLED, callback)
+        bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, callback)
 
-        bus.emit(BioProEvent.PLUGIN_INSTALLED, "test_plugin")
+        bus.emit(KarcyticsEvent.PLUGIN_INSTALLED, "test_plugin")
 
         # We need to process events because dispatch happens via internal signal
         from PyQt6.QtWidgets import QApplication
@@ -33,10 +33,10 @@ class TestEventBus:
         """Verify multiple subscribers can listen to the same event."""
         cb1 = MagicMock()
         cb2 = MagicMock()
-        bus.subscribe(BioProEvent.PLUGIN_INSTALLED, cb1)
-        bus.subscribe(BioProEvent.PLUGIN_INSTALLED, cb2)
+        bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, cb1)
+        bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, cb2)
 
-        bus.emit(BioProEvent.PLUGIN_INSTALLED, "shared_msg")
+        bus.emit(KarcyticsEvent.PLUGIN_INSTALLED, "shared_msg")
         from PyQt6.QtWidgets import QApplication
 
         QApplication.processEvents()
@@ -47,10 +47,10 @@ class TestEventBus:
     def test_unsubscribe(self, bus):
         """Verify that listeners can be removed."""
         callback = MagicMock()
-        bus.subscribe(BioProEvent.PLUGIN_INSTALLED, callback)
-        bus.unsubscribe(BioProEvent.PLUGIN_INSTALLED, callback)
+        bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, callback)
+        bus.unsubscribe(KarcyticsEvent.PLUGIN_INSTALLED, callback)
 
-        bus.emit(BioProEvent.PLUGIN_INSTALLED, "gone")
+        bus.emit(KarcyticsEvent.PLUGIN_INSTALLED, "gone")
         from PyQt6.QtWidgets import QApplication
 
         QApplication.processEvents()
@@ -64,12 +64,12 @@ class TestEventBus:
         def listener(data):
             received_data.append(data)
 
-        bus.subscribe(BioProEvent.PLUGIN_INSTALLED, listener)
+        bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, listener)
 
         # Define a worker thread that emits an event
         class Worker(QThread):
             def run(self):
-                bus.emit(BioProEvent.PLUGIN_INSTALLED, "from_bg_thread")
+                bus.emit(KarcyticsEvent.PLUGIN_INSTALLED, "from_bg_thread")
 
         worker = Worker()
         worker.start()
@@ -87,11 +87,11 @@ class TestEventBus:
 
         cb_healthy = MagicMock()
 
-        bus.subscribe(BioProEvent.PLUGIN_INSTALLED, buggy_listener)
-        bus.subscribe(BioProEvent.PLUGIN_INSTALLED, cb_healthy)
+        bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, buggy_listener)
+        bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, cb_healthy)
 
         # Should not crash the emitter
-        bus.emit(BioProEvent.PLUGIN_INSTALLED, "data")
+        bus.emit(KarcyticsEvent.PLUGIN_INSTALLED, "data")
 
         from PyQt6.QtWidgets import QApplication
 

@@ -147,7 +147,7 @@ def sign_mock_plugin(plugin_dir, manifest_data, dev_certs, mock_auth):
             TrustLink(
                 subject_name=dev["name"],
                 subject_pub=dev["pub_hex"],
-                issuer_name="BioPro Core Authority",
+                issuer_name="Karcytics Core Authority",
                 signature=dev["signature"],
             )
         )

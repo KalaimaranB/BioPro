@@ -1,6 +1,6 @@
 # Example Minimal Plugin
 
-This is a minimal example plugin demonstrating the required plugin contract for BioPro.
+This is a minimal example plugin demonstrating the required plugin contract for Karcytics.
 
 Install locally for development:
 

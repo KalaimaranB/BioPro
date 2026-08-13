@@ -1,12 +1,12 @@
 # Developer Onboarding and Contribution
 
-This manual outlines the operational workflows for contributing to BioPro, detailing the cryptographic configuration required for developers and institutional authorities.
+This manual outlines the operational workflows for contributing to Karcytics, detailing the cryptographic configuration required for developers and institutional authorities.
 
 ---
 
 ## Contribution Roles
 
-BioPro delineates roles to enforce security policies and track contributions accurately.
+Karcytics delineates roles to enforce security policies and track contributions accurately.
 
 1. **Contributor/Tester**: Individuals providing QA, testing, or documentation without committing executable code. They do not require cryptographic signing keys.
 2. **Developer/Publisher**: Engineers authoring plugin code. They must sign their releases with an Ed25519 key.
@@ -37,22 +37,22 @@ Contributors are added to the `authors` array but omitted from the `"sign_code"`
 
 ## Tier 2: Developer
 
-Developers must cryptographically sign their plugins to pass BioPro's integrity checks.
+Developers must cryptographically sign their plugins to pass Karcytics's integrity checks.
 
 ### 1. Initialize Cryptographic Keypair
-Generate a personal Ed25519 key pair using the BioPro CLI:
+Generate a personal Ed25519 key pair using the Karcytics CLI:
 ```bash
-biopro-sign init
+karcytics-sign init
 ```
 This generates your private key (`private.key`) and public key (`public.pub`) in `~/.biopro/dev_keys/`.
 
 ### 2. Profile Registration
-To be recognized globally, your public key must be registered with the central BioPro directory. Submit your generated public hex string to the repository administrators.
+To be recognized globally, your public key must be registered with the central Karcytics directory. Submit your generated public hex string to the repository administrators.
 
 ### 3. Plugin Signing
 Before distributing a plugin, execute the signing process:
 ```bash
-biopro-sign sign .
+karcytics-sign sign .
 ```
 This routine validates your `manifest.json` and generates `security.json` (the file hashes) and `signature.bin` (your cryptographic signature).
 
@@ -63,11 +63,11 @@ This routine validates your `manifest.json` and generates `security.json` (the f
 Institutions establish a root of trust, allowing them to issue "Delegated Trust Certificates" to affiliated developers.
 
 ### 1. Authority Registration
-Generate an authority key pair and submit the public key to the BioPro core administrators to be added to the official `authorities.json` registry.
+Generate an authority key pair and submit the public key to the Karcytics core administrators to be added to the official `authorities.json` registry.
 
 ### 2. Issuing Delegation Certificates
 Use the institutional private key to sign a developer's public key:
 ```bash
-biopro-sign delegate <path_to_researcher_public.pub> "Researcher Name" --authority <path_to_your_authority_private.pem>
+karcytics-sign delegate <path_to_researcher_public.pub> "Researcher Name" --authority <path_to_your_authority_private.pem>
 ```
 The resulting `delegation.json` must be included by the developer in their workspace. Plugins signed by that developer will subsequently validate against the Institutional Authority's root key.

@@ -1,13 +1,13 @@
 
 # Plugin Store and Security
 
-BioPro uses a verified plugin architecture to separate the core application from analysis tools. Plugins are installed, updated, and managed from the in-app Marketplace, while security controls protect your system from modified or untrusted modules.
+Karcytics uses a verified plugin architecture to separate the core application from analysis tools. Plugins are installed, updated, and managed from the in-app Marketplace, while security controls protect your system from modified or untrusted modules.
 
 ---
 
 ## What is the Plugin Store?
 
-The Plugin Store is the central place to discover and manage analysis modules for BioPro.
+The Plugin Store is the central place to discover and manage analysis modules for Karcytics.
 
 * **Install** new modules without manually copying files.
 * **Update** installed plugins when new versions are available.
@@ -46,32 +46,32 @@ Installed plugins are stored in the application data folder at `~/.biopro/plugin
 
 * The Marketplace downloads plugin packages from the remote registry.
 * The package is extracted safely into its own plugin folder.
-* BioPro updates a local `installed.json` registry to remember which modules are installed and what version is active.
+* Karcytics updates a local `installed.json` registry to remember which modules are installed and what version is active.
 
 > [!TIP]
-> If a plugin package contains a single top-level folder, BioPro will flatten it so the plugin still loads correctly.
+> If a plugin package contains a single top-level folder, Karcytics will flatten it so the plugin still loads correctly.
 
 ---
 
 ## Plugin Security Statuses
 
-Every plugin is classified by a trust status when BioPro discovers it.
+Every plugin is classified by a trust status when Karcytics discovers it.
 
 * **Verified Secure** — The plugin’s signature is valid and the developer identity is part of the trusted authority chain.
-* **Untrusted** — The plugin files are intact, but the developer's signing key is not currently trusted. BioPro blocks execution until you approve the developer.
-* **Outdated** — The plugin version is incompatible with the installed BioPro core and needs an update.
+* **Untrusted** — The plugin files are intact, but the developer's signing key is not currently trusted. Karcytics blocks execution until you approve the developer.
+* **Outdated** — The plugin version is incompatible with the installed Karcytics core and needs an update.
 
-If a plugin is blocked because it is untrusted, BioPro will prompt you before it runs and show a high-visibility security dialog explaining the risk.
+If a plugin is blocked because it is untrusted, Karcytics will prompt you before it runs and show a high-visibility security dialog explaining the risk.
 
 ---
 
 ## Trust and Developer Identity
 
-BioPro keeps a list of trusted developer keys and authorities in `~/.biopro/trusted_roots`.
+Karcytics keeps a list of trusted developer keys and authorities in `~/.biopro/trusted_roots`.
 
 When you install or inspect a plugin, the app may display one of the following trust paths:
 
-* **Verified Root Trust Chain** — The developer key is verified by the official BioPro root authority and a signed registry.
+* **Verified Root Trust Chain** — The developer key is verified by the official Karcytics root authority and a signed registry.
 * **Manually Approved Root (Local Override)** — You manually added the developer's public key to your local trust store.
 * **Unverified Self-Signed Identity** — The developer key is present, but no trusted root or authority path is available.
 
@@ -80,10 +80,10 @@ When you install or inspect a plugin, the app may display one of the following t
 > [!NOTE]
 > Screenshot placeholder: plugin trust approval dialog with developer identity, public key, and trust options.
 
-When BioPro asks you to trust a new developer, review the developer name and public key carefully. If you recognize the source:
+When Karcytics asks you to trust a new developer, review the developer name and public key carefully. If you recognize the source:
 
 1. Click **Trust this Developer** in the security dialog.
-2. BioPro saves the developer key locally and allows their plugins to run on your machine.
+2. Karcytics saves the developer key locally and allows their plugins to run on your machine.
 3. The plugin can now load normally in future sessions.
 
 If you do not recognize the developer or do not want to trust them, click **Not Now** and do not load the plugin.
@@ -95,7 +95,7 @@ If you do not recognize the developer or do not want to trust them, click **Not 
 Each plugin card includes an option to inspect details such as:
 
 * Publisher name and version
-* Minimum required BioPro core version
+* Minimum required Karcytics core version
 * Verification status badge
 * Developer identity and trust path
 
@@ -108,7 +108,7 @@ The Marketplace also provides a **Diagnose & Repair** action.
 
 ## Keeping plugins up to date
 
-BioPro periodically synchronizes plugin metadata from a remote registry. The Marketplace uses this registry to determine which plugins are new or updated.
+Karcytics periodically synchronizes plugin metadata from a remote registry. The Marketplace uses this registry to determine which plugins are new or updated.
 
 If a plugin no longer loads after updating, check the plugin details and trust path. You may need to reinstall the plugin or approve a newly published developer key.
 
@@ -121,4 +121,4 @@ If a plugin no longer loads after updating, check the plugin details and trust p
 * If a plugin reports a missing dependency, the problem may be caused by the module's container environment. Use the plugin repair action or reinstall the plugin.
 
 > [!NOTE]
-> The Plugin Store is not a generic file browser. It only manages verified plugins that conform to BioPro’s dynamic plugin model.
+> The Plugin Store is not a generic file browser. It only manages verified plugins that conform to Karcytics’s dynamic plugin model.

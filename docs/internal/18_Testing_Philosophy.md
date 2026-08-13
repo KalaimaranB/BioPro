@@ -1,6 +1,6 @@
 # Testing Philosophy and Coverage
 
-BioPro enforces rigorous testing protocols to ensure data integrity and security validation across its core subsystems and the SDK.
+Karcytics enforces rigorous testing protocols to ensure data integrity and security validation across its core subsystems and the SDK.
 
 ---
 
@@ -48,7 +48,7 @@ uv run pytest
 
 ### Coverage Reporting
 ```bash
-uv run pytest --cov=biopro --cov-report=term-missing
+uv run pytest --cov=karcytics --cov-report=term-missing
 ```
 
 ---
