@@ -325,7 +325,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
             try:
                 # Monkeypatch fcs_io to explicitly fail if flowkit (daemon) is NOT used
-                import biopro_plugins.flow_cytometry.analysis.fcs_io as fcs_io  # type: ignore[import-untyped, import-not-found]
+                import karcytics_plugins.flow_cytometry.analysis.fcs_io as fcs_io  # type: ignore[import-untyped, import-not-found]
 
                 def _crash_fcsparser(*_args: object, **_kwargs: object) -> NoReturn:  # noqa: ARG001
                     raise RuntimeError(
@@ -438,7 +438,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
     if args.plugin_id == "flow_cytometry" and data_ready_emitted:
         try:
             import numpy as np
-            from biopro_plugins.flow_cytometry.analysis.transforms import (  # type: ignore[import-untyped, import-not-found]
+            from karcytics_plugins.flow_cytometry.analysis.transforms import (  # type: ignore[import-untyped, import-not-found]
                 biexponential_transform,
             )
 
