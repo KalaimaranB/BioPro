@@ -68,7 +68,7 @@ class WorkspaceDashboard(QWidget):
         self.logo_animation.setFixedSize(100, 100)  # Compact for the header
         title_row.addWidget(self.logo_animation)
 
-        name = QLabel("Karcytics")
+        name = QLabel("Karcytics™")
         theme_manager.apply_style(
             name,
             f"font-size: 34px; font-weight: 800; color: {Colors.FG_PRIMARY}; background: transparent; letter-spacing: -1px;",

@@ -53,7 +53,7 @@ TUTORIAL_VALIDATION_POLL_TICKS: int = 20
 class WorkspaceWindow(QMainWindow):
     """Karcytics main application window."""
 
-    APP_TITLE = "Karcytics — Bio Analysis"
+    APP_TITLE = "Karcytics™ — Bio Analysis"
     DEFAULT_SIZE = QSize(1400, 860)
 
     def __init__(

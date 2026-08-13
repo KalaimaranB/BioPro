@@ -49,7 +49,7 @@ class AboutKarcyticsDialog(QDialog):
         title_layout = QVBoxLayout()
         title_layout.setSpacing(5)
 
-        name_lbl = QLabel("Karcytics")
+        name_lbl = QLabel("Karcytics™")
         theme_manager.apply_style(
             name_lbl,
             f"color: {Colors.FG_PRIMARY}; font-size: 24px; font-weight: bold;",
