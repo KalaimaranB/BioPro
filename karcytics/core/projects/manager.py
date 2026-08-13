@@ -90,6 +90,14 @@ class ProjectManager:
             FileNotFoundError: If the project file does not exist.
         """
         try:
+            legacy_project_file = self.project_dir / "project.biopro"
+            if not self.project_file.exists() and legacy_project_file.exists():
+                legacy_project_file.rename(self.project_file)
+                logger.info(
+                    f"Migrated legacy project file: {legacy_project_file.name} -> "
+                    f"{self.project_file.name}"
+                )
+
             if not self.project_file.exists():
                 raise FileNotFoundError(f"Not a valid Karcytics project: {self.project_file}")
 
