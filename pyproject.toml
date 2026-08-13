@@ -153,3 +153,10 @@ ignore_errors = true
 
 [tool.uv.sources]
 biopro-sdk = { path = "../BioPro-SDK", editable = true }
+
+[tool.pyright]
+exclude = [
+    "**/__pyrefly_virtual__",
+    "**/node_modules",
+    "**/__pycache__"
+]

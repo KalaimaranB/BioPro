@@ -237,8 +237,6 @@ class ThemeManager(QObject):
             for key, value in data.items():
                 if hasattr(Colors, key):
                     setattr(Colors, key, value)
-                elif hasattr(Fonts, key):
-                    setattr(Fonts, key, value)
                 elif hasattr(Strings, key):
                     setattr(Strings, key, value)
 

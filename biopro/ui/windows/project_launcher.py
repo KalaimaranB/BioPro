@@ -630,21 +630,21 @@ class ProjectLauncherWindow(QMainWindow):
         webbrowser.open("https://kalaimaranb.github.io/BioPro/")
 
     def _restart_core_intro(self) -> None:
-        """Resets core intro progress and re-launches the onboarding tour."""
+        """Re-launches the onboarding tour without losing completion status."""
         from biopro.core.preferences import core_preferences
         from biopro.core.tutorial_manager import global_tutorial_manager
 
-        # Clear both gates so the tour auto-starts again
-        global_tutorial_manager.reset_course("core_intro_v1")
         core_preferences.set("core_intro_dismissed_once", False)
-
-        # reset_course() only clears active_course/current_step if the course
-        # had already been completed — force-clear here too so a restart
-        # requested mid-course isn't blocked by the active-course guard above.
         global_tutorial_manager.active_course = None
         global_tutorial_manager.current_step = None
 
-        self._maybe_start_core_intro()
+        # Start directly, bypassing the "already completed" guard in _maybe_start_core_intro
+        started = global_tutorial_manager.start_core_intro()
+        if started:
+            self._sync_hub_overlay_geometry()
+            self._hub_tutorial_overlay.show()
+            self._hub_tutorial_overlay.set_targets([])
+            self._hub_tutorial_overlay.raise_()
 
     def _clear_app_data(self) -> None:
         """Clear all BioPro app data and quit asynchronously to avoid UI freezing."""

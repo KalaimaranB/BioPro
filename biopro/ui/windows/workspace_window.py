@@ -14,7 +14,6 @@ from PyQt6.QtCore import (
     QProcess,
     QPropertyAnimation,
     QSize,
-    Qt,
     QTimer,
 )
 from PyQt6.QtWidgets import (
@@ -31,7 +30,7 @@ from biopro.core.event_bus import BioProEvent, event_bus
 from biopro.ui.components.overlays import BioLoadingOverlay
 from biopro.ui.components.toolbars import AnalysisToolBar
 from biopro.ui.dashboards.workspace_dashboard import WorkspaceDashboard as HomeScreen
-from biopro.ui.theme import Fonts, theme_manager
+from biopro.ui.theme import theme_manager
 from biopro.ui.windows.workspace.hub_manager import HubManager
 from biopro.ui.windows.workspace.menu_manager import MenuManager
 from biopro.ui.windows.workspace.plugin_loader import PluginLoaderManager
@@ -129,11 +128,7 @@ class WorkspaceWindow(QMainWindow):
         # AI Chat feature is currently in the works - UI hidden for now
         # self.analysis_toolbar.btn_ai.clicked.connect(self.menu_manager.open_ai_chat)
         self.analysis_toolbar.btn_academy.clicked.connect(self.hub_manager.open_academy)
-        self.aurebesh_lbl = QLabel("")
-        self.aurebesh_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.aurebesh_lbl.setObjectName("AurebeshLabel")
         ap_layout.addWidget(self.analysis_toolbar)
-        ap_layout.addWidget(self.aurebesh_lbl)
         self.wizard_panel = None
         self.main_module_container = QWidget()
         self.main_module_layout = QVBoxLayout(self.main_module_container)
@@ -469,10 +464,6 @@ class WorkspaceWindow(QMainWindow):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.setObjectName("WorkspaceStatusBar")
-        is_sw = "Galactic" in theme_manager.current_theme_name
-        theme_manager.apply_style(
-            self.status_bar, f"font-family: {(Fonts.FAMILY_MONO if is_sw else 'inherit')};"
-        )
 
         self.copyright_label = QLabel("© Kalaimaran Balasothy")
         self.copyright_label.setObjectName("CopyrightLabel")
