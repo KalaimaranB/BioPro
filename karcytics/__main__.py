@@ -296,9 +296,6 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
             "Loading plugin UI class to trigger all heavy imports (Numba, Matplotlib, C-Extensions)..."  # noqa: E501
         )
 
-        # Temp Patch: Force trust the plugin to bypass Security Block during smoke testing
-        module_manager.trust_module(args.plugin_id)
-
         # Prevent modal dialogs from hanging the headless runner
         from typing import NoReturn
 
