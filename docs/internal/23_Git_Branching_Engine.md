@@ -68,7 +68,7 @@ If either check fails, the job exits non-zero and the check goes red. Because it
 
 ## How a release reaches the update banner
 
-This is the self-published registry flow, replacing the old path where the app depended on `BioPro-Distribution` for its own version:
+This is the self-published registry flow, replacing the old path where the app depended on `Karcytics-Distribution` for its own version:
 
 ```mermaid
 sequenceDiagram
@@ -80,7 +80,7 @@ sequenceDiagram
     Dev->>CI: merge triggers build/test/generate-registry
     CI->>CI: generate-registry job computes changelog<br/>since last tag, writes registry.json
     CI->>Rel: release job uploads registry.json<br/>as a release asset (with the executables, SBOM, provenance)
-    App->>Rel: fetch releases/latest/download/registry.json<br/>(CORE_REGISTRY_URL, no BioPro-Distribution involved)
+    App->>Rel: fetch releases/latest/download/registry.json<br/>(CORE_REGISTRY_URL, no Karcytics-Distribution involved)
     Rel-->>App: {version, download_url, notes, release_date}
     App->>App: UpdateChecker emits CORE_UPDATE_AVAILABLE<br/>with notes as a 3rd argument
     App->>App: UpdateBannerWidget shows the banner,<br/>sets notes as the label tooltip
@@ -88,7 +88,7 @@ sequenceDiagram
 
 `registry.json`'s `notes` field is built from `git log <last-tag>..HEAD --no-merges`, one bullet per commit subject — which is why PR titles following Conventional Commits matter beyond just passing `enforce-workflow`: they're literally what shows up as the "what changed" text in the app.
 
-Plugin version lookups are unchanged and still go through `BioPro-Distribution/registry.json` — this self-published path is core-app-only, by design, since plugins are a separate versioning surface with their own release cadence.
+Plugin version lookups are unchanged and still go through `Karcytics-Distribution/registry.json` — this self-published path is core-app-only, by design, since plugins are a separate versioning surface with their own release cadence.
 
 ## Versioning quick reference
 

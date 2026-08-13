@@ -125,7 +125,7 @@ class NetworkUpdater:
         """Determine whether a newer core application version is available.
 
         Fetches Karcytics's own self-published registry.json (a GitHub Release asset on
-        the Karcytics repo itself) rather than going through BioPro-Distribution, since
+        the Karcytics repo itself) rather than going through Karcytics-Distribution, since
         the core app always knows exactly where its own releases live.
 
         Returns:

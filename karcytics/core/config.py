@@ -51,13 +51,13 @@ class AppConfig:
     from karcytics import __version__ as CORE_VERSION  # noqa: N812
 
     REGISTRY_URL = (
-        "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/registry.json"
+        "https://raw.githubusercontent.com/KalaimaranB/Karcytics-Distribution/main/registry.json"
     )
     CORE_REGISTRY_URL = (
         "https://github.com/KalaimaranB/Karcytics/releases/latest/download/registry.json"
     )
     AUTHORITY_REGISTRY_URL = (
-        "https://raw.githubusercontent.com/KalaimaranB/BioPro-Distribution/main/authorities.json"
+        "https://raw.githubusercontent.com/KalaimaranB/Karcytics-Distribution/main/authorities.json"
     )
 
     # Decentralized plugin registry settings
