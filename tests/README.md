@@ -1,6 +1,6 @@
-# BioPro Test Suite
+# Karcytics Test Suite
 
-This directory contains comprehensive tests for the BioPro core library and SDK.
+This directory contains comprehensive tests for the Karcytics core library and SDK.
 
 ## Test Files
 
@@ -51,7 +51,7 @@ pytest -m integration
 ### Run with coverage report
 ```bash
 pip install pytest-cov
-pytest --cov=biopro --cov-report=html
+pytest --cov=karcytics --cov-report=html
 ```
 
 ### Run tests in parallel (faster)
@@ -87,7 +87,7 @@ def test_something(temp_config_dir):
 ## Test Coverage
 
 For a detailed breakdown of coverage metrics, testing layers (Unit/Integration/Security), and our TDD philosophy, see:
-**[Testing Philosophy & Coverage](file:///Users/kalaimaranbalasothy/GitHub Projects/BioPro/docs/internal/18_Testing_Philosophy.md)**
+**[Testing Philosophy & Coverage](file:///Users/kalaimaranbalasothy/GitHub Projects/Karcytics/docs/internal/18_Testing_Philosophy.md)**
 
 Current areas of high focus:
 - **plugin_sdk.py** - PluginState, PluginSignals, AnalysisBase, WizardStep, WizardPanel, PluginBase, AnalysisWorker
@@ -103,7 +103,7 @@ These tests are designed to run in CI/CD pipelines:
 pip install -e ".[dev]"
 
 # Run full test suite
-pytest --cov=biopro
+pytest --cov=karcytics
 
 # With xvfb for headless testing on Linux
 xvfb-run pytest
@@ -113,7 +113,7 @@ xvfb-run pytest
 
 The test files are automatically excluded from:
 
-1. **PyInstaller builds** (BioPro.spec)
+1. **PyInstaller builds** (Karcytics.spec)
    - Tests are in the `bloat_modules` exclude list
    - Any file with 'test_' in the path is filtered out
 
@@ -137,7 +137,7 @@ pytest -k "history" -v
 
 ### Generate coverage report
 ```bash
-pytest --cov=biopro --cov-report=term-missing
+pytest --cov=karcytics --cov-report=term-missing
 ```
 
 ### Watch tests (rerun on file changes)
@@ -157,7 +157,7 @@ ptw
 Example:
 ```python
 import pytest
-from biopro.core import PluginBase
+from karcytics.core import PluginBase
 
 
 class TestNewFeature:
@@ -189,7 +189,7 @@ xvfb-run pytest
 ### Import errors
 Make sure the project root is in PYTHONPATH:
 ```bash
-export PYTHONPATH=/path/to/BioPro:$PYTHONPATH
+export PYTHONPATH=/path/to/Karcytics:$PYTHONPATH
 pytest
 ```
 

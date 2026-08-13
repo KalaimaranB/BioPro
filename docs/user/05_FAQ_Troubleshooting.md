@@ -6,15 +6,15 @@ This page answers common issues and points you to the logs, support resources, a
 
 ## General Questions
 
-### Is BioPro open source?
+### Is Karcytics open source?
 
-Yes. The BioPro core application is open-source. Some plugins may be developed by third parties and carry their own licensing or usage terms.
+Yes. The Karcytics core application is open-source. Some plugins may be developed by third parties and carry their own licensing or usage terms.
 
-### Does BioPro upload my data to the cloud?
+### Does Karcytics upload my data to the cloud?
 
-No. BioPro stores your projects and analysis data locally. Only plugin metadata and trusted developer registries are fetched from the network.
+No. Karcytics stores your projects and analysis data locally. Only plugin metadata and trusted developer registries are fetched from the network.
 
-### Why does BioPro use a plugin store?
+### Why does Karcytics use a plugin store?
 
 The core app is intentionally lightweight. Analysis modules are installed on demand from the Plugin Store so you can add only the tools you need.
 
@@ -24,10 +24,10 @@ The core app is intentionally lightweight. Analysis modules are installed on dem
 
 ### The project is locked
 
-BioPro creates `.biopro.lock` inside the project folder while the project is open.
+Karcytics creates `.karcytics.lock` inside the project folder while the project is open.
 
-* If another BioPro instance is already running, close it before reopening the project.
-* If BioPro crashed and the lock file remains, delete `.biopro.lock` after verifying that no BioPro instance is still using the project.
+* If another Karcytics instance is already running, close it before reopening the project.
+* If Karcytics crashed and the lock file remains, delete `.karcytics.lock` after verifying that no Karcytics instance is still using the project.
 
 ### Permission denied
 
@@ -45,7 +45,7 @@ Make sure your operating system account has read and write permission for the pr
 
 ### A plugin is blocked as untrusted
 
-BioPro will not execute plugins that are not trusted.
+Karcytics will not execute plugins that are not trusted.
 
 * Inspect the developer identity in the Plugin Store.
 * If you recognize the source, approve the developer when prompted.
@@ -53,7 +53,7 @@ BioPro will not execute plugins that are not trusted.
 
 ### A plugin says it is outdated
 
-This means the installed module requires a newer BioPro core or plugin version.
+This means the installed module requires a newer Karcytics core or plugin version.
 
 * Go to the **Available Updates** collection in the Marketplace.
 * Update the plugin.
@@ -65,7 +65,7 @@ This means the installed module requires a newer BioPro core or plugin version.
 
 ### View logs
 
-BioPro stores runtime logs at `~/.biopro/biopro.log`.
+Karcytics stores runtime logs at `~/.biopro/karcytics.log`.
 
 * In the workspace, open **Help → 📜 View Logs**.
 * In the Project Hub, open the same Help menu option.
@@ -74,7 +74,7 @@ BioPro stores runtime logs at `~/.biopro/biopro.log`.
 
 Report issues when:
 
-* BioPro crashes unexpectedly.
+* Karcytics crashes unexpectedly.
 * A plugin repeatedly fails to install or load.
 * A project cannot be opened even after removing a stale lock file.
 
@@ -86,7 +86,7 @@ Include the log file contents and a description of what you were doing when the 
 
 ### Update banner not appearing
 
-BioPro checks for core updates on Hub startup.
+Karcytics checks for core updates on Hub startup.
 
 * If you do not see an update banner, your current version is likely up to date.
 * If you suspect a newer version exists, visit the GitHub Releases page and compare versions manually.
@@ -105,6 +105,6 @@ The AI Assistant panel is part of the application roadmap but is not currently e
 
 ## Additional support
 
-* **GitHub Issues:** [https://github.com/KalaimaranB/BioPro/issues](https://github.com/KalaimaranB/BioPro/issues)
-* **Documentation portal:** [https://kalaimaranb.github.io/BioPro/](https://kalaimaranb.github.io/BioPro/)
-* **Log file:** `~/.biopro/biopro.log`
+* **GitHub Issues:** [https://github.com/KalaimaranB/Karcytics/issues](https://github.com/KalaimaranB/Karcytics/issues)
+* **Documentation portal:** [https://kalaimaranb.github.io/Karcytics/](https://kalaimaranb.github.io/Karcytics/)
+* **Log file:** `~/.biopro/karcytics.log`

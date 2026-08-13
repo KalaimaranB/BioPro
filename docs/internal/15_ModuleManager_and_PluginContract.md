@@ -1,6 +1,6 @@
 # ModuleManager & Plugin Contract
 
-This page explains how `ModuleManager` discovers, verifies, and loads plugins, and describes the plugin contract that third-party modules must implement to interoperate with BioPro.
+This page explains how `ModuleManager` discovers, verifies, and loads plugins, and describes the plugin contract that third-party modules must implement to interoperate with Karcytics.
 
 ```mermaid
 flowchart TD
@@ -58,4 +58,4 @@ flowchart TD
 
 ## Links
 
-- Source: `biopro/core/module_manager.py` and `biopro/plugins/sdk_utils.py` (see API pages).
+- Source: `karcytics/core/module_manager.py` and `karcytics/plugins/sdk_utils.py` (see API pages).

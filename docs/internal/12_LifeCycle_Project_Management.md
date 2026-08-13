@@ -6,11 +6,11 @@ The `ProjectManager` handles the lifecycle of project artifacts, encompassing ra
 
 ## Workspace Directory Structure
 
-A BioPro project is identified by a top-level directory containing a `.biopro` configuration folder.
+A Karcytics project is identified by a top-level directory containing a `.karcytics` configuration folder.
 
 ```text
 my_experiment/
-├── .biopro/
+├── .karcytics/
 │   ├── project.json          # Main metadata & asset registry
 │   ├── history.json          # Serialized state chain
 │   └── .lock                 # Process lock
@@ -22,10 +22,10 @@ my_experiment/
 
 ## Session Locking
 
-To prevent data corruption from concurrent access, BioPro implements a file-based locking mechanism.
+To prevent data corruption from concurrent access, Karcytics implements a file-based locking mechanism.
 
 ### Lock Protocol
-1.  **Acquisition**: Upon opening a project, `ProjectManager` writes its system process ID (PID) to `.biopro/.lock`.
+1.  **Acquisition**: Upon opening a project, `ProjectManager` writes its system process ID (PID) to `.karcytics/.lock`.
 2.  **Verification**: If a lock file exists, the manager checks the active system processes. If the recorded PID is dead (e.g., from an abrupt termination), the lock is claimed. If the PID is active, a `ProjectLockedError` is raised.
 3.  **Release**: The lock file is deleted during graceful application shutdown or when the project is closed.
 
@@ -33,7 +33,7 @@ To prevent data corruption from concurrent access, BioPro implements a file-base
 
 ## Asset Management
 
-BioPro supports two strategies for managing raw input data:
+Karcytics supports two strategies for managing raw input data:
 
 | Strategy | Behavior | Trade-offs |
 | :--- | :--- | :--- |
@@ -49,7 +49,7 @@ Loaded images are hashed using SHA-256. This facilitates:
 
 ## Atomic Save Operations
 
-BioPro utilizes atomic writes for critical configuration files (`project.json`, `history.json`) to prevent data loss during unexpected terminations.
+Karcytics utilizes atomic writes for critical configuration files (`project.json`, `history.json`) to prevent data loss during unexpected terminations.
 
 1.  The serialized state is written to a temporary file (e.g., `project.json.tmp`).
 2.  An atomic filesystem `replace()` operation swaps the temporary file with the target file.
@@ -57,7 +57,7 @@ BioPro utilizes atomic writes for critical configuration files (`project.json`, 
 
 ---
 
-## API Reference (`biopro.core.project_manager`)
+## API Reference (`karcytics.core.project_manager`)
 
 ### `ProjectManager(project_dir: Path)`
 Initializes the manager instance. Does not perform I/O upon instantiation.

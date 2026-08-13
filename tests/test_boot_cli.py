@@ -51,19 +51,19 @@ def test_smoke_test_timeout_no_signal(monkeypatch: pytest.MonkeyPatch) -> None:
         def resolve_and_install_all(self, deps: dict[str, str], plugin_dir: Path) -> None:
             pass
 
-    monkeypatch.setattr("biopro.core.module_manager.ModuleManager", MockModuleManager)
-    monkeypatch.setattr("biopro.core.network_updater.NetworkUpdater", MockNetworkUpdater)
-    monkeypatch.setattr("biopro.core.package_manager.PackageManager", MockPackageManager)
-    monkeypatch.setattr("biopro.__main__.setup_logging", lambda: Path("/tmp/biopro.log"))
+    monkeypatch.setattr("karcytics.core.module_manager.ModuleManager", MockModuleManager)
+    monkeypatch.setattr("karcytics.core.network_updater.NetworkUpdater", MockNetworkUpdater)
+    monkeypatch.setattr("karcytics.core.package_manager.PackageManager", MockPackageManager)
+    monkeypatch.setattr("karcytics.__main__.setup_logging", lambda: Path("/tmp/karcytics.log"))
 
     # Significantly reduce timeout for testing
-    monkeypatch.setattr("biopro.__main__.SMOKE_TEST_TIMEOUT_MS", TEST_SMOKE_TIMEOUT_MS)
+    monkeypatch.setattr("karcytics.__main__.SMOKE_TEST_TIMEOUT_MS", TEST_SMOKE_TIMEOUT_MS)
 
     original_argv = sys.argv
-    sys.argv = ["biopro", "--smoke-test=test_plugin", "/tmp/test_data.fcs"]
+    sys.argv = ["karcytics", "--smoke-test=test_plugin", "/tmp/test_data.fcs"]
 
     try:
-        from biopro.__main__ import _run_smoke_test
+        from karcytics.__main__ import _run_smoke_test
 
         exit_code = _run_smoke_test(sys.argv)
 
@@ -126,19 +126,19 @@ def test_smoke_test_panel_ready_without_data_ready(monkeypatch: pytest.MonkeyPat
         def resolve_and_install_all(self, deps: dict[str, str], plugin_dir: Path) -> None:
             pass
 
-    monkeypatch.setattr("biopro.core.module_manager.ModuleManager", MockModuleManager)
-    monkeypatch.setattr("biopro.core.network_updater.NetworkUpdater", MockNetworkUpdater)
-    monkeypatch.setattr("biopro.core.package_manager.PackageManager", MockPackageManager)
-    monkeypatch.setattr("biopro.__main__.setup_logging", lambda: Path("/tmp/biopro.log"))
+    monkeypatch.setattr("karcytics.core.module_manager.ModuleManager", MockModuleManager)
+    monkeypatch.setattr("karcytics.core.network_updater.NetworkUpdater", MockNetworkUpdater)
+    monkeypatch.setattr("karcytics.core.package_manager.PackageManager", MockPackageManager)
+    monkeypatch.setattr("karcytics.__main__.setup_logging", lambda: Path("/tmp/karcytics.log"))
 
     # Significantly reduce timeout for testing
-    monkeypatch.setattr("biopro.__main__.SMOKE_TEST_TIMEOUT_MS", TEST_SMOKE_TIMEOUT_MS)
+    monkeypatch.setattr("karcytics.__main__.SMOKE_TEST_TIMEOUT_MS", TEST_SMOKE_TIMEOUT_MS)
 
     original_argv = sys.argv
-    sys.argv = ["biopro", "--smoke-test=test_plugin", "/tmp/test_data.fcs"]
+    sys.argv = ["karcytics", "--smoke-test=test_plugin", "/tmp/test_data.fcs"]
 
     try:
-        from biopro.__main__ import _run_smoke_test
+        from karcytics.__main__ import _run_smoke_test
 
         exit_code = _run_smoke_test(sys.argv)
 
@@ -200,19 +200,19 @@ def test_smoke_test_panel_ready_load_workflow_raises(monkeypatch: pytest.MonkeyP
         def resolve_and_install_all(self, deps: dict[str, str], plugin_dir: Path) -> None:
             pass
 
-    monkeypatch.setattr("biopro.core.module_manager.ModuleManager", MockModuleManager)
-    monkeypatch.setattr("biopro.core.network_updater.NetworkUpdater", MockNetworkUpdater)
-    monkeypatch.setattr("biopro.core.package_manager.PackageManager", MockPackageManager)
-    monkeypatch.setattr("biopro.__main__.setup_logging", lambda: Path("/tmp/biopro.log"))
+    monkeypatch.setattr("karcytics.core.module_manager.ModuleManager", MockModuleManager)
+    monkeypatch.setattr("karcytics.core.network_updater.NetworkUpdater", MockNetworkUpdater)
+    monkeypatch.setattr("karcytics.core.package_manager.PackageManager", MockPackageManager)
+    monkeypatch.setattr("karcytics.__main__.setup_logging", lambda: Path("/tmp/karcytics.log"))
 
     # Significantly reduce timeout for testing
-    monkeypatch.setattr("biopro.__main__.SMOKE_TEST_TIMEOUT_MS", TEST_SMOKE_TIMEOUT_MS)
+    monkeypatch.setattr("karcytics.__main__.SMOKE_TEST_TIMEOUT_MS", TEST_SMOKE_TIMEOUT_MS)
 
     original_argv = sys.argv
-    sys.argv = ["biopro", "--smoke-test=test_plugin", "/tmp/test_data.fcs"]
+    sys.argv = ["karcytics", "--smoke-test=test_plugin", "/tmp/test_data.fcs"]
 
     try:
-        from biopro.__main__ import _run_smoke_test
+        from karcytics.__main__ import _run_smoke_test
 
         exit_code = _run_smoke_test(sys.argv)
 
@@ -231,7 +231,7 @@ def test_ai_server_cli_mode(monkeypatch):
     import importlib
     import types
 
-    import biopro.__main__
+    import karcytics.__main__
 
     mock_main_called = False
 
@@ -252,15 +252,15 @@ def test_ai_server_cli_mode(monkeypatch):
 
     # Setup sys.argv
     original_argv = sys.argv
-    sys.argv = ["biopro", "ai-server", "--model", "test.gguf"]
+    sys.argv = ["karcytics", "ai-server", "--model", "test.gguf"]
 
     try:
         # Reload to ensure we have the version with ai-server handling
-        importlib.reload(biopro.__main__)
+        importlib.reload(karcytics.__main__)
         # We need to mock setup_logging to avoid creating files
-        monkeypatch.setattr("biopro.__main__.setup_logging", lambda: Path("/tmp/biopro.log"))
+        monkeypatch.setattr("karcytics.__main__.setup_logging", lambda: Path("/tmp/karcytics.log"))
 
-        biopro.__main__.main()
+        karcytics.__main__.main()
     except SystemExit:
         pass
     finally:
@@ -282,12 +282,12 @@ def test_sdk_cli_mode(monkeypatch):
     monkeypatch.setitem(sys.modules, "biopro_sdk.sdk_cli", MockSDKModule)
 
     original_argv = sys.argv
-    sys.argv = ["biopro", "sdk", "test"]
+    sys.argv = ["karcytics", "sdk", "test"]
 
     try:
-        from biopro.__main__ import main
+        from karcytics.__main__ import main
 
-        monkeypatch.setattr("biopro.__main__.setup_logging", lambda: Path("/tmp/biopro.log"))
+        monkeypatch.setattr("karcytics.__main__.setup_logging", lambda: Path("/tmp/karcytics.log"))
         main()
     except SystemExit:
         pass

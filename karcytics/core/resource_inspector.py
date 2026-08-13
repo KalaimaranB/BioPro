@@ -1,0 +1,144 @@
+"""Resource Inspection Engine for Karcytics.
+
+Utilities for identifying 'Heavy' resources (large arrays, tensors, figures)
+within arbitrary object trees. Enables automatic memory management.
+"""
+
+import io
+import logging
+from collections.abc import Callable
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+class ResourceInspector:
+    """Detects and categorizes heavy resources for memory management."""
+
+    # Threshold for considering an array/object as 'Heavy' (in bytes)
+    # Default: 1MB
+    HEAVY_THRESHOLD_BYTES = 1024 * 1024
+
+    _custom_checkers: list[Callable[[Any], bool]] = []
+
+    @classmethod
+    def register_heavy_checker(cls, checker_func: Callable[[Any], bool]) -> None:
+        """Registers a custom function for evaluating if an object is heavy."""
+        if checker_func not in cls._custom_checkers:
+            cls._custom_checkers.append(checker_func)
+            logger.debug(f"Registered custom heavy checker: {checker_func}")
+
+    @classmethod
+    def get_heavy_resources(cls, obj: Any) -> list[tuple[str, Any]]:
+        """Identify heavy resources among an object's attributes or dictionary entries.
+
+        Args:
+            obj: The object whose stored attributes or entries should be inspected.
+
+        Returns:
+            A list of `(name, resource)` tuples for values classified as heavy.
+        """
+        heavy = []
+
+        # We check both the __dict__ and any public properties
+        try:
+            items = []
+            if hasattr(obj, "__dict__"):
+                items.extend(obj.__dict__.items())
+            elif isinstance(obj, dict):
+                items.extend(obj.items())
+
+            for name, value in items:
+                if cls.is_heavy(value):
+                    heavy.append((name, value))
+        except Exception as e:
+            logger.debug(f"Failed to inspect object {type(obj)}: {e}")
+
+        return heavy
+
+    @classmethod
+    def is_heavy(cls, obj: Any) -> bool:  # noqa: C901
+        """Determines whether an object qualifies as a heavy resource.
+
+        Parameters:
+                obj (Any): Object to classify.
+
+        Returns:
+                bool: `true` if the object is a registered heavy resource, a sufficiently large
+                array or CPU tensor, a CUDA tensor, a matplotlib figure, or an open file handle;
+                `false` otherwise.
+        """
+        if obj is None:
+            return False
+
+        # 0. Custom registered checkers
+        for checker in cls._custom_checkers:
+            try:
+                if checker(obj):
+                    return True
+            except Exception as e:
+                logger.debug(f"Custom heavy checker failed: {e}")
+
+        # 1. Numpy Arrays
+        try:
+            import numpy as np
+
+            if isinstance(obj, np.ndarray):
+                return obj.nbytes >= cls.HEAVY_THRESHOLD_BYTES
+        except ImportError:
+            pass
+
+        # 2. Torch Tensors
+        try:
+            import torch
+
+            if isinstance(obj, torch.Tensor):
+                # Tensors on GPU are ALWAYS considered heavy/critical to release
+                if obj.is_cuda:
+                    return True
+                # Large CPU tensors
+                return (obj.element_size() * obj.nelement()) >= cls.HEAVY_THRESHOLD_BYTES
+        except ImportError:
+            pass
+
+        # 3. Matplotlib Figures
+        try:
+            import matplotlib.figure
+
+            if isinstance(obj, matplotlib.figure.Figure):
+                return True  # Figures are light in bytes but leak easily in memory
+        except ImportError:
+            pass
+
+        # 4. Open File Handles
+        return bool(isinstance(obj, io.IOBase))
+
+    @classmethod
+    def get_object_hash(cls, obj: Any) -> str | None:
+        """Generates a pseudo-hash for identifying identical heavy resources.
+
+        This is used for structural sharing in the HistoryManager.
+        Note: We prioritize speed over cryptographic perfection.
+        """
+        if obj is None:
+            return None
+
+        try:
+            # For Numpy
+            import numpy as np
+
+            if isinstance(obj, np.ndarray):
+                # Use data pointer and metadata for extremely fast identification
+                # if the array is modified in place, this hash might be stale,
+                # but Karcytics discourages in-place state mutation.
+                return f"np:{id(obj)}:{obj.shape}:{obj.dtype}"
+
+            # For Torch
+            import torch
+
+            if isinstance(obj, torch.Tensor):
+                return f"torch:{id(obj)}:{obj.shape}:{obj.device}"
+        except ImportError:
+            pass
+
+        return None

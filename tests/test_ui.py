@@ -10,7 +10,7 @@ sys.path.insert(0, str(project_root))
 from PyQt6.QtWidgets import QApplication
 
 
-class TestBioProUI(unittest.TestCase):
+class TestKarcyticsUI(unittest.TestCase):
     """Smoke tests for UI window instantiation."""
 
     @classmethod
@@ -22,7 +22,7 @@ class TestBioProUI(unittest.TestCase):
 
     def test_hub_instantiation(self):
         """Verify the Project Hub window can be created without crashing."""
-        from biopro.ui.windows.project_launcher import ProjectLauncherWindow
+        from karcytics.ui.windows.project_launcher import ProjectLauncherWindow
 
         # Mock dependencies
         mock_mm = MagicMock()
@@ -43,7 +43,7 @@ class TestBioProUI(unittest.TestCase):
 
     def test_workspace_instantiation(self):
         """Verify the main Workspace window can be created without crashing."""
-        from biopro.ui.windows.workspace_window import WorkspaceWindow
+        from karcytics.ui.windows.workspace_window import WorkspaceWindow
 
         # Mock dependencies
         mock_pm = MagicMock()

@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from biopro_sdk.plugin import AnalysisBase, PluginState
 
-from biopro.core.task_scheduler import task_scheduler
+from karcytics.core.task_scheduler import task_scheduler
 
 
 @dataclass
@@ -117,9 +117,10 @@ class TestTaskScheduler:
 
         with (
             patch(
-                "biopro.core.task_scheduler.AnalysisWorker", side_effect=RuntimeError("Submit fail")
+                "karcytics.core.task_scheduler.AnalysisWorker",
+                side_effect=RuntimeError("Submit fail"),
             ),
-            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+            patch("karcytics.core.diagnostics.diagnostics.report_error") as mock_diag,
             pytest.raises(RuntimeError),
         ):
             scheduler.submit(MockAnalyzer("fail"), MockState())
@@ -129,7 +130,7 @@ class TestTaskScheduler:
         """Verify that background task errors report to diagnostics."""
         from unittest.mock import patch
 
-        with patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag:
+        with patch("karcytics.core.diagnostics.diagnostics.report_error") as mock_diag:
             scheduler._on_task_error("tid", "Internal Failure")
             mock_diag.assert_called()
 

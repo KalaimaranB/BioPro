@@ -1,12 +1,12 @@
 # Architectural Cryptographic Specification
 
-This document details the mathematical validation rules, serialization constraints, and file system isolation bounds enforced by the BioPro Trust subsystem.
+This document details the mathematical validation rules, serialization constraints, and file system isolation bounds enforced by the Karcytics Trust subsystem.
 
 ---
 
 ## Hashing and Verification Specification
 
-BioPro utilizes asymmetric cryptography (Ed25519) and SHA-256 hashing to verify code integrity.
+Karcytics utilizes asymmetric cryptography (Ed25519) and SHA-256 hashing to verify code integrity.
 
 ### Validation Sequence
 
@@ -21,7 +21,7 @@ BioPro utilizes asymmetric cryptography (Ed25519) and SHA-256 hashing to verify 
 
 ## Deterministic JSON Serialization
 
-To ensure consistent verification across different environments, BioPro mandates strict canonical JSON formatting prior to signature evaluation.
+To ensure consistent verification across different environments, Karcytics mandates strict canonical JSON formatting prior to signature evaluation.
 
 ### Canonicalization Parameters
 * **Key Sorting**: Dictionary keys must be sorted alphabetically at all nesting levels (`sort_keys=True`).
@@ -41,7 +41,7 @@ Failure to adhere to these exact serialization rules will alter the byte payload
 
 ## Cache Directory Isolation Bounds
 
-To mitigate directory traversal vulnerabilities during remote asset fetches (e.g., developer avatars), BioPro enforces a strictly sandboxed directory structure.
+To mitigate directory traversal vulnerabilities during remote asset fetches (e.g., developer avatars), Karcytics enforces a strictly sandboxed directory structure.
 
 ### Traversal Prevention
 The target path for an asset is computed by resolving the plugin ID, asset type, and filename against the base cache directory (`~/.biopro/cache/`).

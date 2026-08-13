@@ -1,6 +1,6 @@
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
 
-from biopro.ui.components.ai_panel import AIChatWindow
+from karcytics.ui.components.ai_panel import AIChatWindow
 
 
 def test_ai_chat_window_initialization(qtbot):
@@ -13,7 +13,7 @@ def test_ai_chat_window_initialization(qtbot):
     assert hasattr(window, "_render_chat")
     assert hasattr(window, "service")
 
-    assert window.windowTitle() == "BioPro AI Assistant"
+    assert window.windowTitle() == "Karcytics AI Assistant"
 
 
 def test_ai_chat_window_ui_elements(qtbot):

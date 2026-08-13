@@ -1,6 +1,6 @@
 # Performance and Scaling
 
-BioPro handles computationally intensive biological analysis by offloading execution to background threads and actively managing system resources to prevent application unresponsiveness and out-of-memory errors.
+Karcytics handles computationally intensive biological analysis by offloading execution to background threads and actively managing system resources to prevent application unresponsiveness and out-of-memory errors.
 
 ---
 
@@ -9,7 +9,7 @@ BioPro handles computationally intensive biological analysis by offloading execu
 Long-running analysis routines are prohibited from executing on the Main UI Thread.
 
 ### Thread Pooling
-BioPro utilizes a `QThreadPool` to govern worker threads.
+Karcytics utilizes a `QThreadPool` to govern worker threads.
 - **Resource Limits**: The thread pool bounds the maximum number of concurrent threads, preventing thread exhaustion and OS instability when plugins submit excessive tasks.
 - **Queueing**: Tasks exceeding the available CPU core count are queued and dispatched sequentially.
 
@@ -38,7 +38,7 @@ Analysis tasks follow a defined execution lifecycle managed by the `TaskSchedule
 
 ## Resource Inspection and Cleanup
 
-To mitigate memory leaks originating from third-party plugins (e.g., unreleased tensors, persistent matplotlib backends), BioPro incorporates a `ResourceInspector` for proactive garbage collection.
+To mitigate memory leaks originating from third-party plugins (e.g., unreleased tensors, persistent matplotlib backends), Karcytics incorporates a `ResourceInspector` for proactive garbage collection.
 
 ### Resource Identification
 The `ResourceInspector` traverses object graphs to identify high-memory references:
@@ -48,14 +48,14 @@ The `ResourceInspector` traverses object graphs to identify high-memory referenc
 - **Open File Handles**: Identified to prevent file lock accumulation.
 
 ### Automatic Cleanup Execution
-When a plugin workspace is closed, BioPro triggers a resource cleanse:
+When a plugin workspace is closed, Karcytics triggers a resource cleanse:
 1.  Identified high-memory objects are explicitly dereferenced.
 2.  GPU-bound tensors are transferred to the CPU and explicitly deleted to prevent CUDA out-of-memory exceptions.
 3.  The Python Garbage Collector (`gc.collect()`) is explicitly invoked to reclaim dereferenced memory blocks immediately.
 
 ---
 
-## API Reference (`biopro.core.task_scheduler`)
+## API Reference (`karcytics.core.task_scheduler`)
 
 ### `TaskScheduler`
 The central queue manager for background execution.

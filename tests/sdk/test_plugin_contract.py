@@ -1,4 +1,4 @@
-"""Tests for the formal BioPro Plugin Contract (Track 1)."""
+"""Tests for the formal Karcytics Plugin Contract (Track 1)."""
 
 from unittest.mock import patch
 
@@ -7,7 +7,7 @@ from biopro_sdk.host.trust_manager import TrustManager
 from biopro_sdk.plugin import BioProPlugin, PluginBase
 from PyQt6.QtWidgets import QWidget
 
-from biopro.core.module_manager import ModuleManager
+from karcytics.core.module_manager import ModuleManager
 
 
 class MockValidPlugin:
@@ -82,7 +82,7 @@ class TestPluginContract:
         # The class itself should satisfy it (via get_panel_class classmethod)
         assert isinstance(MyPlugin, BioProPlugin)  # type: ignore[arg-type]
 
-    @patch("biopro.core.plugins.loader.importlib.import_module")
+    @patch("karcytics.core.plugins.loader.importlib.import_module")
     def test_module_manager_validation_pass(self, mock_import, tmp_path):
         """Verifies that ModuleManager allows loading valid plugins."""
         mm = ModuleManager(trust_manager=PermissiveTrustManager())
@@ -109,7 +109,7 @@ class TestPluginContract:
         assert ui_class == QWidget
         assert mm.modules["mod_a"]["loaded"] is True
 
-    @patch("biopro.core.plugins.loader.importlib.import_module")
+    @patch("karcytics.core.plugins.loader.importlib.import_module")
     def test_module_manager_validation_fail(self, mock_import, tmp_path):
         """Verifies that ModuleManager rejects invalid plugins."""
         mm = ModuleManager(trust_manager=PermissiveTrustManager())

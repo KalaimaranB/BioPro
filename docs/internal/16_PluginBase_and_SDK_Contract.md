@@ -1,6 +1,6 @@
 # PluginBase & SDK Contract
 
-This document describes the recommended plugin contract for authors using the BioPro SDK, with minimal examples, lifecycle hooks, signing guidance, and common best-practices.
+This document describes the recommended plugin contract for authors using the Karcytics SDK, with minimal examples, lifecycle hooks, signing guidance, and common best-practices.
 
 ## Goal
 
@@ -34,7 +34,7 @@ class PluginBase:
 ## Minimal example plugin
 
 ```py
-from biopro.plugins.sdk_utils import PluginConfig, get_plugin_logger
+from karcytics.plugins.sdk_utils import PluginConfig, get_plugin_logger
 from biopro_sdk.core import PluginBase as SDKPluginBase
 
 
@@ -75,7 +75,7 @@ Long-running computation belongs in `AnalysisBase` and should be executed via `A
 
 ## Signing & Distribution (high-level)
 
-BioPro validates plugin packages before loading them. Authors should:
+Karcytics validates plugin packages before loading them. Authors should:
 
 1. Package your plugin as a Python wheel or editable source with a correct `pyproject.toml` and `manifest.json` containing `plugin_id`, `entrypoint`, and `sdk_version`.
 2. Sign your distribution using our signing tool (see `scripts/sign_authorities.py`) or the SDK CLI which bundles signing helpers.
@@ -90,6 +90,6 @@ If a plugin is intended for development only, the developer can use a local trus
 
 ## Links
 
-- `biopro/plugins/sdk_utils.py` — utilities and example helpers for plugins.
-- `biopro/core/module_manager.py` — loading lifecycle and integration points.
+- `karcytics/plugins/sdk_utils.py` — utilities and example helpers for plugins.
+- `karcytics/core/module_manager.py` — loading lifecycle and integration points.
 - `tests/sdk/test_plugin_contract.py` — test-driven examples of the plugin contract.

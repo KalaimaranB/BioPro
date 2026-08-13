@@ -1,6 +1,6 @@
-# BioPro SDK API Reference: Core Submodule (`biopro.sdk.core`)
+# Karcytics SDK API Reference: Core Submodule (`karcytics.sdk.core`)
 
-This document outlines the technical specifications for the core classes, protocols, and event mechanisms within the `biopro.sdk.core` namespace.
+This document outlines the technical specifications for the core classes, protocols, and event mechanisms within the `karcytics.sdk.core` namespace.
 
 ---
 
@@ -8,10 +8,10 @@ This document outlines the technical specifications for the core classes, protoc
 
 ### `PluginBase`
 
-`class biopro.sdk.core.PluginBase(plugin_id: str, parent: Optional[QWidget] = None)`
+`class karcytics.sdk.core.PluginBase(plugin_id: str, parent: Optional[QWidget] = None)`
 *Inherits from `QWidget`*
 
-The abstract controller for BioPro plugins. It implements state capturing, undo/redo capabilities, and integration with the global event bus.
+The abstract controller for Karcytics plugins. It implements state capturing, undo/redo capabilities, and integration with the global event bus.
 
 #### Core Methods
 
@@ -43,7 +43,7 @@ Executes resource clearance by dereferencing high-memory attributes (e.g., NumPy
 
 ### `PluginState`
 
-`class biopro.sdk.core.PluginState`
+`class karcytics.sdk.core.PluginState`
 *Base dataclass*
 
 The base class for serializable plugin states. Subclasses must be decorated with `@dataclass`.
@@ -56,7 +56,7 @@ The base class for serializable plugin states. Subclasses must be decorated with
 
 ### `AnalysisBase`
 
-`class biopro.sdk.core.AnalysisBase`
+`class karcytics.sdk.core.AnalysisBase`
 *Abstract Class*
 
 Represents scientific processing logic, isolated from PyQt UI classes to allow execution in background threads.
@@ -70,10 +70,10 @@ Represents scientific processing logic, isolated from PyQt UI classes to allow e
 
 ### `AnalysisWorker`
 
-`class biopro.sdk.core.AnalysisWorker(analyzer: AnalysisBase, state: PluginState)`
+`class karcytics.sdk.core.AnalysisWorker(analyzer: AnalysisBase, state: PluginState)`
 *Inherits from `QRunnable`*
 
-A wrapper for executing an `AnalysisBase` instance within BioPro's global thread pool. It automatically manages standard lifecycle signals (`analysis_started`, `analysis_finished`, `analysis_error`).
+A wrapper for executing an `AnalysisBase` instance within Karcytics's global thread pool. It automatically manages standard lifecycle signals (`analysis_started`, `analysis_finished`, `analysis_error`).
 
 ### `CentralEventBus` (Singleton)
 

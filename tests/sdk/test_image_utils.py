@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from biopro.shared.analysis.image_utils import (
+from karcytics.shared.analysis.image_utils import (
     BandCropConfig,
     auto_crop_to_bands,
     auto_detect_inversion,

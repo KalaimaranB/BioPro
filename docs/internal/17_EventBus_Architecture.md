@@ -1,6 +1,6 @@
 # Central Event Bus Architecture
 
-The `EventBus` is BioPro's thread-safe publish/subscribe broker used for decoupled communication between UI components, plugins, and background workers.
+The `EventBus` is Karcytics's thread-safe publish/subscribe broker used for decoupled communication between UI components, plugins, and background workers.
 
 ## Design goals
 
@@ -44,4 +44,4 @@ EventBus.publish("analysis.finished", {"success": True, "data": ...})
 
 ## Links
 
-- Source: `biopro/core/event_bus.py`
+- Source: `karcytics/core/event_bus.py`

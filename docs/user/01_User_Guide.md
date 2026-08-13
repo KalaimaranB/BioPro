@@ -1,6 +1,6 @@
-# BioPro User Guide
+# Karcytics User Guide
 
-Welcome to the **BioPro User Guide**. This collection of end-user documentation describes the current BioPro desktop experience, including installation, project workflows, the Plugin Store, security, and troubleshooting.
+Welcome to the **Karcytics User Guide**. This collection of end-user documentation describes the current Karcytics desktop experience, including installation, project workflows, the Plugin Store, security, and troubleshooting.
 
 ---
 
@@ -9,26 +9,26 @@ Welcome to the **BioPro User Guide**. This collection of end-user documentation 
 Choose the topic that matches your current task:
 
 ### Installation and Setup
-* [Installation](06_Installation.md) — Download and install BioPro on Windows and macOS, then install analysis modules from the Marketplace.
-* [Getting Started](02_Getting_Started.md) — Launch BioPro, create or open a project, and learn the core Hub navigation.
+* [Installation](06_Installation.md) — Download and install Karcytics on Windows and macOS, then install analysis modules from the Marketplace.
+* [Getting Started](02_Getting_Started.md) — Launch Karcytics, create or open a project, and learn the core Hub navigation.
 
 ### Running Your Work
 * [Tutorial: First Analysis](03_Tutorial_First_Analysis.md) — Step through a basic analysis workflow and learn how wizards and workspace modules behave.
-* [Cyto Academy & Startup Guide](08_Cyto_Academy.md) — Learn BioPro with Cyto’s guided onboarding and workflow lessons.
-* [Project Management](04_Project_Management.md) — Understand BioPro project structure, asset storage, workflow files, and safe sharing.
+* [Cyto Academy & Startup Guide](08_Cyto_Academy.md) — Learn Karcytics with Cyto’s guided onboarding and workflow lessons.
+* [Project Management](04_Project_Management.md) — Understand Karcytics project structure, asset storage, workflow files, and safe sharing.
 
 ### Plugins and Security
 * [Plugin Store & Security](07_Plugin_Store_and_Security.md) — Manage plugins, review trust status, and inspect plugin identities.
-* [Security and Trust Architecture](10_Security_and_Trust.md) — Advanced guidance on how BioPro verifies plugins and uses trusted authorities.
+* [Security and Trust Architecture](10_Security_and_Trust.md) — Advanced guidance on how Karcytics verifies plugins and uses trusted authorities.
 
 ### Support
 * [FAQ & Troubleshooting](05_FAQ_Troubleshooting.md) — Solve common problems and learn where to find logs and support resources.
 
 ---
 
-## What BioPro Does
+## What Karcytics Does
 
-BioPro is a modular analysis hub built for laboratory scientists, students, and research teams.
+Karcytics is a modular analysis hub built for laboratory scientists, students, and research teams.
 
 * **Core application:** Provides the overall project workspace, update notifications, and help center.
 * **Plugins / modules:** Delivered through the Marketplace, these add analysis-specific capabilities and file format support.
@@ -40,10 +40,10 @@ BioPro is a modular analysis hub built for laboratory scientists, students, and 
 
 ## How to Use This Guide
 
-* Start with **Installation** if you have not yet installed BioPro.
+* Start with **Installation** if you have not yet installed Karcytics.
 * Use **Getting Started** on your first launch to create a project and open the Hub.
 * Jump to **Plugin Store & Security** before you install new modules.
 * Return to **FAQ & Troubleshooting** whenever something behaves unexpectedly.
 
 > [!NOTE]
-> The AI Assistant panel is part of BioPro’s wider roadmap. In the current release, the AI chat window is not exposed in the main toolbar, but the rest of the application workflows remain fully usable.
+> The AI Assistant panel is part of Karcytics’s wider roadmap. In the current release, the AI chat window is not exposed in the main toolbar, but the rest of the application workflows remain fully usable.

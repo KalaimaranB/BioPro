@@ -1,12 +1,12 @@
 # Plugin Documentation Starter Kit
 
-To ensure the entire BioPro ecosystem remains professional and easy to navigate for users, we highly encourage all plugin developers to adopt the standard BioPro documentation theme (Material for MkDocs).
+To ensure the entire Karcytics ecosystem remains professional and easy to navigate for users, we highly encourage all plugin developers to adopt the standard Karcytics documentation theme (Material for MkDocs).
 
 To make this effortless, we've provided a "Starter Kit" right here in the core repository.
 
 ## Getting Started
 
-Inside the BioPro source code, navigate to the `docs/plugin_template/` directory.
+Inside the Karcytics source code, navigate to the `docs/plugin_template/` directory.
 
 You will find the following structure:
 ```text
@@ -24,9 +24,9 @@ Copy the entire contents of the `plugin_template/` folder directly into the root
 
 ### 2. Customize `mkdocs.yml`
 Open the copied `mkdocs.yml` and replace all placeholders with your actual plugin details:
-*   `<PLUGIN_NAME>`: e.g., "BioPro Flow Cytometry"
+*   `<PLUGIN_NAME>`: e.g., "Karcytics Flow Cytometry"
 *   `<GITHUB_USERNAME>`: e.g., "KalaimaranB"
-*   `<REPOSITORY_NAME>`: e.g., "BioPro-flow-cytometry"
+*   `<REPOSITORY_NAME>`: e.g., "Karcytics-flow-cytometry"
 *   `<YOUR_NAME>`: e.g., "Kalaimaran Balasothy"
 
 ### 3. Enable GitHub Pages
@@ -38,4 +38,4 @@ To make it live:
 3. Under **Source**, select **Deploy from a branch**.
 4. Select the `gh-pages` branch and `/ (root)` folder, then click **Save**.
 
-Your documentation will now be automatically styled like the core BioPro site, and available at `https://<GITHUB_USERNAME>.github.io/<REPOSITORY_NAME>`!
+Your documentation will now be automatically styled like the core Karcytics site, and available at `https://<GITHUB_USERNAME>.github.io/<REPOSITORY_NAME>`!

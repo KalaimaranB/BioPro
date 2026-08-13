@@ -1,12 +1,12 @@
 # Cyto Academy and Startup Guide
 
-BioPro includes an interactive learning experience led by **Cyto**, the app’s academy guide. Cyto helps new users learn the platform, discover workflow patterns, and complete a guided startup course inside the app.
+Karcytics includes an interactive learning experience led by **Cyto**, the app’s academy guide. Cyto helps new users learn the platform, discover workflow patterns, and complete a guided startup course inside the app.
 
 ---
 
 ## What is Cyto Academy?
 
-Cyto Academy is BioPro’s built-in onboarding and training workspace. It is designed for new users who want a guided introduction to the core platform and the most common analysis workflows.
+Cyto Academy is Karcytics’s built-in onboarding and training workspace. It is designed for new users who want a guided introduction to the core platform and the most common analysis workflows.
 
 * **Cyto** is the friendly mascot and guide character for the academy experience.
 * **Courses** are organized around workflows, modules, and practical tasks.
@@ -19,7 +19,7 @@ Cyto Academy is BioPro’s built-in onboarding and training workspace. It is des
 
 ## Launching the Academy
 
-1. Open a BioPro project or create a new one.
+1. Open a Karcytics project or create a new one.
 2. Click the **🎓 Academy** button in the workspace toolbar or from the Home Screen.
 3. Choose a course or startup guide from the available list.
 

@@ -5,9 +5,9 @@ from unittest.mock import MagicMock
 import pytest
 from PyQt6.QtWidgets import QWidget
 
-from biopro.ui.components.cards import DetailedWorkflowCard
-from biopro.ui.components.overlays import BioLoadingOverlay
-from biopro.ui.tabs.workflows_tab import WorkflowsTab
+from karcytics.ui.components.cards import DetailedWorkflowCard
+from karcytics.ui.components.overlays import BioLoadingOverlay
+from karcytics.ui.tabs.workflows_tab import WorkflowsTab
 
 
 class TestSharedUI:

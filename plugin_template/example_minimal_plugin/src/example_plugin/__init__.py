@@ -1,4 +1,4 @@
-"""Example minimal plugin exposing `get_plugin()` for BioPro."""
+"""Example minimal plugin exposing `get_plugin()` for Karcytics."""
 
 from biopro_sdk.core import PluginBase as SDKPluginBase
 

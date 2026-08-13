@@ -1,6 +1,6 @@
 # Documentation Handover & Maintenance
 
-This page describes how to publish, maintain, and update the BioPro documentation portal.
+This page describes how to publish, maintain, and update the Karcytics documentation portal.
 
 ## Publish (GitHub Pages)
 
@@ -24,7 +24,7 @@ mkdocs serve  # for local preview
 
 ## Maintenance tasks
 
-- Keep `biopro` docstrings up to date; `mkdocstrings` generates API pages from code.
+- Keep `karcytics` docstrings up to date; `mkdocstrings` generates API pages from code.
 - Periodically run the docs QA job locally or rely on the GitHub Action.
 - Update `mkdocs.yml` nav when adding new internal pages.
 

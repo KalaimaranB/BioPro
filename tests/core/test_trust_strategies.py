@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from biopro_sdk.host.trust_manager import VerificationResult
 
-from biopro.core.trust.strategies import DeveloperTrustStrategy, ProjectTrustStrategy
+from karcytics.core.trust.strategies import DeveloperTrustStrategy, ProjectTrustStrategy
 
 
 def test_project_trust_strategy_validates_successfully():
@@ -16,7 +16,7 @@ def test_project_trust_strategy_validates_successfully():
         success=True, trust_level="verified_project"
     )
 
-    with patch("biopro.core.trust.strategies.TrustManager", return_value=mock_manager):
+    with patch("karcytics.core.trust.strategies.TrustManager", return_value=mock_manager):
         result = strategy.verify(mock_manifest, "/fake/plugin/path")
 
     assert result.success is True
@@ -34,7 +34,7 @@ def test_developer_trust_strategy_validates_successfully():
         success=True, trust_level="verified_developer"
     )
 
-    with patch("biopro.core.trust.strategies.TrustManager", return_value=mock_manager):
+    with patch("karcytics.core.trust.strategies.TrustManager", return_value=mock_manager):
         result = strategy.verify(mock_manifest, "/fake/plugin/path")
 
     assert result.success is True

@@ -162,10 +162,10 @@ class TestDoubleSigningPipeline:
         from biopro_sdk.host.trust_path import TrustLink
 
         dev_priv = signer_env.load_private_key()
-        delegation_payload = f"BioPro GitHub Actions CI|{project_pub.hex()}".encode()
+        delegation_payload = f"Karcytics GitHub Actions CI|{project_pub.hex()}".encode()
         delegation_sig = dev_priv.sign(delegation_payload)
         delegation_link = TrustLink(
-            subject_name="BioPro GitHub Actions CI",
+            subject_name="Karcytics GitHub Actions CI",
             subject_pub=project_pub.hex(),
             issuer_name="Alice",
             signature=delegation_sig.hex(),
@@ -192,7 +192,7 @@ class TestDoubleSigningPipeline:
 
         # Check developer link and project link
         project_link = chain.links[-1]
-        assert project_link.subject_name == "BioPro GitHub Actions CI"
+        assert project_link.subject_name == "Karcytics GitHub Actions CI"
         assert project_link.subject_pub == project_pub.hex()
 
     def test_project_sign_fails_if_developer_signature_missing(self, signer_env, tmp_path):

@@ -64,7 +64,7 @@ def test_evaluate_plugin_no_dependencies(tmp_path: Path):
         "name": "Test Plugin",
         "version": "1.0.0",
         "description": "Just a test",
-        "authors": [{"name": "BioPro Developer", "role": "Developer"}],
+        "authors": [{"name": "Karcytics Developer", "role": "Developer"}],
     }
     with open(tmp_path / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(_dict_to_toml(manifest))
@@ -93,7 +93,7 @@ def test_evaluate_plugin_pinned_dependencies(tmp_path: Path):
         "name": "Test Plugin",
         "version": "1.0.0",
         "description": "Just a test",
-        "authors": [{"name": "BioPro Developer", "role": "Developer"}],
+        "authors": [{"name": "Karcytics Developer", "role": "Developer"}],
         "dependencies": {
             "scipy": "1.11.3",
             "opencv-python-headless": "4.8.0.76",
@@ -127,7 +127,7 @@ def test_evaluate_plugin_unpinned_dependencies(tmp_path: Path):
         "name": "Test Plugin",
         "version": "1.0.0",
         "description": "Just a test",
-        "authors": [{"name": "BioPro Developer", "role": "Developer"}],
+        "authors": [{"name": "Karcytics Developer", "role": "Developer"}],
         "dependencies": {
             "scipy": ">=1.11.3",
         },

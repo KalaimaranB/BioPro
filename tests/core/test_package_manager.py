@@ -1,8 +1,8 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from biopro.core.package_manager import PackageManager
-from biopro.ui.workers.plugin_dependency_installer import PluginDependencyInstallerWorker
+from karcytics.core.package_manager import PackageManager
+from karcytics.ui.workers.plugin_dependency_installer import PluginDependencyInstallerWorker
 
 
 def test_package_manager_default_init(monkeypatch, tmp_path):
@@ -14,7 +14,7 @@ def test_package_manager_default_init(monkeypatch, tmp_path):
     assert pm.cache_dir.exists()
 
 
-@patch("biopro.core.package_manager.PackageManager.resolve_and_install_all")
+@patch("karcytics.core.package_manager.PackageManager.resolve_and_install_all")
 def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
     """Verify that PluginDependencyInstallerWorker successfully runs in background and processes manifest dependencies."""
     cache_dir = tmp_path / "cache"

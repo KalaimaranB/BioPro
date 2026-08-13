@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from biopro.core.preferences import CorePreferenceManager
+from karcytics.core.preferences import CorePreferenceManager
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 # State and History Management
 
-BioPro's `HistoryManager` tracks state transitions throughout an analysis session. It records adjustments to parameters and filters, enabling non-destructive workflow iteration via undo/redo stacks.
+Karcytics's `HistoryManager` tracks state transitions throughout an analysis session. It records adjustments to parameters and filters, enabling non-destructive workflow iteration via undo/redo stacks.
 
 ---
 
@@ -8,7 +8,7 @@ BioPro's `HistoryManager` tracks state transitions throughout an analysis sessio
 
 A primary concern in image analysis is memory overhead. Deep-copying a 100MB image array for every parameter adjustment is unfeasible.
 
-BioPro mitigates this using structural sharing:
+Karcytics mitigates this using structural sharing:
 
 1.  **Identity Tracking**: When a state is snapshotted, the `HistoryManager` leverages the `ResourceInspector` to identify high-memory objects (e.g., NumPy arrays, PyTorch tensors).
 2.  **Reference Preservation**: Instead of duplicating these high-memory objects, the history stack retains a reference to the existing instance in memory.
@@ -47,7 +47,7 @@ For persistent data storage, users should use the workflow save/load features in
 
 ---
 
-## API Reference (`biopro.core.history_manager`)
+## API Reference (`karcytics.core.history_manager`)
 
 ### `ModuleHistory(module_id)`
 Manages the `undo_stack` and `redo_stack` for a localized module context.

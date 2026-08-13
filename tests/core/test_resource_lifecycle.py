@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import numpy as np
 
-from biopro.core.history_manager import ModuleHistory
-from biopro.core.resource_inspector import ResourceInspector
+from karcytics.core.history_manager import ModuleHistory
+from karcytics.core.resource_inspector import ResourceInspector
 
 
 class TestResourceInspector:

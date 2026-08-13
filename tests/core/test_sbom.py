@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from biopro.core.sbom import SBOMGenerator
+from karcytics.core.sbom import SBOMGenerator
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ class TestSBOMGenerator:
             sbom = generator.compile_sbom()
 
         assert sbom["bomFormat"] == "CycloneDX"
-        assert sbom["metadata"]["component"]["name"] == "BioPro Core"
+        assert sbom["metadata"]["component"]["name"] == "Karcytics Core"
 
         # Check components from requirements.txt
         components = sbom["components"]
@@ -49,17 +49,17 @@ class TestSBOMGenerator:
 
         with (
             patch(
-                "biopro.core.module_manager.ModuleManager.get_available_modules",
+                "karcytics.core.module_manager.ModuleManager.get_available_modules",
                 return_value=mock_manifests,
             ),
             patch("biopro_sdk.host.TrustManager.verify_plugin") as mock_verify,
             patch(
-                "biopro.core.module_manager.ModuleManager.user_plugins_dir",
+                "karcytics.core.module_manager.ModuleManager.user_plugins_dir",
                 Path("/tmp/plugins"),
                 create=True,
             ),
             patch(
-                "biopro.core.module_manager.ModuleManager.internal_plugins_dir",
+                "karcytics.core.module_manager.ModuleManager.internal_plugins_dir",
                 Path("/tmp/internal"),
                 create=True,
             ),
@@ -105,7 +105,7 @@ class TestSBOMGenerator:
         ):
             md = generator.to_markdown()
             assert "# Software Bill of Materials" in md
-            assert "BioPro Core (v1.0.0)" in md
+            assert "Karcytics Core (v1.0.0)" in md
             assert "P1" in md
             assert "lib1" in md
 
@@ -113,5 +113,5 @@ class TestSBOMGenerator:
         generator = SBOMGenerator(project_root=mock_project_root)
         import sys
 
-        with patch.dict(sys.modules, {"biopro": None}):
+        with patch.dict(sys.modules, {"karcytics": None}):
             assert generator._get_core_version() == "1.0.0"

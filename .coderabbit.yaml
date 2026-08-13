@@ -19,9 +19,9 @@ reviews:
     - path: "**/*.py"
       instructions: |
         Ensure all Python code adheres to strict type hinting (Mypy) and avoids God Classes.
-        BioPro Core must not import from UI frameworks directly; UI separation is critical.
+        Karcytics Core must not import from UI frameworks directly; UI separation is critical.
         Check that all new functions are modular, have a McCabe complexity under 10, and do not use magic numbers.
-        Encourage the use of the centralized `biopro.core.logging` and `biopro.core.diagnostics` instead of standard `print()`.
+        Encourage the use of the centralized `karcytics.core.logging` and `karcytics.core.diagnostics` instead of standard `print()`.
     - path: "tests/**/*.py"
       instructions: |
         Test code may use magic numbers and simple helper functions without the same complexity

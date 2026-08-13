@@ -46,7 +46,7 @@ def _dict_to_toml(d):
 from biopro_sdk.host.trust_manager import TrustManager
 from biopro_sdk.plugin.managed_task import FunctionalTask
 
-from biopro.core.task_scheduler import task_scheduler
+from karcytics.core.task_scheduler import task_scheduler
 
 from .test_trust_architecture import PluginSigner
 

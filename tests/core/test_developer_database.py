@@ -29,7 +29,7 @@ class TestDeveloperDatabase:
 
     def test_database_persistence(self, temp_env):
         """Verifies that DeveloperProfileDatabase saves and loads profiles correctly from disk."""
-        from biopro.core.developer_database import DeveloperProfileDatabase
+        from karcytics.core.developer_database import DeveloperProfileDatabase
 
         db = DeveloperProfileDatabase(db_file=temp_env["db_file"])
 
@@ -39,7 +39,7 @@ class TestDeveloperDatabase:
                 "name": "Kalaimaran Balasothy",
                 "role": "Founder & Lead Architect",
                 "avatar_url": "https://example.com/kalaimaran.png",
-                "description": "Creator of BioPro.",
+                "description": "Creator of Karcytics.",
                 "public_key": "83b2b0f7a243105dd83fb71d8353ea4d965e264f74bc7088dd783af05a63ec9a",
             }
         ]
@@ -58,7 +58,7 @@ class TestDeveloperDatabase:
 
     def test_database_graceful_defaults(self, temp_env):
         """Verifies that querying a non-existent developer ID returns a consistent default profile structure."""
-        from biopro.core.developer_database import DeveloperProfileDatabase
+        from karcytics.core.developer_database import DeveloperProfileDatabase
 
         db = DeveloperProfileDatabase(db_file=temp_env["db_file"])
 
@@ -75,7 +75,7 @@ class TestDeveloperDatabase:
         # Mock successful HTTP image payload
         import io
 
-        from biopro.core.developer_database import AvatarManager
+        from karcytics.core.developer_database import AvatarManager
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -107,7 +107,7 @@ class TestDeveloperDatabase:
         """Verifies that AvatarManager handles HTTP failures/offline gracefully without throwing exceptions."""
         import requests
 
-        from biopro.core.developer_database import AvatarManager
+        from karcytics.core.developer_database import AvatarManager
 
         mock_get.side_effect = requests.RequestException("Offline connection timed out")
 
@@ -121,7 +121,7 @@ class TestDeveloperDatabase:
 
     def test_ui_initials_extraction(self):
         """Verifies that the developer initials utility correctly processes various name styles."""
-        from biopro.ui.dialogs.plugin_store import get_initials
+        from karcytics.ui.dialogs.plugin_store import get_initials
 
         assert get_initials("Kalaimaran Balasothy") == "KB"
         assert get_initials("John Doe") == "JD"
@@ -131,7 +131,7 @@ class TestDeveloperDatabase:
 
     def test_ui_hsl_gradient_generation(self):
         """Verifies that HSL radial stylesheet generator returns consistent, valid CSS based on developer ID hashes."""
-        from biopro.ui.dialogs.plugin_store import get_developer_gradient_css
+        from karcytics.ui.dialogs.plugin_store import get_developer_gradient_css
 
         css_1 = get_developer_gradient_css("Kalaimaran")
         css_2 = get_developer_gradient_css("OtherDeveloper")
@@ -149,7 +149,7 @@ class TestDeveloperDatabase:
 
     def test_trust_path_dialog_rendering(self, qapp, temp_env):
         """Verifies that TrustPathDialog resolves and builds visual paths for developers correctly."""
-        from biopro.ui.dialogs.plugin_store import TrustPathDialog
+        from karcytics.ui.dialogs.plugin_store import TrustPathDialog
 
         # Test Case 1: Root Verification Chain (Kalaimaran)
         dialog_root = TrustPathDialog("Kalaimaran", "Kalaimaran Balasothy", "somepubkey")

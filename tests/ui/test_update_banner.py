@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from biopro.core.event_bus import BioProEvent, get_event_bus
+from karcytics.core.event_bus import KarcyticsEvent, get_event_bus
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +34,7 @@ def mock_update_checker():
 
 @pytest.fixture
 def banner(qtbot, mock_update_checker):
-    from biopro.ui.components.update_banner import UpdateBannerWidget
+    from karcytics.ui.components.update_banner import UpdateBannerWidget
 
     widget = UpdateBannerWidget(update_checker=mock_update_checker)
     qtbot.addWidget(widget)
@@ -52,7 +52,7 @@ class TestUpdateBannerWidget:
     def test_banner_shows_on_update_event(self, banner, qtbot):
         """Emitting CORE_UPDATE_AVAILABLE must make the banner visible."""
         bus = get_event_bus()
-        bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com/release")
+        bus.emit(KarcyticsEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com/release")
 
         # Process pending Qt events
         qtbot.wait(100)
@@ -62,7 +62,7 @@ class TestUpdateBannerWidget:
     def test_banner_stores_version_on_event(self, banner, qtbot):
         """Banner must remember which version triggered it for skip."""
         bus = get_event_bus()
-        bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com/release")
+        bus.emit(KarcyticsEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com/release")
         qtbot.wait(100)
 
         assert banner._remote_version == "2.0.0"
@@ -72,7 +72,7 @@ class TestUpdateBannerWidget:
         """When notes are provided, the label's tooltip must carry the changelog text."""
         bus = get_event_bus()
         bus.emit(
-            BioProEvent.CORE_UPDATE_AVAILABLE,
+            KarcyticsEvent.CORE_UPDATE_AVAILABLE,
             "2.0.0",
             "https://example.com/release",
             "- fix: something",
@@ -84,7 +84,7 @@ class TestUpdateBannerWidget:
     def test_close_button_hides_banner(self, banner, qtbot):
         """The X button hides the banner without persisting a skip."""
         bus = get_event_bus()
-        bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
+        bus.emit(KarcyticsEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
         qtbot.wait(100)
 
         qtbot.mouseClick(
@@ -96,7 +96,7 @@ class TestUpdateBannerWidget:
     def test_close_button_does_not_skip(self, banner, mock_update_checker, qtbot):
         """Closing via X must NOT call skip_version — only 'Skip This Version' does."""
         bus = get_event_bus()
-        bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
+        bus.emit(KarcyticsEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
         qtbot.wait(100)
 
         qtbot.mouseClick(
@@ -108,7 +108,7 @@ class TestUpdateBannerWidget:
     def test_skip_button_hides_banner(self, banner, qtbot):
         """Skip This Version must hide the banner."""
         bus = get_event_bus()
-        bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
+        bus.emit(KarcyticsEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
         qtbot.wait(100)
 
         qtbot.mouseClick(
@@ -120,7 +120,7 @@ class TestUpdateBannerWidget:
     def test_skip_button_persists_skip(self, banner, mock_update_checker, qtbot):
         """Skip This Version must call update_checker.skip_version() with the current version."""
         bus = get_event_bus()
-        bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
+        bus.emit(KarcyticsEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com")
         qtbot.wait(100)
 
         qtbot.mouseClick(
@@ -132,7 +132,7 @@ class TestUpdateBannerWidget:
     def test_download_button_opens_browser(self, banner, qtbot):
         """Download Now must open the download URL in a browser."""
         bus = get_event_bus()
-        bus.emit(BioProEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com/dl")
+        bus.emit(KarcyticsEvent.CORE_UPDATE_AVAILABLE, "2.0.0", "https://example.com/dl")
         qtbot.wait(100)
 
         with patch("webbrowser.open") as mock_open:
