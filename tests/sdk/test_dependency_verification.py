@@ -16,7 +16,7 @@ def _dict_to_toml(d):
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if authors:
@@ -35,7 +35,7 @@ def _dict_to_toml(d):
 
     deps = d.get("dependencies") or d.get("python_dependencies")
     if deps:
-        lines.append("[tool.biopro.plugin.python_dependencies]")
+        lines.append("[tool.karcytics.plugin.python_dependencies]")
         for k, v in deps.items():
             lines.append(f'{k} = "{v}"')
 

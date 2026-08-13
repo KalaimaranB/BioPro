@@ -24,8 +24,8 @@ def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
     with open(plugin_dir / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(
             '[project]\nname = "my_plugin"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
-            '[tool.biopro.plugin]\nid = "my_plugin"\nauthors = [{name = "author", role = "Developer"}]\n'
-            '[tool.biopro.plugin.python_dependencies]\nscipy = "1.11.3"\n'
+            '[tool.karcytics.plugin]\nid = "my_plugin"\nauthors = [{name = "author", role = "Developer"}]\n'
+            '[tool.karcytics.plugin.python_dependencies]\nscipy = "1.11.3"\n'
         )
 
     worker = PluginDependencyInstallerWorker(plugin_dir, cache_dir=cache_dir)
@@ -51,7 +51,7 @@ def test_worker_no_deps(tmp_path):
     plugin_dir.mkdir()
     (plugin_dir / "pyproject.toml").write_text(
         '[project]\nname = "test"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
-        '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
+        '[tool.karcytics.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
     )
     with patch.object(PluginDependencyInstallerWorker, "finished") as mock_finished:
         worker = PluginDependencyInstallerWorker(plugin_dir)
@@ -65,8 +65,8 @@ def test_worker_exception(tmp_path):
     plugin_dir.mkdir()
     (plugin_dir / "pyproject.toml").write_text(
         '[project]\nname = "test"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
-        '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
-        '[tool.biopro.plugin.python_dependencies]\na = "1"\n'
+        '[tool.karcytics.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
+        '[tool.karcytics.plugin.python_dependencies]\na = "1"\n'
     )
     with patch.object(PluginDependencyInstallerWorker, "finished") as mock_finished:
         worker = PluginDependencyInstallerWorker(plugin_dir)

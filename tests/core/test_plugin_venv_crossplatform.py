@@ -31,7 +31,7 @@ def _dict_to_toml(d):
         lines.append(f'description = "{d["description"]}"')
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
     return "\n".join(lines)
 
