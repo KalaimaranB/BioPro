@@ -1,7 +1,7 @@
 """Decentralized plugin registry fetcher.
 
 Fetches each plugin's own ``pyproject.toml`` from its GitHub repository,
-reads the ``[tool.biopro.plugin]`` section for store-display metadata
+reads the ``[tool.karcytics.plugin]`` section for store-display metadata
 (icon, tags, homepage, rich author info), caches the result locally, and
 enriches the store inventory built from the slim Distribution index.
 """
@@ -165,7 +165,7 @@ class PluginRegistryFetcher:
     def enrich_entry(  # noqa: E501
         store_entry: dict[str, Any], plugin_manifest: dict[str, Any]
     ) -> dict[str, Any]:
-        """Merge ``[tool.biopro.plugin]`` fields into a store inventory entry.
+        """Merge ``[tool.karcytics.plugin]`` fields into a store inventory entry.
 
         Parameters:
             store_entry (dict): An entry from the store inventory (the ``info`` sub-dict).
@@ -176,7 +176,7 @@ class PluginRegistryFetcher:
         """
         info = store_entry.get("info", store_entry)
 
-        plugin_table = plugin_manifest.get("tool", {}).get("biopro", {}).get("plugin", {})
+        plugin_table = plugin_manifest.get("tool", {}).get("karcytics", {}).get("plugin", {})
         project_table = plugin_manifest.get("project", {})
 
         # 1. Use display_name for the name in store

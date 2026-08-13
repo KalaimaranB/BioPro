@@ -22,7 +22,7 @@ version = "1.0.0"
 description = "Custom Plugin desc"
 authors = [ { name = "Developer Alice" } ]
 
-[tool.biopro.plugin]
+[tool.karcytics.plugin]
 id = "custom_plugin"
 authors = [ { name = "Developer Alice", role = "Developer" } ]
 """
