@@ -418,6 +418,77 @@ class TestModuleManager:
         ):
             mm.load_module_ui("test_module_a")
 
+    def test_load_module_ui_isolated_never_imports_plugin_package(self, mock_plugin_environment):
+        """The actual isolation proof: an isolated module's load must never
+        call importlib.import_module for the plugin's own package, and the
+        Hub's sys.modules must never gain an entry for it — this is the
+        mechanism (not just a config flag) that makes switching between two
+        isolated modules unable to corrupt shared C-extension state.
+        """
+        with patch(
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mm.modules["test_module_a"]["manifest"]["process_model"] = "isolated"
+
+        venv_bin = (
+            mm.modules["test_module_a"]["path"]
+            / ".venv"
+            / ("Scripts" if sys.platform == "win32" else "bin")
+        )
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+
+        with patch("importlib.import_module") as mock_import:
+            panel_factory = mm.load_module_ui("test_module_a")
+
+        mock_import.assert_not_called()
+        assert "karcytics.plugins.test_module_a" not in sys.modules
+        assert callable(panel_factory)
+        assert mm.modules["test_module_a"]["loaded"] is True
+
+    def test_unload_module_isolated_stops_daemon_not_purge(self, mock_plugin_environment):
+        """Isolated unload must go through PluginUIDaemon.stop_instance(), not
+        the sys.modules purge machinery — there's nothing in the Hub's own
+        sys.modules to purge for a module that was never imported."""
+        with patch(
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mm.modules["test_module_a"]["manifest"]["process_model"] = "isolated"
+        mm.modules["test_module_a"]["loaded"] = True
+
+        with patch("karcytics_sdk.plugin.daemon.PluginUIDaemon.stop_instance") as mock_stop:
+            mm.unload_module("test_module_a")
+
+        mock_stop.assert_called_once_with("test_module_a")
+        assert mm.modules["test_module_a"]["loaded"] is False
+
+    def test_reload_modules_stops_running_isolated_daemons(self, mock_plugin_environment):
+        """reload_modules() discards and rebuilds self.modules from scratch —
+        for an isolated plugin that's currently running, its daemon process
+        is tracked separately (PluginUIDaemon._instances) and would
+        otherwise be orphaned: still running, but with no entry in the
+        freshly rebuilt registry pointing back to it.
+        """
+        with patch(
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mm.modules["test_module_a"]["manifest"]["process_model"] = "isolated"
+        mm.modules["test_module_a"]["loaded"] = True
+
+        with patch("karcytics_sdk.plugin.daemon.PluginUIDaemon.stop_instance") as mock_stop:
+            mm.reload_modules()
+
+        mock_stop.assert_called_once_with("test_module_a")
+
     def test_trust_module_flow(self, mock_plugin_environment):
         """Tests the manual trust-override flow for a module."""
         untrusted_result = VerificationResult(

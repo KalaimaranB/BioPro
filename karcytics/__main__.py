@@ -82,12 +82,16 @@ def install_exception_hook():
 class KarcyticsApp:
     """Main application class for Karcytics."""
 
-    def __init__(self, module_manager, updater):
+    def __init__(self, module_manager, updater, core_services_server=None):
         """Initialize the Qt application and store dependencies.
 
         Parameters:
             module_manager: Manager used to load and reload application modules.
             updater: Service used to retrieve and update plugins.
+            core_services_server: The Hub's already-started `CoreServicesServer`
+                (see `core_services_bootstrap.start_core_services`), stopped on
+                quit. `None` is accepted so tests/tools that build a
+                `KarcyticsApp` without a full boot sequence don't need one.
         """
         from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import QApplication
@@ -120,6 +124,7 @@ class KarcyticsApp:
 
         self.module_manager = module_manager
         self.updater = updater
+        self.core_services_server = core_services_server
 
         # Apply SDK global styles (Fusion style engine, QPalette, QToolTip CSS).
         # This MUST be called after QApplication is created — the module-level call
@@ -142,6 +147,8 @@ class KarcyticsApp:
         from karcytics.core.task_scheduler import task_scheduler
 
         self.app.aboutToQuit.connect(task_scheduler.shutdown)
+        if self.core_services_server is not None:
+            self.app.aboutToQuit.connect(self.core_services_server.stop)
 
         sys.exit(self.app.exec())
 
@@ -516,6 +523,13 @@ def _start_application(log_file: Path) -> None:
         module_manager = ModuleManager()
         updater = NetworkUpdater()
 
+        # Reachable by any isolated module's process, regardless of how it
+        # was spawned — see core_services_bootstrap for what's exposed and
+        # why task scheduling deliberately isn't.
+        from karcytics.core.core_services_bootstrap import start_core_services
+
+        core_services_server = start_core_services()
+
         # Initialize diagnostics and connect UI listener
         from karcytics.core.event_bus import KarcyticsEvent, event_bus
 
@@ -562,7 +576,7 @@ def _start_application(log_file: Path) -> None:
         event_bus.subscribe(KarcyticsEvent.ERROR_OCCURRED, on_error)
         install_exception_hook()
 
-        app = KarcyticsApp(module_manager, updater)
+        app = KarcyticsApp(module_manager, updater, core_services_server=core_services_server)
         app.run()
     except Exception as e:
         import traceback

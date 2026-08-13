@@ -126,8 +126,10 @@ class TestPluginStore:
             assert "v2.0" in btn.toolTip()
             assert btn.isEnabled() is False
 
-    def test_store_multi_author_display(self, store):
-        """Verifies that an array of authors is joined correctly."""
+    def test_store_multi_author_display_omits_author_line(self, store):
+        """Store cards intentionally omit the 'By X' line (see plugin_store.py) since a
+        single joined string doesn't scale to plugins with many co-authors. Full author
+        detail lives in the 'Authors & Contributors' section of the detail dialog instead."""
         mock_inventory = {
             "p_multi": {
                 "info": {
@@ -145,5 +147,5 @@ class TestPluginStore:
             from PyQt6.QtWidgets import QLabel
 
             labels = card.findChildren(QLabel)
-            author_text = [lbl.text() for lbl in labels if "by Alice, Bob" in lbl.text()]
-            assert len(author_text) == 1
+            author_text = [lbl.text() for lbl in labels if "Alice" in lbl.text()]
+            assert len(author_text) == 0

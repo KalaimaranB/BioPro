@@ -53,6 +53,9 @@ class PluginLoaderFactory:
             ValueError: If plugin metadata or its entry point is invalid.
             PermissionError: If loading is denied.
         """
+        if mod_info.get("manifest", {}).get("process_model") == "isolated":
+            return PluginLoaderFactory._load_ui_isolated(module_id)
+
         if mod_info["loaded"]:
             return mod_info["plugin_ref"].get_panel_class()
 
@@ -120,6 +123,32 @@ class PluginLoaderFactory:
 
             # Exception Containment: Do not crash the application if a plugin fails to initialize
             return None
+
+    @staticmethod
+    def _load_ui_isolated(module_id: str) -> type[QWidget]:
+        """Return a zero-arg factory for module_id's status widget.
+
+        Deliberately does none of what the in-process path above does:
+        no `importlib.import_module` of the plugin's package, no
+        `PluginEnvironmentInjector` path injection, no `sys.modules`
+        bookkeeping — an isolated module's own code never enters the Hub's
+        interpreter at all. `PluginUIDaemon.get_instance(module_id)` is a
+        singleton keyed by plugin_id, so calling this repeatedly (e.g. the
+        user re-opens an already-running module) reconnects to the same
+        daemon rather than spawning a second one.
+
+        Returns a callable rather than a literal `type[QWidget]` — callers
+        already invoke this value as `PanelClass()` with no arguments, which
+        a zero-arg closure satisfies identically.
+        """
+        from karcytics_sdk.host.module_status_widget import ModuleStatusWidget
+        from karcytics_sdk.plugin.daemon import PluginUIDaemon
+
+        def _factory() -> QWidget:
+            daemon = PluginUIDaemon.get_instance(module_id)
+            return ModuleStatusWidget(daemon, module_name=module_id)
+
+        return _factory  # type: ignore[return-value]
 
     @staticmethod
     def verify_dependencies(plugin_path: Path, manifest: dict) -> None:
