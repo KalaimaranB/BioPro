@@ -62,7 +62,7 @@ karcytics/plugins/*/
 # Security & Trust transients
 trust_debug.log
 tests/core/trust_debug.log
-.biopro/
+.karcytics/
 *.key
 *.pub
 !docs/*.pub

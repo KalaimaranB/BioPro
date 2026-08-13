@@ -10,12 +10,12 @@ import logging
 import shutil
 from pathlib import Path
 
-from biopro_sdk.host.marketplace_cache import (
+from karcytics_sdk.host.marketplace_cache import (
     AssetVerificationError,
     AssetVerifier,
     SandboxCacheService,
 )
-from biopro_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_manager import TrustManager
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QFont, QPixmap
 from PyQt6.QtWidgets import (

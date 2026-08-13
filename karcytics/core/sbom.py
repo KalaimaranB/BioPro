@@ -25,7 +25,7 @@ class SBOMGenerator:
             when omitted.
         """
         self.project_root = project_root or Path(__file__).parent.parent.parent
-        self.biopro_dir = AppConfig.APP_DATA_DIR
+        self.karcytics_dir = AppConfig.APP_DATA_DIR
 
     def get_metadata(self) -> dict[str, Any]:
         """Returns application and environment metadata."""
@@ -100,7 +100,7 @@ class SBOMGenerator:
 
         # 2. Gather Active Plugins Profile
         try:
-            from biopro_sdk.host import TrustManager
+            from karcytics_sdk.host import TrustManager
 
             from karcytics.core.module_manager import ModuleManager
 

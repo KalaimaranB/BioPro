@@ -65,7 +65,7 @@ This means the installed module requires a newer Karcytics core or plugin versio
 
 ### View logs
 
-Karcytics stores runtime logs at `~/.biopro/karcytics.log`.
+Karcytics stores runtime logs at `~/.karcytics/karcytics.log`.
 
 * In the workspace, open **Help → 📜 View Logs**.
 * In the Project Hub, open the same Help menu option.
@@ -107,4 +107,4 @@ The AI Assistant panel is part of the application roadmap but is not currently e
 
 * **GitHub Issues:** [https://github.com/KalaimaranB/Karcytics/issues](https://github.com/KalaimaranB/Karcytics/issues)
 * **Documentation portal:** [https://kalaimaranb.github.io/Karcytics/](https://kalaimaranb.github.io/Karcytics/)
-* **Log file:** `~/.biopro/karcytics.log`
+* **Log file:** `~/.karcytics/karcytics.log`

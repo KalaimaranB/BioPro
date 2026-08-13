@@ -8,7 +8,7 @@ This guide helps you launch Karcytics for the first time, create or open a proje
 
 If Karcytics is not yet installed, start with the [Installation](06_Installation.md) page first.
 
-Karcytics stores its application data in your home folder under `~/.biopro`. This includes installed plugins, trusted developer keys, logs, and recent project settings.
+Karcytics stores its application data in your home folder under `~/.karcytics`. This includes installed plugins, trusted developer keys, logs, and recent project settings.
 
 ---
 

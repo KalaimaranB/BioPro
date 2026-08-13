@@ -42,7 +42,7 @@ The Plugin Store divides modules into a few helpful collections:
 
 ### How plugin installation works
 
-Installed plugins are stored in the application data folder at `~/.biopro/plugins`.
+Installed plugins are stored in the application data folder at `~/.karcytics/plugins`.
 
 * The Marketplace downloads plugin packages from the remote registry.
 * The package is extracted safely into its own plugin folder.
@@ -67,7 +67,7 @@ If a plugin is blocked because it is untrusted, Karcytics will prompt you before
 
 ## Trust and Developer Identity
 
-Karcytics keeps a list of trusted developer keys and authorities in `~/.biopro/trusted_roots`.
+Karcytics keeps a list of trusted developer keys and authorities in `~/.karcytics/trusted_roots`.
 
 When you install or inspect a plugin, the app may display one of the following trust paths:
 

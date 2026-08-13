@@ -56,10 +56,10 @@ import time
 from pathlib import Path
 
 import pytest
-from biopro_sdk.host.trust_manager import TrustManager
-from biopro_sdk.host.trust_path import TrustChain, TrustLink
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from karcytics_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_path import TrustChain, TrustLink
 
 
 class PluginSigner:
@@ -90,7 +90,7 @@ class PluginSigner:
     def sign_plugin(self, plugin_dir: Path, dev_cert: dict):
         """Generates split security.json and signs its canonical representation."""
         manifest_path = plugin_dir / "pyproject.toml"
-        from biopro_sdk.plugin.manifest_parser import ManifestParser
+        from karcytics_sdk.plugin.manifest_parser import ManifestParser
 
         manifest = ManifestParser().parse_file(str(manifest_path))
 

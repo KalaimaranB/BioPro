@@ -34,7 +34,7 @@ Look for the latest asset that matches your platform:
 
 ### First launch on Windows
 
-* The first time you launch Karcytics, it will create application state in your home directory under `~/.biopro`.
+* The first time you launch Karcytics, it will create application state in your home directory under `~/.karcytics`.
 * This folder stores installed plugins, logs, trusted developer keys, and recent project history.
 
 ---
@@ -94,4 +94,4 @@ Karcytics is designed for modern Windows and macOS systems. Linux builds may be 
 * If a plugin fails to install from the Marketplace, make sure you have an active internet connection and that the release page is reachable.
 
 > [!NOTE]
-> Application logs are stored in `~/.biopro/karcytics.log` and can be viewed from the Help menu once Karcytics is running.
+> Application logs are stored in `~/.karcytics/karcytics.log` and can be viewed from the Help menu once Karcytics is running.

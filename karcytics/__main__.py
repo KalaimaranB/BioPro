@@ -15,7 +15,7 @@ def setup_logging() -> Path:
     import logging.config
     from pathlib import Path
 
-    log_dir = Path.home() / ".biopro"
+    log_dir = Path.home() / ".karcytics"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "karcytics.log"
 
@@ -125,7 +125,7 @@ class KarcyticsApp:
         # This MUST be called after QApplication is created — the module-level call
         # in components.py fires too early (before QApplication exists) and is a no-op.
         try:
-            from biopro_sdk.plugin.components import _apply_global_sdk_styles
+            from karcytics_sdk.plugin.components import _apply_global_sdk_styles
 
             _apply_global_sdk_styles()
         except Exception as e:
@@ -178,10 +178,10 @@ class KarcyticsApp:
 def bootstrap_sdk():
     """Dynamic Bootstrapper for Karcytics SDK.
 
-    Checks ~/.biopro/sdk/ for a hot-patched/updated SDK.
+    Checks ~/.karcytics/sdk/ for a hot-patched/updated SDK.
     If it exists and is cryptographically verified against the Root Key,
     we prepend it to sys.path so the application runs the updated version.
-    Otherwise, we fall back to the built-in system biopro-sdk.
+    Otherwise, we fall back to the built-in system karcytics-sdk.
     """
     # Temporarily disabled due to security concerns
     return False
@@ -189,10 +189,10 @@ def bootstrap_sdk():
     import sys
     from pathlib import Path
 
-    sdk_dir = Path.home() / ".biopro" / "sdk"
+    sdk_dir = Path.home() / ".karcytics" / "sdk"
     if sdk_dir.exists():
         try:
-            from biopro_sdk.host import TrustManager
+            from karcytics_sdk.host import TrustManager
 
             trust_mgr = TrustManager()
             result = trust_mgr.verify_plugin(sdk_dir)
@@ -256,7 +256,7 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
                 raise RuntimeError(f"Failed to install plugin: {msg}")
 
             # 2.5 Install Python dependencies for the newly downloaded plugin
-            from biopro_sdk.plugin.manifest_parser import ManifestParser
+            from karcytics_sdk.plugin.manifest_parser import ManifestParser
 
             from karcytics.core.package_manager import PackageManager
 
@@ -467,7 +467,7 @@ def main():
     # Handle SDK CLI commands if detected
     if len(sys.argv) > 1 and sys.argv[1] == "sdk":
         try:
-            from biopro_sdk.sdk_cli import main as sdk_main
+            from karcytics_sdk.sdk_cli import main as sdk_main
 
             sdk_main()
             return

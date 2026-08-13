@@ -10,7 +10,7 @@ def test_package_manager_default_init(monkeypatch, tmp_path):
     fake_home = tmp_path / "home"
     monkeypatch.setattr(Path, "home", lambda: fake_home)
     pm = PackageManager()
-    assert ".biopro" in str(pm.cache_dir)
+    assert ".karcytics" in str(pm.cache_dir)
     assert pm.cache_dir.exists()
 
 

@@ -36,9 +36,9 @@ class SystemAssetSync:
 
         # Asset types to sync automatically
         system_types = {
-            "sdk": Path.home() / ".biopro" / "sdk",
-            "themes": Path.home() / ".biopro" / "themes",
-            "docs": Path.home() / ".biopro" / "docs",
+            "sdk": Path.home() / ".karcytics" / "sdk",
+            "themes": Path.home() / ".karcytics" / "themes",
+            "docs": Path.home() / ".karcytics" / "docs",
         }
 
         updated_any = False

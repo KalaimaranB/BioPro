@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from biopro_sdk.plugin.manifest_parser import ManifestParser
+from karcytics_sdk.plugin.manifest_parser import ManifestParser
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from karcytics.core.package_manager import PackageManager

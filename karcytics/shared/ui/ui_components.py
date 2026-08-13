@@ -2,7 +2,7 @@ import warnings  # noqa: D100
 
 warnings.warn(
     "Importing UI components from `karcytics.shared.ui.ui_components` is deprecated and will be removed in a future version. "  # noqa: E501
-    "Please import from `biopro_sdk.plugin.components` instead.",
+    "Please import from `karcytics_sdk.plugin.components` instead.",
     DeprecationWarning,
     stacklevel=2,
 )

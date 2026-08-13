@@ -43,8 +43,8 @@ def _dict_to_toml(d):
     return "\n".join(lines)
 
 
-from biopro_sdk.host.trust_manager import TrustManager
-from biopro_sdk.plugin.managed_task import FunctionalTask
+from karcytics_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.plugin.managed_task import FunctionalTask
 
 from karcytics.core.task_scheduler import task_scheduler
 

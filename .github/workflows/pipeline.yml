@@ -114,11 +114,11 @@ jobs:
       - name: Checkout SDK
         uses: "actions/checkout@v4"
         with:
-          repository: KalaimaranB/BioPro-SDK
-          path: BioPro-SDK-temp
+          repository: KalaimaranB/Karcytics-SDK
+          path: Karcytics-SDK-temp
 
       - name: Position SDK
-        run: mv BioPro-SDK-temp ../BioPro-SDK
+        run: mv Karcytics-SDK-temp ../Karcytics-SDK
 
       - name: Set up uv and Python
         uses: "astral-sh/setup-uv@v5"
@@ -142,7 +142,7 @@ jobs:
 
       - name: Security Vulnerability Scan
         run: |
-          uv export --format requirements-txt --no-emit-project | grep -v "^-e " | grep -v "BioPro-SDK" > reqs.txt
+          uv export --format requirements-txt --no-emit-project | grep -v "^-e " | grep -v "Karcytics-SDK" > reqs.txt
           pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
       - name: Install System UI Dependencies
@@ -196,11 +196,11 @@ jobs:
       - name: Checkout SDK
         uses: "actions/checkout@v4"
         with:
-          repository: KalaimaranB/BioPro-SDK
-          path: BioPro-SDK-temp
+          repository: KalaimaranB/Karcytics-SDK
+          path: Karcytics-SDK-temp
 
       - name: Position SDK
-        run: mv BioPro-SDK-temp ../BioPro-SDK
+        run: mv Karcytics-SDK-temp ../Karcytics-SDK
 
       - name: Set up uv and Python
         uses: "astral-sh/setup-uv@v5"
@@ -250,11 +250,11 @@ jobs:
       - name: Checkout SDK
         uses: "actions/checkout@v4"
         with:
-          repository: KalaimaranB/BioPro-SDK
-          path: BioPro-SDK-temp
+          repository: KalaimaranB/Karcytics-SDK
+          path: Karcytics-SDK-temp
 
       - name: Position SDK
-        run: mv BioPro-SDK-temp ../BioPro-SDK
+        run: mv Karcytics-SDK-temp ../Karcytics-SDK
 
       - name: Set SOURCE_DATE_EPOCH
         shell: bash

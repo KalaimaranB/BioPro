@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from biopro_sdk.plugin import AnalysisBase, PluginState
+from karcytics_sdk.plugin import AnalysisBase, PluginState
 
 from karcytics.core.task_scheduler import task_scheduler
 

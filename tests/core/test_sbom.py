@@ -52,7 +52,7 @@ class TestSBOMGenerator:
                 "karcytics.core.module_manager.ModuleManager.get_available_modules",
                 return_value=mock_manifests,
             ),
-            patch("biopro_sdk.host.TrustManager.verify_plugin") as mock_verify,
+            patch("karcytics_sdk.host.TrustManager.verify_plugin") as mock_verify,
             patch(
                 "karcytics.core.module_manager.ModuleManager.user_plugins_dir",
                 Path("/tmp/plugins"),

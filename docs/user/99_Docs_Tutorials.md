@@ -9,7 +9,7 @@ This section collects short, example-driven tutorials for maintainers and contri
 ## Plugin Authoring Tutorial (Minimal)
 
 1. Create a package exposing `get_plugin()` that returns a `PluginBase` instance.
-1. Add a `pyproject.toml` and ensure `biopro-sdk` is declared as a dependency.
+1. Add a `pyproject.toml` and ensure `karcytics-sdk` is declared as a dependency.
 1. Install locally with:
 ```bash
 pip install -e plugin_template/example_minimal_plugin

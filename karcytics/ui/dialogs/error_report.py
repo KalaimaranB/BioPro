@@ -152,7 +152,7 @@ class ErrorReportDialog(QDialog):
         import platform
         import subprocess
 
-        log_path = os.path.expanduser("~/.biopro")
+        log_path = os.path.expanduser("~/.karcytics")
         if os.path.exists(log_path):
             if platform.system() == "Darwin":
                 subprocess.run(["open", log_path])

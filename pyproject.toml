@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
-    "biopro-sdk>=1.3.9",
+    "karcytics-sdk>=2.0.0",
     "msgpack>=1.0.0",
     "PyQt6>=6.6",
     "PyQt6-WebEngine>=6.6",
@@ -73,9 +73,7 @@ Repository = "https://github.com/KalaimaranB/Karcytics"
 Issues = "https://github.com/KalaimaranB/Karcytics/issues"
 
 [tool.setuptools.packages.find]
-# "biopro*" is a temporary compat shim for biopro_sdk's soft imports of the
-# core app under its old name -- remove once Karcytics-SDK is renamed.
-include = ["karcytics*", "biopro", "biopro.*"]
+include = ["karcytics*"]
 exclude = ["tests*", "test_*"]
 
 [tool.ruff]
@@ -138,8 +136,8 @@ module = [
     "pytest.*",
     "certifi.*",
     "cryptography.*",
-    "biopro_sdk.*",
-    "biopro_sdk",
+    "karcytics_sdk.*",
+    "karcytics_sdk",
     "umap.*",
     "seaborn.*",
     "requests.*",
@@ -154,7 +152,7 @@ module = "karcytics.ui.*"
 ignore_errors = true
 
 [tool.uv.sources]
-biopro-sdk = { path = "../BioPro-SDK", editable = true }
+karcytics-sdk = { path = "../Karcytics-SDK", editable = true }
 
 [tool.pyright]
 exclude = [

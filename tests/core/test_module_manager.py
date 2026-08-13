@@ -6,7 +6,7 @@ from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
-from biopro_sdk.host.trust_manager import VerificationResult
+from karcytics_sdk.host.trust_manager import VerificationResult
 
 from karcytics.core.module_manager import ModuleManager
 
@@ -89,7 +89,7 @@ def make_v2_manifest(plugin_id: str, name: str, icon: str = "🧪") -> dict:
 def mock_plugin_environment(tmp_path, monkeypatch):
     """Creates a temporary environment for plugin discovery tests."""
     fake_home = tmp_path / "home"
-    user_plugins = fake_home / ".biopro" / "plugins"
+    user_plugins = fake_home / ".karcytics" / "plugins"
     user_plugins.mkdir(parents=True)
 
     plugin_dir = user_plugins / "test_module_a"
@@ -395,7 +395,7 @@ class TestModuleManager:
         mm.unload_module("does_not_exist")  # must not raise
 
     def test_load_module_ui_invalid_interface(self, mock_plugin_environment):
-        """Verifies that a module not implementing the BioProPlugin interface is rejected."""
+        """Verifies that a module not implementing the KarcyticsPlugin interface is rejected."""
         with patch(
             "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
@@ -509,7 +509,7 @@ class TestModuleHotswap:
         between Flow Cytometry and Synthetic Biology.
         """
         fake_home = tmp_path / "home"
-        user_plugins = fake_home / ".biopro" / "plugins"
+        user_plugins = fake_home / ".karcytics" / "plugins"
         user_plugins.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: fake_home)
 

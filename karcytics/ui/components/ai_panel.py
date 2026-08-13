@@ -2,7 +2,7 @@
 
 import logging
 
-from biopro_sdk.host.ai import ai_manager
+from karcytics_sdk.host.ai import ai_manager
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox,

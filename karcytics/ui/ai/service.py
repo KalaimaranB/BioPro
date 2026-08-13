@@ -1,4 +1,4 @@
-from biopro_sdk.host.ai import AIAssistant
+from karcytics_sdk.host.ai import AIAssistant
 from PyQt6.QtCore import QThread, pyqtSignal
 
 

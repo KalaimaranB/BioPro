@@ -34,7 +34,7 @@ class NetworkUpdater:
         self.core_registry_url = AppConfig.CORE_REGISTRY_URL
         self.authority_url = AppConfig.AUTHORITY_REGISTRY_URL
 
-        self.plugin_dir = Path.home() / ".biopro" / "plugins"
+        self.plugin_dir = Path.home() / ".karcytics" / "plugins"
         self.plugin_dir.mkdir(parents=True, exist_ok=True)
 
         self.local_registry_path = self.plugin_dir / "installed.json"
@@ -125,7 +125,7 @@ class NetworkUpdater:
         """Determine whether a newer core application version is available.
 
         Fetches Karcytics's own self-published registry.json (a GitHub Release asset on
-        the Karcytics repo itself) rather than going through Karcytics-Distribution, since
+        the Karcytics repo itself) rather than going through BioPro-Distribution, since
         the core app always knows exactly where its own releases live.
 
         Returns:

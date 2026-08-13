@@ -196,7 +196,7 @@ pytest
 ### Config file conflicts
 Tests automatically clean up after themselves, but if issues persist:
 ```bash
-rm -rf ~/.biopro/plugin_configs/*test*.json
+rm -rf ~/.karcytics/plugin_configs/*test*.json
 ```
 
 ## Contributing Tests

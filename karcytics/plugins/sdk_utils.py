@@ -232,7 +232,7 @@ def save_json(path: str, data: dict[str, Any], pretty: bool = True) -> None:
 class PluginConfig:
     """Simple configuration management for plugins.
 
-    Stores settings in JSON in ~/.biopro/plugin_configs/{plugin_id}.json
+    Stores settings in JSON in ~/.karcytics/plugin_configs/{plugin_id}.json
 
     Example:
         config = PluginConfig('my_plugin')

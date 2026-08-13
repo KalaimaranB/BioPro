@@ -31,7 +31,7 @@ class RegistrySync:
             return local_state
 
         try:
-            from biopro_sdk.plugin.manifest_parser import ManifestParser
+            from karcytics_sdk.plugin.manifest_parser import ManifestParser
 
             parser = ManifestParser()
         except ImportError:
@@ -132,7 +132,7 @@ class RegistrySync:
         store_inventory = PluginRegistryFetcher.fetch_all(store_inventory)
 
         # Resolve verified status now that author keys are populated from pyproject.toml
-        roots_dir = Path.home() / ".biopro" / "trusted_roots"
+        roots_dir = Path.home() / ".karcytics" / "trusted_roots"
         for entry in store_inventory.values():
             authors = entry["info"].get("authors", [])
             is_verified = False

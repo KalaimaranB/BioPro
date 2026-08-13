@@ -17,7 +17,7 @@ def mock_config(tmp_path):
     from karcytics.core.config import AppConfig
 
     config = AppConfig.__new__(AppConfig)
-    config.config_dir = tmp_path / ".biopro"
+    config.config_dir = tmp_path / ".karcytics"
     config.config_file = config.config_dir / "config.json"
     config.data = {"recent_projects": [], "ai_enabled": True}
     return config

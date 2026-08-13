@@ -44,7 +44,7 @@ Failure to adhere to these exact serialization rules will alter the byte payload
 To mitigate directory traversal vulnerabilities during remote asset fetches (e.g., developer avatars), Karcytics enforces a strictly sandboxed directory structure.
 
 ### Traversal Prevention
-The target path for an asset is computed by resolving the plugin ID, asset type, and filename against the base cache directory (`~/.biopro/cache/`).
+The target path for an asset is computed by resolving the plugin ID, asset type, and filename against the base cache directory (`~/.karcytics/cache/`).
 The system enforces a **Descendant Boundary Constraint**: the resolved absolute path must begin with the absolute path of the base cache directory.
 Inputs containing relative traversal indicators (e.g., `../`) are rejected during resolution.
 

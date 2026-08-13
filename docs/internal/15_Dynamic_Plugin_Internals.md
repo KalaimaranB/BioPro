@@ -8,7 +8,7 @@ Karcytics's extensibility relies on runtime discovery, verification, and dynamic
 
 Karcytics scans for plugins in two primary locations:
 1.  **Internal Directory**: Bundled core modules (e.g., within the application package `karcytics/plugins`).
-2.  **User Directory**: Modules installed manually or via the store (typically `~/.biopro/plugins`).
+2.  **User Directory**: Modules installed manually or via the store (typically `~/.karcytics/plugins`).
 
 ### The Unified Namespace
 Karcytics dynamically configures Python's module resolution to merge these distinct directories into a unified `karcytics.plugins` virtual namespace. This enables standard import syntax regardless of physical location:
@@ -26,7 +26,7 @@ When a user initiates an Analysis Module, the `ModuleManager` executes the follo
 1.  **Manifest Verification**: The module's `manifest.json` is parsed to validate API compatibility and version constraints.
 2.  **Security Handover**: The `TrustManager` evaluates the plugin's cryptographic signature and validates file hashes against the manifest.
 3.  **Dynamic Import**: The `importlib` library is utilized to dynamically import the verified package into the active Python interpreter.
-4.  **Interface Validation**: Karcytics verifies that the loaded module implements the required `BioProPlugin` interfaces (e.g., `get_panel_class()`).
+4.  **Interface Validation**: Karcytics verifies that the loaded module implements the required `KarcyticsPlugin` interfaces (e.g., `get_panel_class()`).
 5.  **UI Integration**: The plugin's main widget class is instantiated and integrated into the `WorkspaceWindow` layout.
 
 ---

@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from biopro_sdk.host import BIOPRO_ROOT_PUBLIC_KEY_HEX
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from karcytics_sdk.host import KARCYTICS_ROOT_PUBLIC_KEY_HEX
 
 from karcytics.core.config import AppConfig
 from karcytics.core.network.client import NetworkClient
@@ -32,7 +32,7 @@ class TrustSync:
                 public key.
                 prefix (str): Filename prefix used to group the synchronized keys.
         """
-        roots_dir = Path.home() / ".biopro" / "trusted_roots"
+        roots_dir = Path.home() / ".karcytics" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Identify current network keys for this prefix
@@ -137,7 +137,7 @@ class TrustSync:
                 canonical_bytes = json.dumps(authorities, sort_keys=True).encode()
 
                 # Load root public key
-                root_pub_bytes = bytes.fromhex(BIOPRO_ROOT_PUBLIC_KEY_HEX)
+                root_pub_bytes = bytes.fromhex(KARCYTICS_ROOT_PUBLIC_KEY_HEX)
                 root_public_key = ed25519.Ed25519PublicKey.from_public_bytes(root_pub_bytes)
 
                 # Verify signature

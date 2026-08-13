@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from biopro_sdk.host.trust_manager import VerificationResult
+from karcytics_sdk.host.trust_manager import VerificationResult
 
 from karcytics.core.trust.strategies import DeveloperTrustStrategy, ProjectTrustStrategy
 

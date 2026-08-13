@@ -64,38 +64,6 @@ wheels = [
 ]
 
 [[package]]
-name = "biopro-sdk"
-version = "1.4.1"
-source = { editable = "../BioPro-SDK" }
-dependencies = [
-    { name = "cryptography" },
-    { name = "msgpack" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "pillow" },
-    { name = "pyqt6" },
-    { name = "requests" },
-    { name = "scikit-image" },
-    { name = "scipy" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cryptography", specifier = ">=41.0.0" },
-    { name = "mkdocs-material", marker = "extra == 'docs'" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'" },
-    { name = "msgpack", specifier = ">=1.0.0" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "pillow", specifier = ">=12.3.0" },
-    { name = "pyqt6", specifier = ">=6.5.0" },
-    { name = "requests", specifier = ">=2.28.0" },
-    { name = "scikit-image", specifier = ">=0.26.0" },
-    { name = "scipy" },
-]
-provides-extras = ["docs"]
-
-[[package]]
 name = "boolean-py"
 version = "5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -439,9 +407,9 @@ name = "karcytics"
 version = "2.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "biopro-sdk" },
     { name = "certifi" },
     { name = "cryptography" },
+    { name = "karcytics-sdk" },
     { name = "markdown" },
     { name = "matplotlib" },
     { name = "msgpack" },
@@ -478,10 +446,10 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "biopro-sdk", editable = "../BioPro-SDK" },
     { name = "certifi" },
     { name = "coverage", marker = "extra == 'dev'" },
     { name = "cryptography", specifier = ">=50.0.0" },
+    { name = "karcytics-sdk", editable = "../Karcytics-SDK" },
     { name = "markdown" },
     { name = "matplotlib", specifier = "==3.11.0" },
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.5" },
@@ -511,6 +479,38 @@ requires-dist = [
     { name = "types-requests", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "karcytics-sdk"
+version = "2.0.0"
+source = { editable = "../Karcytics-SDK" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "msgpack" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pillow" },
+    { name = "pyqt6" },
+    { name = "requests" },
+    { name = "scikit-image" },
+    { name = "scipy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cryptography", specifier = ">=41.0.0" },
+    { name = "mkdocs-material", marker = "extra == 'docs'" },
+    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'" },
+    { name = "msgpack", specifier = ">=1.0.0" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pillow", specifier = ">=12.3.0" },
+    { name = "pyqt6", specifier = ">=6.5.0" },
+    { name = "requests", specifier = ">=2.28.0" },
+    { name = "scikit-image", specifier = ">=0.26.0" },
+    { name = "scipy" },
+]
+provides-extras = ["docs"]
 
 [[package]]
 name = "kiwisolver"

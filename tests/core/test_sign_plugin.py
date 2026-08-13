@@ -44,7 +44,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from biopro_sdk.host.sign_plugin import PluginSigner, TrustChain, TrustLink
+from karcytics_sdk.host.sign_plugin import PluginSigner, TrustChain, TrustLink
 
 
 @pytest.fixture
@@ -84,10 +84,10 @@ class TestPluginSigner:
         assert signer_env.public_key_path.exists()
 
         # Test duplicate init blocked
-        with patch("biopro_sdk.host.sign_plugin.logger.info") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.info") as mock_log:
             signer_env.init_identity()
             mock_log.assert_called_with(
-                "Identity already exists. Delete ~/.biopro/dev_keys/ to regenerate."
+                "Identity already exists. Delete ~/.karcytics/dev_keys/ to regenerate."
             )
 
     def test_sign_plugin_success(self, signer_env, tmp_path):
@@ -132,7 +132,7 @@ class TestPluginSigner:
         plugin_dir = tmp_path / "no_manifest"
         plugin_dir.mkdir()
 
-        with patch("biopro_sdk.host.sign_plugin.logger.error") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
             try:
                 signer_env.sign_plugin(plugin_dir)
                 mock_log.assert_called()
@@ -186,7 +186,7 @@ class TestPluginSigner:
         bad_pub = tmp_path / "bad.pub"
         bad_pub.write_text("not a key")
 
-        with patch("biopro_sdk.host.sign_plugin.logger.error") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
             signer_env.delegate_identity(bad_pub, "Fail")
             mock_log.assert_called_with("Invalid public key format.")
 
@@ -221,7 +221,7 @@ class TestPluginSigner:
 
     def test_print_registry_entry_missing_identity(self, signer_env):
         """Verify error handling when printing registry entry without an identity."""
-        with patch("biopro_sdk.host.sign_plugin.logger.error") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
             signer_env.print_registry_entry()
             mock_log.assert_called_with("No identity found. Run 'init' first.")
 
@@ -231,7 +231,7 @@ class TestSignPluginCLI:
 
     def test_cli_init(self, signer_env):
         with patch("sys.argv", ["sign_plugin", "init"]):
-            from biopro_sdk.host.sign_plugin import main
+            from karcytics_sdk.host.sign_plugin import main
 
             main()
             assert signer_env.private_key_path.exists()
@@ -251,7 +251,7 @@ class TestSignPluginCLI:
         (plugin_dir / "pyproject.toml").write_text(_dict_to_toml(manifest))
 
         with patch("sys.argv", ["sign_plugin", "sign", str(plugin_dir)]):
-            from biopro_sdk.host.sign_plugin import main
+            from karcytics_sdk.host.sign_plugin import main
 
             main()
             assert (plugin_dir / "signature.bin").exists()
@@ -262,7 +262,7 @@ class TestSignPluginCLI:
             patch("sys.argv", ["sign_plugin", "registry"]),
             patch("builtins.print") as mock_print,
         ):
-            from biopro_sdk.host.sign_plugin import main
+            from karcytics_sdk.host.sign_plugin import main
 
             main()
             mock_print.assert_any_call("\n--- COPY THIS TO YOUR registry.json ---")

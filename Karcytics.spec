@@ -9,7 +9,7 @@ sys.setrecursionlimit(5000)
 # 1. Force-collect heavy core libraries
 pil_bins, pil_datas, pil_hidden = collect_all('PIL')
 cert_bins, cert_datas, cert_hidden = collect_all('certifi')
-sdk_bins, sdk_datas, sdk_hidden = collect_all('biopro_sdk')
+sdk_bins, sdk_datas, sdk_hidden = collect_all('karcytics_sdk')
 
 # --- THE OPTIMIZATION ENGINE ---
 # Strip out hundreds of MBs of useless testing/mock data from the final build
@@ -65,9 +65,9 @@ dynamic_deps = [dep.split("=")[0].split(">")[0].split("<")[0].strip() for dep in
 
 # 3. Hidden Imports (Ensuring dynamic libraries are packed)
 hidden_imports = [
-    'biopro_sdk',
-    'biopro_sdk.plugin',
-    'biopro_sdk.host',
+    'karcytics_sdk',
+    'karcytics_sdk.plugin',
+    'karcytics_sdk.host',
     'karcytics.plugins',
     'matplotlib.backends.backend_qtagg',
     'PyQt6.QtPrintSupport',
@@ -156,5 +156,5 @@ if sys.platform == 'darwin':
         coll,
         name='Karcytics.app',
         icon='icon.icns',
-        bundle_identifier='com.biopro.analysis',
+        bundle_identifier='com.karcytics.analysis',
     )

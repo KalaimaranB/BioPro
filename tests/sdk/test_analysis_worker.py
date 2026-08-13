@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from biopro_sdk.plugin import AnalysisBase, AnalysisWorker, PluginState
+from karcytics_sdk.plugin import AnalysisBase, AnalysisWorker, PluginState
 from PyQt6.QtCore import QObject, QThread
 
 

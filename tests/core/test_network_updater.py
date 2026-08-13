@@ -81,7 +81,7 @@ def mock_qthread(monkeypatch):
 @pytest.fixture
 def temp_plugin_dir(tmp_path):
     # Mock the home directory to use tmp_path
-    plugin_dir = tmp_path / ".biopro" / "plugins"
+    plugin_dir = tmp_path / ".karcytics" / "plugins"
     plugin_dir.mkdir(parents=True, exist_ok=True)
     return tmp_path
 
@@ -366,7 +366,7 @@ class TestNetworkUpdaterExpanded:
     def test_sync_keys_cleanup(self, updater, temp_plugin_dir, monkeypatch):
         """Verifies that keys no longer in the trusted list are removed from disk."""
         monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
-        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
+        roots_dir = temp_plugin_dir / ".karcytics" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
         old_key = roots_dir / "network_old.pub"
         old_key.write_bytes(b"data")
@@ -378,7 +378,7 @@ class TestNetworkUpdaterExpanded:
     def test_sync_keys_rejects_traversal_attack(self, updater, temp_plugin_dir, monkeypatch):
         """Verify that sync_keys rejects path traversal attempts in entity IDs."""
         monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
-        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
+        roots_dir = temp_plugin_dir / ".karcytics" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
 
         # Attempt to write outside trusted_roots via path traversal
@@ -407,7 +407,7 @@ class TestNetworkUpdaterExpanded:
     def test_authority_sync_404_ignored(self, updater, temp_plugin_dir, monkeypatch):
         """Ensures that a 404 on the authority registry is handled silently."""
         monkeypatch.setattr(Path, "home", lambda: temp_plugin_dir)
-        roots_dir = temp_plugin_dir / ".biopro" / "trusted_roots"
+        roots_dir = temp_plugin_dir / ".karcytics" / "trusted_roots"
         roots_dir.mkdir(parents=True, exist_ok=True)
 
         with patch("karcytics.core.network.client.requests.get") as mock_get:
@@ -419,7 +419,7 @@ class TestNetworkUpdaterExpanded:
             auth_keys = list(roots_dir.glob("auth_*.pub"))
             assert len(auth_keys) == 0, "No authority keys should be synchronized after 404"
 
-    @patch("karcytics.core.network.trust_sync.BIOPRO_ROOT_PUBLIC_KEY_HEX", "0" * 64)
+    @patch("karcytics.core.network.trust_sync.KARCYTICS_ROOT_PUBLIC_KEY_HEX", "0" * 64)
     def test_authority_sync_signature_verification_failure(self, updater):
         """Verifies that authority sync aborts if signature verification fails."""
         from cryptography.hazmat.primitives.asymmetric import ed25519

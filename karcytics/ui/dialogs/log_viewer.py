@@ -101,7 +101,7 @@ class LogViewerDialog(QDialog):
             except Exception as e:
                 self.text_area.setPlainText(f"Error reading log file:\n{e}")
         else:
-            self.text_area.setPlainText("Log file not found at ~/.biopro/karcytics.log")
+            self.text_area.setPlainText("Log file not found at ~/.karcytics/karcytics.log")
         self.copy_btn.setText("Copy to Clipboard")
 
     def _copy_logs(self):

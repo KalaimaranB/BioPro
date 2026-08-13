@@ -41,7 +41,7 @@ def test_config_load_error(tmp_path, monkeypatch):
     fake_home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: fake_home)
 
-    config_file = fake_home / ".biopro" / "config.json"
+    config_file = fake_home / ".karcytics" / "config.json"
     config_file.parent.mkdir()
     config_file.write_text("{ broken }")
 

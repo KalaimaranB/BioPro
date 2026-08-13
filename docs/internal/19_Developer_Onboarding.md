@@ -44,7 +44,7 @@ Generate a personal Ed25519 key pair using the Karcytics CLI:
 ```bash
 karcytics-sign init
 ```
-This generates your private key (`private.key`) and public key (`public.pub`) in `~/.biopro/dev_keys/`.
+This generates your private key (`private.key`) and public key (`public.pub`) in `~/.karcytics/dev_keys/`.
 
 ### 2. Profile Registration
 To be recognized globally, your public key must be registered with the central Karcytics directory. Submit your generated public hex string to the repository administrators.

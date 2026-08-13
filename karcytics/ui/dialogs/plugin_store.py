@@ -1,6 +1,6 @@
 """Module Store and Update Dialog."""
 
-from biopro_sdk.plugin import DangerButton, ModuleCard, PrimaryButton, SecondaryButton
+from karcytics_sdk.plugin import DangerButton, ModuleCard, PrimaryButton, SecondaryButton
 from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (

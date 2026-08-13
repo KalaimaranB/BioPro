@@ -35,7 +35,7 @@ class PluginBase:
 
 ```py
 from karcytics.plugins.sdk_utils import PluginConfig, get_plugin_logger
-from biopro_sdk.core import PluginBase as SDKPluginBase
+from karcytics_sdk.core import PluginBase as SDKPluginBase
 
 
 class MyPlugin(SDKPluginBase):

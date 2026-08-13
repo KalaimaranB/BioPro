@@ -21,7 +21,7 @@ Developers require an Ed25519 keypair to sign plugins.
 ```bash
 karcytics-sign init
 ```
-This populates `~/.biopro/dev_keys/` with your credentials.
+This populates `~/.karcytics/dev_keys/` with your credentials.
 
 ### Programmatic Generation (Python)
 If integrating into automated systems, use the `cryptography` library:

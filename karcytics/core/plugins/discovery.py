@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
+from karcytics_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
 
 from karcytics.core.trust.strategies import TrustStrategyFactory
 

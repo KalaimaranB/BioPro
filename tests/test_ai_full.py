@@ -1,4 +1,4 @@
-from biopro_sdk.host import AIAssistant, AIServerManager
+from karcytics_sdk.host import AIAssistant, AIServerManager
 from PyQt6.QtCore import Qt
 
 from karcytics.ui.components.ai_panel import AIChatWindow
@@ -16,7 +16,9 @@ def test_ai_assistant_history(monkeypatch):
         def json(self):
             return {"choices": [{"message": {"content": "I am Gemma 4"}}]}
 
-    monkeypatch.setattr("biopro_sdk.host.ai.requests.post", lambda *args, **kwargs: MockResponse())
+    monkeypatch.setattr(
+        "karcytics_sdk.host.ai.requests.post", lambda *args, **kwargs: MockResponse()
+    )
 
     assistant = AIAssistant()
     assert len(assistant.history) == 0

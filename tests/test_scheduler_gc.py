@@ -1,7 +1,7 @@
 import gc
 import weakref
 
-from biopro_sdk.plugin import AnalysisBase, PluginState
+from karcytics_sdk.plugin import AnalysisBase, PluginState
 from PyQt6.QtCore import QCoreApplication
 
 from karcytics.core.task_scheduler import task_scheduler

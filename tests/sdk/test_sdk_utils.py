@@ -215,7 +215,7 @@ class TestPluginConfig:
 
     def test_config_file_location(self):
         config = PluginConfig("test_plugin")
-        expected_dir = Path.home() / ".biopro" / "plugin_configs"
+        expected_dir = Path.home() / ".karcytics" / "plugin_configs"
         expected_file = expected_dir / "test_plugin.json"
 
         assert config.config_dir == expected_dir

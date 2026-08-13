@@ -37,8 +37,8 @@ def _dict_to_toml(d):
 
 
 import pytest
-from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
-from biopro_sdk.plugin.security_parser import (
+from karcytics_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
+from karcytics_sdk.plugin.security_parser import (
     SecurityParser,
     SecurityValidationError,
 )

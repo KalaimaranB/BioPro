@@ -1,7 +1,7 @@
 import os
 from typing import Any
 
-from biopro_sdk.host.ai import AIAssistant, AIServerManager
+from karcytics_sdk.host.ai import AIAssistant, AIServerManager
 from PyQt6.QtCore import QCoreApplication
 
 
@@ -23,7 +23,7 @@ def test_ai_server_manager_initialization():
 
     manager = AIServerManager()
     assert manager.logger is not None
-    expected_path = str(Path.home() / ".biopro" / "models" / "gemma4.gguf")
+    expected_path = str(Path.home() / ".karcytics" / "models" / "gemma4.gguf")
     assert manager.model_path == expected_path
 
 
@@ -55,7 +55,7 @@ def test_ai_assistant_interface():
 def test_model_path_persistence():
     """Verify that AIServerManager uses the persistent home directory path."""
     manager = AIServerManager()
-    assert ".biopro" in manager.model_path
+    assert ".karcytics" in manager.model_path
     assert "models" in manager.model_path
     assert os.path.isabs(manager.model_path)
 
@@ -76,7 +76,7 @@ def test_start_server_absolute_path(monkeypatch):  # noqa: C901
     monkeypatch.setattr("threading.Thread", MockThread)
 
     # Mock time.sleep to run instantly
-    monkeypatch.setattr("biopro_sdk.host.ai.time.sleep", lambda x: None)
+    monkeypatch.setattr("karcytics_sdk.host.ai.time.sleep", lambda x: None)
 
     # Mock os.path.exists to return True for our fake model
     monkeypatch.setattr("os.path.exists", lambda x: True)
