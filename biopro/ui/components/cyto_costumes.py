@@ -206,6 +206,18 @@ class MandalorianCostume(CytoCostume):
         self.fork2.setParentItem(cyto_widget.right_arm)
         self.items.append(self.fork2)
 
+        # A loaded energy round at the muzzle — the fork prongs alone
+        # left the barrel looking unfinished/open-ended.
+        self.round = QGraphicsEllipseItem(84, -3, 6, 6)
+        round_grad = QRadialGradient(87, 0, 3)
+        round_grad.setColorAt(0, QColor(180, 255, 220))
+        round_grad.setColorAt(1, QColor(0, 200, 120))
+        self.round.setBrush(QBrush(round_grad))
+        self.round.setPen(QPen(QColor("#00aa66"), 0.8))
+        self.round.setParentItem(cyto_widget.right_arm)
+        self.items.append(self.round)
+        apply_glow_effect(self.round, QColor(0, 230, 140), blur_radius=10)
+
     def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """
         Detach and remove all costume items from the scene.
@@ -373,13 +385,29 @@ class SubcavernCostume(CytoCostume):
         self.body.setParentItem(cyto_widget.right_arm)
         self.items.append(self.body)
 
-        self.barrel = QGraphicsRectItem(65, -3, 20, 6)
-        b_grad = QLinearGradient(65, -3, 65, 3)
+        # Tapered barrel with a capped muzzle rather than a bare flat
+        # rectangle, which read as an unfinished stick poking off the body.
+        self.barrel = QGraphicsPathItem()
+        barrel_path = QPainterPath()
+        barrel_path.moveTo(65, -3)
+        barrel_path.lineTo(82, -2)
+        barrel_path.lineTo(82, 2)
+        barrel_path.lineTo(65, 3)
+        barrel_path.closeSubpath()
+        self.barrel.setPath(barrel_path)
+        b_grad = QLinearGradient(65, -3, 82, -2)
         b_grad.setColorAt(0, QColor("#ffaa00"))
         b_grad.setColorAt(1, QColor("#cc5500"))
         self.barrel.setBrush(QBrush(b_grad))
+        self.barrel.setPen(QPen(QColor("#8a4400"), 1))
         self.barrel.setParentItem(cyto_widget.right_arm)
         self.items.append(self.barrel)
+
+        self.muzzle_cap = QGraphicsEllipseItem(79, -3.5, 5, 7)
+        self.muzzle_cap.setBrush(QBrush(QColor("#4a2600")))
+        self.muzzle_cap.setPen(QPen(QColor("#2b1600"), 0.8))
+        self.muzzle_cap.setParentItem(cyto_widget.right_arm)
+        self.items.append(self.muzzle_cap)
 
         self.chamber = QGraphicsEllipseItem(46, -6, 12, 12)
         c_grad = QRadialGradient(52, 0, 6)
@@ -487,15 +515,18 @@ class FamilyGuyCostume(CytoCostume):
         # (base_radius 45), so the bonnet's base is widened to match —
         # the previous ±20 base left most of his head visibly uncovered
         # on both sides, reading as a hat perched on top rather than fitted.
+        # Raised 14px from the first pass so its lowest point clears the
+        # eyes' top edge across every emotion state instead of cutting
+        # through them.
         self.bonnet = QGraphicsPathItem()
         b_path = QPainterPath()
-        b_path.moveTo(-40, 2)
-        b_path.cubicTo(-42, -28, -20, -50, 0, -52)
-        b_path.cubicTo(20, -50, 42, -28, 40, 2)
-        b_path.cubicTo(22, -8, -22, -8, -40, 2)
+        b_path.moveTo(-40, -12)
+        b_path.cubicTo(-42, -42, -20, -64, 0, -66)
+        b_path.cubicTo(20, -64, 42, -42, 40, -12)
+        b_path.cubicTo(22, -22, -22, -22, -40, -12)
         b_path.closeSubpath()
         self.bonnet.setPath(b_path)
-        bonnet_grad = QLinearGradient(-40, -52, 40, 2)
+        bonnet_grad = QLinearGradient(-40, -66, 40, -12)
         bonnet_grad.setColorAt(0, QColor("#fdfaf3"))
         bonnet_grad.setColorAt(1, QColor("#e8ddc7"))
         self.bonnet.setBrush(QBrush(bonnet_grad))
@@ -506,8 +537,8 @@ class FamilyGuyCostume(CytoCostume):
 
         self.strap = QGraphicsPathItem()
         s_path = QPainterPath()
-        s_path.moveTo(-40, 2)
-        s_path.quadTo(0, 16, 40, 2)
+        s_path.moveTo(-40, -12)
+        s_path.quadTo(0, 2, 40, -12)
         self.strap.setPath(s_path)
         self.strap.setPen(
             QPen(QColor("#2f5fa8"), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
@@ -526,14 +557,19 @@ class FamilyGuyCostume(CytoCostume):
             loop.setBrush(QBrush(QColor("#2f5fa8")))
             loop.setPen(QPen(QColor("#1c3f73"), 1))
             loop.setParentItem(self.bow)
-            loop.setPos(side * 6, -52)
+            loop.setPos(side * 6, -66)
             loop.setRotation(side * 25)
 
         knot = QGraphicsEllipseItem(-2.5, -2.5, 5, 5)
         knot.setBrush(QBrush(QColor("#1c3f73")))
         knot.setPen(QPen(Qt.PenStyle.NoPen))
         knot.setParentItem(self.bow)
-        knot.setPos(0, -52)
+        knot.setPos(0, -66)
+
+        # The dashed core ring reads as a stray guide line once the
+        # bonnet is raised enough to expose the face around it; hidden
+        # for this theme only and restored on detach.
+        cyto_widget.core.setPen(QPen(Qt.PenStyle.NoPen))
 
         # Chicken-fight boxing glove — a nod to the show's recurring
         # Peter-vs-Giant-Chicken brawl gag, held like the other props.
@@ -559,10 +595,11 @@ class FamilyGuyCostume(CytoCostume):
 
         self.glove_glow = apply_glow_effect(self.glove, QColor(232, 70, 47), blur_radius=8)
 
-    def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
+    def detach(self, cyto_widget: "CytoWidget") -> None:
         """
-        Detach and remove all costume items from the scene.
+        Detach and remove all costume items from the scene, restoring the core's dashed ring.
         """
+        cyto_widget.core.setPen(QPen(QColor("#c9d1d9"), 1.5, Qt.PenStyle.DotLine))
         for item in self.items:
             item.setParentItem(None)
             if item.scene():
@@ -703,46 +740,43 @@ class AvatarKorraCostume(CytoCostume):
         Parameters:
             cyto_widget: Widget whose right arm and body receive the costume elements.
         """
-        # Sokka's boomerang — an angular, riveted blue-white blade (the
-        # canonical look, not a curved wooden banana shape), held still
-        # so it reads as a carried weapon, not a toy in motion.
+        # Sokka's boomerang — a smooth curved crescent stroked with a
+        # round-capped pen (guaranteeing rounded, not pointed, ends), in
+        # the pale carved-bone tone the show actually uses. The previous
+        # angular, pointed blade read as a gun rather than a boomerang.
         self.boomerang = QGraphicsPathItem()
         b_path = QPainterPath()
-        b_path.moveTo(0, 4)
-        b_path.lineTo(6, -4)
-        b_path.lineTo(40, -32)
-        b_path.lineTo(34, -26)
-        b_path.lineTo(14, -6)
-        b_path.lineTo(26, 14)
-        b_path.lineTo(18, 16)
-        b_path.lineTo(2, 8)
-        b_path.closeSubpath()
+        b_path.moveTo(-26, -9)
+        b_path.quadTo(-8, 3, 0, 5)
+        b_path.quadTo(8, 7, 25, 19)
         self.boomerang.setPath(b_path)
-        boomerang_grad = QLinearGradient(0, 4, 40, -32)
-        boomerang_grad.setColorAt(0, QColor("#dfeeff"))
-        boomerang_grad.setColorAt(0.5, QColor("#8fb8e0"))
-        boomerang_grad.setColorAt(1, QColor("#3f6fa0"))
-        self.boomerang.setBrush(QBrush(boomerang_grad))
-        self.boomerang.setPen(QPen(QColor("#1c3f5c"), 1.5))
+        boomerang_grad = QLinearGradient(-26, -9, 25, 19)
+        boomerang_grad.setColorAt(0, QColor("#f0e2c0"))
+        boomerang_grad.setColorAt(0.5, QColor("#d8b878"))
+        boomerang_grad.setColorAt(1, QColor("#a9793f"))
+        self.boomerang.setPen(
+            QPen(
+                QBrush(boomerang_grad),
+                9,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+        )
         self.boomerang.setParentItem(cyto_widget.right_arm)
         self.boomerang.setPos(46, -6)
         self.items.append(self.boomerang)
 
-        self.boomerang_highlight = QGraphicsPathItem()
-        h_path = QPainterPath()
-        h_path.moveTo(6, -4)
-        h_path.lineTo(38, -31)
-        self.boomerang_highlight.setPath(h_path)
-        self.boomerang_highlight.setPen(QPen(QColor(255, 255, 255, 160), 1))
-        self.boomerang_highlight.setParentItem(self.boomerang)
-        self.items.append(self.boomerang_highlight)
-
-        for rx, ry in [(20, -14), (10, 2)]:
-            rivet = QGraphicsEllipseItem(-1.6, -1.6, 3.2, 3.2)
-            rivet.setBrush(QBrush(QColor("#c9d8e8")))
-            rivet.setPen(QPen(QColor("#1c3f5c"), 0.8))
-            rivet.setParentItem(self.boomerang)
-            rivet.setPos(rx, ry)
+        self.boomerang_binding = QGraphicsPathItem()
+        bind_path = QPainterPath()
+        bind_path.moveTo(-3, 3.5)
+        bind_path.lineTo(3, 6.5)
+        self.boomerang_binding.setPath(bind_path)
+        self.boomerang_binding.setPen(
+            QPen(QColor("#6b4a22"), 3, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap)
+        )
+        self.boomerang_binding.setParentItem(self.boomerang)
+        self.items.append(self.boomerang_binding)
 
         # Water Tribe pendant — a carved crescent-moon medallion, the
         # show's most recognizable prop after bending itself, in the pale
@@ -883,50 +917,65 @@ class DefaultCostume(CytoCostume):
 
 
 class AccessibleCostume(CytoCostume):
-    """Small, muted raised Braille-dot badge for the Accessible (Okabe-Ito) theme."""
+    """Eye-tipped clarity wand for the Accessible (Okabe-Ito) theme.
+
+    Replaces the earlier Braille-dot badge, which didn't read clearly at
+    this render size and left Cyto with nothing to actually hold or point
+    with. An eye is the most unambiguous available symbol for "vision
+    accessibility," and doubling it as the pointer prop matches the
+    pattern Default's wand already established.
+    """
 
     def __init__(self):
         self.items = []
-        self.badge_glow = None
+        self.eye_glow = None
 
     def attach(self, cyto_widget: "CytoWidget") -> None:
         """
-        Attach a small, softly-lit Braille-dot badge to the widget's shoulder.
+        Attach an eye-tipped pointer wand to the widget's right arm.
 
         Parameters:
-            cyto_widget: Widget whose body receives the badge.
+            cyto_widget: Widget whose right arm receives the wand.
         """
-        # Sized to a real Braille cell's tall, narrow proportions instead
-        # of a square tile — a square 2x3 dot grid on a dark square plaque
-        # reads as a die/domino face, not Braille. Kept small and
-        # translucent so it accents rather than competes with the
-        # character for attention.
-        self.plaque = QGraphicsPathItem()
-        plaque_path = QPainterPath()
-        plaque_path.addRoundedRect(-7, -11, 14, 22, 4, 4)
-        self.plaque.setPath(plaque_path)
-        self.plaque.setBrush(QBrush(QColor(20, 30, 38, 110)))
-        self.plaque.setPen(QPen(QColor("#56B4E9"), 1))
-        self.plaque.setParentItem(cyto_widget.cyto_group)
-        self.plaque.setPos(-30, 6)
-        self.plaque.setZValue(3)
-        self.items.append(self.plaque)
+        self.rod = QGraphicsPathItem()
+        r_path = QPainterPath()
+        r_path.moveTo(45, -3)
+        r_path.lineTo(62, -1.5)
+        r_path.lineTo(62, 1.5)
+        r_path.lineTo(45, 3)
+        r_path.closeSubpath()
+        self.rod.setPath(r_path)
+        rod_grad = QLinearGradient(45, 0, 62, 0)
+        rod_grad.setColorAt(0, QColor("#0072B2"))
+        rod_grad.setColorAt(1, QColor("#56B4E9"))
+        self.rod.setBrush(QBrush(rod_grad))
+        self.rod.setPen(QPen(QColor("#0072B2"), 1))
+        self.rod.setParentItem(cyto_widget.right_arm)
+        self.items.append(self.rod)
 
-        for row in range(3):
-            for col in range(2):
-                dot = QGraphicsEllipseItem(-1.6, -1.6, 3.2, 3.2)
-                dot.setPos(-3.5 + col * 7, -6 + row * 6)
-                # Highlight offset toward one corner so each dot reads as
-                # a raised tactile bump rather than a flat printed pip.
-                dot_grad = QRadialGradient(-0.6, -0.6, 3)
-                dot_grad.setColorAt(0, QColor("#ffffff"))
-                dot_grad.setColorAt(0.6, QColor("#56B4E9"))
-                dot_grad.setColorAt(1, QColor("#0072B2"))
-                dot.setBrush(QBrush(dot_grad))
-                dot.setPen(QPen(QColor("#0072B2"), 0.4))
-                dot.setParentItem(self.plaque)
+        self.sclera = QGraphicsEllipseItem(-8, -5, 16, 10)
+        self.sclera.setBrush(QBrush(QColor("#ffffff")))
+        self.sclera.setPen(QPen(QColor("#0072B2"), 1))
+        self.sclera.setParentItem(cyto_widget.right_arm)
+        self.sclera.setPos(66, 0)
+        self.items.append(self.sclera)
 
-        self.badge_glow = apply_glow_effect(self.plaque, QColor("#56B4E9"), blur_radius=6)
+        self.iris = QGraphicsEllipseItem(-3.5, -3.5, 7, 7)
+        iris_grad = QRadialGradient(-1, -1, 4)
+        iris_grad.setColorAt(0, QColor("#85cbf1"))
+        iris_grad.setColorAt(1, QColor("#0072B2"))
+        self.iris.setBrush(QBrush(iris_grad))
+        self.iris.setPen(QPen(Qt.PenStyle.NoPen))
+        self.iris.setParentItem(self.sclera)
+        self.items.append(self.iris)
+
+        self.pupil = QGraphicsEllipseItem(-1.4, -1.4, 2.8, 2.8)
+        self.pupil.setBrush(QBrush(QColor("#0a1a22")))
+        self.pupil.setPen(QPen(Qt.PenStyle.NoPen))
+        self.pupil.setParentItem(self.iris)
+        self.items.append(self.pupil)
+
+        self.eye_glow = apply_glow_effect(self.sclera, QColor("#56B4E9"), blur_radius=10)
 
     def detach(self, cyto_widget: "CytoWidget") -> None:  # noqa: ARG002
         """
@@ -940,10 +989,10 @@ class AccessibleCostume(CytoCostume):
 
     def animate(self, cyto_widget: "CytoWidget", time_step: float) -> None:  # noqa: ARG002
         """
-        Give the badge a slow, subtle glow pulse rather than an attention-grabbing one.
+        Give the eye's glow a slow, subtle pulse rather than an attention-grabbing one.
         """
-        if self.badge_glow:
-            self.badge_glow.setBlurRadius(6 + math.sin(time_step * 1.5) * 2)
+        if self.eye_glow:
+            self.eye_glow.setBlurRadius(10 + math.sin(time_step * 1.5) * 3)
 
 
 class CostumeFactory:
