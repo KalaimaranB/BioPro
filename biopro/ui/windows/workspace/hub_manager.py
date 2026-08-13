@@ -75,6 +75,11 @@ class HubManager:
         dialog = AcademyWindow(global_tutorial_manager, module_id, mw)
 
         def _handle_core_course():
+            if hasattr(mw, "root_stack") and mw.root_stack.currentIndex() != 0:
+                mw.status_bar.showMessage(
+                    "Please return to the Hub view to start the onboarding tour.", 5000
+                )
+                return
             self.show_home()
             global_tutorial_manager.start_core_intro()
 
@@ -131,24 +136,29 @@ class HubManager:
             mw.home_tutorial_overlay.raise_()
 
     def restart_core_intro(self) -> None:
-        """Resets core intro progress and re-launches the onboarding tour."""
+        """Re-launches the onboarding tour without losing completion status."""
         from biopro.core.preferences import core_preferences
         from biopro.core.tutorial_manager import global_tutorial_manager
 
-        # Clear both gates so the tour auto-starts again
-        global_tutorial_manager.reset_course("core_intro_v1")
-        core_preferences.set("core_intro_dismissed_once", False)
+        mw = self.main_window
+        if hasattr(mw, "root_stack") and mw.root_stack.currentIndex() != 0:
+            mw.status_bar.showMessage(
+                "Please return to the Hub view to restart the onboarding tour.", 5000
+            )
+            return
 
-        # reset_course() only clears active_course/current_step if the course
-        # had already been completed — force-clear here too so a restart
-        # requested mid-course isn't blocked by maybe_start_core_intro()'s
-        # active-course guard.
+        core_preferences.set("core_intro_dismissed_once", False)
         global_tutorial_manager.active_course = None
         global_tutorial_manager.current_step = None
 
-        # Make sure we're on the home screen before showing the overlay
         self.show_home()
-        self.maybe_start_core_intro()
+
+        # Start directly, bypassing the "already completed" guard in maybe_start_core_intro
+        started = global_tutorial_manager.start_core_intro()
+        if started:
+            mw.home_tutorial_overlay.setGeometry(mw.home_screen.rect())
+            mw.home_tutorial_overlay.show()
+            mw.home_tutorial_overlay.raise_()
 
     def open_store(self) -> None:
         """Open the plugin store from the Hub."""

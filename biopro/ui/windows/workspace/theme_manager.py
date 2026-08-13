@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Final
 
 from PyQt6.QtWidgets import QWidget
 
-from biopro.ui.theme import Colors, Fonts, theme_manager
+from biopro.ui.theme import Colors, theme_manager
 
 if TYPE_CHECKING:
     from biopro.ui.windows.workspace_window import WorkspaceWindow
@@ -191,8 +191,7 @@ class ThemeManager:
         theme_manager.apply_style(
             mw.status_bar,
             f"background: {Colors.BG_DARK}; color: {Colors.FG_SECONDARY};"
-            f" border-top: 1px solid {Colors.BORDER};"
-            f" font-family: {Fonts.FAMILY_MONO if is_sw else 'inherit'};",
+            f" border-top: 1px solid {Colors.BORDER};",
         )
         if hasattr(mw, "analysis_toolbar"):
             mw.analysis_toolbar._apply_theme_styles()
@@ -280,12 +279,6 @@ class ThemeManager:
         # 4.5 Refresh Analysis Page and Tech Subtitle
         if hasattr(mw, "analysis_page"):
             theme_manager.apply_style(mw.analysis_page, f"background: {Colors.BG_DARKEST};")
-        if hasattr(mw, "aurebesh_lbl"):
-            theme_manager.apply_style(
-                mw.aurebesh_lbl,
-                f"color: {Colors.ACCENT_PRIMARY}; font-size: 9px; padding-bottom: 2px; "
-                f"background: {Colors.BG_DARK}; border-bottom: 1px solid {Colors.BORDER};",
-            )
 
         # 5. Update Hologram Overlay
         if hasattr(mw, "hologram_overlay"):

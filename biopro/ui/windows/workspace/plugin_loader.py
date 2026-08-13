@@ -5,7 +5,6 @@ import logging
 from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
 
 from biopro.core.event_bus import BioProEvent, event_bus
-from biopro.ui.theme import theme_manager
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +150,8 @@ class PluginLoaderManager:
 
         if hasattr(old_panel, "cleanup"):
             old_panel.cleanup()
+        if hasattr(mw, "main_module_layout"):
+            mw.main_module_layout.removeWidget(old_panel)
         old_panel.setParent(None)
         old_panel.deleteLater()
 
@@ -271,7 +272,7 @@ class PluginLoaderManager:
             # ── Legacy fallback ─────────────────────────────────────────
             self._inject_pending_workflow(manifest)
             mw.status_bar.showMessage(
-                f"{manifest.get('display_name', 'Analysis')} — open a file to begin (Ctrl+O)"
+                f"{manifest.get('display_name', 'Analysis')} — open a project to begin"
             )
             self.crossfade_to_analysis()
 
@@ -339,7 +340,7 @@ class PluginLoaderManager:
         mw = self.main_window
         manifest = getattr(mw, "_active_manifest", {})
         mw.status_bar.showMessage(
-            f"{manifest.get('display_name', 'Analysis')} — open a file to begin (Ctrl+O)"
+            f"{manifest.get('display_name', 'Analysis')} — open a project to begin"
         )
         self.crossfade_to_analysis()
 
@@ -412,14 +413,6 @@ class PluginLoaderManager:
             mw.analysis_toolbar.set_title(
                 manifest.get("icon", "📦"), manifest.get("display_name", "Analysis")
             )
-
-            if "Galactic" in theme_manager.current_theme_name:
-                mw.aurebesh_lbl.setText(
-                    f"PROJECT: {mw.project_manager.data.get('project_name', 'UNKNOWN')} | NODE: {module_id.upper()} | ENCRYPTION: ACTIVE"
-                )
-                mw.aurebesh_lbl.show()
-            else:
-                mw.aurebesh_lbl.hide()
 
             if hasattr(mw.wizard_panel, "status_message"):
                 mw.wizard_panel.status_message.connect(mw.status_bar.showMessage)
