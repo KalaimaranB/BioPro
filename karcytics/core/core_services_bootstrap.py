@@ -46,6 +46,6 @@ def start_core_services() -> CoreServicesServer:
     server.register("diagnostics.report_error", _handle_report_error)
 
     server.start()
-    PluginUIDaemon.set_core_services_port(server.port)
+    PluginUIDaemon.set_core_services(server.port, server.token)
     logger.info("CoreServicesServer started on port %d", server.port)
     return server
