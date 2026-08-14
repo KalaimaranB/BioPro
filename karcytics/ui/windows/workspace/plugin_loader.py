@@ -321,6 +321,18 @@ class PluginLoaderManager:
         module_id = manifest["id"]
         logger.info(f"PluginLoader: Instantiating overlay for isolated module '{module_id}'.")
 
+        has_pending_workflow = (
+            hasattr(mw, "_pending_workflow_payload") and mw._pending_workflow_payload is not None
+        )
+
+        from karcytics_sdk.plugin.daemon import PluginUIDaemon
+
+        daemon = PluginUIDaemon.get_instance(module_id)
+        if has_pending_workflow:
+            daemon.pending_workflow = True
+        else:
+            daemon.pending_workflow = False
+
         try:
             mw.wizard_panel = PanelClass()
             assert mw.wizard_panel is not None
@@ -357,9 +369,34 @@ class PluginLoaderManager:
             mw._switch_in_progress = False
 
         mw._active_manifest = manifest
-        # Isolated modules don't yet support workflow injection (their
-        # window is a separate process) — discard rather than leave a stale
-        # payload to be wrongly delivered to whatever's opened next.
+
+        # Inject pending workflow via RPC for isolated modules
+        if hasattr(mw, "_pending_workflow_payload") and mw._pending_workflow_payload is not None:
+            payload = mw._pending_workflow_payload
+            filename = getattr(mw, "_pending_workflow_filename", None)
+            metadata = getattr(mw, "_pending_workflow_metadata", None)
+
+            import threading
+
+            from karcytics_sdk.plugin.daemon import PluginUIDaemon
+
+            daemon = PluginUIDaemon.get_instance(module_id)
+
+            def _send_workflow():
+                try:
+                    daemon.call(
+                        "inject_workflow",
+                        {"payload": payload, "filename": filename, "metadata": metadata},
+                        timeout=30.0,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to inject workflow into isolated module '{module_id}': {e}"
+                    )
+
+            threading.Thread(target=_send_workflow, daemon=True).start()
+            mw.status_bar.showMessage("Injecting workflow payload into isolated module...")
+
         mw._pending_workflow_payload = None
         mw._pending_workflow_filename = None
         mw._pending_workflow_metadata = None

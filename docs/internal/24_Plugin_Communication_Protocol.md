@@ -197,15 +197,26 @@ A plugin's own `ui_daemon.py` can register more via `run()`'s
 | `ready` | worker → Hub | `{"geometry": [x, y, w, h]}` | the worker's window is up; this is also how the Hub's startup handshake resolves (see below) |
 | `window_closed` | worker → Hub | `{}` | the user closed the native window directly (not via a Hub-initiated `exit` request) |
 
-A `kind: event` frame sent *from the Hub to the worker* is a protocol trap
-worth calling out explicitly: nothing on the worker side ever handled it —
-`RequestDispatcher.dispatch()` only recognizes `{"method": ..., "kwargs": ...}`
-shaped frames, so an event frame silently produces
-`{"error": "Unknown method 'None'"}` with no visible effect. `daemon.py`'s
-`PluginUIDaemon.send_event()` exists and sends exactly this shape; **it must
-never be used to talk to a worker** — this was a real, shipped bug (see
-"Known failure modes" below). Use `call()` (a `request` frame) for anything
-that needs to actually happen inside the worker.
+A `kind: event` frame sent *from the Hub to the worker* used to be a protocol
+trap: nothing on the worker side handled it — `RequestDispatcher.dispatch()`
+only recognizes `{"method": ..., "kwargs": ...}`-shaped frames, so an event
+frame silently produced `{"error": "Unknown method 'None'"}`, written back as
+a `response` tagged with that frame's (nonexistent) `request_id` — a reply
+nothing was waiting for, so it vanished with no visible symptom on either
+side. `daemon.py`'s `PluginUIDaemon.send_event()` sent exactly this shape,
+and using it to talk to a worker was a real, shipped bug (see "Known failure
+modes" below).
+
+Resolved on both ends now, not just documented as a footgun to avoid:
+`PluginUIDaemon.send_event()` no longer exists — the Hub has no way to reach
+a worker except `call()`, so this specific misuse is now an immediate
+`AttributeError` at the call site instead of a frame that disappears at
+runtime. And in case a stray or protocol-mismatched `event` frame ever
+reaches a worker anyway (a future Hub talking to an older worker binary, for
+instance), `ui_daemon_runtime.py`'s `handle_request` now recognizes
+`kind: "event"` up front and logs a loud, explicit warning instead of
+manufacturing that dangling response — defense in depth, not a reason to
+reach for `send_event()` again.
 
 ### Channel 2 — the loopback CoreServicesServer (Hub services)
 
@@ -237,6 +248,18 @@ the Hub runs one `CoreServicesServer` for its whole lifetime
 | `theme.get_current_colors` | returns every string `Colors` attribute as a dict — a snapshot, not a subscription |
 | `theme.list_categorized_themes` | lists installable themes, grouped Dark/Light/Accessible |
 | `theme.switch_theme` | asks the Hub to load a theme (runs on the Hub's Qt thread via `QtThreadBridge`) |
+| `menu.get_about_karcytics` | version/tagline/description/copyright for the worker's own Help menu — see `karcytics/core/about_info.py`, the single source both this and the Hub's in-process About dialog read from |
+| `menu.get_about_developer` | name/role/bio, same sourcing as above |
+| `project.get_info` | the Hub's currently open project's `project_dir`/`assets_dir`/`project_name`, or `None` |
+| `project.add_image` / `project.get_asset_path` | forward to the real `ProjectManager.add_image`/`.get_asset_path` — asset hashing, copy-to-workspace, and `project.karcytics` persistence all happen Hub-side, exactly as they did in-process |
+| `project.save_workflow` / `project.load_workflow_payload` / `project.attach_workflow_file` | forward to the matching `ProjectManager` methods |
+| `project.list_workflows` / `project.load_attachments` | forward to `ProjectManager.workflows.list_all()` / `.load_attachments()` |
+
+`karcytics_sdk/host/core_services.py`'s `RemoteProjectManager`/
+`RemoteWorkflowManager` wrap the `project.*` calls above so a plugin's own
+code can call `pm.add_image(...)`, `pm.project_dir`,
+`pm.workflows.list_all()`, etc. exactly like it would against a live,
+in-process `ProjectManager` — see doc 26 for the full worked example.
 
 Notably absent, **by design**: task scheduling and the Hub's `EventBus`.
 Each isolated process runs its own local task scheduler
@@ -335,6 +358,40 @@ implementation detail of one plugin — but it's worth knowing the same
 protocol composes recursively rather than being special-cased for
 Hub↔worker use only.
 
+### The isolated window's menu bar
+
+An in-process plugin's panel lived inside the Hub's own `QMainWindow`, so
+the Hub's File/Edit/Theme/Help menu bar was simply *there* — nothing a
+plugin had to build. An isolated plugin's window is a separate native
+window with no menu bar at all unless `ui_daemon_runtime.run()` builds one,
+which it does via `_build_menu_bar` — see the Interpreter Isolation Plan's
+bug tracker, "menu options ... not available in the plugins".
+
+Two layers, built at two different points in `run()`:
+
+- **Standard, Hub-sourced, identical for every plugin**: File (Close
+  Window, purely local) and, when `CoreServicesServer` is reachable, Theme
+  and a minimal Help menu (About Karcytics / About the Developer, via
+  `menu.get_about_karcytics`/`menu.get_about_developer` above). Built by
+  `_build_menu_bar` *before* `panel_factory()` runs, since none of it needs
+  the panel to exist yet — `_build_theme_menu`/`_build_help_menu`'s content
+  is fetched lazily, on the menu's own `aboutToShow` or a click, not
+  eagerly at startup.
+- **Plugin-specific, different per plugin**: `run()` accepts an optional
+  `configure_menus(window, panel)` callback, called once `panel_factory()`
+  has already produced the real panel — so a plugin can wire
+  `window.menuBar().addMenu("&Analysis")`'s actions directly to real panel
+  methods instead of working around the panel not existing yet. A raised
+  exception here is caught and logged, not fatal — the standard menus and
+  the window itself are unaffected either way.
+
+Getting File/Theme/Help to build correctly at the Qt level turned out to be
+only half the problem — see "Known failure modes" #5 below for the native
+macOS half (an empty menu, and an "About ..."-named action, both silently
+never reach the real menu bar), confirmed and fixed via live Accessibility
+introspection of a real spawned window, not by reasoning about the Qt
+object model alone.
+
 ---
 
 ## What actually crosses the process boundary
@@ -371,8 +428,11 @@ codebase, not a hypothetical:
    obvious cause. Both `PluginDaemon` and `PluginUIDaemon` now run a
    dedicated stderr-drain thread from the moment the process starts, not
    only on the startup-failure path.
-3. **`send_event()` from Hub to worker is a silent no-op.** See "Channel 1"
-   above — always use `call()` for Hub → worker communication.
+3. **`send_event()` from Hub to worker used to be a silent no-op — now
+   resolved.** See "Channel 1" above: the method is gone from
+   `PluginUIDaemon`, and the worker now logs loudly instead of dropping a
+   stray event frame silently. Always use `call()` for Hub → worker
+   communication; there is no other option left.
 4. **Reversed/re-raised widgets after a Hub-side rebuild.** Not a wire
    protocol issue, but adjacent: the Hub's `ModuleStatusWidget` (the
    isolated module's placeholder inside the Hub's own UI) is a floating
@@ -380,6 +440,42 @@ codebase, not a hypothetical:
    switch recreating `home_screen`) can bury it behind a freshly-inserted
    sibling even though the widget itself is untouched. It has to be
    explicitly re-raised after any such rebuild.
+5. **An empty top-level `QMenu`, or an action named "About ...", silently
+   never reaches the real native macOS menu bar** for a bare, unbundled
+   interpreter subprocess (no `.app` bundle, no `Info.plist`) — this bit
+   Theme and Help specifically, and took live Accessibility-API
+   introspection of a real spawned window to actually find, because the
+   Qt-side `QMenuBar` object model looks completely correct the whole time
+   (`window.menuBar().actions()` reports all of File/Theme/Help present —
+   confirmed via a request handler that queries it directly), and nothing
+   raises, logs, or otherwise indicates a problem. Two independent causes,
+   confirmed and fixed separately by isolating each behind a from-scratch
+   `python script.py` repro with no CoreServices/protocol machinery at
+   all, live-checked via `osascript`'s System Events (`tell application
+   "System Events" to tell (first process whose unix id is <pid>) to get
+   name of menu bar items of menu bar 1`) at every step:
+     - **Empty at Cocoa-sync time.** `_build_theme_menu`'s whole design is
+       to stay empty until the user opens it (`aboutToShow`), avoiding a
+       blocking Hub round-trip nobody may ever need — but macOS only syncs
+       a top-level menu into the native bar if it already has content the
+       moment Qt's Cocoa bridge first builds it. Left empty, it just never
+       appears, not even after being populated later. Fix: seed a disabled
+       placeholder action immediately, removed the moment real content
+       lands.
+     - **Auto-detected `AboutRole`.** Qt classifies any action whose text
+       matches `/^about\b/i` as `QAction.MenuRole.AboutRole` unless told
+       otherwise, and macOS allows only one such item per app menu — a
+       slot the OS-injected "About Python" already occupies for this bare
+       process. Both "About Karcytics" and "About the Developer" got
+       silently dropped (not merged into the app menu, not left in Help —
+       gone), which left Help empty too, triggering the first bug on top
+       of this one. Fix: `action.setMenuRole(QAction.MenuRole.NoRole)` on
+       both.
+   A worked-example takeaway, not just a fixed bug: when a native-chrome
+   symptom (menu bar, dock icon, activation behavior) doesn't match what
+   the cross-platform toolkit's own object model reports, the toolkit's
+   object model is the wrong layer to keep staring at — go straight to the
+   OS's own introspection tools for that platform.
 
 ## Links
 

@@ -86,3 +86,4 @@ nav:
     - "Git Branching Engine": internal/23_Git_Branching_Engine.md
     - "Plugin Communication Protocol": internal/24_Plugin_Communication_Protocol.md
     - "Core & SDK Boundary": internal/25_Core_and_SDK_Boundary.md
+    - "Server/Client Lifecycle": internal/26_Server_Client_Lifecycle.md

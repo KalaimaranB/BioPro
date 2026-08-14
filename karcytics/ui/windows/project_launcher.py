@@ -458,6 +458,7 @@ class ProjectLauncherWindow(QMainWindow):
 
     def _launch_workspace(self, project_manager: ProjectManager):
         """Transition from the Hub to the actual Analysis Workspace."""
+        from karcytics.core.core_services_bootstrap import set_active_project_manager
         from karcytics.core.event_bus import KarcyticsEvent, event_bus
 
         # 1. Save to global recents list
@@ -466,6 +467,12 @@ class ProjectLauncherWindow(QMainWindow):
 
         # 2. Emit PROJECT_LOADED so WaitForEventStep(PROJECT_LOADED) auto-advances
         event_bus.emit(KarcyticsEvent.PROJECT_LOADED, str(project_manager.project_dir))
+
+        # 2b. Let CoreServicesServer's project.* handlers reach this project,
+        # so an isolated module (its own process, no shared memory) can get
+        # back what an in-process one already reads via
+        # self.window().project_manager — see RemoteProjectManager.
+        set_active_project_manager(project_manager)
 
         # 3. Transition the UI
         self.workspace = WorkspaceWindow(

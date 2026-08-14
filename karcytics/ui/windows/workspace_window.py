@@ -588,6 +588,13 @@ class WorkspaceWindow(QMainWindow):
                 self.project_manager.close()
             except Exception as e:
                 logger.error(f"Error closing project: {e}")
+        from karcytics.core.core_services_bootstrap import set_active_project_manager
+
+        # Any isolated module still open at this point loses its project
+        # reference along with everything else about this window — matches
+        # closeEvent below, which doesn't try to keep such a module alive
+        # either.
+        set_active_project_manager(None)
         if hasattr(self, "return_to_hub_callback") and self.return_to_hub_callback:
             self.return_to_hub_callback()
         self.close()
