@@ -79,21 +79,32 @@ class PluginLoaderManager:
 
         mw._switch_in_progress = True
 
-        from karcytics.ui.widgets.galactic_loader import GalacticLoader
+        # An isolated module's real content is a separate OS window with its
+        # own loading screen (see ui_daemon_runtime.run()'s GalacticLoader in
+        # the SDK) — the Hub's own warp/hyperdrive cinematic has nothing
+        # worth masking construction of here, and playing it in the Hub
+        # before a window that isn't even the one about to show real content
+        # is exactly the "loading screen in the hub view instead of the new
+        # window" bug. Skipped entirely for isolated modules; on_module_loaded()
+        # goes straight to instantiation once module_id is known to be one.
+        is_isolated = mod_info.get("manifest", {}).get("process_model") == "isolated"
+        mw._pending_is_isolated = is_isolated
 
-        # 1. Setup the QML Loader Widget
         if hasattr(mw, "loader_widget") and mw.loader_widget is not None:
             mw.loader_widget.deleteLater()
-            mw.loader_widget = None
+        mw.loader_widget = None
 
-        mw.loader_widget = GalacticLoader(mw.root_stack)
-        mw.loader_widget.set_module(module_name)
-        mw.loader_widget.resize(mw.root_stack.size())
-        mw.loader_widget.show()
-        mw.loader_widget.raise_()
+        if not is_isolated:
+            from karcytics.ui.widgets.galactic_loader import GalacticLoader
 
-        # Connect the QML peak signal directly to instantiation
-        mw.loader_widget.warp_out_finished.connect(self.on_warp_peaked)
+            mw.loader_widget = GalacticLoader(mw.root_stack)
+            mw.loader_widget.set_module(module_name)
+            mw.loader_widget.resize(mw.root_stack.size())
+            mw.loader_widget.show()
+            mw.loader_widget.raise_()
+
+            # Connect the QML peak signal directly to instantiation
+            mw.loader_widget.warp_out_finished.connect(self.on_warp_peaked)
 
         # 2. Cleanup existing thread if any
         if hasattr(mw, "_module_thread") and mw._module_thread and mw._module_thread.isRunning():
@@ -152,6 +163,8 @@ class PluginLoaderManager:
             old_panel.cleanup()
         if hasattr(mw, "main_module_layout"):
             mw.main_module_layout.removeWidget(old_panel)
+        if getattr(mw, "module_overlay", None) is old_panel:
+            mw.module_overlay = None
         old_panel.setParent(None)
         old_panel.deleteLater()
 
@@ -207,9 +220,14 @@ class PluginLoaderManager:
         mw._pending_manifest = manifest
         mw._pending_panel_class = PanelClass
 
-        # Step 1: Start warp-out immediately — animation keeps running natively via QML
         if hasattr(mw, "loader_widget") and mw.loader_widget:
+            # Step 1: Start warp-out immediately — animation keeps running natively via QML
             mw.loader_widget.warp_out()
+        else:
+            # Isolated module: open_module() deliberately never created a
+            # loader_widget for this load, so nothing will ever emit
+            # warp_out_finished — go straight to instantiating the module.
+            self.on_warp_peaked()
 
     def on_warp_peaked(self) -> None:
         """
@@ -217,13 +235,22 @@ class PluginLoaderManager:
 
         Panels supporting the asynchronous initialization protocol remain behind the loader until
         their readiness signals allow the final crossfade. Legacy panels receive any pending
-        workflow and transition immediately.
+        workflow and transition immediately. Isolated modules never reach this "peak" via a real
+        loader at all (see open_module()) and are routed to _instantiate_isolated_overlay()
+        instead, which never touches root_stack's current page.
         """
         mw = self.main_window
         manifest = mw._pending_manifest
         PanelClass = mw._pending_panel_class  # noqa: N806
         mw._pending_manifest = None
         mw._pending_panel_class = None
+        is_isolated = getattr(mw, "_pending_is_isolated", False)
+        mw._pending_is_isolated = False
+
+        if is_isolated:
+            self._instantiate_isolated_overlay(manifest, PanelClass)
+            return
+
         self.instantiate_module_panel(manifest, PanelClass)
         panel = mw.wizard_panel
 
@@ -275,6 +302,67 @@ class PluginLoaderManager:
                 f"{manifest.get('display_name', 'Analysis')} — open a project to begin"
             )
             self.crossfade_to_analysis()
+
+    def _instantiate_isolated_overlay(self, manifest: dict, PanelClass: type) -> None:  # noqa: N803
+        """Construct an isolated module's `ModuleStatusWidget` as a blocking
+        overlay on top of whatever the Hub is currently showing, instead of
+        embedding it into the analysis page's content area.
+
+        An isolated module's real content is a separate OS window — the Hub
+        never actually "enters" that module the way it does an in-process
+        panel, so switching `root_stack` to the analysis page (and its
+        module-branded toolbar/footer: "Return to Hub", the module's own
+        title, Cyto Academy — see the Interpreter Isolation Plan bug
+        tracker) would be showing chrome for a view the Hub was never
+        actually going to render anything into. The overlay floats directly
+        on `root_stack`; whatever page was already current stays current.
+        """
+        mw = self.main_window
+        module_id = manifest["id"]
+        logger.info(f"PluginLoader: Instantiating overlay for isolated module '{module_id}'.")
+
+        try:
+            mw.wizard_panel = PanelClass()
+            assert mw.wizard_panel is not None
+            widget = mw.wizard_panel
+
+            widget.setParent(mw.root_stack)
+            widget.setGeometry(mw.root_stack.rect())
+            widget.raise_()
+            widget.show()
+            mw.module_overlay = widget
+
+            def _on_overlay_state_changed(state: str, widget=widget) -> None:
+                # A user-initiated close should hand the Hub straight back —
+                # unlike Crashed, there's nothing here worth keeping the
+                # user blocked in front of.
+                from karcytics_sdk.host.module_status_widget import ModuleStatusWidget
+
+                if state == ModuleStatusWidget.STATE_CLOSED:
+                    widget.hide()
+                    if getattr(mw, "module_overlay", None) is widget:
+                        mw.module_overlay = None
+
+            widget.state_changed.connect(_on_overlay_state_changed)
+
+            mw.current_module_id = module_id
+            event_bus.emit(KarcyticsEvent.MODULE_OPENED, module_id)
+        except Exception as e:
+            import traceback
+
+            logger.error(f"Failed to initialize isolated module: {e}", exc_info=True)
+            self.on_module_load_error(module_id, traceback.format_exc())
+            return
+        finally:
+            mw._switch_in_progress = False
+
+        mw._active_manifest = manifest
+        # Isolated modules don't yet support workflow injection (their
+        # window is a separate process) — discard rather than leave a stale
+        # payload to be wrongly delivered to whatever's opened next.
+        mw._pending_workflow_payload = None
+        mw._pending_workflow_filename = None
+        mw._pending_workflow_metadata = None
 
     def _on_panel_ready(self) -> None:
         """Handles completion of asynchronous panel construction and advances to data loading or the final UI transition."""

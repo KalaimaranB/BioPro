@@ -1,0 +1,397 @@
+# Plugin Communication Protocol
+
+This document describes, precisely, how the Karcytics Hub talks to a plugin —
+both plugins that share the Hub's own process and plugins that run in a
+process of their own. It covers the wire format, the threading model on
+both sides, what actually crosses the process boundary, and the failure
+modes that have bitten this protocol in practice.
+
+Two execution models coexist today, chosen per-plugin:
+
+```mermaid
+flowchart TD
+  M["pyproject.toml\n[tool.karcytics.plugin]\nprocess_model"] -->|"in_process (default)"| A[In-process plugin]
+  M -->|"isolated"| B[Isolated plugin]
+  A -->|"shares the Hub's\nPython interpreter"| A2["Direct function calls,\nshared memory, Qt signals"]
+  B -->|"separate OS process,\nplugin's own venv"| B2["msgpack over stdio +\nloopback HTTP for a few Hub services"]
+```
+
+`process_model` lives in the plugin's `pyproject.toml` under
+`[tool.karcytics.plugin]`, is flattened into the manifest dict by
+`karcytics_sdk/plugin/manifest_parser.py`, and typed as
+`PluginManifest.process_model: str = "in_process"`
+(`karcytics_sdk/plugin/manifest.py:9,20`, `VALID_PROCESS_MODELS = ("in_process", "isolated")`).
+Every dispatch point in the Hub checks the same condition —
+`manifest.get("process_model") == "isolated"` — in
+`karcytics/core/plugins/loader.py:59`,
+`karcytics/core/module_manager.py:196,222,253`, and
+`karcytics/ui/windows/workspace/plugin_loader.py:90`. Anything else (an
+explicit `"in_process"`, or the key simply absent) takes the in-process path.
+As of this writing, isolation is opt-in and only the Flow Cytometry plugin
+uses it.
+
+---
+
+## Part 1 — In-process plugins
+
+### How the plugin's code enters the Hub's interpreter
+
+Two loading paths exist, both inside `PluginLoaderFactory.load_ui`
+(`karcytics/core/plugins/loader.py`):
+
+- **"V3" (current)** — `loader.py:78-102`. Triggered when the manifest has an
+  `entry_point` (`"module:function"`, e.g. `"my_plugin.main:build"`). The
+  named module is imported directly (resolved via `sys.path`, not a
+  namespace package), the named function is called with a `PluginContext`
+  (see below), and its return value is used as the plugin instance.
+- **"V2 Legacy" (still supported, not the default for new plugins)** —
+  `loader.py:104-118`. The whole plugin package is imported as
+  `karcytics.plugins.{package_name}` — a *virtual namespace package* that
+  Karcytics extends at startup by appending both the bundled internal
+  plugins directory and `~/.karcytics/plugins` to
+  `karcytics.plugins.__path__` (`karcytics/core/module_manager.py:44-46`).
+  The imported module is then structurally checked against the
+  `KarcyticsPlugin` protocol (`karcytics_sdk/plugin/interfaces.py:13-38`,
+  requiring `get_panel_class()`, `__version__`, `__plugin_id__`,
+  `cleanup()`).
+- **"V1" (dead)** — an older `author`-field manifest format
+  (`karcytics/core/plugins/discovery.py:83,115-163`). Any plugin discovered
+  this way is forced to `trust_level = "outdated"` and hard-blocked from
+  loading by `module_manager.py:84-87` (`OutdatedModuleError`). It exists in
+  the discovery code only to explain to the user *why* an old plugin won't
+  load, not as a live loading path.
+
+Either way, before any import happens, `PluginEnvironmentInjector.inject_path`
+(`karcytics/core/plugins/environment.py:81-167`) puts the plugin's own
+`.venv/site-packages` and `src/` directory onto `sys.path` — so an in-process
+plugin's *dependencies* can differ from the Hub's, even though its *code*
+still runs inside the Hub's single interpreter and GIL.
+
+### What the plugin receives: `PluginContext`
+
+For a V3 plugin, `loader.py:84-96` builds the services dict handed to the
+plugin's entry point:
+
+```python
+services = {
+    "task_scheduler": task_scheduler,   # the real karcytics.core.task_scheduler singleton
+    "logger": logging.getLogger(f"plugin.{module_id}"),
+    "event_bus": None,                  # not wired up — see docs/internal/25, "Migration status"
+}
+context = PluginContext(services=services, manifest=manifest)
+```
+
+`PluginContext.get(capability)` (`karcytics_sdk/plugin/context.py:10-29`)
+enforces that a plugin can only reach a service it declared under
+`manifest.requires` — reaching for anything undeclared raises
+`UndeclaredCapabilityAccess`, and reaching for a declared-but-unavailable
+capability raises `RuntimeError`. `event_bus` being `None` currently defeats
+that second check silently: a plugin that declares `requires = ["event_bus"]`
+gets `None` back, not an error and not the Hub's real event bus.
+
+A V2 legacy plugin gets no `PluginContext` at all — it reaches Hub services
+by directly importing `karcytics.*`, exactly like Hub code does, since it
+runs in the same interpreter with no boundary enforced.
+
+### Threading model
+
+Everything about an in-process plugin's UI runs on the Hub's own Qt main
+thread — Qt widgets are not thread-safe, so this is not optional. The only
+sanctioned way off that thread is:
+
+- `AnalysisBase` (`karcytics_sdk/plugin/analysis.py`) subclasses, submitted
+  to the Hub's shared `TaskScheduler` (`karcytics/core/task_scheduler.py:18`,
+  a `QThreadPool` wrapper emitting `task_started`/`task_finished`/
+  `task_error`/`task_progress` signals). Qt's signal/slot mechanism marshals
+  the result back onto the main thread automatically via a queued
+  connection — this is the *entire* cross-thread protocol for in-process
+  plugins; there is no serialization step, because it's the same process and
+  the same live Python objects the whole way through.
+- `managed_task.py`'s helpers, for one-off background functions that don't
+  warrant a full `AnalysisBase` subclass.
+
+There is no framing, no IPC, no request/response protocol here — a plugin
+calls `context.get("task_scheduler").submit(...)` and gets a normal Python
+object back through a normal Qt signal. The rest of this document does not
+apply to in-process plugins; it's describing what has to exist specifically
+*because* isolated plugins don't have this luxury.
+
+---
+
+## Part 2 — Isolated plugins
+
+### Process topology
+
+```mermaid
+flowchart LR
+  subgraph Hub process
+    H[PluginUIDaemon] -->|stdin| P
+    P -->|stdout| H
+    H -.->|stderr, drained\nnot part of the protocol| SD["_stderr_reader_loop"]
+    CSS[CoreServicesServer\nloopback HTTP :random]
+  end
+  subgraph "Worker process (plugin's own venv)"
+    P["ui_daemon.py → ui_daemon_runtime.run()"]
+  end
+  P -->|"CoreServicesClient.call()\nBearer token over HTTP"| CSS
+```
+
+The Hub spawns the worker with `subprocess.Popen([python_exe, daemon_script], stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)`
+(`karcytics_sdk/plugin/daemon.py`, `PluginUIDaemon._start_process`).
+`python_exe` is resolved from the *plugin's own* `.venv` — a real,
+independent Python interpreter, not merely a different `sys.path` — so an
+isolated plugin can use dependencies that would outright conflict with the
+Hub's own (different NumPy ABI, different Qt bindings version, anything).
+`env` additionally carries `KARCYTICS_CORE_SERVICES_PORT` and
+`KARCYTICS_CORE_SERVICES_TOKEN`, set once by
+`PluginUIDaemon.set_core_services()` (called from
+`karcytics/core/core_services_bootstrap.py:102` right after the Hub starts
+its own `CoreServicesServer`) — this is the *only* thing handed to the
+worker out of band; everything else is negotiated over the two channels
+above once the process is alive.
+
+### Channel 1 — the stdio control pipe (framing)
+
+Every message in either direction is a length-prefixed msgpack blob:
+
+```
+[ 4 bytes: big-endian uint32 payload length ][ N bytes: msgpack-packed dict ]
+```
+
+Written by `write_frame()` on the worker side
+(`karcytics_sdk/plugin/ui_daemon_runtime.py:38-43`) and `_send_frame()` on the
+Hub side (`daemon.py`), both doing the same
+`struct.pack(">I", len(payload)) + payload` framing, both flushing
+immediately. Every frame dict carries a `"kind"` field, one of:
+
+| kind | direction | shape | purpose |
+|---|---|---|---|
+| `request` | Hub → worker | `{kind, request_id, method, kwargs}` | Hub asking the worker to do something and waiting for a specific reply |
+| `response` | worker → Hub | `{kind, request_id, payload}` | worker's reply to a specific `request_id` |
+| `event` | either direction | `{kind, topic, payload}` | unsolicited, fire-and-forget notification — **no request_id, no reply expected** |
+
+The `request_id`/`response` pairing is how `daemon.py`'s `call()` implements
+a synchronous-looking RPC on top of an async pipe: it generates an
+incrementing id, stashes a `queue.Queue` for it in a `_pending` dict, sends
+the request, and blocks reading that queue until the matching response frame
+arrives (or a timeout fires). The worker's own `RequestDispatcher`
+(`ui_daemon_runtime.py:63-92`) is the mirror image: it maps a request's
+`method` name to a registered handler, invokes it, and writes back a
+`response` frame with the same `request_id`.
+
+**Built-in request handlers every worker registers** (`ui_daemon_runtime.py`, `run()`):
+
+| method | handler | effect |
+|---|---|---|
+| `exit` / `close_requested` | `_handle_close_request` | closes the native window, quits the worker's `QApplication` |
+| `theme_changed` | `_handle_theme_changed` | updates `theme_fallback.DynamicColors` and calls the panel's `_apply_theme_styles()` if present |
+| `focus` | `_handle_focus` | raises and activates the window |
+
+A plugin's own `ui_daemon.py` can register more via `run()`'s
+`extra_handlers` argument for anything plugin-specific.
+
+**Events that already exist in the protocol:**
+
+| topic | direction | payload | meaning |
+|---|---|---|---|
+| `ready` | worker → Hub | `{"geometry": [x, y, w, h]}` | the worker's window is up; this is also how the Hub's startup handshake resolves (see below) |
+| `window_closed` | worker → Hub | `{}` | the user closed the native window directly (not via a Hub-initiated `exit` request) |
+
+A `kind: event` frame sent *from the Hub to the worker* is a protocol trap
+worth calling out explicitly: nothing on the worker side ever handled it —
+`RequestDispatcher.dispatch()` only recognizes `{"method": ..., "kwargs": ...}`
+shaped frames, so an event frame silently produces
+`{"error": "Unknown method 'None'"}` with no visible effect. `daemon.py`'s
+`PluginUIDaemon.send_event()` exists and sends exactly this shape; **it must
+never be used to talk to a worker** — this was a real, shipped bug (see
+"Known failure modes" below). Use `call()` (a `request` frame) for anything
+that needs to actually happen inside the worker.
+
+### Channel 2 — the loopback CoreServicesServer (Hub services)
+
+The stdio pipe is 1:1 with whoever spawned the process — right for
+Hub↔worker control, wrong for "any worker process needs to reach a shared
+Hub service" (a worker calling in from a background thread, or wanting to
+reach the Hub without the Hub having asked it anything first). For that,
+the Hub runs one `CoreServicesServer` for its whole lifetime
+(`karcytics_sdk/host/core_services.py`, started once in
+`core_services_bootstrap.start_core_services()`):
+
+- A `ThreadingHTTPServer` bound to `127.0.0.1` on a random free port
+  (`port=0`), one thread per request.
+- Every request is `POST /rpc` with body `{"method": ..., "kwargs": ...}`
+  and header `Authorization: Bearer <token>`. The token is generated once
+  per server instance (`secrets.token_urlsafe(32)`) and compared with
+  `hmac.compare_digest` — there is no way to disable this check; loopback
+  binding alone doesn't stop another local process or user from reaching
+  the port.
+- `CoreServicesClient` (same file) is the worker-side counterpart: a thin
+  `requests.post(...)` wrapper, `client.call("theme.get_current_colors")`.
+
+**The full registered surface today**, all wired in
+`core_services_bootstrap.start_core_services()`:
+
+| method | does |
+|---|---|
+| `diagnostics.report_error` | routes a worker-side error into the Hub's own `diagnostics.report_error()` |
+| `theme.get_current_colors` | returns every string `Colors` attribute as a dict — a snapshot, not a subscription |
+| `theme.list_categorized_themes` | lists installable themes, grouped Dark/Light/Accessible |
+| `theme.switch_theme` | asks the Hub to load a theme (runs on the Hub's Qt thread via `QtThreadBridge`) |
+
+Notably absent, **by design**: task scheduling and the Hub's `EventBus`.
+Each isolated process runs its own local task scheduler
+(`core_services_bootstrap.py`'s module docstring is explicit about this) —
+routing every analysis run through IPC to the Hub would add latency for no
+isolation benefit. This means an isolated plugin cannot react to Hub-side
+`EventBus` topics (`PLUGIN_INSTALLED`, etc.) the way an in-process plugin
+can — there is currently no bridged equivalent.
+
+### Startup handshake, in order
+
+```mermaid
+sequenceDiagram
+    participant Hub
+    participant CoreServicesServer
+    participant Worker
+
+    Hub->>Worker: spawn subprocess (env: PORT, TOKEN)
+    Worker->>Worker: _confirm_hub_theme_or_exit() — before QApplication exists
+    Worker->>CoreServicesServer: POST /rpc theme.get_current_colors
+    CoreServicesServer-->>Worker: {result: {...colors}}
+    Note over Worker: DynamicColors.update_from(colors)<br/>on failure: report + os._exit(1), no window ever built
+    Worker->>Worker: build QApplication, ClosableMainWindow, menu bar, GalacticLoader as central widget
+    Worker->>Hub: event "ready" {geometry}
+    Hub->>Hub: _ready_queue resolves — Ready Gate satisfied
+    Worker->>Worker: panel_factory() (Phase 1), then swap loader → real panel
+    Worker->>Worker: QTimer.singleShot(0, panel.begin_async_init) (Phase 2)
+    Worker--)Hub: panel_ready / data_ready gate the loader's warp-out animation
+```
+
+Two properties worth being deliberate about, because both were bugs before
+they were guarantees:
+
+- **No fallback theme.** If the Hub's theme can't be confirmed —
+  `CoreServicesServer` unreachable, port/token missing, empty response — the
+  worker reports a fatal error and exits (`os._exit(1)`) *before constructing
+  any widget*. A worker that rendered anyway with a guessed palette would
+  fail silently (right-looking, wrong colors); refusing to render at all
+  keeps that failure loud. See `_confirm_hub_theme_or_exit` /
+  `_fail_theme_gate` in `ui_daemon_runtime.py`.
+- **`ready` fires before `panel_factory()` runs, not after.** The loader
+  animation is already on screen by the time `send_event("ready", ...)` goes
+  out, so nothing about window startup is gated behind building the actual
+  panel — Phase 1 (`panel_factory()`) and Phase 2 (`begin_async_init`, run on
+  the next event-loop tick via `QTimer.singleShot(0, ...)`) both run *after*
+  the ready handshake has already resolved. Calling `begin_async_init`
+  eagerly, before `ready`, used to reliably blow past the Hub's 45s Ready
+  Gate timeout for any panel importing something slow to cold-start
+  (matplotlib, numba/umap JIT).
+
+### Threading model, worker side
+
+```mermaid
+flowchart TD
+  RT["_RequestReader thread\n(blocking stdin reads)"] -->|pyqtSignal, cross-thread hop| GT
+  ST["_stderr_reader_loop thread\n(drains stderr continuously)"] -.->|logger.debug| L[log stream]
+  GT["Qt main thread\n(QApplication.exec)"] -->|write_frame| STD[stdout]
+  GT -->|GalacticLoader render| QG["QQuickWidget scene-graph thread\n(separate, Qt-managed)"]
+```
+
+- **Qt main thread** — owns every widget, runs `panel_factory()` and
+  `begin_async_init()`, and is the only thread allowed to touch the panel.
+- **`_RequestReader`** (`ui_daemon_runtime.py`) — a daemon thread doing
+  nothing but blocking `read_frame()` calls on stdin. It never calls a
+  handler directly; it emits a `pyqtSignal(dict)` on a small `_RequestBridge`
+  QObject, which Qt automatically delivers as a queued connection onto
+  whichever thread owns that QObject — the main thread, since it's
+  constructed there. An earlier version of this module called handlers
+  directly from the reader thread and deadlocked on `window.close()`; the
+  signal hop is the fix, not an optimization.
+- **`_stderr_reader_loop`** — a second daemon thread, added specifically to
+  close a deadlock (below): continuously drains the worker's stderr into a
+  bounded ring buffer + the logger, so nothing can ever block waiting for
+  that pipe to have room.
+- **`QQuickWidget`'s scene graph** — `GalacticLoader` renders on its own
+  Qt-managed thread, which is why the loading animation stays smooth even
+  while the main thread is synchronously importing something heavy during
+  Phase 1/2.
+
+The Hub side mirrors this: `PluginUIDaemon` runs its own `_reader_thread`
+(demultiplexing `response`/`event` frames off the worker's stdout) and its
+own stderr-drain thread, both daemon threads, one pair per running isolated
+plugin.
+
+### A worker can isolate itself further
+
+Nothing stops a plugin from using this exact same `PluginDaemon` /
+length-prefixed-msgpack machinery *inside its own process*, for its own
+purposes — Flow Cytometry does exactly this: its `ui_daemon.py` process
+(the window you see) spawns a *second* subprocess,
+`analysis/daemon_worker.py`, purely for heavy computation (UMAP,
+compensation, gating math), using the same `PluginDaemon` class from
+`karcytics_sdk/plugin/daemon.py` that the Hub uses to talk to `ui_daemon.py`
+itself. From the Hub's perspective this is invisible — it's a private
+implementation detail of one plugin — but it's worth knowing the same
+protocol composes recursively rather than being special-cased for
+Hub↔worker use only.
+
+---
+
+## What actually crosses the process boundary
+
+| | In-process plugin | Isolated plugin |
+|---|---|---|
+| Shares Hub's interpreter/memory | Yes | No — separate OS process, own `.venv` |
+| Widgets/panels | Live Qt objects, direct references | Never — a separate native window; the Hub only ever holds a `ModuleStatusWidget` placeholder |
+| Method calls | Direct Python calls | Only `request`/`response` over msgpack, or `CoreServicesServer` RPC |
+| Task scheduling | Real `TaskScheduler` singleton, injected | Worker runs its own local scheduler; not reachable from the Hub |
+| `EventBus` | Injected — though currently wired to `None`, see docs/internal/25 | Not exposed at all |
+| Theme | Reads `karcytics.ui.theme.Colors` directly, live | One-shot fetch at startup + explicit `theme_changed` push on every Hub theme switch |
+| Errors | Raised directly in the Hub's own exception handling | `diagnostics.report_error` RPC, or a `worker_stderr`-tagged log line |
+| Bulk data (arrays, images, dataframes) | Passed by reference | **Not sent over either channel** — crosses via the filesystem, same as project state already does |
+
+---
+
+## Known failure modes (read before touching this protocol)
+
+These are documented because each one was a real, shipped bug in this
+codebase, not a hypothetical:
+
+1. **stdout is the IPC channel, not a log.** Any stray `print()` (or a
+   third-party library writing to stdout) on the worker side corrupts frame
+   boundaries irrecoverably — the Hub's reader thread will misinterpret
+   whatever bytes follow as a bogus length header and hang waiting for a
+   frame that will never complete. `ruff`'s `T20` (flake8-print) rule is
+   enabled specifically to catch this on the Flow Cytometry side.
+2. **An undrained stderr pipe deadlocks the worker.** `stderr=subprocess.PIPE`
+   gives the OS a fixed-size buffer (64KB on macOS); if nothing continuously
+   reads it, a worker that writes enough there (verbose third-party logging,
+   repeated warnings) fills it and blocks on its *own next write* —
+   including from its Qt main thread, freezing the whole window with no
+   obvious cause. Both `PluginDaemon` and `PluginUIDaemon` now run a
+   dedicated stderr-drain thread from the moment the process starts, not
+   only on the startup-failure path.
+3. **`send_event()` from Hub to worker is a silent no-op.** See "Channel 1"
+   above — always use `call()` for Hub → worker communication.
+4. **Reversed/re-raised widgets after a Hub-side rebuild.** Not a wire
+   protocol issue, but adjacent: the Hub's `ModuleStatusWidget` (the
+   isolated module's placeholder inside the Hub's own UI) is a floating
+   child widget, not a stack page — a full Hub UI rebuild (e.g. a theme
+   switch recreating `home_screen`) can bury it behind a freshly-inserted
+   sibling even though the widget itself is untouched. It has to be
+   explicitly re-raised after any such rebuild.
+
+## Links
+
+- `karcytics_sdk/plugin/daemon.py` — Hub-side `PluginDaemon` (generic
+  worker) and `PluginUIDaemon` (window-hosting worker).
+- `karcytics_sdk/plugin/ui_daemon_runtime.py` — the worker-side runtime
+  every isolated plugin's `ui_daemon.py` hands its panel factory to.
+- `karcytics_sdk/host/core_services.py` — `CoreServicesServer`/`CoreServicesClient`.
+- `karcytics/core/core_services_bootstrap.py` — what the Hub actually
+  registers on its `CoreServicesServer`.
+- `karcytics/core/plugins/loader.py` — in-process V2/V3 loading paths.
+- `karcytics_sdk/host/module_status_widget.py` — the Hub-side placeholder
+  for a running isolated module.
+- `docs/internal/25_Core_and_SDK_Boundary.md` — which package owns which
+  half of everything described here, and what's still unfinished.

@@ -161,6 +161,11 @@ class WorkspaceWindow(QMainWindow):
         self._verification_wait: int = 0
         self.startTimer(100)
         self.loader_process = None
+        # An isolated module's blocking overlay (see PluginLoaderManager
+        # ._instantiate_isolated_overlay) — floats on top of root_stack
+        # without switching its current page, unlike wizard_panel for an
+        # in-process module.
+        self.module_overlay: QWidget | None = None
         self.setCentralWidget(self.root_stack)
 
     def _active_overlay(self):
@@ -511,6 +516,9 @@ class WorkspaceWindow(QMainWindow):
             self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
         if hasattr(self, "theme_loading_overlay") and self.theme_loading_overlay.isVisible():
             self.theme_loading_overlay.resize(self.root_stack.size())
+        module_overlay = getattr(self, "module_overlay", None)
+        if module_overlay is not None:
+            module_overlay.setGeometry(self.root_stack.rect())
         self._update_loader_geom()
 
     def moveEvent(self, event):  # noqa: N802

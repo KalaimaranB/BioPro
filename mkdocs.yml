@@ -84,3 +84,5 @@ nav:
     - "Supply Chain Security": internal/21_Supply_Chain_Security.md
     - "Plugin Documentation Kit": internal/22_Plugin_Documentation.md
     - "Git Branching Engine": internal/23_Git_Branching_Engine.md
+    - "Plugin Communication Protocol": internal/24_Plugin_Communication_Protocol.md
+    - "Core & SDK Boundary": internal/25_Core_and_SDK_Boundary.md
