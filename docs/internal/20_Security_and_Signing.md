@@ -19,9 +19,9 @@ Developers require an Ed25519 keypair to sign plugins.
 
 ### Using the CLI
 ```bash
-karcytics-sign init
+karcytics-sdk init-identity
 ```
-This populates `~/.karcytics/dev_keys/` with your credentials.
+`karcytics_sdk/cli/commands/security.py`'s `init_identity()`, via `PluginSigner.init_identity()`.
 
 ### Programmatic Generation (Python)
 If integrating into automated systems, use the `cryptography` library:
@@ -70,11 +70,11 @@ To prevent manual errors, the signing process can be automated within Continuous
 ```yaml
       - name: Execute Project Signing
         env:
-          KARCYTICS_PRIVATE_KEY: ${{ secrets.KARCYTICS_PRIVATE_KEY }}
+          KARCYTICS_PROJECT_PRIVATE_KEY: ${{ secrets.KARCYTICS_PROJECT_PRIVATE_KEY }}
         run: |
           for dir in plugins/*/; do
             if [ -d "$dir" ]; then
-              karcytics-sign project-sign "$dir"
+              karcytics-sdk project-sign "$dir"
             fi
           done
 ```

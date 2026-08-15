@@ -1,95 +1,138 @@
 # PluginBase & SDK Contract
 
-This document describes the recommended plugin contract for authors using the Karcytics SDK, with minimal examples, lifecycle hooks, signing guidance, and common best-practices.
+The real plugin contract, as implemented in `karcytics_sdk.plugin.base.PluginBase`
+and wired up via a V3 `entry_point` — not the `get_plugin()`/`karcytics_sdk.core`
+shape this page used to describe, which never matched the code. See
+`docs/internal/15_ModuleManager_and_PluginContract.md` for how a plugin gets
+discovered and this entry point gets called in the first place.
 
-## Goal
+## The `entry_point` function
 
-Plugins must safely interoperate with the core: support state capture/restore, obey threading rules (UI vs worker), and provide lifecycle cleanup so `ModuleManager` can load/unload plugins without leaking resources.
+A plugin's `pyproject.toml` declares one under `[tool.karcytics.plugin]`:
 
-## Minimal contract (summary)
+```toml
+[tool.karcytics.plugin]
+entry_point = "karcytics_plugins.flow_cytometry:initialize"
+```
 
-- Export a `get_plugin()` factory returning an instance that implements the `PluginBase` surface described below, or expose a `Plugin` class subclassing the SDK `PluginBase`.
-- Implement `get_state()`, `set_state(state)`, `cleanup()`, and optionally `push_state()` for integration with `HistoryManager`.
+`module:function` — the named module is imported, the named function is
+called with a `PluginContext`, and its return value (a `PluginBase`
+instance, in practice) is what the Hub inserts into `WorkspaceWindow`:
 
-## `PluginBase` (recommended surface)
+```python
+# karcytics_plugins/flow_cytometry/__init__.py (the real, current shape)
+from karcytics_sdk.plugin.context import PluginContext
 
-```py
-class PluginBase:
-    def __init__(self, plugin_id: str, parent=None):
-        self.plugin_id = plugin_id
+def initialize(context: PluginContext) -> Any:
+    ...
+    return FlowCytometryPanel(plugin_id="flow_cytometry")
+```
 
-    def get_state(self) -> dict:
-        """Return a JSON-serializable dict capturing minimal plugin state."""
+## `PluginBase` (`karcytics_sdk/plugin/base.py`)
 
-    def set_state(self, state: dict) -> None:
-        """Restore state and update the UI accordingly."""
+A `QWidget` subclass, not a bare interface — a plugin's panel *is* a
+`PluginBase`, not something that owns one separately.
 
-    def push_state(self) -> None:
-        """Capture and push state into `HistoryManager` via ModuleManager."""
+```python
+class PluginBase(QWidget):
+    def __init__(self, plugin_id: str, parent=None): ...
+
+    # Must be implemented by every subclass:
+    def get_state(self) -> PluginState: ...
+    def set_state(self, state: PluginState) -> None: ...
+
+    # Provided, ready to use:
+    def push_state(self) -> None: ...   # snapshot get_state() into undo history
+    def undo(self) -> None: ...
+    def redo(self) -> None: ...
+    def can_undo(self) -> bool: ...
+    def can_redo(self) -> bool: ...
+    def cleanup(self) -> None: ...      # RAII-style resource release via ResourceInspector
+    def publish_event(self, topic: str, data: Any = None) -> None: ...   # CentralEventBus
+    def subscribe_event(self, topic: str, callback) -> None: ...        # CentralEventBus
+```
+
+`get_state()`/`set_state()` work in terms of `PluginState`
+(`karcytics_sdk/plugin/state.py`), not a raw dict — `push_state()` calls
+`.to_dict()` on it before handing the result to `HistoryManager`, and
+`undo()`/`redo()` reconstruct via `.from_dict()` on the same class
+`get_state()` returned. `self.state_changed` (proxied through `__getattr__`
+to `self.signals`, a `PluginSignals` instance covering
+`status`/`state_changed`/`analysis_started`/`analysis_finished`/
+`analysis_error`, etc.) fires automatically from `push_state()`/`undo()`/`redo()`.
+
+`self.history` lazily resolves the Hub's real `HistoryManager` — but only
+when `karcytics.core.history_manager` is actually importable. In a genuinely
+isolated plugin's own `.venv` (see doc 24), it never is, so this falls back
+to an in-memory `MockHistoryManager` instead — undo/redo works locally
+within that process but nothing persists across the plugin's own restarts.
+This is the same "resolves differently per process, transparently" pattern
+`theme_fallback.py` and the Academy engine use (see doc 27) — not a bug
+specific to this class, and not something a plugin author needs to branch
+on.
+
+## Minimal example
+
+```python
+from karcytics_sdk.plugin.base import PluginBase
+from karcytics_sdk.plugin.state import PluginState
+
+
+class MyState(PluginState):
+    threshold: float = 0.5
+
+
+class MyPlugin(PluginBase):
+    def __init__(self, plugin_id: str):
+        super().__init__(plugin_id)
+        self._state = MyState()
+        # build UI here
+
+    def get_state(self) -> MyState:
+        return self._state
+
+    def set_state(self, state: MyState) -> None:
+        self._state = state
+        self.update_ui()
 
     def cleanup(self) -> None:
-        """Stop background workers and release heavy resources (NumPy arrays, threads)."""
+        super().cleanup()  # releases heavy references via ResourceInspector
 ```
-
-## Minimal example plugin
-
-```py
-from karcytics.plugins.sdk_utils import PluginConfig, get_plugin_logger
-from karcytics_sdk.core import PluginBase as SDKPluginBase
-
-
-class MyPlugin(SDKPluginBase):
-    def __init__(self, plugin_id: str, parent=None):
-        super().__init__(plugin_id, parent=parent)
-        self._state = {"threshold": 0.5}
-
-    def get_state(self):
-        return dict(self._state)
-
-    def set_state(self, state):
-        self._state.update(state)
-
-    def cleanup(self):
-        # stop workers, drop heavy arrays
-        pass
-
-
-def get_plugin():
-    return MyPlugin(plugin_id="example.my_plugin")
-```
-
-Place `get_plugin()` at the package top-level or expose a `Plugin` class — `ModuleManager` will call the factory to instantiate and integrate the UI.
 
 ## Analysis workers (off-UI thread)
 
-Long-running computation belongs in `AnalysisBase` and should be executed via `AnalysisWorker` so the UI remains responsive. Example pattern:
+Long-running computation belongs in an `AnalysisBase` subclass
+(`karcytics_sdk/plugin/analysis.py`), submitted to a `TaskScheduler`
+(`context.get("task_scheduler")` for an in-process plugin; a local,
+per-process one for an isolated plugin — see doc 25's "Where UI comes from,
+where analysis comes from"). `task_started`/`task_finished`/`task_error`/
+`task_progress` signals, keyed by `task_id`, are how a result gets back to
+the UI thread — never a direct return value across a thread boundary.
 
-1. Create an `AnalysisBase` subclass that implements `run(state)`.
-2. Submit it to the global thread pool with `AnalysisWorker(analyzer, state)`.
-3. Emit lifecycle signals (`analysis_started`, `analysis_finished`, `analysis_error`) consumed by the plugin UI.
+## Signing & distribution
 
-## Cleanup patterns
+Covered in full by `docs/internal/20_Security_and_Signing.md` and
+`21_Supply_Chain_Security.md` — summary: a plugin ships with a signed
+`security.json` (per-file SHA-256 + an Ed25519 signature chaining to the
+Karcytics Core Authority root key, a project CI key, or an explicit local
+override), verified by `TrustManager` before `module_manager.py` will load
+or spawn it. The SDK CLI's `security.py` commands (`init-identity`, `sign`,
+`project-sign`) generate the identity and produce that signature.
 
-- Always implement `cleanup()` to cancel futures, join threads, and dereference large arrays.
-- Use `ResourceInspector.is_heavy()` to guide what to keep by reference in `HistoryManager` snapshots.
+## Testing & contract verification
 
-## Signing & Distribution (high-level)
-
-Karcytics validates plugin packages before loading them. Authors should:
-
-1. Package your plugin as a Python wheel or editable source with a correct `pyproject.toml` and `manifest.json` containing `plugin_id`, `entrypoint`, and `sdk_version`.
-2. Sign your distribution using our signing tool (see `scripts/sign_authorities.py`) or the SDK CLI which bundles signing helpers.
-3. Publish to the plugin registry or distribute the zip. The `NetworkUpdater` and `TrustManager` perform verification during install and before load.
-
-If a plugin is intended for development only, the developer can use a local trust override via `TrustManager` (the UI exposes an explicit confirmation flow).
-
-## Testing & Contract verification
-
-- Add unit tests that validate `get_state()` / `set_state()` round-trips.
-- Use `tests/sdk/` contract tests as examples (see `tests/sdk/test_plugin_contract.py`).
+`karcytics_sdk.testing.contract.ContractTestBase` — a pytest base class a
+plugin author subclasses to get `test_manifest_is_valid` and
+`test_headless_initialization` for free (the latter mocks every capability
+the manifest declares under `requires` and confirms the plugin's
+`entry_point` resolves and initializes with no running Hub at all). See
+`tests/sdk/test_plugin_contract.py` in this repo for worked examples.
 
 ## Links
 
-- `karcytics/plugins/sdk_utils.py` — utilities and example helpers for plugins.
-- `karcytics/core/module_manager.py` — loading lifecycle and integration points.
-- `tests/sdk/test_plugin_contract.py` — test-driven examples of the plugin contract.
+- `docs/internal/15_ModuleManager_and_PluginContract.md` — discovery,
+  trust verification, and how `entry_point` gets invoked.
+- `docs/internal/25_Core_and_SDK_Boundary.md` — which package owns
+  `PluginBase` vs. `PluginContext` vs. the concrete services behind them.
+- `karcytics_sdk/plugin/base.py`, `state.py`, `context.py`, `analysis.py` —
+  the real source.

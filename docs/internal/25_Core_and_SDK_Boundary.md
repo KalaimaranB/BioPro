@@ -184,34 +184,35 @@ running Hub at all).
    unless it explicitly asks for isolation. Flow Cytometry is the only
    isolated plugin as of this writing; docs/internal/24's protocol has only
    really been exercised by one real workload so far.
-4. **Isolated plugins have a strictly smaller service surface, by design —
-   but it's worth someone deciding if that's permanent.** No task scheduling
-   and no `EventBus` bridge are exposed over `CoreServicesServer`
-   (see docs/internal/24). That's a deliberate latency tradeoff for task
-   scheduling; it's less obviously deliberate for `EventBus` — an isolated
-   plugin currently has no way to learn about a Hub-side event like
-   `PLUGIN_INSTALLED` at all.
+4. **Isolated plugins have a strictly smaller service surface than an
+   in-process plugin, and part of that is by design.** Task scheduling stays
+   local to each process — a deliberate latency tradeoff (see docs/internal/24)
+   — but the `EventBus` gap this item used to describe is closed: an isolated
+   plugin can now subscribe to a specific Hub-side `KarcyticsEvent` topic via
+   `event.subscribe`/`dispatch_event` over `CoreServicesServer` (see
+   docs/internal/28). It's opt-in per topic, not a blanket bridge — a plugin
+   that never subscribes sees exactly the same nothing it did before.
 5. **"The Interpreter Isolation Plan" is referenced only in code comments**
    (`plugin_loader.py`, `module_status_widget.py`, `ui_daemon_runtime.py` —
    "see the Interpreter Isolation Plan bug tracker") — there is no such file
    checked into either repo. Either check one in, or stop pointing at it in
    comments; a dangling reference to a plan nobody can open is worse than no
    reference.
-6. **Two existing docs describe an older, no-longer-accurate contract.**
-   `docs/internal/15_ModuleManager_and_PluginContract.md` and
-   `16_PluginBase_and_SDK_Contract.md` both describe a `get_plugin()`
+6. ~~Two existing docs describe an older, no-longer-accurate contract.~~
+   **Resolved.** `docs/internal/15_ModuleManager_and_PluginContract.md` and
+   `16_PluginBase_and_SDK_Contract.md` used to describe a `get_plugin()`
    factory / `manifest.json` / `karcytics_sdk.core.PluginBase` shape that
-   doesn't match what's actually in the code today (`entry_point` +
-   `PluginContext` + `pyproject.toml`, `karcytics_sdk.plugin.base.PluginBase`).
-   They read as either aspirational (written ahead of the V3 implementation)
-   or stale (describing a since-replaced V1/V2 shape). Worth reconciling
-   with this document and docs/internal/24 rather than leaving three
-   descriptions of "the plugin contract" that disagree with each other.
+   never matched the code — both now describe the real `entry_point` +
+   `PluginContext` + `pyproject.toml` / `karcytics_sdk.plugin.base.PluginBase`
+   contract and link here and to docs/internal/24 for the full picture,
+   instead of re-describing it a third, drifting way.
 
 ## Links
 
 - `docs/internal/24_Plugin_Communication_Protocol.md` — the wire protocol,
   threading model, and failure modes for the isolated path summarized here.
+- `docs/internal/28_Event_Bridging.md` — the `EventBus` bridge referenced in
+  Migration status item #4.
 - `docs/internal/20_Security_and_Signing.md`, `21_Supply_Chain_Security.md` —
   full detail on the trust/signing model only summarized above.
 - `karcytics/core/plugins/loader.py`, `karcytics/core/module_manager.py` —

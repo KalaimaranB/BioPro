@@ -186,6 +186,8 @@ arrives (or a timeout fires). The worker's own `RequestDispatcher`
 | `exit` / `close_requested` | `_handle_close_request` | closes the native window, quits the worker's `QApplication` |
 | `theme_changed` | `_handle_theme_changed` | updates `theme_fallback.DynamicColors` and calls the panel's `_apply_theme_styles()` if present |
 | `focus` | `_handle_focus` | raises and activates the window |
+| `inject_workflow` | `_handle_inject_workflow` | stages or dynamically loads a workflow payload into the panel (`load_workflow`/`begin_async_init`) |
+| `dispatch_event` | `_handle_dispatch_event` | routes a Hub-forwarded event into this process's local `RemoteEventBus` subscribers — see docs/internal/28, this is the Hub→worker half of event bridging |
 
 A plugin's own `ui_daemon.py` can register more via `run()`'s
 `extra_handlers` argument for anything plugin-specific.
@@ -254,6 +256,7 @@ the Hub runs one `CoreServicesServer` for its whole lifetime
 | `project.add_image` / `project.get_asset_path` | forward to the real `ProjectManager.add_image`/`.get_asset_path` — asset hashing, copy-to-workspace, and `project.karcytics` persistence all happen Hub-side, exactly as they did in-process |
 | `project.save_workflow` / `project.load_workflow_payload` / `project.attach_workflow_file` | forward to the matching `ProjectManager` methods |
 | `project.list_workflows` / `project.load_attachments` | forward to `ProjectManager.workflows.list_all()` / `.load_attachments()` |
+| `event.subscribe` / `event.unsubscribe` | register/deregister a worker's interest in one of the Hub's `KarcyticsEvent` topics — see docs/internal/28, this is the worker→Hub half of event bridging |
 
 `karcytics_sdk/host/core_services.py`'s `RemoteProjectManager`/
 `RemoteWorkflowManager` wrap the `project.*` calls above so a plugin's own
@@ -261,13 +264,18 @@ code can call `pm.add_image(...)`, `pm.project_dir`,
 `pm.workflows.list_all()`, etc. exactly like it would against a live,
 in-process `ProjectManager` — see doc 26 for the full worked example.
 
-Notably absent, **by design**: task scheduling and the Hub's `EventBus`.
-Each isolated process runs its own local task scheduler
-(`core_services_bootstrap.py`'s module docstring is explicit about this) —
-routing every analysis run through IPC to the Hub would add latency for no
-isolation benefit. This means an isolated plugin cannot react to Hub-side
-`EventBus` topics (`PLUGIN_INSTALLED`, etc.) the way an in-process plugin
-can — there is currently no bridged equivalent.
+Notably absent, **by design**: task scheduling. Each isolated process runs
+its own local task scheduler (`core_services_bootstrap.py`'s module
+docstring is explicit about this) — routing every analysis run through IPC
+to the Hub would add latency for no isolation benefit.
+
+The Hub's `EventBus` used to be absent here too — as of the event bridging
+work (docs/internal/28), an isolated worker's `RemoteEventBus.subscribe()`
+can register interest in a specific `KarcyticsEvent` topic via
+`event.subscribe`/`event.unsubscribe` above, and the Hub forwards a matching
+`emit()` to it via the `dispatch_event` request (see the built-in handler
+table above). Scoped, not a broadcast: a worker only ever receives topics it
+explicitly subscribed to.
 
 ### Startup handshake, in order
 
@@ -402,7 +410,7 @@ object model alone.
 | Widgets/panels | Live Qt objects, direct references | Never — a separate native window; the Hub only ever holds a `ModuleStatusWidget` placeholder |
 | Method calls | Direct Python calls | Only `request`/`response` over msgpack, or `CoreServicesServer` RPC |
 | Task scheduling | Real `TaskScheduler` singleton, injected | Worker runs its own local scheduler; not reachable from the Hub |
-| `EventBus` | Injected — though currently wired to `None`, see docs/internal/25 | Not exposed at all |
+| `EventBus` | Injected — though currently wired to `None`, see docs/internal/25 | Bridged, opt-in per topic — `RemoteEventBus.subscribe()` + `dispatch_event`, see docs/internal/28 |
 | Theme | Reads `karcytics.ui.theme.Colors` directly, live | One-shot fetch at startup + explicit `theme_changed` push on every Hub theme switch |
 | Errors | Raised directly in the Hub's own exception handling | `diagnostics.report_error` RPC, or a `worker_stderr`-tagged log line |
 | Bulk data (arrays, images, dataframes) | Passed by reference | **Not sent over either channel** — crosses via the filesystem, same as project state already does |
@@ -491,3 +499,5 @@ codebase, not a hypothetical:
   for a running isolated module.
 - `docs/internal/25_Core_and_SDK_Boundary.md` — which package owns which
   half of everything described here, and what's still unfinished.
+- `docs/internal/28_Event_Bridging.md` — the `event.subscribe`/
+  `dispatch_event` protocol summarized above, in full.

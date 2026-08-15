@@ -88,3 +88,4 @@ nav:
     - "Core & SDK Boundary": internal/25_Core_and_SDK_Boundary.md
     - "Server/Client Lifecycle": internal/26_Server_Client_Lifecycle.md
     - "The Academy Engine": internal/27_Academy_Engine.md
+    - "Event Bridging": internal/28_Event_Bridging.md

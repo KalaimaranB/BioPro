@@ -157,12 +157,23 @@ signal on a named target widget), `VerificationStep` (a local validator
 polled against the plugin's own `state`), `ForcedInteractionStep`/`SubTask`
 checklists, `ActionStep` — only ever touches the plugin's own live UI, in its
 own process. `WaitForEventStep` (auto-advance when a *Hub-only* event fires,
-e.g. `core_intro_course`'s `PROJECT_LOADED`/`STORE_OPENED`) is the one step
-type that genuinely needs a cross-process push channel — nothing pushes
-Hub-originated events into an isolated worker yet (see
-`RemoteEventBus.subscribe()`'s permanent no-op in `runtime_services.py`), so
-this is the one gap intentionally left for a possible future phase. It costs
-nothing today: it's real, local functionality is complete without it.
+e.g. `core_intro_course`'s `PROJECT_LOADED`/`STORE_OPENED`) is still the one
+step type that needs a cross-process push channel for an isolated plugin.
+
+That channel exists now (`docs/internal/28_Event_Bridging.md`'s
+`RemoteEventBus`/`event.subscribe`/`dispatch_event`) — but it is **not**
+the same bus `AcademyManager._subscribe_wait_event` calls. An isolated
+plugin's `tutorial_manager` is still constructed with `academy_event_bus`
+(`_LocalAcademyEventBus`, wrapping this process's own `CentralEventBus`) —
+purely local pub/sub, unrelated to `RemoteEventBus`. So a `WaitForEventStep`
+in a plugin course still can't gate on a genuine Hub-only event without a
+course author (or a future change here) explicitly bridging the two: e.g.
+`runtime_services.event_bus.subscribe(KarcyticsEvent.SOME_TOPIC, lambda p:
+CentralEventBus.publish("SOME_TOPIC", p))` once, so `WaitForEventStep`'s own
+local subscription then sees it. Nothing does this automatically today —
+worth deciding whether `AcademyManager` should grow direct support for a
+Hub-sourced `WaitForEventStep` now that the underlying transport exists, or
+whether this manual-bridge pattern is good enough.
 
 ## Rendering: TutorialOverlay, CytoWidget, CourseCompleteOverlay
 
@@ -226,14 +237,17 @@ the Hub's own window-level orchestration.
 ```mermaid
 sequenceDiagram
     participant User
-    participant Menu as Help ▸ 🎓 Academy
+    participant Entry as Help menu or AcademyButton
+    participant Catalog as AcademyCatalogWindow
     participant TM as tutorial_manager
     participant Overlay as TutorialOverlay
     participant Driver as AcademyStepDriver
 
-    User->>Menu: click
-    Menu->>TM: get_courses_for_module(plugin_id)
-    Menu->>TM: start_course_confirmed(course_id)
+    User->>Entry: click
+    Entry->>TM: get_courses_for_module(plugin_id)
+    Entry->>Catalog: show (cards + progress + badges)
+    User->>Catalog: picks a course
+    Catalog->>TM: start_course_confirmed(course_id)
     TM->>Overlay: emit ACADEMY_STEP_CHANGED
     Overlay->>Overlay: render_step(step)
     loop every 100ms
@@ -246,21 +260,36 @@ sequenceDiagram
     Overlay-->>TM: next_step() (via the wired signal)
 ```
 
-## The isolated plugin's own entry point
+## The isolated plugin's own entry point(s)
 
 The old "🎓 Cyto Academy" button lived in `AnalysisToolBar`, inside a Hub
 analysis page an isolated module never has. It's removed. Isolated plugins
-get their own entry point instead, in the same isolated Help menu this
-session's earlier menu-bar work added
-(`docs/internal/24_Plugin_Communication_Protocol.md`'s "isolated window's
-menu bar" section): a **🎓 Academy** action, wired once `panel` exists
-(`_wire_academy_menu()` in `ui_daemon_runtime.py`, since `_build_menu_bar()`
-itself runs before `panel_factory()` — see that function's own docstring for
-why). Clicking it with zero registered courses shows a plain "no courses
-yet" message rather than a dead button; with courses registered, it jumps
-into the first not-yet-completed one (reviewing the first again once
-everything's done), building the `TutorialOverlay`/`AcademyStepDriver` pair
-lazily on first use.
+get two entry points instead, both funneling into one shared function,
+`karcytics_sdk.plugin.academy_driver.open_academy(window, panel)` — not
+duplicated per entry point:
+
+- **Help menu** — a **🎓 Academy** action, wired once `panel` exists
+  (`_wire_academy_menu()` in `ui_daemon_runtime.py`, since `_build_menu_bar()`
+  itself runs before `panel_factory()` — see that function's own docstring
+  for why), in the same isolated Help menu
+  `docs/internal/24_Plugin_Communication_Protocol.md`'s "isolated window's
+  menu bar" section covers.
+- **In-panel toolbar** — `components.AcademyButton`, a plugin drops it into
+  its own layout wherever makes sense (flow_cytometry's `workspace_builder.py`
+  places it on the workspace's top bar) and wires its `clicked` signal to
+  `open_academy(window, panel)` itself — nothing in the SDK does this
+  automatically, since only the plugin knows where its own toolbar chrome
+  lives.
+
+Either way, `open_academy()` doesn't silently jump into a course: it opens
+`AcademyCatalogWindow` (`karcytics_sdk/plugin/academy_window.py`) — a modal
+course picker (cards, per-course progress pills, earned badges, an animated
+particle-network background) mirroring what the pre-isolation Hub's own
+Academy dashboard showed. Clicking a course there is what actually calls
+`start_course_confirmed()` and raises the `TutorialOverlay`, building the
+`TutorialOverlay`/`AcademyStepDriver` pair lazily on first use and caching
+both on `window` so a second open reuses them. Zero registered courses shows
+a plain "no courses yet" message instead of an empty or dead catalog window.
 
 The Hub's own Academy entry point (home dashboard's global "🎓 Academy"
 button, plus each module card's own pill) is unaffected — it still opens
@@ -288,3 +317,16 @@ deleted outright.
   `ui_daemon.py` uses, drives `start_course_confirmed()` on a real course,
   and confirms `TutorialOverlay` renders real step text and
   `AcademyStepDriver` resolves target widgets without crashing.
+
+## Links
+
+- `docs/internal/28_Event_Bridging.md` — the transport `WaitForEventStep`
+  would need to reach a genuine Hub-only event; not yet wired directly into
+  `AcademyManager`'s own event bus, see this doc's own "Writing a course"
+  section above.
+- `docs/internal/24_Plugin_Communication_Protocol.md` — the isolated
+  window's menu bar, which the Help ▸ 🎓 Academy action is part of.
+- `karcytics_sdk/plugin/academy.py`, `academy_driver.py`, `academy_window.py`,
+  `tutorial_overlay.py`, `cyto_character.py`, `cyto_costumes.py`,
+  `course_complete_overlay.py` — the full engine and its coaching UI, all in
+  one place now.

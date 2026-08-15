@@ -130,9 +130,9 @@ class KarcyticsApp:
         # This MUST be called after QApplication is created — the module-level call
         # in components.py fires too early (before QApplication exists) and is a no-op.
         try:
-            from karcytics_sdk.plugin.components import _apply_global_sdk_styles
+            from karcytics_sdk.plugin.components import apply_global_sdk_styles
 
-            _apply_global_sdk_styles()
+            apply_global_sdk_styles()
         except Exception as e:
             import logging
 

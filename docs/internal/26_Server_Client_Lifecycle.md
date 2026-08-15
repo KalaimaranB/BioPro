@@ -133,7 +133,11 @@ That trap is now closed on both ends, not just documented:
   the one call site that used to cause this.
 
 **Rule: Hub → Worker is always `call()`.** There is no longer a
-`send_event()` on that side to reach for by mistake.
+`send_event()` on that side to reach for by mistake. Event bridging (doc 28)
+is a concrete example of the Hub pushing something the worker didn't
+explicitly ask for *this time* — a forwarded `KarcyticsEvent` — and it still
+goes over `call("dispatch_event", {...})`, not a new unsolicited-event path;
+the rule holds without exception.
 
 ### Ending
 
@@ -383,6 +387,8 @@ repeatedly).
   depth than this document repeats.
 - `docs/internal/25_Core_and_SDK_Boundary.md` — which package owns which
   half of what's described here.
+- `docs/internal/28_Event_Bridging.md` — `event.subscribe`/`dispatch_event`,
+  the newest addition to both connections described here.
 - `karcytics_sdk/plugin/daemon.py` — `PluginUIDaemon`, the Hub-side half of
   Part 1.
 - `karcytics_sdk/plugin/ui_daemon_runtime.py` — `run()`, the worker-side
