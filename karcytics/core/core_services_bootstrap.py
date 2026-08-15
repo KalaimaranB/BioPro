@@ -23,6 +23,19 @@ logger = logging.getLogger(__name__)
 
 _active_project_manager_lock = threading.Lock()
 _active_project_manager: Any | None = None
+
+# topic -> set of plugin_ids that asked to be told about it. Guards both
+# this dict and `_hub_topics_bridged` below — see `_handle_event_subscribe`.
+_event_subscriptions_lock = threading.Lock()
+_event_subscriptions: dict[str, set[str]] = {}
+# Topics already wired into the Hub's own `event_bus` with a forwarding
+# listener. A listener is added at most once per topic, ever — removing it
+# again when the last subscriber leaves would need the exact callable handed
+# to `event_bus.subscribe()` back for `unsubscribe()`, and the payoff (freeing
+# one lightweight closure over a fixed, small set of KarcyticsEvent members)
+# isn't worth that bookkeeping; the forwarder itself is a no-op for a topic
+# with zero current subscribers (see `_forward_event_to_subscribed_plugins`).
+_hub_topics_bridged: set[str] = set()
 # Guards every project.* handler below that mutates ProjectManager.data or
 # writes it to disk (add_image, save_workflow, attach_workflow_file).
 # CoreServicesServer answers each request on its own ThreadingHTTPServer
@@ -56,6 +69,99 @@ def set_active_project_manager(project_manager: Any | None) -> None:
 def _get_active_project_manager() -> Any | None:
     with _active_project_manager_lock:
         return _active_project_manager
+
+
+def _forward_event_to_subscribed_plugins(topic: str, *args: Any, **kwargs: Any) -> None:
+    """The Hub-side half of event bridging.
+
+    Relays one `event_bus.emit(topic, ...)` to every isolated module that
+    asked for it via `event.subscribe`. Registered once per topic (see
+    `_handle_event_subscribe`), so this runs on every Hub emission of that
+    `KarcyticsEvent` from then on regardless of whether anyone is still
+    subscribed — the empty-set case below is the normal steady state for a
+    topic whose last plugin subscriber already unsubscribed (see
+    `_hub_topics_bridged`'s docstring for why the listener itself isn't torn
+    down instead).
+
+    Each daemon's `call()` blocks on that worker's own response, so this
+    fans out on a background thread per plugin — same reasoning as
+    `plugin_loader.py`'s `_send_workflow`: a slow or wedged module must never
+    stall the Hub's own event dispatch (which runs synchronously on the GUI
+    thread) for every other listener, isolated or not.
+    """
+    with _event_subscriptions_lock:
+        plugin_ids = set(_event_subscriptions.get(topic, ()))
+    if not plugin_ids:
+        return
+
+    payload = kwargs or (args[0] if len(args) == 1 else (args or None))
+
+    from karcytics_sdk.plugin.daemon import PluginUIDaemon
+
+    for plugin_id in plugin_ids:
+        daemon = PluginUIDaemon.get_running_instance(plugin_id)
+        if daemon is None:
+            continue
+
+        def _dispatch(daemon: Any = daemon, plugin_id: str = plugin_id) -> None:
+            try:
+                daemon.call("dispatch_event", {"topic": topic, "payload": payload})
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "Failed to forward event to isolated module.",
+                    extra={
+                        "log_event": "event_forward_failed",
+                        "topic": topic,
+                        "plugin_id": plugin_id,
+                        "error": str(exc),
+                    },
+                )
+
+        threading.Thread(target=_dispatch, daemon=True).start()
+
+
+def _handle_event_subscribe(kwargs: dict[str, Any]) -> dict[str, str]:
+    """An isolated module asking to be told about one of the Hub's own `KarcyticsEvent` topics.
+
+    The worker->Hub half of `RemoteEventBus.subscribe()` (`runtime_services.py`).
+    Only ever wires a Hub-side listener the *first* time any plugin asks for
+    a given topic; every later subscriber (to that same topic, or a
+    different plugin process entirely) just adds its `plugin_id` to the
+    existing set.
+    """
+    topic = kwargs.get("topic", "")
+    plugin_id = kwargs.get("plugin_id", "unknown")
+
+    from karcytics.core.event_bus import KarcyticsEvent, event_bus
+
+    try:
+        event_type = KarcyticsEvent[topic]
+    except KeyError:
+        return {"status": "error", "message": f"Unknown event topic '{topic}'."}
+
+    with _event_subscriptions_lock:
+        _event_subscriptions.setdefault(topic, set()).add(plugin_id)
+        already_bridged = topic in _hub_topics_bridged
+        _hub_topics_bridged.add(topic)
+
+    if not already_bridged:
+        from functools import partial
+
+        event_bus.subscribe(event_type, partial(_forward_event_to_subscribed_plugins, topic))
+
+    return {"status": "ok"}
+
+
+def _handle_event_unsubscribe(kwargs: dict[str, Any]) -> dict[str, str]:
+    topic = kwargs.get("topic", "")
+    plugin_id = kwargs.get("plugin_id", "unknown")
+    with _event_subscriptions_lock:
+        subscribers = _event_subscriptions.get(topic)
+        if subscribers:
+            subscribers.discard(plugin_id)
+            if not subscribers:
+                _event_subscriptions.pop(topic, None)
+    return {"status": "ok"}
 
 
 def _handle_get_about_karcytics(_kwargs: dict[str, Any]) -> dict[str, str]:
@@ -211,6 +317,8 @@ def start_core_services() -> CoreServicesServer:  # noqa: C901, PLR0915
         return pm.workflows.load_attachments(kwargs["filename"])
 
     server.register("diagnostics.report_error", _handle_report_error)
+    server.register("event.subscribe", _handle_event_subscribe)
+    server.register("event.unsubscribe", _handle_event_unsubscribe)
     server.register("theme.get_current_colors", _handle_get_current_colors)
     server.register("theme.list_categorized_themes", _handle_list_themes)
     server.register("theme.switch_theme", _handle_switch_theme)

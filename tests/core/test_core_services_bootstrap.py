@@ -4,6 +4,7 @@ over it.
 """
 
 import threading
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -12,7 +13,12 @@ from karcytics_sdk.host.core_services import CoreServicesClient
 from karcytics_sdk.plugin.daemon import PluginUIDaemon
 from PyQt6.QtWidgets import QApplication
 
-from karcytics.core.core_services_bootstrap import set_active_project_manager, start_core_services
+from karcytics.core.core_services_bootstrap import (
+    _event_subscriptions,
+    _hub_topics_bridged,
+    set_active_project_manager,
+    start_core_services,
+)
 
 
 def _call_while_pumping_gui_thread(client: CoreServicesClient, method: str, **kwargs):
@@ -60,6 +66,18 @@ def _reset_core_services_port():
 def _reset_active_project_manager():
     yield
     set_active_project_manager(None)
+
+
+@pytest.fixture(autouse=True)
+def _reset_event_subscriptions():
+    """`_event_subscriptions`/`_hub_topics_bridged` are process-global state,
+    same reasoning as `_reset_core_services_port` above — a subscription
+    left behind by one test must never leak into the next one's assertions
+    about which topics/plugins are (or aren't) currently registered.
+    """
+    yield
+    _event_subscriptions.clear()
+    _hub_topics_bridged.clear()
 
 
 def test_start_core_services_starts_a_running_server():
@@ -458,3 +476,270 @@ def test_set_active_project_manager_replaces_the_previous_reference():
         server.stop()
 
     assert result["project_name"] == "Second"
+
+
+# -- Event bridging (Phase 2) --------------------------------------------
+#
+# The worker->Hub half (RemoteEventBus.subscribe/.unsubscribe) lives in the
+# SDK and is covered by karcytics_sdk's own test_runtime_services.py; these
+# cover the Hub-side registry these two RPC handlers maintain, the fan-out
+# that reads it, and (at the bottom) a full live round trip through a real
+# spawned worker — the two checks the migration plan itself called for:
+# a subscribed topic reaches the worker, an unsubscribed one never does.
+
+
+def test_event_subscribe_handler_registers_topic_for_plugin():
+    server = start_core_services()
+    try:
+        client = CoreServicesClient(server.port, token=server.token)
+        result = client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+    finally:
+        server.stop()
+
+    assert result == {"status": "ok"}
+    assert _event_subscriptions["MODULE_OPENED"] == {"flow_cytometry"}
+
+
+def test_event_subscribe_handler_rejects_unknown_topic():
+    server = start_core_services()
+    try:
+        client = CoreServicesClient(server.port, token=server.token)
+        result = client.call(
+            "event.subscribe", topic="NOT_A_REAL_EVENT", plugin_id="flow_cytometry"
+        )
+    finally:
+        server.stop()
+
+    assert result["status"] == "error"
+    assert "NOT_A_REAL_EVENT" not in _event_subscriptions
+
+
+def test_event_subscribe_handler_only_wires_the_hub_listener_once_per_topic():
+    """A second plugin subscribing to an already-bridged topic must not add
+    a second forwarding listener to the Hub's own event_bus — just extend
+    the set of plugins that one listener fans out to.
+
+    Compares deltas, not an absolute count: `event_bus` is a process-global
+    singleton shared with the rest of the Hub's own test suite (e.g. the
+    Academy engine's `WaitForEventStep`, which subscribes to this exact
+    topic), so another already-registered listener from earlier in the same
+    session is a normal, unrelated baseline, not a bug.
+    """
+    from karcytics.core.event_bus import KarcyticsEvent
+    from karcytics.core.event_bus import event_bus as hub_event_bus
+
+    baseline = len(hub_event_bus._listeners.get(KarcyticsEvent.MODULE_OPENED, []))
+    server = start_core_services()
+    try:
+        client = CoreServicesClient(server.port, token=server.token)
+        client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+        listener_count_after_first = len(
+            hub_event_bus._listeners.get(KarcyticsEvent.MODULE_OPENED, [])
+        )
+        client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="another_plugin")
+        listener_count_after_second = len(
+            hub_event_bus._listeners.get(KarcyticsEvent.MODULE_OPENED, [])
+        )
+    finally:
+        server.stop()
+
+    assert listener_count_after_first == baseline + 1
+    assert listener_count_after_second == baseline + 1
+    assert _event_subscriptions["MODULE_OPENED"] == {"flow_cytometry", "another_plugin"}
+
+
+def test_event_unsubscribe_handler_removes_plugin_from_topic():
+    server = start_core_services()
+    try:
+        client = CoreServicesClient(server.port, token=server.token)
+        client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+        result = client.call("event.unsubscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+    finally:
+        server.stop()
+
+    assert result == {"status": "ok"}
+    assert "MODULE_OPENED" not in _event_subscriptions
+
+
+def test_event_unsubscribe_handler_keeps_topic_registered_for_remaining_plugins():
+    server = start_core_services()
+    try:
+        client = CoreServicesClient(server.port, token=server.token)
+        client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+        client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="another_plugin")
+        client.call("event.unsubscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+    finally:
+        server.stop()
+
+    assert _event_subscriptions["MODULE_OPENED"] == {"another_plugin"}
+
+
+def test_forward_event_to_subscribed_plugins_only_calls_daemons_that_subscribed():
+    """Exercises `_forward_event_to_subscribed_plugins` (what the Hub's real
+    `event_bus.emit()` ultimately calls) directly against a fake daemon
+    registry, so the fan-out logic itself is covered without needing a real
+    spawned process — the live round trip below covers the full stack.
+    """
+    from karcytics.core.event_bus import KarcyticsEvent
+    from karcytics.core.event_bus import event_bus as hub_event_bus
+
+    called_with: dict = {}
+    done = threading.Event()
+
+    def _fake_daemon_call(method, kwargs):
+        called_with["method"] = method
+        called_with["kwargs"] = kwargs
+        done.set()
+
+    fake_daemon = MagicMock()
+    fake_daemon.call.side_effect = _fake_daemon_call
+    server = start_core_services()
+    try:
+        with patch(
+            "karcytics_sdk.plugin.daemon.PluginUIDaemon.get_running_instance",
+            return_value=fake_daemon,
+        ):
+            client = CoreServicesClient(server.port, token=server.token)
+            client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+
+            hub_event_bus.emit(KarcyticsEvent.MODULE_OPENED, "flow_cytometry")
+            assert done.wait(timeout=2.0)
+    finally:
+        server.stop()
+
+    assert called_with == {
+        "method": "dispatch_event",
+        "kwargs": {"topic": "MODULE_OPENED", "payload": "flow_cytometry"},
+    }
+
+
+def test_forward_event_to_subscribed_plugins_is_a_noop_with_no_subscribers():
+    """A topic that was subscribed once and then fully unsubscribed leaves
+    its Hub-side listener in place (see `_hub_topics_bridged`'s docstring)
+    — that listener must be inert, not raise or attempt to reach a daemon.
+    """
+    from karcytics.core.event_bus import KarcyticsEvent
+    from karcytics.core.event_bus import event_bus as hub_event_bus
+
+    server = start_core_services()
+    try:
+        with patch("karcytics_sdk.plugin.daemon.PluginUIDaemon.get_running_instance") as mock_get:
+            client = CoreServicesClient(server.port, token=server.token)
+            client.call("event.subscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+            client.call("event.unsubscribe", topic="MODULE_OPENED", plugin_id="flow_cytometry")
+
+            hub_event_bus.emit(KarcyticsEvent.MODULE_OPENED, "flow_cytometry")
+            QApplication.processEvents()
+
+            mock_get.assert_not_called()
+    finally:
+        server.stop()
+
+
+@pytest.fixture
+def event_subscriber_worker_script(tmp_path):
+    """A worker that subscribes to MODULE_OPENED via the real `RemoteEventBus`
+    and reports every payload it receives back as its own `event_received`
+    event — proving the full Hub->CoreServices->daemon->worker->RemoteEventBus
+    round trip, not just one hop of it.
+    """
+    script_path = tmp_path / "event_subscriber_worker.py"
+    code = """
+from PyQt6.QtWidgets import QLabel
+from karcytics_sdk.plugin.runtime_services import KarcyticsEvent, event_bus
+from karcytics_sdk.plugin.ui_daemon_runtime import run, send_event
+
+def build_panel():
+    def _on_module_opened(payload):
+        send_event("module_opened_relayed", payload)
+
+    event_bus.subscribe(KarcyticsEvent.MODULE_OPENED, _on_module_opened)
+    return QLabel("event subscriber")
+
+if __name__ == "__main__":
+    run(build_panel)
+"""
+    script_path.write_text(code, encoding="utf-8")
+    return script_path
+
+
+def test_event_bridging_round_trip_with_a_real_spawned_worker(event_subscriber_worker_script):
+    """Live verification for Phase 2: a real worker process subscribes to a
+    real `KarcyticsEvent`, the Hub's real `event_bus.emit()` fires it, and
+    the worker's own registered callback actually runs — the exact
+    end-to-end path `WaitForEventStep` needs and never had before this.
+    """
+    from karcytics.core.event_bus import KarcyticsEvent
+    from karcytics.core.event_bus import event_bus as hub_event_bus
+
+    server = start_core_services()
+    plugin_id = "test_event_bridging_round_trip"
+    try:
+        daemon = PluginUIDaemon.start_instance(
+            plugin_id, daemon_script_path=event_subscriber_worker_script
+        )
+
+        received = []
+        daemon.event_received.connect(lambda topic, payload: received.append((topic, payload)))
+
+        # Give the worker's own event.subscribe RPC call (fired from inside
+        # build_panel(), which runs after "ready") time to actually land at
+        # the Hub before this emits — otherwise the emit could race ahead of
+        # the subscription it's meant to be caught by.
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline and "MODULE_OPENED" not in _event_subscriptions:
+            QApplication.processEvents()
+            time.sleep(0.02)
+        assert "MODULE_OPENED" in _event_subscriptions
+
+        hub_event_bus.emit(KarcyticsEvent.MODULE_OPENED, "flow_cytometry")
+
+        deadline = time.monotonic() + 5.0
+        topics = dict(received)
+        while time.monotonic() < deadline and "module_opened_relayed" not in topics:
+            QApplication.processEvents()
+            time.sleep(0.02)
+            topics = dict(received)
+
+        assert topics.get("module_opened_relayed") == "flow_cytometry"
+    finally:
+        PluginUIDaemon.stop_instance(plugin_id)
+        server.stop()
+
+
+def test_unsubscribed_topic_never_reaches_a_real_spawned_worker(event_subscriber_worker_script):
+    """The other half of Phase 2's own verification requirement: a topic the
+    worker never subscribed to must not be forwarded, even though the Hub's
+    `event_bus` genuinely emits it.
+    """
+    from karcytics.core.event_bus import KarcyticsEvent
+    from karcytics.core.event_bus import event_bus as hub_event_bus
+
+    server = start_core_services()
+    plugin_id = "test_event_bridging_unsubscribed_topic"
+    try:
+        daemon = PluginUIDaemon.start_instance(
+            plugin_id, daemon_script_path=event_subscriber_worker_script
+        )
+
+        received = []
+        daemon.event_received.connect(lambda topic, payload: received.append((topic, payload)))
+
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline and "MODULE_OPENED" not in _event_subscriptions:
+            QApplication.processEvents()
+            time.sleep(0.02)
+        assert "MODULE_OPENED" in _event_subscriptions
+
+        # A real topic the worker never subscribed to.
+        hub_event_bus.emit(KarcyticsEvent.PROJECT_LOADED, "/some/project")
+
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline:
+            QApplication.processEvents()
+            time.sleep(0.02)
+
+        assert [t for t, _ in received if t == "module_opened_relayed"] == []
+    finally:
+        PluginUIDaemon.stop_instance(plugin_id)
+        server.stop()
