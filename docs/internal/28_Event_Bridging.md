@@ -45,7 +45,7 @@ flowchart LR
     RC["Plugin/SDK code"] -->|subscribe topic, cb| REB[RemoteEventBus]
     REB -->|first subscriber\nfor this topic| CSC["CoreServicesClient.call\n'event.subscribe'"]
     DE["_handle_dispatch_event\n(ui_daemon_runtime.py)"] -->|dispatch_event topic, payload| REB
-    REB -->|cb(payload)| RC
+    REB -->|"cb(payload)"| RC
   end
   subgraph "Hub process"
     CSC -->|POST /rpc| CSS[CoreServicesServer]
