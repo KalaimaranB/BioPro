@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from karcytics.core.models.tutorial_models import ForcedInteractionStep
+    from karcytics_sdk.plugin.tutorial_models import ForcedInteractionStep
 
 from PyQt6.QtCore import (
     QEasingCurve,
@@ -127,7 +127,6 @@ class WorkspaceWindow(QMainWindow):
         self.analysis_toolbar.btn_close_project.clicked.connect(self.return_to_hub)
         # AI Chat feature is currently in the works - UI hidden for now
         # self.analysis_toolbar.btn_ai.clicked.connect(self.menu_manager.open_ai_chat)
-        self.analysis_toolbar.btn_academy.clicked.connect(self.hub_manager.open_academy)
         ap_layout.addWidget(self.analysis_toolbar)
         self.wizard_panel = None
         self.main_module_container = QWidget()
@@ -146,11 +145,17 @@ class WorkspaceWindow(QMainWindow):
         self.theme_loading_overlay.set_text("Changing theme…")
         self.theme_loading_overlay.hide()
 
-        from karcytics.ui.wizards.tutorial_overlay import TutorialOverlay
+        from karcytics_sdk.plugin.tutorial_overlay import TutorialOverlay
 
-        self.tutorial_overlay = TutorialOverlay(self.analysis_page)
+        from karcytics.core.tutorial_manager import global_tutorial_manager, hub_academy_event_bus
+
+        self.tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, self.analysis_page
+        )
         self.tutorial_overlay.hide()
-        self.home_tutorial_overlay = TutorialOverlay(self.home_screen)
+        self.home_tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, self.home_screen
+        )
         self.home_tutorial_overlay.hide()
         self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
         self.tutorial_overlay.skip_requested.connect(self._on_tutorial_skip)
@@ -193,7 +198,8 @@ class WorkspaceWindow(QMainWindow):
         For BranchingStep, the first option key maps to the target step_id;
         '__complete__' is a sentinel that completes the course.
         """
-        from karcytics.core.models.tutorial_models import BranchingStep, VerificationStep
+        from karcytics_sdk.plugin.tutorial_models import BranchingStep, VerificationStep
+
         from karcytics.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step
@@ -305,11 +311,12 @@ class WorkspaceWindow(QMainWindow):
             self.home_tutorial_overlay.set_dark_mode(store_active)
         if not active_overlay.isVisible():
             return
-        from karcytics.core.models.tutorial_models import (
+        from karcytics_sdk.plugin.tutorial_models import (
             ForcedInteractionStep,
             InteractionStep,
             VerificationStep,
         )
+
         from karcytics.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step

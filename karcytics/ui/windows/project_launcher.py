@@ -113,9 +113,13 @@ class ProjectLauncherWindow(QMainWindow):
         # Tutorial overlay — parented to the central widget so it floats over
         # the entire hub window.  Created early so _maybe_start_core_intro can
         # reference it immediately after the 800 ms delay.
-        from karcytics.ui.wizards.tutorial_overlay import TutorialOverlay
+        from karcytics_sdk.plugin.tutorial_overlay import TutorialOverlay
 
-        self._hub_tutorial_overlay = TutorialOverlay(self._central_widget, compact_mode=True)
+        from karcytics.core.tutorial_manager import global_tutorial_manager, hub_academy_event_bus
+
+        self._hub_tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, self._central_widget, compact_mode=True
+        )
         self._hub_tutorial_overlay.hide()
         self._hub_tutorial_overlay.btn_next.clicked.connect(self._on_hub_tutorial_next)
         self._hub_tutorial_overlay.skip_requested.connect(self._on_hub_tutorial_skip)
@@ -301,7 +305,8 @@ class ProjectLauncherWindow(QMainWindow):
         self._hub_tutorial_overlay.raise_()
 
     def _on_hub_tutorial_next(self) -> None:
-        from karcytics.core.models.tutorial_models import BranchingStep
+        from karcytics_sdk.plugin.tutorial_models import BranchingStep
+
         from karcytics.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step

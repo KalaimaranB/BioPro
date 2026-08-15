@@ -218,9 +218,13 @@ class ThemeManager:
         mw.home_screen = HomeScreen()
 
         # Recreate the tutorial overlay for the new home screen
-        from karcytics.ui.wizards.tutorial_overlay import TutorialOverlay
+        from karcytics_sdk.plugin.tutorial_overlay import TutorialOverlay
 
-        mw.home_tutorial_overlay = TutorialOverlay(mw.home_screen)
+        from karcytics.core.tutorial_manager import global_tutorial_manager, hub_academy_event_bus
+
+        mw.home_tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, mw.home_screen
+        )
         mw.home_tutorial_overlay.hide()
         mw.home_tutorial_overlay.btn_next.clicked.connect(mw._on_tutorial_next)
         mw.home_tutorial_overlay.skip_requested.connect(mw._on_tutorial_skip)

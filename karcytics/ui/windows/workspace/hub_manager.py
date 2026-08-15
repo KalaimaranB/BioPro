@@ -32,16 +32,6 @@ class HubManager:
         mw.status_bar.showMessage("Welcome to Karcytics — choose a module to begin")
         mw.zoom_label.setText("")
 
-    def open_academy(self):
-        mw = self.main_window
-        mod_id = getattr(mw, "current_module_id", None)
-        if not mod_id:
-            mw.status_bar.showMessage(
-                "Open an analysis module first to access its Academy courses.", 4000
-            )
-            return
-        self.open_academy_for_module(mod_id)
-
     def open_academy_from_home(self):
         """Called via the top-bar Academy button while on the home screen.
         Opens the Global Academy Hub, showing all available courses.

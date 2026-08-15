@@ -1,11 +1,10 @@
 import math
 import random
 
+from karcytics_sdk.plugin.cyto_character import CytoWidget
 from PyQt6.QtCore import QPropertyAnimation, QRect, Qt, QTimer, pyqtProperty, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPen, QRadialGradient
 from PyQt6.QtWidgets import QWidget
-
-from karcytics.ui.components.cyto_character import CytoWidget
 
 
 class Confetti:

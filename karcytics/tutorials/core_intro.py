@@ -46,7 +46,7 @@ content evolves, so a version bump here should never rename it.
 
 from typing import Any
 
-from karcytics.core.models.tutorial_models import (
+from karcytics_sdk.plugin.tutorial_models import (
     ActionStep,
     BranchingStep,
     Course,

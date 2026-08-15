@@ -50,13 +50,6 @@ class AnalysisToolBar(QWidget):
         layout.addStretch()
 
         theme_manager.theme_changed.connect(self._apply_theme_styles)
-        self.btn_academy = SecondaryButton("🎓 Cyto Academy")
-        theme_manager.apply_style(
-            self.btn_academy,
-            f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
-            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;",
-        )
-        layout.addWidget(self.btn_academy)
 
         self._apply_theme_styles()
 
@@ -75,10 +68,5 @@ class AnalysisToolBar(QWidget):
             self.title_lbl,
             f"font-size: {Fonts.SIZE_NORMAL}px; font-weight: 600;"
             f" color: {Colors.FG_PRIMARY}; background: transparent;",
-        )
-        theme_manager.apply_style(
-            self.btn_academy,
-            f"background-color: {Colors.ACCENT_PRIMARY}; color: {Colors.FG_PRIMARY};"
-            f" font-weight: bold; border-radius: 4px; padding: 4px 12px;",
         )
         theme_manager.apply_style(self.sep, f"color: {Colors.BORDER};")
