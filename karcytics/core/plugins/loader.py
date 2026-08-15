@@ -57,7 +57,8 @@ class PluginLoaderFactory:
             PermissionError: If loading is denied.
         """
         if mod_info.get("manifest", {}).get("process_model") == "isolated":
-            return PluginLoaderFactory._load_ui_isolated(module_id)
+            display_name = mod_info.get("manifest", {}).get("display_name", module_id)
+            return PluginLoaderFactory._load_ui_isolated(module_id, display_name)
 
         if mod_info["loaded"]:
             return mod_info["plugin_ref"].get_panel_class()
@@ -81,10 +82,18 @@ class PluginLoaderFactory:
 
                     from karcytics.core.task_scheduler import task_scheduler
 
+                    # "event_bus" is deliberately absent, not present-with-None:
+                    # there is no real Hub EventManager wired to in-process V3
+                    # plugins yet (see docs/internal/25, "Migration status"). A
+                    # plugin that never declares `requires = ["event_bus"]`
+                    # is unaffected. One that does gets PluginContext.get()'s
+                    # loud RuntimeError ("declared but the host environment
+                    # did not provide it") the moment it asks for it, instead
+                    # of a silent `None` that only fails later, confusingly,
+                    # wherever the plugin tries to call a method on it.
                     services = {
                         "task_scheduler": task_scheduler,
                         "logger": logging.getLogger(f"plugin.{module_id}"),
-                        "event_bus": None,
                     }
 
                     pm = PluginManifest(
@@ -128,7 +137,7 @@ class PluginLoaderFactory:
             return None
 
     @staticmethod
-    def _load_ui_isolated(module_id: str) -> type[QWidget]:
+    def _load_ui_isolated(module_id: str, display_name: str) -> type[QWidget]:
         """Return a zero-arg factory for module_id's status widget.
 
         Deliberately does none of what the in-process path above does:
@@ -149,7 +158,7 @@ class PluginLoaderFactory:
 
         def _factory() -> QWidget:
             daemon = PluginUIDaemon.get_instance(module_id)
-            widget = ModuleStatusWidget(daemon, module_name=module_id)
+            widget = ModuleStatusWidget(daemon, module_name=display_name)
             PluginLoaderFactory._wire_theme_sync(widget)
             return widget
 

@@ -76,7 +76,8 @@ plugin's entry point:
 services = {
     "task_scheduler": task_scheduler,   # the real karcytics.core.task_scheduler singleton
     "logger": logging.getLogger(f"plugin.{module_id}"),
-    "event_bus": None,                  # not wired up — see docs/internal/25, "Migration status"
+    # "event_bus" is deliberately absent — not wired up yet, see
+    # docs/internal/25, "Migration status".
 }
 context = PluginContext(services=services, manifest=manifest)
 ```
@@ -85,9 +86,13 @@ context = PluginContext(services=services, manifest=manifest)
 enforces that a plugin can only reach a service it declared under
 `manifest.requires` — reaching for anything undeclared raises
 `UndeclaredCapabilityAccess`, and reaching for a declared-but-unavailable
-capability raises `RuntimeError`. `event_bus` being `None` currently defeats
-that second check silently: a plugin that declares `requires = ["event_bus"]`
-gets `None` back, not an error and not the Hub's real event bus.
+capability raises `RuntimeError`. `event_bus` is currently the latter case:
+omitted from `services` entirely rather than present with a `None` value, so
+a plugin that declares `requires = ["event_bus"]` and then calls
+`context.get("event_bus")` gets a loud `RuntimeError` ("declared, but the
+host environment did not provide it") right at the call site — not the Hub's
+real event bus, but also not a silent `None` that only breaks later, more
+confusingly, wherever the plugin tries to call a method on it.
 
 A V2 legacy plugin gets no `PluginContext` at all — it reaches Hub services
 by directly importing `karcytics.*`, exactly like Hub code does, since it
@@ -186,7 +191,7 @@ arrives (or a timeout fires). The worker's own `RequestDispatcher`
 | `exit` / `close_requested` | `_handle_close_request` | closes the native window, quits the worker's `QApplication` |
 | `theme_changed` | `_handle_theme_changed` | updates `theme_fallback.DynamicColors` and calls the panel's `_apply_theme_styles()` if present |
 | `focus` | `_handle_focus` | raises and activates the window |
-| `inject_workflow` | `_handle_inject_workflow` | stages or dynamically loads a workflow payload into the panel (`load_workflow`/`begin_async_init`) |
+| `inject_workflow` | `_handle_inject_workflow` | stages or dynamically loads a workflow payload into the panel (`load_workflow`/`begin_async_init`); always returns `{"status": "ok"}` immediately — the actual load runs one tick later (`QTimer.singleShot(0, ...)`), so this response confirms the request was *accepted*, not that loading *finished* (see `panel_data_ready`/`workflow_injection_failed` below for that) |
 | `dispatch_event` | `_handle_dispatch_event` | routes a Hub-forwarded event into this process's local `RemoteEventBus` subscribers — see docs/internal/28, this is the Hub→worker half of event bridging |
 
 A plugin's own `ui_daemon.py` can register more via `run()`'s
@@ -198,6 +203,8 @@ A plugin's own `ui_daemon.py` can register more via `run()`'s
 |---|---|---|---|
 | `ready` | worker → Hub | `{"geometry": [x, y, w, h]}` | the worker's window is up; this is also how the Hub's startup handshake resolves (see below) |
 | `window_closed` | worker → Hub | `{}` | the user closed the native window directly (not via a Hub-initiated `exit` request) |
+| `panel_data_ready` | worker → Hub | `{}` | the panel's own one-shot `data_ready` Qt signal fired — forwarded the instant `run()` connects to it, right after `panel_factory()` returns (line 829-ish), so it can't be missed regardless of whether the panel loads its initial data automatically (`begin_async_init`) or later, dynamically, via `inject_workflow`. Only meaningful for a panel that has a `data_ready` signal in the first place; a panel that never emits one never sends this |
+| `workflow_injection_failed` | worker → Hub | `{"error": str(exc)}` | `inject_workflow`'s deferred load (the one-tick-later part `{"status": "ok"}` doesn't cover) raised — without this, that exception was only ever visible as an opaque `worker_stderr` log line, not attributable to the specific `inject_workflow` call that caused it |
 
 A `kind: event` frame sent *from the Hub to the worker* used to be a protocol
 trap: nothing on the worker side handled it — `RequestDispatcher.dispatch()`
@@ -372,8 +379,8 @@ An in-process plugin's panel lived inside the Hub's own `QMainWindow`, so
 the Hub's File/Edit/Theme/Help menu bar was simply *there* — nothing a
 plugin had to build. An isolated plugin's window is a separate native
 window with no menu bar at all unless `ui_daemon_runtime.run()` builds one,
-which it does via `_build_menu_bar` — see the Interpreter Isolation Plan's
-bug tracker, "menu options ... not available in the plugins".
+which it does via `_build_menu_bar` ("menu options ... not available in the
+plugins").
 
 Two layers, built at two different points in `run()`:
 
@@ -410,7 +417,7 @@ object model alone.
 | Widgets/panels | Live Qt objects, direct references | Never — a separate native window; the Hub only ever holds a `ModuleStatusWidget` placeholder |
 | Method calls | Direct Python calls | Only `request`/`response` over msgpack, or `CoreServicesServer` RPC |
 | Task scheduling | Real `TaskScheduler` singleton, injected | Worker runs its own local scheduler; not reachable from the Hub |
-| `EventBus` | Injected — though currently wired to `None`, see docs/internal/25 | Bridged, opt-in per topic — `RemoteEventBus.subscribe()` + `dispatch_event`, see docs/internal/28 |
+| `EventBus` | Not wired up — `requires = ["event_bus"]` raises loudly on access, see docs/internal/25 | Bridged, opt-in per topic — `RemoteEventBus.subscribe()` + `dispatch_event`, see docs/internal/28 |
 | Theme | Reads `karcytics.ui.theme.Colors` directly, live | One-shot fetch at startup + explicit `theme_changed` push on every Hub theme switch |
 | Errors | Raised directly in the Hub's own exception handling | `diagnostics.report_error` RPC, or a `worker_stderr`-tagged log line |
 | Bulk data (arrays, images, dataframes) | Passed by reference | **Not sent over either channel** — crosses via the filesystem, same as project state already does |

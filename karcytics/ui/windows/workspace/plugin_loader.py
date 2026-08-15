@@ -312,10 +312,10 @@ class PluginLoaderManager:
         never actually "enters" that module the way it does an in-process
         panel, so switching `root_stack` to the analysis page (and its
         module-branded toolbar/footer: "Return to Hub", the module's own
-        title, Cyto Academy — see the Interpreter Isolation Plan bug
-        tracker) would be showing chrome for a view the Hub was never
-        actually going to render anything into. The overlay floats directly
-        on `root_stack`; whatever page was already current stays current.
+        title, Cyto Academy) would be showing chrome for a view the Hub was
+        never actually going to render anything into. The overlay floats
+        directly on `root_stack`; whatever page was already current stays
+        current.
         """
         mw = self.main_window
         module_id = manifest["id"]

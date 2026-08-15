@@ -78,12 +78,13 @@ class HubManager:
 
         if global_tutorial_manager.active_course:
             overlay = mw._active_overlay()
-            if overlay == mw.home_tutorial_overlay:
-                overlay.setGeometry(mw.home_screen.rect())
-            else:
-                overlay.setGeometry(mw.analysis_page.rect())
-            overlay.show()
-            overlay.raise_()
+            if overlay:
+                if overlay == getattr(mw, "home_tutorial_overlay", None):
+                    overlay.setGeometry(mw.home_screen.rect())
+                else:
+                    overlay.setGeometry(mw.analysis_page.rect())
+                overlay.show()
+                overlay.raise_()
             mw.status_bar.showMessage(
                 "Started Academy Course: " + global_tutorial_manager.active_course.title
             )

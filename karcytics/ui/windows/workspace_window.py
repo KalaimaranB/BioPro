@@ -185,8 +185,8 @@ class WorkspaceWindow(QMainWindow):
         if store and store.isVisible() and hasattr(store, "tutorial_overlay"):
             return store.tutorial_overlay
         if self.root_stack.currentIndex() == getattr(self, "_PAGE_HOME", 0):
-            return self.home_tutorial_overlay
-        return self.tutorial_overlay
+            return getattr(self, "home_tutorial_overlay", None)
+        return getattr(self, "tutorial_overlay", None)
 
     def _on_tutorial_next(self) -> None:
         """Called when the overlay Next button is clicked.
@@ -309,7 +309,7 @@ class WorkspaceWindow(QMainWindow):
         if hasattr(self, "home_tutorial_overlay") and self.home_tutorial_overlay.isVisible():
             store_active = active_overlay != self.home_tutorial_overlay
             self.home_tutorial_overlay.set_dark_mode(store_active)
-        if not active_overlay.isVisible():
+        if not active_overlay or not active_overlay.isVisible():
             return
         from karcytics_sdk.plugin.tutorial_models import (
             ForcedInteractionStep,

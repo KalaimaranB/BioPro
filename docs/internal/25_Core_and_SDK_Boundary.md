@@ -171,14 +171,16 @@ running Hub at all).
    removal on its own — it's the fallback for plugins that predate V3. V1
    (`author`-field manifests) is fully dead: discovered only to explain why
    it's rejected (`OutdatedModuleError`), never loaded.
-2. **`event_bus` is a real, currently-silent gap for in-process plugins.**
-   `PluginContext`'s services dict hardcodes `"event_bus": None`
-   (`core/plugins/loader.py:84-88`) — a V3 plugin that declares
-   `requires = ["event_bus"]` gets `None` back, not the Hub's real
-   `EventManager`, and not an error either, since `PluginContext.get()`
-   only checks that the key *exists* in `services`, not that its value is
-   usable. This should either be wired to the real `EventManager` or made to
-   fail loudly; right now it fails silently.
+2. **`event_bus` is a real, still-open gap for in-process plugins — now loud,
+   not silent.** `PluginContext`'s services dict for a V3 plugin
+   (`core/plugins/loader.py:84-88`) no longer has an `"event_bus"` key at
+   all. A plugin that doesn't declare `requires = ["event_bus"]` is
+   unaffected; one that does gets `PluginContext.get()`'s existing
+   declared-but-unavailable `RuntimeError` the moment it calls
+   `context.get("event_bus")`, instead of silently receiving `None` and
+   failing later, more confusingly, the first time it calls a method on it.
+   The underlying gap — no real `EventManager` wired to in-process V3
+   plugins — is unchanged; only the failure mode is fixed.
 3. **Isolation is opt-in, and only one plugin uses it.** `process_model`
    defaults to `"in_process"` — every plugin keeps its current behavior
    unless it explicitly asks for isolation. Flow Cytometry is the only
@@ -192,12 +194,12 @@ running Hub at all).
    `event.subscribe`/`dispatch_event` over `CoreServicesServer` (see
    docs/internal/28). It's opt-in per topic, not a blanket bridge — a plugin
    that never subscribes sees exactly the same nothing it did before.
-5. **"The Interpreter Isolation Plan" is referenced only in code comments**
-   (`plugin_loader.py`, `module_status_widget.py`, `ui_daemon_runtime.py` —
-   "see the Interpreter Isolation Plan bug tracker") — there is no such file
-   checked into either repo. Either check one in, or stop pointing at it in
-   comments; a dangling reference to a plan nobody can open is worse than no
-   reference.
+5. ~~"The Interpreter Isolation Plan" is referenced only in code
+   comments~~ **Resolved.** The dangling citations in `plugin_loader.py`,
+   `module_status_widget.py`, and `ui_daemon_runtime.py` pointed at a bug
+   tracker that was never checked into either repo. Removed rather than
+   backfilled — each comment's actual content (the decision or the bug it
+   was explaining) stands on its own without the citation.
 6. ~~Two existing docs describe an older, no-longer-accurate contract.~~
    **Resolved.** `docs/internal/15_ModuleManager_and_PluginContract.md` and
    `16_PluginBase_and_SDK_Contract.md` used to describe a `get_plugin()`

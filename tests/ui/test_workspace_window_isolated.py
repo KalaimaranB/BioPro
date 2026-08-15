@@ -5,7 +5,6 @@ panel. Proves open_module() reveals it as a blocking overlay on root_stack
 immediately, without switching to the analysis page or playing the Hub's own
 GalacticLoader animation — an isolated module's real content is a separate
 window with its own loading state, not anything the Hub itself is rendering.
-See the Interpreter Isolation Plan's Phase 2.
 """
 
 from unittest.mock import MagicMock, patch

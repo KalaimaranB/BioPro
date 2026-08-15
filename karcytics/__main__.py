@@ -228,209 +228,198 @@ def bootstrap_sdk():
 # Smoke test timeout configuration
 SMOKE_TEST_TIMEOUT_MS = 15000  # Maximum time to wait for async data loading
 SMOKE_TEST_TICK_MS = 1000  # Delay before quitting when no async data expected
+SMOKE_TEST_ISOLATED_SPAWN_TIMEOUT_S = 45.0  # Daemon spawn + ready handshake budget
 
 _BIEXPONENTIAL_PROBE_VALUES: Final[tuple[float, ...]] = (1.0, 100.0, 10_000.0, 200_000.0)
 
 
-def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
-    """Run a smoke test for a specified plugin in a headless PyInstaller environment."""
-    import argparse
+def _install_plugin_for_smoke_test(module_manager, plugin_id: str, logger: logging.Logger) -> None:
+    """Force-download and install `plugin_id` from the remote registry.
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--smoke-test", dest="plugin_id")
-    parser.add_argument("data_file", nargs="?", default=None)
-    args, _ = parser.parse_known_args(argv[1:])
-
-    logger = logging.getLogger("Karcytics.SmokeTest")
-    logger.info(f"--- SMOKE TEST SEQUENCE STARTED FOR {args.plugin_id} ---")
-
-    # 1. Initialize Core Services
-    from karcytics.core.module_manager import ModuleManager
+    Re-scans `module_manager` so its manifest (in particular `process_model`)
+    is available to the caller. Shared by both the in-process and isolated
+    smoke-test paths — which plugin architecture is in play is decided
+    *after* this runs, from the freshly-discovered manifest, not before.
+    """
     from karcytics.core.network_updater import NetworkUpdater
 
     updater = NetworkUpdater()
-    module_manager = ModuleManager()
+    logger.info(f"Attempting to download and install {plugin_id}...")
+    registry = updater.fetch_remote_registry(updater.registry_url)
+    plugin_info = registry.get("plugins", {}).get(plugin_id)
 
-    # 2. Force install plugin if provided
-    if args.plugin_id:
-        logger.info(f"Attempting to download and install {args.plugin_id}...")
-        registry = updater.fetch_remote_registry(updater.registry_url)
-        plugin_info = registry.get("plugins", {}).get(args.plugin_id)
+    if not plugin_info:
+        raise RuntimeError(f"Plugin {plugin_id} not found in remote registry.")
 
-        if plugin_info:
-            success, msg = updater.install_plugin(args.plugin_id, plugin_info)
-            if not success:
-                raise RuntimeError(f"Failed to install plugin: {msg}")
+    success, msg = updater.install_plugin(plugin_id, plugin_info)
+    if not success:
+        raise RuntimeError(f"Failed to install plugin: {msg}")
 
-            # 2.5 Install Python dependencies for the newly downloaded plugin
-            from karcytics_sdk.plugin.manifest_parser import ManifestParser
+    # Install Python dependencies for the newly downloaded plugin
+    from karcytics_sdk.plugin.manifest_parser import ManifestParser
 
-            from karcytics.core.package_manager import PackageManager
+    from karcytics.core.package_manager import PackageManager
 
-            pm = PackageManager()
-            plugin_dir = updater.plugin_dir / args.plugin_id
-            manifest_path = plugin_dir / "pyproject.toml"
-            if manifest_path.exists():
-                manifest = ManifestParser().parse_file(str(manifest_path))
-                deps = manifest.get("python_dependencies")
-                if deps is None:
-                    deps_list = manifest.get("core_dependencies", [])
-                    deps = dict.fromkeys(deps_list, "")
+    pm = PackageManager()
+    plugin_dir = updater.plugin_dir / plugin_id
+    manifest_path = plugin_dir / "pyproject.toml"
+    if manifest_path.exists():
+        manifest = ManifestParser().parse_file(str(manifest_path))
+        deps = manifest.get("python_dependencies")
+        if deps is None:
+            deps_list = manifest.get("core_dependencies", [])
+            deps = dict.fromkeys(deps_list, "")
 
-                if deps:
-                    logger.info(
-                        f"Installing {len(deps)} dependencies for {args.plugin_id} "
-                        "into isolated venv..."
-                    )
-                    pm.resolve_and_install_all(deps, plugin_dir)
+        if deps:
+            logger.info(
+                f"Installing {len(deps)} dependencies for {plugin_id} into isolated venv..."
+            )
+            pm.resolve_and_install_all(deps, plugin_dir)
 
-            # Re-scan installed modules
-            module_manager.reload_modules()
-        else:
-            raise RuntimeError(f"Plugin {args.plugin_id} not found in remote registry.")
+    # Re-scan installed modules so module_manager.modules[plugin_id]["manifest"]
+    # reflects what was just installed, including process_model.
+    module_manager.reload_modules()
 
-    # 3. Simulate UI Environment and Load Plugin
+
+def _run_smoke_test_in_process(module_manager, plugin_id: str, data_file: str | None) -> int:  # noqa: C901, PLR0915
+    """Drive an in-process (V2/V3) plugin's real panel directly.
+
+    Exactly as `PluginLoaderManager` would in the live Hub — `PanelClass()`
+    returns the plugin's actual widget, in this same interpreter, so its
+    `load_workflow`/`panel_ready`/`data_ready`/`begin_async_init` are the
+    plugin's own.
+
+    This is the pre-isolation smoke test's logic, unchanged: it only ever
+    applied to plugins whose code genuinely runs in the Hub's process, and
+    it still does for those. See `_run_smoke_test_isolated` for the
+    `process_model = "isolated"` case, where none of these attributes exist
+    on what `PanelClass()` returns.
+    """
+    from typing import NoReturn
+
     from PyQt6.QtCore import QTimer
-    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtWidgets import QApplication, QMessageBox
 
-    app = QApplication.instance() or QApplication(argv)
+    logger = logging.getLogger("Karcytics.SmokeTest")
+    app = QApplication.instance() or QApplication(sys.argv)
 
-    # Track whether data_ready signal emitted
     data_ready_emitted = False
+    panel_ready_emitted = False
+    load_workflow_failed = False
 
-    if args.plugin_id:
-        logger.info(
-            "Loading plugin UI class to trigger all heavy imports (Numba, Matplotlib, C-Extensions)..."  # noqa: E501
-        )
+    logger.info(
+        "Loading plugin UI class to trigger all heavy imports (Numba, Matplotlib, C-Extensions)..."
+    )
 
-        # Prevent modal dialogs from hanging the headless runner
-        from typing import NoReturn
+    # Prevent modal dialogs from hanging the headless runner
+    def _mock_msgbox(*_args: object, **_kwargs: object) -> None:
+        return None
 
-        from PyQt6.QtWidgets import QMessageBox
+    def _mock_question(*_args: object, **_kwargs: object) -> QMessageBox.StandardButton:
+        return QMessageBox.StandardButton.Yes
 
-        def _mock_msgbox(*_args: object, **_kwargs: object) -> None:
-            return None
+    QMessageBox.information = _mock_msgbox  # type: ignore[assignment]
+    QMessageBox.warning = _mock_msgbox  # type: ignore[assignment]
+    QMessageBox.critical = _mock_msgbox  # type: ignore[assignment]
+    QMessageBox.question = _mock_question  # type: ignore[assignment]
 
-        def _mock_question(*_args: object, **_kwargs: object) -> QMessageBox.StandardButton:
-            return QMessageBox.StandardButton.Yes
+    PanelClass = module_manager.load_module_ui(plugin_id)  # noqa: N806
+    if PanelClass is None:
+        raise RuntimeError(f"Plugin {plugin_id} exposes no UI class.")
+    panel = PanelClass()
 
-        QMessageBox.information = _mock_msgbox  # type: ignore[assignment]
-        QMessageBox.warning = _mock_msgbox  # type: ignore[assignment]
-        QMessageBox.critical = _mock_msgbox  # type: ignore[assignment]
-        QMessageBox.question = _mock_question  # type: ignore[assignment]
+    if data_file and hasattr(panel, "load_workflow"):
+        logger.info(f"Injecting test data file: {data_file}")
 
-        PanelClass = module_manager.load_module_ui(args.plugin_id)  # noqa: N806
-        if PanelClass is None:
-            raise RuntimeError(f"Plugin {args.plugin_id} exposes no UI class.")
-        panel = PanelClass()
+        try:
+            # Monkeypatch fcs_io to explicitly fail if flowkit (daemon) is NOT used.
+            # Only meaningful in-process — an isolated plugin's own analysis code
+            # never enters this interpreter at all, see _run_smoke_test_isolated.
+            import karcytics_plugins.flow_cytometry.analysis.fcs_io as fcs_io  # type: ignore[import-untyped, import-not-found]
 
-        # Track whether panel_ready signal emitted (to guard against multiple invocations)
-        panel_ready_emitted = False
+            def _crash_fcsparser(*_args: object, **_kwargs: object) -> NoReturn:  # noqa: ARG001
+                raise RuntimeError(
+                    "Smoke test explicitly failed: flowkit was not used! "
+                    "Daemon virtual environment may be broken."
+                )
 
-        if args.data_file and hasattr(panel, "load_workflow"):
-            logger.info(f"Injecting test data file: {args.data_file}")
+            fcs_io._load_with_fcsparser = _crash_fcsparser
+            logger.info("Monkeypatched fcs_io to strictly enforce flowkit usage via daemon.")
+        except ImportError:
+            if plugin_id == "flow_cytometry":
+                raise
 
-            try:
-                # Monkeypatch fcs_io to explicitly fail if flowkit (daemon) is NOT used
-                import karcytics_plugins.flow_cytometry.analysis.fcs_io as fcs_io  # type: ignore[import-untyped, import-not-found]
+        # If the plugin signals when async data is ready, wait for it
+        if hasattr(panel, "data_ready"):
+            logger.info("Hooking into plugin data_ready signal for delayed exit.")
 
-                def _crash_fcsparser(*_args: object, **_kwargs: object) -> NoReturn:  # noqa: ARG001
-                    raise RuntimeError(
-                        "Smoke test explicitly failed: flowkit was not used! "
-                        "Daemon virtual environment may be broken."
+            def _on_data_ready() -> None:
+                nonlocal data_ready_emitted
+                data_ready_emitted = True
+                logger.info("Smoke test: data_ready signal received. Exiting cleanly.")
+                app.quit()
+
+            panel.data_ready.connect(_on_data_ready)
+
+            def _on_timeout() -> None:
+                if not data_ready_emitted:
+                    logger.error("Smoke test: timeout reached without data_ready emission.")
+                app.quit()
+
+            QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_timeout)
+
+        # Connect panel_ready BEFORE calling begin_async_init to avoid race condition
+        if hasattr(panel, "panel_ready"):
+
+            def _on_panel_ready() -> None:
+                nonlocal panel_ready_emitted, load_workflow_failed
+                if panel_ready_emitted:
+                    logger.warning(
+                        "Smoke test: panel_ready emitted multiple times, "
+                        "ignoring subsequent emissions."
                     )
-
-                fcs_io._load_with_fcsparser = _crash_fcsparser
-                logger.info("Monkeypatched fcs_io to strictly enforce flowkit usage via daemon.")
-            except ImportError:
-                if args.plugin_id == "flow_cytometry":
-                    raise
-                pass
-
-            # If the plugin signals when async data is ready, wait for it
-            if hasattr(panel, "data_ready"):
-                logger.info("Hooking into plugin data_ready signal for delayed exit.")
-
-                def _on_data_ready() -> None:
-                    nonlocal data_ready_emitted
-                    data_ready_emitted = True
-                    logger.info("Smoke test: data_ready signal received. Exiting cleanly.")
+                    return
+                panel_ready_emitted = True
+                try:
+                    panel.load_workflow(None, filename=data_file)
+                except Exception as e:
+                    load_workflow_failed = True
+                    logger.exception("Smoke test: load_workflow raised exception: %s", e)
                     app.quit()
-
-                panel.data_ready.connect(_on_data_ready)
-
-                def _on_timeout() -> None:
-                    if not data_ready_emitted:
-                        logger.error("Smoke test: timeout reached without data_ready emission.")
-                    app.quit()
-
-                # Give it up to 15 seconds to load async data before forcing a quit
-                QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_timeout)
-
-            # Connect panel_ready BEFORE calling begin_async_init to avoid race condition
-            if hasattr(panel, "panel_ready"):
-                load_workflow_failed = False
-
-                def _on_panel_ready() -> None:
-                    nonlocal panel_ready_emitted, load_workflow_failed
-                    if panel_ready_emitted:
-                        logger.warning(
-                            "Smoke test: panel_ready emitted multiple times, "
-                            "ignoring subsequent emissions."
-                        )
-                        return
-                    panel_ready_emitted = True
-                    try:
-                        panel.load_workflow(None, filename=args.data_file)
-                    except Exception as e:
-                        load_workflow_failed = True
-                        logger.exception("Smoke test: load_workflow raised exception: %s", e)
-                        app.quit()
-                        return
-                    # If no data_ready signal, quit after load_workflow completes
-                    if not hasattr(panel, "data_ready"):
-                        logger.info(
-                            "Smoke test: load_workflow invoked via panel_ready. No data_ready signal, exiting cleanly."  # noqa: E501
-                        )
-                        app.quit()
-
-                panel.panel_ready.connect(_on_panel_ready)
-
-                def _on_panel_ready_timeout() -> None:
-                    if not panel_ready_emitted:
-                        logger.error("Smoke test: timeout reached without panel_ready emission.")
-                        app.quit()
-
-                # Wait up to SMOKE_TEST_TIMEOUT_MS for panel_ready if no data_ready signal
+                    return
                 if not hasattr(panel, "data_ready"):
-                    QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_panel_ready_timeout)
-            else:
-                # No panel_ready signal, invoke load_workflow immediately
-                panel.load_workflow(None, filename=args.data_file)
+                    logger.info(
+                        "Smoke test: load_workflow invoked via panel_ready. "
+                        "No data_ready signal, exiting cleanly."
+                    )
+                    app.quit()
 
-        # Call begin_async_init AFTER all signal connections to avoid race conditions
-        if hasattr(panel, "begin_async_init"):
-            panel.begin_async_init()
+            panel.panel_ready.connect(_on_panel_ready)
 
-    # Allow event loop to tick once then quit successfully, unless we are waiting for data
-    if not (args.plugin_id and args.data_file and hasattr(panel, "data_ready")) and not (
-        args.plugin_id and args.data_file and hasattr(panel, "panel_ready")
+            def _on_panel_ready_timeout() -> None:
+                if not panel_ready_emitted:
+                    logger.error("Smoke test: timeout reached without panel_ready emission.")
+                    app.quit()
+
+            if not hasattr(panel, "data_ready"):
+                QTimer.singleShot(SMOKE_TEST_TIMEOUT_MS, _on_panel_ready_timeout)
+        else:
+            panel.load_workflow(None, filename=data_file)
+
+    if hasattr(panel, "begin_async_init"):
+        panel.begin_async_init()
+
+    if not (data_file and hasattr(panel, "data_ready")) and not (
+        data_file and hasattr(panel, "panel_ready")
     ):
         QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
     app.exec()
 
-    # Return failure if load_workflow raised an exception
-    if args.plugin_id and args.data_file and hasattr(panel, "panel_ready") and load_workflow_failed:
+    if data_file and hasattr(panel, "panel_ready") and load_workflow_failed:
         logger.error("SMOKE TEST FAILED: load_workflow raised an exception.")
         return 1
 
-    # Return failure if we were expecting data_ready but it never arrived
-    if (
-        args.plugin_id
-        and args.data_file
-        and hasattr(panel, "data_ready")
-        and not data_ready_emitted
-    ):
+    if data_file and hasattr(panel, "data_ready") and not data_ready_emitted:
         logger.error("SMOKE TEST FAILED: data_ready signal was never emitted.")
         return 1
 
@@ -439,10 +428,11 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
     # failed to resolve its own template environment inside the frozen app — it
     # only ever triggers the first time a user renders a biexponential/log axis
     # (e.g. a fluorescence channel), which the default linear scatter view this
-    # smoke test otherwise loads never does. Uses the loaded scatter data
-    # directly rather than driving axis-selector UI, since the bug lives in the
-    # transform call itself, not in how an axis gets selected.
-    if args.plugin_id == "flow_cytometry" and data_ready_emitted:
+    # smoke test otherwise loads never does. Only valid in-process, same reason
+    # as the fcs_io monkeypatch above — flow_cytometry is isolated today, so
+    # this branch is currently unreachable in practice, kept for a future
+    # in-process plugin with the same regression shape.
+    if plugin_id == "flow_cytometry" and data_ready_emitted:
         try:
             import numpy as np
             from karcytics_plugins.flow_cytometry.analysis.transforms import (  # type: ignore[import-untyped, import-not-found]
@@ -457,6 +447,215 @@ def _run_smoke_test(argv: list[str]) -> int:  # noqa: C901, PLR0915
 
     logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
     return 0
+
+
+def _confirm_isolated_daemon_boots(daemon, logger: logging.Logger) -> int:
+    """No data file: confirm the isolated daemon boots and reaches ready, nothing more."""
+    logger.info("No data file provided — confirming the isolated daemon boots and reaches ready.")
+    try:
+        daemon.ensure_started(timeout=SMOKE_TEST_ISOLATED_SPAWN_TIMEOUT_S)
+    except Exception as e:
+        logger.error(f"SMOKE TEST FAILED: isolated daemon failed to start: {e}")
+        return 1
+    logger.info(
+        "Smoke test passed all critical execution paths (isolated plugin, no data). Exiting."
+    )
+    return 0
+
+
+def _inject_and_await_isolated_workflow(
+    daemon,
+    data_file: str,
+    events: list[tuple[str, object]],
+    crashed: dict[str, bool],
+    logger: logging.Logger,
+) -> int:
+    """Inject `data_file` via the real `inject_workflow` RPC.
+
+    Then poll for the worker's async `panel_data_ready`/`workflow_injection_failed`
+    response event.
+    """
+    import time
+
+    from PyQt6.QtWidgets import QApplication
+
+    logger.info(f"Injecting test data file via inject_workflow RPC: {data_file}")
+    try:
+        # payload must be a dict, not None: the worker only treats a
+        # workflow as "pending" (panel_loader.py's `_phase2_finalize`,
+        # mirrored here) when `_deferred_workflow_payload is not None`.
+        # {} is not None and is otherwise unused by the CI direct-FCS
+        # injection branch this filename triggers inside load_workflow().
+        result = daemon.call(
+            "inject_workflow",
+            {"payload": {}, "filename": data_file},
+            timeout=SMOKE_TEST_ISOLATED_SPAWN_TIMEOUT_S,
+        )
+    except Exception as e:
+        logger.error(f"SMOKE TEST FAILED: isolated daemon failed to start or respond: {e}")
+        return 1
+
+    if result.get("status") != "ok":
+        logger.error(f"SMOKE TEST FAILED: inject_workflow request was rejected: {result}")
+        return 1
+
+    deadline = time.monotonic() + (SMOKE_TEST_TIMEOUT_MS / 1000)
+    topics: dict[str, object] = {}
+    while time.monotonic() < deadline:
+        QApplication.processEvents()
+        if crashed["flag"]:
+            break
+        topics = dict(events)
+        if "panel_data_ready" in topics or "workflow_injection_failed" in topics:
+            break
+        time.sleep(0.02)
+
+    if crashed["flag"]:
+        logger.error("SMOKE TEST FAILED: isolated worker process exited unexpectedly.")
+        return 1
+
+    if "workflow_injection_failed" in topics:
+        error = topics["workflow_injection_failed"]
+        logger.error(f"SMOKE TEST FAILED: workflow injection failed: {error}")
+        return 1
+
+    if "panel_data_ready" not in topics:
+        logger.error("SMOKE TEST FAILED: timeout reached without panel_data_ready.")
+        return 1
+
+    logger.info("Smoke test: panel_data_ready received. Isolated plugin loaded data successfully.")
+    logger.info(
+        "Smoke test passed all critical execution paths (isolated plugin). Exiting cleanly."
+    )
+    return 0
+
+
+def _run_smoke_test_isolated(module_manager, plugin_id: str, data_file: str | None) -> int:
+    """Drive an isolated plugin through the real `PluginUIDaemon` protocol.
+
+    Unlike an in-process panel, `module_manager.load_module_ui()` returns a
+    `ModuleStatusWidget` factory for one of these (see
+    `PluginLoaderFactory._load_ui_isolated`), which deliberately has no
+    `load_workflow` at all.
+
+    Requires the caller to have already started `CoreServicesServer`
+    (`_run_smoke_test` does this before dispatching here) — without it, the
+    worker's own startup theme gate (`_confirm_hub_theme_or_exit`) refuses to
+    build any window and exits immediately; see docs/internal/26.
+    """
+    from karcytics_sdk.plugin.daemon import PluginUIDaemon
+    from PyQt6.QtWidgets import QApplication
+
+    logger = logging.getLogger("Karcytics.SmokeTest")
+    # No direct calls on `app` below — event delivery for `daemon.event_received`
+    # only needs *some* QApplication to exist and have processEvents() pumped
+    # (see the polling loop below), not this specific reference. Constructed
+    # here purely for that side effect / to match every other smoke-test path's
+    # QApplication.instance() or QApplication(...) idiom.
+    QApplication.instance() or QApplication(sys.argv)
+
+    logger.info(
+        "Loading isolated plugin UI via the real Hub routing path "
+        "(ModuleManager -> PluginLoaderFactory)..."
+    )
+    PanelClass = module_manager.load_module_ui(plugin_id)  # noqa: N806
+    if PanelClass is None:
+        logger.error(f"SMOKE TEST FAILED: isolated plugin '{plugin_id}' produced no panel factory.")
+        return 1
+
+    daemon = PluginUIDaemon.get_instance(plugin_id)
+    # A raw FCS file is the *first* thing this panel ever loads, same as the
+    # in-process path's `panel.load_workflow(None, filename=data_file)` — so
+    # this must go through the same "reopen with a workflow already queued"
+    # mechanism a real project reopen uses (see
+    # karcytics/ui/windows/workspace/plugin_loader.py's
+    # `_instantiate_isolated_overlay`), not the "module already running"
+    # dynamic-inject path. Without pending_workflow, the panel's own
+    # one-shot `data_ready` fires once for its empty startup state before
+    # our injected file ever loads, and never fires again for the real load.
+    daemon.pending_workflow = bool(data_file)
+
+    events: list[tuple[str, object]] = []
+    daemon.event_received.connect(lambda topic, payload: events.append((topic, payload)))
+    crashed = {"flag": False}
+    daemon.process_exited.connect(lambda: crashed.__setitem__("flag", True))
+
+    # Exercises the real Hub-side widget construction path too — proves
+    # ModuleManager/PluginLoaderFactory routing to an isolated plugin
+    # produces a working ModuleStatusWidget, not just that the daemon
+    # singleton (driven directly below) can be started.
+    PanelClass()
+
+    try:
+        if not data_file:
+            return _confirm_isolated_daemon_boots(daemon, logger)
+        return _inject_and_await_isolated_workflow(daemon, data_file, events, crashed, logger)
+    finally:
+        PluginUIDaemon.stop_instance(plugin_id)
+
+
+def _run_smoke_test(argv: list[str]) -> int:
+    """Run a smoke test for a specified plugin in a headless PyInstaller environment.
+
+    Dispatches to `_run_smoke_test_in_process` or `_run_smoke_test_isolated`
+    based on the plugin's own `process_model` — the two architectures share
+    almost nothing at this level (an isolated `PanelClass()` is a
+    `ModuleStatusWidget`, not the plugin's real panel; see
+    docs/internal/24_Plugin_Communication_Protocol.md), so forcing one code
+    path to cover both silently skipped every isolated-plugin check this
+    used to run, which is exactly the regression this split fixes.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--smoke-test", dest="plugin_id")
+    parser.add_argument("data_file", nargs="?", default=None)
+    args, _ = parser.parse_known_args(argv[1:])
+
+    logger = logging.getLogger("Karcytics.SmokeTest")
+    logger.info(f"--- SMOKE TEST SEQUENCE STARTED FOR {args.plugin_id} ---")
+
+    from karcytics.core.module_manager import ModuleManager
+
+    module_manager = ModuleManager()
+
+    if not args.plugin_id:
+        # Bare boot check: no plugin requested, just prove the app starts.
+        from PyQt6.QtCore import QTimer
+        from PyQt6.QtWidgets import QApplication
+
+        app = QApplication.instance() or QApplication(argv)
+        QTimer.singleShot(SMOKE_TEST_TICK_MS, app.quit)
+        app.exec()
+        logger.info("Smoke test passed all critical execution paths. Exiting cleanly.")
+        return 0
+
+    _install_plugin_for_smoke_test(module_manager, args.plugin_id, logger)
+
+    if args.plugin_id not in module_manager.modules:
+        raise RuntimeError(
+            f"Plugin '{args.plugin_id}' was installed but is not discoverable by ModuleManager."
+        )
+    is_isolated = (
+        module_manager.modules[args.plugin_id]["manifest"].get("process_model") == "isolated"
+    )
+
+    # An isolated plugin's worker calls back into CoreServicesServer for its
+    # startup theme confirmation before it will build any window at all (see
+    # docs/internal/26_Server_Client_Lifecycle.md) — without this, every
+    # isolated smoke test would hang or fail the ready handshake before ever
+    # reaching the plugin's own code. Harmless, and arguably more faithful to
+    # a real boot, for the in-process path too: real `_start_application`
+    # always starts this before loading any plugin.
+    from karcytics.core.core_services_bootstrap import start_core_services
+
+    core_services_server = start_core_services()
+    try:
+        if is_isolated:
+            return _run_smoke_test_isolated(module_manager, args.plugin_id, args.data_file)
+        return _run_smoke_test_in_process(module_manager, args.plugin_id, args.data_file)
+    finally:
+        core_services_server.stop()
 
 
 def main():
