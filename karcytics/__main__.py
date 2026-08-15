@@ -241,6 +241,7 @@ def _install_plugin_for_smoke_test(module_manager, plugin_id: str, logger: loggi
     smoke-test paths — which plugin architecture is in play is decided
     *after* this runs, from the freshly-discovered manifest, not before.
     """
+    from karcytics.core.network.plugin_registry_fetcher import PluginRegistryFetcher
     from karcytics.core.network_updater import NetworkUpdater
 
     updater = NetworkUpdater()
@@ -250,6 +251,24 @@ def _install_plugin_for_smoke_test(module_manager, plugin_id: str, logger: loggi
 
     if not plugin_info:
         raise RuntimeError(f"Plugin {plugin_id} not found in remote registry.")
+
+    # The Distribution index only carries `repo_url` — mirror what the real Store
+    # flow does in PluginRegistryFetcher.fetch_all: enrich name/version from the
+    # plugin's own pyproject.toml, then resolve an actual install URL from its
+    # newest GitHub Release, before handing off to install_plugin.
+    repo_url = plugin_info.get("repo_url")
+    if not repo_url:
+        raise RuntimeError(f"Plugin {plugin_id} has no repo_url in remote registry.")
+
+    manifest = PluginRegistryFetcher.fetch(plugin_id, repo_url)
+    if not manifest:
+        raise RuntimeError(f"Could not fetch pyproject.toml manifest for plugin {plugin_id}.")
+    PluginRegistryFetcher.enrich_entry(plugin_info, manifest)
+
+    download_url = PluginRegistryFetcher.resolve_download_url(plugin_id, repo_url)
+    if not download_url:
+        raise RuntimeError(f"Could not resolve a download URL for plugin {plugin_id}.")
+    plugin_info["download_url"] = download_url
 
     success, msg = updater.install_plugin(plugin_id, plugin_info)
     if not success:
