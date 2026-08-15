@@ -74,7 +74,7 @@ plugin's entry point:
 
 ```python
 services = {
-    "task_scheduler": task_scheduler,   # the real karcytics.core.task_scheduler singleton
+    "task_scheduler": task_scheduler,  # the real karcytics.core.task_scheduler singleton
     "logger": logging.getLogger(f"plugin.{module_id}"),
     # "event_bus" is deliberately absent — not wired up yet, see
     # docs/internal/25, "Migration status".

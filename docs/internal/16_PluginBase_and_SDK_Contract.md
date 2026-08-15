@@ -23,6 +23,7 @@ instance, in practice) is what the Hub inserts into `WorkspaceWindow`:
 # karcytics_plugins/flow_cytometry/__init__.py (the real, current shape)
 from karcytics_sdk.plugin.context import PluginContext
 
+
 def initialize(context: PluginContext) -> Any:
     ...
     return FlowCytometryPanel(plugin_id="flow_cytometry")
@@ -42,14 +43,14 @@ class PluginBase(QWidget):
     def set_state(self, state: PluginState) -> None: ...
 
     # Provided, ready to use:
-    def push_state(self) -> None: ...   # snapshot get_state() into undo history
+    def push_state(self) -> None: ...  # snapshot get_state() into undo history
     def undo(self) -> None: ...
     def redo(self) -> None: ...
     def can_undo(self) -> bool: ...
     def can_redo(self) -> bool: ...
-    def cleanup(self) -> None: ...      # RAII-style resource release via ResourceInspector
-    def publish_event(self, topic: str, data: Any = None) -> None: ...   # CentralEventBus
-    def subscribe_event(self, topic: str, callback) -> None: ...        # CentralEventBus
+    def cleanup(self) -> None: ...  # RAII-style resource release via ResourceInspector
+    def publish_event(self, topic: str, data: Any = None) -> None: ...  # CentralEventBus
+    def subscribe_event(self, topic: str, callback) -> None: ...  # CentralEventBus
 ```
 
 `get_state()`/`set_state()` work in terms of `PluginState`

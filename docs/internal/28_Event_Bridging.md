@@ -135,9 +135,11 @@ somewhere, for a saving that's one dict lookup on a fixed, small set of
 ```python
 def _handle_dispatch_event(kwargs: dict[str, Any]) -> dict[str, Any]:
     from .runtime_services import event_bus
+
     topic = kwargs.get("topic", "")
     event_bus.dispatch_event(topic, kwargs.get("payload"))
     return {"status": "ok"}
+
 
 dispatcher.register("dispatch_event", _handle_dispatch_event)
 ```

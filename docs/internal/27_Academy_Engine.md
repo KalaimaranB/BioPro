@@ -36,6 +36,7 @@ class AcademyEventBus(Protocol):
     def unsubscribe(self, topic: str, callback: Callable[..., Any]) -> None: ...
     def emit(self, topic: str, *args: Any) -> None: ...
 
+
 class AcademyManager:
     def __init__(self, event_bus: AcademyEventBus, persistence_dir: Path) -> None: ...
 ```
@@ -73,14 +74,19 @@ flowchart TB
 ```python
 class _HubAcademyEventBus(AcademyEventBus):
     """topic (str) -> KarcyticsEvent[topic] -> the Hub's real event_bus."""
+
     def subscribe(self, topic, callback):
         event_bus.subscribe(KarcyticsEvent[topic], callback)
+
     def emit(self, topic, *args):
         event_bus.emit(KarcyticsEvent[topic], *args)
+
     # unsubscribe mirrors subscribe
+
 
 class HubAcademyManager(AcademyManager):
     """Adds start_core_intro() — Hub-only content, no business in the SDK."""
+
 
 hub_academy_event_bus = _HubAcademyEventBus()
 global_tutorial_manager = HubAcademyManager(
@@ -97,6 +103,7 @@ class _LocalAcademyEventBus:
     explicit tuple, never collapsed to a bare value or None (a single None
     argument, e.g. current_step after a course completes, must stay
     distinguishable from "zero arguments")."""
+
 
 academy_event_bus = _LocalAcademyEventBus()
 tutorial_manager = AcademyManager(
