@@ -102,7 +102,6 @@ a = Analysis(
         ('karcytics/themes', 'themes'),
         ('karcytics/resources/fonts', 'resources/fonts'),
         ('karcytics/ui/styles', 'karcytics/ui/styles'),
-        ('karcytics/ui/widgets/galactic_loader.qml', 'karcytics/ui/widgets'),
         ('karcytics/shared', 'karcytics/shared'),
         ('karcytics/plugins', 'karcytics/plugins'),
         ('karcytics/tutorials/assets', 'karcytics/tutorials/assets'),
