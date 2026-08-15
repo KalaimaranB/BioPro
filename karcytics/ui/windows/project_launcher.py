@@ -202,12 +202,12 @@ class ProjectLauncherWindow(QMainWindow):
         right_layout.addLayout(title_layout)
 
         # 3. Broadened Subtitles
-        self.lbl_subtitle = QLabel("The Extensible Karcytics Analysis Platform")
+        self.lbl_subtitle = QLabel("Next-Generation Cellular Informatics")
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setObjectName("LauncherSubtitle")
         right_layout.addWidget(self.lbl_subtitle)
 
-        self.lbl_desc = QLabel("Modular · Open-Source · Python-Powered")
+        self.lbl_desc = QLabel("Cross-Platform · Extensible · Python-Powered")
         self.lbl_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_desc.setObjectName("LauncherDesc")
         right_layout.addWidget(self.lbl_desc)
