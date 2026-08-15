@@ -1,3 +1,15 @@
 #!/usr/bin/env bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Define paths for local development repository and BioPro's plugin directory
+DEV_PLUGIN="/Users/samarthgupta/Documents/Biopro/GitHub_projects/BioPro-Synthetic-Biology-main"
+TARGET_PLUGIN="$HOME/.biopro/plugins/synthetic_biology"
+
+# Symlink dev folder into BioPro plugins directory if it exists
+if [ -d "$DEV_PLUGIN" ]; then
+    mkdir -p "$HOME/.biopro/plugins"
+    rm -rf "$TARGET_PLUGIN"
+    ln -s "$DEV_PLUGIN" "$TARGET_PLUGIN"
+fi
+
 exec "$SCRIPT_DIR/.venv/bin/python" -m biopro "$@"

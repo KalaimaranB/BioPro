@@ -1,5 +1,6 @@
 """Plugin Loader Manager for WorkspaceWindow."""
 
+
 import logging
 
 from PyQt6.QtCore import QObject, QThread, pyqtSignal, pyqtSlot
@@ -652,7 +653,8 @@ class PluginLoaderManager:
             plugin_name = mod_info.get("manifest", {}).get("name", module_id)
             if plugin_dir:
                 from pathlib import Path
-                from biopro.ui.dialogs.dependency_installer_dialog import DependencyInstallerDialog
+
+                from karcytics.ui.dialogs.dependency_installer_dialog import DependencyInstallerDialog
 
                 installer = DependencyInstallerDialog(Path(plugin_dir), plugin_name, parent=mw)
                 if installer.exec():
