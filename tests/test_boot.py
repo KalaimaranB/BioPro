@@ -2,21 +2,21 @@ import sys
 import unittest
 from pathlib import Path
 
-# Add the project root to sys.path so we can import biopro
+# Add the project root to sys.path so we can import karcytics
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from biopro_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_manager import TrustManager
 
-from biopro.core.config import AppConfig
-from biopro.core.module_manager import ModuleManager
+from karcytics.core.config import AppConfig
+from karcytics.core.module_manager import ModuleManager
 
 
-class TestBioProBoot(unittest.TestCase):
+class TestKarcyticsBoot(unittest.TestCase):
     """Smoke tests to verify the core application can boot without crashes."""
 
     def setUp(self):
-        # We use the real AppConfig but it targets ~/.biopro which should be writable
+        # We use the real AppConfig but it targets ~/.karcytics which should be writable
         self.config = AppConfig()
 
     def test_trust_manager_write_access(self):
@@ -24,7 +24,7 @@ class TestBioProBoot(unittest.TestCase):
         tm = TrustManager()
         # Create a dummy plugin path
         dummy_plugin = (
-            project_root / "biopro" / "plugins" / "sdk_utils.py"
+            project_root / "karcytics" / "plugins" / "sdk_utils.py"
         )  # Use an existing file as a path
 
         try:

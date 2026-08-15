@@ -1,6 +1,6 @@
 # Core Architecture Overview (Event Bus)
 
-BioPro utilizes an Event-Driven Architecture (EDA) to decouple system components. Modules such as the Plugin Store, Workspace, and Core Storage communicate via a central event bus rather than direct method invocations.
+Karcytics utilizes an Event-Driven Architecture (EDA) to decouple system components. Modules such as the Plugin Store, Workspace, and Core Storage communicate via a central event bus rather than direct method invocations.
 
 ---
 
@@ -18,50 +18,59 @@ graph LR
 
 ---
 
-## The Event Bus Implementation (`biopro.core.event_bus`)
+## The Event Bus Implementation (`karcytics.core.event_bus`)
 
 The global event bus is instantiated as a singleton `event_bus`.
 
-### 1. The `BioProEvent` Enumeration
+### 1. The `KarcyticsEvent` Enumeration
 Events are strongly typed using a central `Enum` to prevent string-matching errors and enable static analysis.
 
 | Event | Trigger Condition | Expected Payload |
 | :--- | :--- | :--- |
 | `PLUGIN_INSTALLED` | A plugin package is added and verified. | `plugin_id: str` |
 | `PLUGIN_REMOVED` | A plugin package is deleted. | `plugin_id: str` |
-| `PROJECT_LOADED` | A `.biopro` project is opened. | `path: str` |
+| `PROJECT_LOADED` | A `.karcytics` project is opened. | `path: str` |
 | `THEME_CHANGED` | The global UI theme is updated. | `theme_name: str` |
 
 ### 2. Subscribing to Events
 UI components typically register their callbacks during initialization.
 
 ```python
-from biopro.core.event_bus import event_bus, BioProEvent
+from karcytics.core.event_bus import event_bus, KarcyticsEvent
 
 
 class MyDashboard(QWidget):
     def __init__(self):
         super().__init__()
-        event_bus.subscribe(BioProEvent.PLUGIN_INSTALLED, self._on_plugin_added)
+        event_bus.subscribe(KarcyticsEvent.PLUGIN_INSTALLED, self._on_plugin_added)
 
     def _on_plugin_added(self, plugin_id: str):
         self.refresh()
 ```
 
 ### 3. Emitting Events
-Event emission is thread-safe. BioPro utilizes PyQt6's signal queuing mechanism to ensure callbacks are executed on the Main UI Thread, preventing cross-thread UI updates.
+Event emission is thread-safe. Karcytics utilizes PyQt6's signal queuing mechanism to ensure callbacks are executed on the Main UI Thread, preventing cross-thread UI updates.
 
 ```python
 def install_plugin(id):
     # Perform background tasks...
-    event_bus.emit(BioProEvent.PLUGIN_INSTALLED, id)
+    event_bus.emit(KarcyticsEvent.PLUGIN_INSTALLED, id)
 ```
 
 ---
 
+## Reaching an isolated plugin
+
+Everything above is this process's own in-memory bus — an isolated plugin
+(`process_model = "isolated"`, see `docs/internal/24_Plugin_Communication_Protocol.md`)
+runs in a separate OS process and never touches `event_bus` directly. It can
+still opt into hearing a specific `KarcyticsEvent` topic via
+`docs/internal/28_Event_Bridging.md`'s `event.subscribe`/`dispatch_event`
+bridge — scoped per topic, not a blanket forward of everything emitted here.
+
 ## Diagnostic Engine
 
-BioPro includes a `biopro.core.diagnostics` module for error tracking and application state logging.
+Karcytics includes a `karcytics.core.diagnostics` module for error tracking and application state logging.
 
 ### 1. In-Memory Event Buffer
 The engine maintains a ring buffer of the most recent system events, network requests, and state transitions.
@@ -73,7 +82,7 @@ The core overrides `sys.excepthook`. Upon an unhandled exception:
 3. The `ERROR_OCCURRED` event is emitted.
 
 ### 3. Plugin Logging Integration
-Plugins utilizing the standard `biopro.sdk.utils.logging` interface have their logs automatically piped into the diagnostic buffer.
+Plugins utilizing the standard `karcytics.sdk.utils.logging` interface have their logs automatically piped into the diagnostic buffer.
 
 ---
 
@@ -84,7 +93,7 @@ Invoking `emit()` from a background worker thread queues the signal within the Q
 
 ```python
 class EventManager(QObject):
-    _internal_bus = pyqtSignal(BioProEvent, tuple, dict)
+    _internal_bus = pyqtSignal(KarcyticsEvent, tuple, dict)
 
     def emit(self, event_type, *args, **kwargs):
         self._internal_bus.emit(event_type, args, kwargs)

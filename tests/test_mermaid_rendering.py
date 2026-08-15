@@ -5,8 +5,8 @@ from PyQt6.QtWidgets import QApplication
 
 @pytest.fixture
 def help_view(qtbot):
-    """Fixture that builds a QWebEngineView with the BioPro help logic."""
-    from biopro.ui.dialogs.help_dialog import HelpCenterDialog
+    """Fixture that builds a QWebEngineView with the Karcytics help logic."""
+    from karcytics.ui.dialogs.help_dialog import HelpCenterDialog
 
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
@@ -41,7 +41,7 @@ def test_mermaid_svg_generation(help_view, qtbot):
 
     html_content = markdown.markdown(md_content, extensions=["fenced_code", "tables", "codehilite"])
 
-    assets_path = Path(__file__).parents[1] / "biopro" / "ui" / "assets"
+    assets_path = Path(__file__).parents[1] / "karcytics" / "ui" / "assets"
     # Build HTML using the same f-string escaping as help_dialog.py
     base_url = QUrl.fromLocalFile(str(assets_path) + "/")
     styled_html = f"""

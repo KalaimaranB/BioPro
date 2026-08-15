@@ -16,7 +16,7 @@ def _dict_to_toml(d):
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if authors:
@@ -35,7 +35,7 @@ def _dict_to_toml(d):
 
     deps = d.get("dependencies") or d.get("python_dependencies")
     if deps:
-        lines.append("[tool.biopro.plugin.python_dependencies]")
+        lines.append("[tool.karcytics.plugin.python_dependencies]")
         for k, v in deps.items():
             lines.append(f'{k} = "{v}"')
 
@@ -46,8 +46,8 @@ import sys
 from io import StringIO
 from pathlib import Path
 
-from biopro_sdk.host import TrustManager
-from biopro_sdk.sdk_cli import SDKCLI
+from karcytics_sdk.host import TrustManager
+from karcytics_sdk.sdk_cli import SDKCLI
 
 
 def test_trust_manager_ignore_list():
@@ -64,7 +64,7 @@ def test_evaluate_plugin_no_dependencies(tmp_path: Path):
         "name": "Test Plugin",
         "version": "1.0.0",
         "description": "Just a test",
-        "authors": [{"name": "BioPro Developer", "role": "Developer"}],
+        "authors": [{"name": "Karcytics Developer", "role": "Developer"}],
     }
     with open(tmp_path / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(_dict_to_toml(manifest))
@@ -93,7 +93,7 @@ def test_evaluate_plugin_pinned_dependencies(tmp_path: Path):
         "name": "Test Plugin",
         "version": "1.0.0",
         "description": "Just a test",
-        "authors": [{"name": "BioPro Developer", "role": "Developer"}],
+        "authors": [{"name": "Karcytics Developer", "role": "Developer"}],
         "dependencies": {
             "scipy": "1.11.3",
             "opencv-python-headless": "4.8.0.76",
@@ -127,7 +127,7 @@ def test_evaluate_plugin_unpinned_dependencies(tmp_path: Path):
         "name": "Test Plugin",
         "version": "1.0.0",
         "description": "Just a test",
-        "authors": [{"name": "BioPro Developer", "role": "Developer"}],
+        "authors": [{"name": "Karcytics Developer", "role": "Developer"}],
         "dependencies": {
             "scipy": ">=1.11.3",
         },

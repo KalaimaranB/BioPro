@@ -1,9 +1,9 @@
-"""Tests for biopro.core.plugin_sdk module."""
+"""Tests for karcytics.core.plugin_sdk module."""
 
 from dataclasses import dataclass
 from typing import Any
 
-from biopro_sdk.plugin import (
+from karcytics_sdk.plugin import (
     AnalysisBase,
     AnalysisWorker,
     PluginBase,

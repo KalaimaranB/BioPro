@@ -1,4 +1,4 @@
-"""Tests for biopro.core.module_manager plugin discovery."""
+"""Tests for karcytics.core.module_manager plugin discovery."""
 
 import sys
 from pathlib import Path
@@ -6,9 +6,9 @@ from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
-from biopro_sdk.host.trust_manager import VerificationResult
+from karcytics_sdk.host.trust_manager import VerificationResult
 
-from biopro.core.module_manager import ModuleManager
+from karcytics.core.module_manager import ModuleManager
 
 MOCK_TRUST_RESULT = VerificationResult(success=True, trust_level="verified_mock")
 
@@ -40,7 +40,7 @@ def _dict_to_toml(d):  # noqa: C901
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if "icon" in d:
@@ -89,7 +89,7 @@ def make_v2_manifest(plugin_id: str, name: str, icon: str = "🧪") -> dict:
 def mock_plugin_environment(tmp_path, monkeypatch):
     """Creates a temporary environment for plugin discovery tests."""
     fake_home = tmp_path / "home"
-    user_plugins = fake_home / ".biopro" / "plugins"
+    user_plugins = fake_home / ".karcytics" / "plugins"
     user_plugins.mkdir(parents=True)
 
     plugin_dir = user_plugins / "test_module_a"
@@ -107,7 +107,7 @@ class TestModuleManager:
     def test_module_discovery(self, mock_plugin_environment):
         """Verifies that the manager finds V2 modules in the user plugins directory."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -120,7 +120,7 @@ class TestModuleManager:
     def test_get_available_modules(self, mock_plugin_environment):
         """Verifies that get_available_modules returns a list of manifest dicts."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -135,7 +135,7 @@ class TestModuleManager:
         """Tests the hot-reload capability when plugins are added or removed."""
         mock_strategy = MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT))
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=mock_strategy,
         ):
             mm = ModuleManager()
@@ -160,7 +160,7 @@ class TestModuleManager:
             f.write("{ invalid json... }")
 
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -171,7 +171,7 @@ class TestModuleManager:
     def test_load_module_ui_untrusted_blocked(self, mock_plugin_environment):
         """Verifies that an untrusted module cannot be loaded."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(
                 verify=MagicMock(
                     return_value=VerificationResult(success=False, trust_level="untrusted")
@@ -195,7 +195,7 @@ class TestModuleManager:
     def test_load_module_ui_missing_venv_raises_dependency_error(self, mock_plugin_environment):
         """Verifies that loading a verified module with missing dependencies raises a specific error."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(
                 verify=MagicMock(
                     return_value=VerificationResult(success=True, trust_level="verified_cache")
@@ -210,7 +210,7 @@ class TestModuleManager:
     def test_load_module_ui_already_loaded(self, mock_plugin_environment):
         """Verifies that subsequent calls to load_module_ui use the cached plugin reference."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -246,7 +246,7 @@ class TestModuleManager:
                 pass
 
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -261,7 +261,7 @@ class TestModuleManager:
 
         plugin_instance = DummyPlugin()
         with (
-            patch("biopro.core.plugins.environment.PluginEnvironmentInjector.inject_path"),
+            patch("karcytics.core.plugins.environment.PluginEnvironmentInjector.inject_path"),
             patch("importlib.import_module", return_value=plugin_instance),
         ):
             mm.load_module_ui("test_module_a")
@@ -300,7 +300,7 @@ class TestModuleManager:
             return plugin_instance
 
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -315,7 +315,7 @@ class TestModuleManager:
 
         try:
             with (
-                patch("biopro.core.plugins.environment.PluginEnvironmentInjector.inject_path"),
+                patch("karcytics.core.plugins.environment.PluginEnvironmentInjector.inject_path"),
                 patch("importlib.import_module", side_effect=fake_import),
             ):
                 mm.load_module_ui("test_module_a")
@@ -331,7 +331,7 @@ class TestModuleManager:
         """Verifies unload_module() invokes the SDK's documented cleanup()/shutdown()
         contract and resets the module's loaded state."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -353,7 +353,7 @@ class TestModuleManager:
         """unload_module() must purge exactly the recorded owned set — nothing else
         in sys.modules should be touched."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -376,7 +376,7 @@ class TestModuleManager:
         """Calling unload_module() on a module that isn't currently loaded must be
         a safe no-op (e.g. a stale/duplicate call from the UI layer)."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -387,7 +387,7 @@ class TestModuleManager:
 
     def test_unload_module_unknown_id_is_noop(self, mock_plugin_environment):
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -395,9 +395,9 @@ class TestModuleManager:
         mm.unload_module("does_not_exist")  # must not raise
 
     def test_load_module_ui_invalid_interface(self, mock_plugin_environment):
-        """Verifies that a module not implementing the BioProPlugin interface is rejected."""
+        """Verifies that a module not implementing the KarcyticsPlugin interface is rejected."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -412,11 +412,82 @@ class TestModuleManager:
 
         mock_module = MagicMock()
         with (
-            patch("biopro.core.plugins.environment.PluginEnvironmentInjector.inject_path"),
+            patch("karcytics.core.plugins.environment.PluginEnvironmentInjector.inject_path"),
             patch("importlib.import_module", return_value=mock_module),
             pytest.raises(TypeError, match="Missing required hooks"),
         ):
             mm.load_module_ui("test_module_a")
+
+    def test_load_module_ui_isolated_never_imports_plugin_package(self, mock_plugin_environment):
+        """The actual isolation proof: an isolated module's load must never
+        call importlib.import_module for the plugin's own package, and the
+        Hub's sys.modules must never gain an entry for it — this is the
+        mechanism (not just a config flag) that makes switching between two
+        isolated modules unable to corrupt shared C-extension state.
+        """
+        with patch(
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mm.modules["test_module_a"]["manifest"]["process_model"] = "isolated"
+
+        venv_bin = (
+            mm.modules["test_module_a"]["path"]
+            / ".venv"
+            / ("Scripts" if sys.platform == "win32" else "bin")
+        )
+        venv_bin.mkdir(parents=True, exist_ok=True)
+        (venv_bin / ("python.exe" if sys.platform == "win32" else "python3")).touch()
+
+        with patch("importlib.import_module") as mock_import:
+            panel_factory = mm.load_module_ui("test_module_a")
+
+        mock_import.assert_not_called()
+        assert "karcytics.plugins.test_module_a" not in sys.modules
+        assert callable(panel_factory)
+        assert mm.modules["test_module_a"]["loaded"] is True
+
+    def test_unload_module_isolated_stops_daemon_not_purge(self, mock_plugin_environment):
+        """Isolated unload must go through PluginUIDaemon.stop_instance(), not
+        the sys.modules purge machinery — there's nothing in the Hub's own
+        sys.modules to purge for a module that was never imported."""
+        with patch(
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mm.modules["test_module_a"]["manifest"]["process_model"] = "isolated"
+        mm.modules["test_module_a"]["loaded"] = True
+
+        with patch("karcytics_sdk.plugin.daemon.PluginUIDaemon.stop_instance") as mock_stop:
+            mm.unload_module("test_module_a")
+
+        mock_stop.assert_called_once_with("test_module_a")
+        assert mm.modules["test_module_a"]["loaded"] is False
+
+    def test_reload_modules_stops_running_isolated_daemons(self, mock_plugin_environment):
+        """reload_modules() discards and rebuilds self.modules from scratch —
+        for an isolated plugin that's currently running, its daemon process
+        is tracked separately (PluginUIDaemon._instances) and would
+        otherwise be orphaned: still running, but with no entry in the
+        freshly rebuilt registry pointing back to it.
+        """
+        with patch(
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
+        ):
+            mm = ModuleManager()
+
+        mm.modules["test_module_a"]["manifest"]["process_model"] = "isolated"
+        mm.modules["test_module_a"]["loaded"] = True
+
+        with patch("karcytics_sdk.plugin.daemon.PluginUIDaemon.stop_instance") as mock_stop:
+            mm.reload_modules()
+
+        mock_stop.assert_called_once_with("test_module_a")
 
     def test_trust_module_flow(self, mock_plugin_environment):
         """Tests the manual trust-override flow for a module."""
@@ -424,7 +495,7 @@ class TestModuleManager:
             success=False, trust_level="untrusted", calculated_hashes={"file.py": "hash"}
         )
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=untrusted_result)),
         ):
             mm = ModuleManager()
@@ -442,7 +513,7 @@ class TestModuleManager:
     def test_trust_module_reverify_if_missing_hashes(self, mock_plugin_environment):
         """Ensures that trust_module re-verifies the plugin if hashes are not already cached."""
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()
@@ -509,7 +580,7 @@ class TestModuleHotswap:
         between Flow Cytometry and Synthetic Biology.
         """
         fake_home = tmp_path / "home"
-        user_plugins = fake_home / ".biopro" / "plugins"
+        user_plugins = fake_home / ".karcytics" / "plugins"
         user_plugins.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: fake_home)
 
@@ -541,7 +612,7 @@ class TestModuleHotswap:
         site_packages_a, site_packages_b = hotswap_env
 
         with patch(
-            "biopro.core.plugins.discovery.TrustStrategyFactory.get_strategy",
+            "karcytics.core.plugins.discovery.TrustStrategyFactory.get_strategy",
             return_value=MagicMock(verify=MagicMock(return_value=MOCK_TRUST_RESULT)),
         ):
             mm = ModuleManager()

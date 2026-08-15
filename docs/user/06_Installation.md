@@ -1,32 +1,32 @@
 # Installation
 
-BioPro is distributed as a desktop application with a lightweight plugin ecosystem. The core application is installed once, and analysis modules are added later from the in-app Plugin Store.
+Karcytics is distributed as a desktop application with a lightweight plugin ecosystem. The core application is installed once, and analysis modules are added later from the in-app Plugin Store.
 
 ---
 
-## Downloading BioPro
+## Downloading Karcytics
 
 ![1786425455778](image/06_Installation/1786425455778.png)
 
 Use the official GitHub Releases page for the latest stable downloads:
 
-* [BioPro Releases](https://github.com/KalaimaranB/BioPro/releases)
+* [Karcytics Releases](https://github.com/KalaimaranB/Karcytics/releases)
 
 Look for the latest asset that matches your platform:
 
-* `BioPro-Windows.zip` for Windows
-* `BioPro-macOS.tar.gz` for macOS
+* `Karcytics-Windows.zip` for Windows
+* `Karcytics-macOS.tar.gz` for macOS
 
 > [!NOTE]
-> If you are using BioPro from source or a development build, follow the instructions in the repository README instead of the packaged installer workflow.
+> If you are using Karcytics from source or a development build, follow the instructions in the repository README instead of the packaged installer workflow.
 
 ---
 
 ## Windows Installation
 
-1. Download `BioPro-Windows.zip` from the latest GitHub release.
-2. Extract the ZIP archive to a folder you control (for example, `C:\Users\<you>\Documents\BioPro`).
-3. Open the extracted folder and double-click `BioPro.exe` to launch the application.
+1. Download `Karcytics-Windows.zip` from the latest GitHub release.
+2. Extract the ZIP archive to a folder you control (for example, `C:\Users\<you>\Documents\Karcytics`).
+3. Open the extracted folder and double-click `Karcytics.exe` to launch the application.
 4. If Windows SmartScreen warns that the app is unrecognized, choose **More info** and then **Run anyway** only if you trust the source.
 
 > [!NOTE]
@@ -34,36 +34,36 @@ Look for the latest asset that matches your platform:
 
 ### First launch on Windows
 
-* The first time you launch BioPro, it will create application state in your home directory under `~/.biopro`.
+* The first time you launch Karcytics, it will create application state in your home directory under `~/.karcytics`.
 * This folder stores installed plugins, logs, trusted developer keys, and recent project history.
 
 ---
 
 ## macOS Installation
 
-1. Download `BioPro-macOS.tar.gz` from the latest GitHub release.
-2. Double-click the downloaded file to extract the `BioPro.app` bundle.
-3. Drag `BioPro.app` into your **Applications** folder.
-4. Open `BioPro.app` from Applications.
+1. Download `Karcytics-macOS.tar.gz` from the latest GitHub release.
+2. Double-click the downloaded file to extract the `Karcytics.app` bundle.
+3. Drag `Karcytics.app` into your **Applications** folder.
+4. Open `Karcytics.app` from Applications.
 
 ### macOS security and Gatekeeper
 
-macOS may display a warning the first time you open BioPro because it is not notarized by Apple’s App Store.
+macOS may display a warning the first time you open Karcytics because it is not notarized by Apple’s App Store.
 
-* Right-click (or Control-click) `BioPro.app` and choose **Open**.
+* Right-click (or Control-click) `Karcytics.app` and choose **Open**.
 * In the security warning, click **Open** again to allow the app to run.
-* If that does not work, open **System Settings > Privacy & Security**, then click **Open Anyway** for BioPro.
+* If that does not work, open **System Settings > Privacy & Security**, then click **Open Anyway** for Karcytics.
 
 > [!WARNING]
-> Only override Gatekeeper for BioPro if you downloaded the app from the official repository and release page.
+> Only override Gatekeeper for Karcytics if you downloaded the app from the official repository and release page.
 
 ---
 
 ## Installing Analysis Modules
 
-BioPro itself is a host application. The actual analysis tools are delivered as plugins and installed from within the app.
+Karcytics itself is a host application. The actual analysis tools are delivered as plugins and installed from within the app.
 
-1. Launch BioPro.
+1. Launch Karcytics.
 2. From the Project Hub, click **☁️ Marketplace**.
 3. Browse or search for the analysis module you want.
 4. Click **Install** to download and enable the plugin.
@@ -74,7 +74,7 @@ BioPro itself is a host application. The actual analysis tools are delivered as 
 
 ### Core application updates
 
-BioPro checks for new core application versions automatically when the Hub starts. If a new version is available, an update banner appears at the top of the Hub.
+Karcytics checks for new core application versions automatically when the Hub starts. If a new version is available, an update banner appears at the top of the Hub.
 
 * Click **Download Now** in the banner to open the latest release page.
 * Click **Skip This Version** if you want to stay on your current release temporarily.
@@ -83,15 +83,15 @@ BioPro checks for new core application versions automatically when the Hub start
 
 ## Supported Platforms
 
-BioPro is designed for modern Windows and macOS systems. Linux builds may be available through source installation and developer distributions, but the primary supported packages are Windows and macOS.
+Karcytics is designed for modern Windows and macOS systems. Linux builds may be available through source installation and developer distributions, but the primary supported packages are Windows and macOS.
 
 ---
 
 ## Troubleshooting installation
 
-* If the app does not start, check that the downloaded archive extracted completely and that `BioPro.exe` or `BioPro.app` is present.
+* If the app does not start, check that the downloaded archive extracted completely and that `Karcytics.exe` or `Karcytics.app` is present.
 * If the app cannot write to its data folder, verify your user account has permission to access your home directory.
 * If a plugin fails to install from the Marketplace, make sure you have an active internet connection and that the release page is reachable.
 
 > [!NOTE]
-> Application logs are stored in `~/.biopro/biopro.log` and can be viewed from the Help menu once BioPro is running.
+> Application logs are stored in `~/.karcytics/karcytics.log` and can be viewed from the Help menu once Karcytics is running.

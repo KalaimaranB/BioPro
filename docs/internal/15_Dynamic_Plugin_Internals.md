@@ -1,20 +1,20 @@
 # Dynamic Plugin Internals
 
-BioPro's extensibility relies on runtime discovery, verification, and dynamic loading of Python packages. The `ModuleManager` coordinates the loading of third-party code into the core application.
+Karcytics's extensibility relies on runtime discovery, verification, and dynamic loading of Python packages. The `ModuleManager` coordinates the loading of third-party code into the core application.
 
 ---
 
 ## Plugin Discovery and Namespaces
 
-BioPro scans for plugins in two primary locations:
-1.  **Internal Directory**: Bundled core modules (e.g., within the application package `biopro/plugins`).
-2.  **User Directory**: Modules installed manually or via the store (typically `~/.biopro/plugins`).
+Karcytics scans for plugins in two primary locations:
+1.  **Internal Directory**: Bundled core modules (e.g., within the application package `karcytics/plugins`).
+2.  **User Directory**: Modules installed manually or via the store (typically `~/.karcytics/plugins`).
 
 ### The Unified Namespace
-BioPro dynamically configures Python's module resolution to merge these distinct directories into a unified `biopro.plugins` virtual namespace. This enables standard import syntax regardless of physical location:
+Karcytics dynamically configures Python's module resolution to merge these distinct directories into a unified `karcytics.plugins` virtual namespace. This enables standard import syntax regardless of physical location:
 
 ```python
-import biopro.plugins.custom_module
+import karcytics.plugins.custom_module
 ```
 
 ---
@@ -26,14 +26,14 @@ When a user initiates an Analysis Module, the `ModuleManager` executes the follo
 1.  **Manifest Verification**: The module's `manifest.json` is parsed to validate API compatibility and version constraints.
 2.  **Security Handover**: The `TrustManager` evaluates the plugin's cryptographic signature and validates file hashes against the manifest.
 3.  **Dynamic Import**: The `importlib` library is utilized to dynamically import the verified package into the active Python interpreter.
-4.  **Interface Validation**: BioPro verifies that the loaded module implements the required `BioProPlugin` interfaces (e.g., `get_panel_class()`).
+4.  **Interface Validation**: Karcytics verifies that the loaded module implements the required `KarcyticsPlugin` interfaces (e.g., `get_panel_class()`).
 5.  **UI Integration**: The plugin's main widget class is instantiated and integrated into the `WorkspaceWindow` layout.
 
 ---
 
 ## Hot-Reloading Support
 
-BioPro supports dynamic module reloading without requiring a full application restart, facilitating rapid plugin development.
+Karcytics supports dynamic module reloading without requiring a full application restart, facilitating rapid plugin development.
 
 When the Event Bus broadcasts a `PLUGIN_INSTALLED` or `PLUGIN_UPDATED` event:
 1.  The `ModuleManager` invalidates its internal cache for the target plugin.
@@ -43,7 +43,7 @@ When the Event Bus broadcasts a `PLUGIN_INSTALLED` or `PLUGIN_UPDATED` event:
 
 ---
 
-## API Reference (`biopro.core.module_manager`)
+## API Reference (`karcytics.core.module_manager`)
 
 ### `ModuleManager(trust_manager)`
 Coordinates plugin discovery and manages the virtual namespace.

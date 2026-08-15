@@ -19,7 +19,7 @@ def _dict_to_toml(d):
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if authors:
@@ -40,10 +40,10 @@ def _dict_to_toml(d):
 
 
 import pytest
-from biopro_sdk.host.trust_manager import TrustManager
-from biopro_sdk.host.trust_path import TrustChain, TrustLink
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from karcytics_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_path import TrustChain, TrustLink
 
 
 class MockAuthorityAndSigner:
@@ -147,7 +147,7 @@ def sign_mock_plugin(plugin_dir, manifest_data, dev_certs, mock_auth):
             TrustLink(
                 subject_name=dev["name"],
                 subject_pub=dev["pub_hex"],
-                issuer_name="BioPro Core Authority",
+                issuer_name="Karcytics Core Authority",
                 signature=dev["signature"],
             )
         )

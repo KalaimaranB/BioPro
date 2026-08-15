@@ -1,7 +1,7 @@
 import logging
 
-from biopro.core.diagnostics import BlackBoxHandler, DiagnosticEngine
-from biopro.core.event_bus import BioProEvent, event_bus
+from karcytics.core.diagnostics import BlackBoxHandler, DiagnosticEngine
+from karcytics.core.event_bus import KarcyticsEvent, event_bus
 
 
 def test_black_box_capacity():
@@ -33,7 +33,7 @@ def test_error_reporting(qtbot):
     def on_error(data):
         received_data.append(data)
 
-    event_bus.subscribe(BioProEvent.ERROR_OCCURRED, on_error)
+    event_bus.subscribe(KarcyticsEvent.ERROR_OCCURRED, on_error)
 
     try:
         raise ValueError("Test Error")
@@ -71,12 +71,12 @@ def test_listener_exception_does_not_trigger_recursive_reporting(qtbot: Any) -> 
         call_count["n"] += 1
         raise TypeError("simulated setFont() failure")
 
-    event_bus.subscribe(BioProEvent.ERROR_OCCURRED, broken_listener)
+    event_bus.subscribe(KarcyticsEvent.ERROR_OCCURRED, broken_listener)
     try:
         engine.report_error("trigger", plugin_id="test_plugin")
         qtbot.wait(_LISTENER_FAILURE_WAIT_MS)
     finally:
-        event_bus.unsubscribe(BioProEvent.ERROR_OCCURRED, broken_listener)
+        event_bus.unsubscribe(KarcyticsEvent.ERROR_OCCURRED, broken_listener)
 
     # Without the fix this listener is invoked recursively (>1, until the
     # recursion limit). With the fix, exactly once — its own failure never

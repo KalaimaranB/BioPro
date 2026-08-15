@@ -19,7 +19,7 @@ def _dict_to_toml(d):
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if authors:
@@ -43,10 +43,10 @@ def _dict_to_toml(d):
     return "\n".join(lines)
 
 
-from biopro_sdk.host.trust_manager import TrustManager
-from biopro_sdk.plugin.managed_task import FunctionalTask
+from karcytics_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.plugin.managed_task import FunctionalTask
 
-from biopro.core.task_scheduler import task_scheduler
+from karcytics.core.task_scheduler import task_scheduler
 
 from .test_trust_architecture import PluginSigner
 

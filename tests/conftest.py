@@ -52,7 +52,7 @@ def pytest_sessionfinish(session, exitstatus):
 @pytest.fixture
 def temp_config_dir(tmp_path, monkeypatch):
     """Provide a temporary config directory for tests."""
-    config_dir = tmp_path / ".biopro" / "plugin_configs"
+    config_dir = tmp_path / ".karcytics" / "plugin_configs"
     config_dir.mkdir(parents=True, exist_ok=True)
 
     # Mock the config directory location
@@ -67,7 +67,7 @@ def cleanup_plugin_configs():
     yield
 
     # Cleanup: remove test config files
-    config_base = Path.home() / ".biopro" / "plugin_configs"
+    config_base = Path.home() / ".karcytics" / "plugin_configs"
     if config_base.exists():
         for file in config_base.glob("*test*.json"):
             file.unlink(missing_ok=True)

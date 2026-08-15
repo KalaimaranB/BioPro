@@ -14,10 +14,10 @@ import pytest
 @pytest.fixture
 def mock_config(tmp_path):
     """A real AppConfig backed by a temp dir so skip persistence is testable."""
-    from biopro.core.config import AppConfig
+    from karcytics.core.config import AppConfig
 
     config = AppConfig.__new__(AppConfig)
-    config.config_dir = tmp_path / ".biopro"
+    config.config_dir = tmp_path / ".karcytics"
     config.config_file = config.config_dir / "config.json"
     config.data = {"recent_projects": [], "ai_enabled": True}
     return config
@@ -31,7 +31,7 @@ def mock_updater_with_update():
         True,
         {
             "version": "2.0.0",
-            "download_url": "https://github.com/KalaimaranB/BioPro/releases",
+            "download_url": "https://github.com/KalaimaranB/Karcytics/releases",
             "notes": "- feat: something new",
         },
     )
@@ -62,21 +62,21 @@ class TestUpdateCheckerEmitsEvent:
     def test_emits_event_when_update_available(
         self, mock_updater_with_update, mock_config, mock_event_bus
     ):
-        from biopro.core.event_bus import BioProEvent
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.event_bus import KarcyticsEvent
+        from karcytics.core.update_checker import UpdateChecker
 
         checker = UpdateChecker(mock_updater_with_update, mock_config, mock_event_bus)
         checker.check_and_notify()
 
         mock_event_bus.emit.assert_called_once_with(
-            BioProEvent.CORE_UPDATE_AVAILABLE,
+            KarcyticsEvent.CORE_UPDATE_AVAILABLE,
             "2.0.0",
-            "https://github.com/KalaimaranB/BioPro/releases",
+            "https://github.com/KalaimaranB/Karcytics/releases",
             "- feat: something new",
         )
 
     def test_no_emit_when_up_to_date(self, mock_updater_up_to_date, mock_config, mock_event_bus):
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.update_checker import UpdateChecker
 
         checker = UpdateChecker(mock_updater_up_to_date, mock_config, mock_event_bus)
         checker.check_and_notify()
@@ -86,7 +86,7 @@ class TestUpdateCheckerEmitsEvent:
     def test_no_emit_when_version_is_skipped(
         self, mock_updater_with_update, mock_config, mock_event_bus
     ):
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.update_checker import UpdateChecker
 
         # Pre-skip the version that the updater will report
         mock_config.data["skipped_update_version"] = "2.0.0"
@@ -100,8 +100,8 @@ class TestUpdateCheckerEmitsEvent:
         self, mock_updater_with_update, mock_config, mock_event_bus
     ):
         """If a newer version ships after the user skipped an old one, notify again."""
-        from biopro.core.event_bus import BioProEvent
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.event_bus import KarcyticsEvent
+        from karcytics.core.update_checker import UpdateChecker
 
         # User previously skipped 1.5.0, but now 2.0.0 is out
         mock_config.data["skipped_update_version"] = "1.5.0"
@@ -110,15 +110,15 @@ class TestUpdateCheckerEmitsEvent:
         checker.check_and_notify()
 
         mock_event_bus.emit.assert_called_once_with(
-            BioProEvent.CORE_UPDATE_AVAILABLE,
+            KarcyticsEvent.CORE_UPDATE_AVAILABLE,
             "2.0.0",
-            "https://github.com/KalaimaranB/BioPro/releases",
+            "https://github.com/KalaimaranB/Karcytics/releases",
             "- feat: something new",
         )
 
     def test_no_emit_when_updater_raises(self, mock_config, mock_event_bus):
         """UpdateChecker must swallow network errors gracefully — never crash the app."""
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.update_checker import UpdateChecker
 
         broken_updater = MagicMock()
         broken_updater.check_for_core_updates.side_effect = Exception("Network unreachable")
@@ -136,7 +136,7 @@ class TestUpdateCheckerSkipVersion:
     def test_skip_version_persists_to_config(
         self, mock_updater_up_to_date, mock_config, mock_event_bus
     ):
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.update_checker import UpdateChecker
 
         checker = UpdateChecker(mock_updater_up_to_date, mock_config, mock_event_bus)
         checker.skip_version("2.0.0")
@@ -146,7 +146,7 @@ class TestUpdateCheckerSkipVersion:
     def test_is_version_skipped_false_for_unset(
         self, mock_updater_up_to_date, mock_config, mock_event_bus
     ):
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.update_checker import UpdateChecker
 
         checker = UpdateChecker(mock_updater_up_to_date, mock_config, mock_event_bus)
 
@@ -155,7 +155,7 @@ class TestUpdateCheckerSkipVersion:
     def test_is_version_skipped_true_after_skip(
         self, mock_updater_up_to_date, mock_config, mock_event_bus
     ):
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.update_checker import UpdateChecker
 
         checker = UpdateChecker(mock_updater_up_to_date, mock_config, mock_event_bus)
         checker.skip_version("2.0.0")
@@ -165,7 +165,7 @@ class TestUpdateCheckerSkipVersion:
     def test_is_version_skipped_false_for_different_version(
         self, mock_updater_up_to_date, mock_config, mock_event_bus
     ):
-        from biopro.core.update_checker import UpdateChecker
+        from karcytics.core.update_checker import UpdateChecker
 
         checker = UpdateChecker(mock_updater_up_to_date, mock_config, mock_event_bus)
         checker.skip_version("1.5.0")

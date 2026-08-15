@@ -1,7 +1,7 @@
-from biopro_sdk.host import AIAssistant, AIServerManager
+from karcytics_sdk.host import AIAssistant, AIServerManager
 from PyQt6.QtCore import Qt
 
-from biopro.ui.components.ai_panel import AIChatWindow
+from karcytics.ui.components.ai_panel import AIChatWindow
 
 # --- Backend Tests ---
 
@@ -9,14 +9,16 @@ from biopro.ui.components.ai_panel import AIChatWindow
 def test_ai_assistant_history(monkeypatch):
     """Ensure the assistant correctly maintains conversation history."""
 
-    # Mock requests.post in the biopro.sdk.core.ai module
+    # Mock requests.post in the karcytics.sdk.core.ai module
     class MockResponse:
         status_code = 200
 
         def json(self):
             return {"choices": [{"message": {"content": "I am Gemma 4"}}]}
 
-    monkeypatch.setattr("biopro_sdk.host.ai.requests.post", lambda *args, **kwargs: MockResponse())
+    monkeypatch.setattr(
+        "karcytics_sdk.host.ai.requests.post", lambda *args, **kwargs: MockResponse()
+    )
 
     assistant = AIAssistant()
     assert len(assistant.history) == 0
@@ -74,7 +76,7 @@ def test_ai_server_manager_port_check(monkeypatch):
 
 def test_ai_chat_window_context_defaults(qtbot, monkeypatch):
     """Verify that context checkboxes change based on the active module."""
-    monkeypatch.setattr("biopro.ui.components.ai_panel.ai_manager.is_running", lambda: True)
+    monkeypatch.setattr("karcytics.ui.components.ai_panel.ai_manager.is_running", lambda: True)
     # Scenario 1: No module (Project Launcher)
     window_no_mod = AIChatWindow(current_module_id=None)
     qtbot.addWidget(window_no_mod)
@@ -91,7 +93,7 @@ def test_ai_chat_window_context_defaults(qtbot, monkeypatch):
 
 def test_ai_chat_window_clear_logic(qtbot, monkeypatch):
     """Test that the Clear button resets both UI and backend history."""
-    monkeypatch.setattr("biopro.ui.components.ai_panel.ai_manager.is_running", lambda: True)
+    monkeypatch.setattr("karcytics.ui.components.ai_panel.ai_manager.is_running", lambda: True)
     window = AIChatWindow()
     qtbot.addWidget(window)
 
@@ -108,7 +110,7 @@ def test_ai_chat_window_clear_logic(qtbot, monkeypatch):
 
 def test_ai_chat_window_send_logic(qtbot, monkeypatch):
     """Ensure the send button triggers the background task correctly."""
-    monkeypatch.setattr("biopro.ui.components.ai_panel.ai_manager.is_running", lambda: True)
+    monkeypatch.setattr("karcytics.ui.components.ai_panel.ai_manager.is_running", lambda: True)
     window = AIChatWindow()
     qtbot.addWidget(window)
     window.show()

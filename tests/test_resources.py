@@ -6,10 +6,10 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from biopro.core.resource_manager import resource_path
+from karcytics.core.resource_manager import resource_path
 
 
-class TestBioProResources(unittest.TestCase):
+class TestKarcyticsResources(unittest.TestCase):
     """Verifies that all critical assets and themes are present and solvable."""
 
     def test_core_icon_exists(self):
@@ -26,14 +26,14 @@ class TestBioProResources(unittest.TestCase):
             self.assertTrue(path.exists(), f"CRITICAL: Theme file missing: {t}")
 
     def test_path_resolution_integrity(self):
-        """Ensure resource_path isn't returning 'phantom' paths in biopro/ subfolders."""
+        """Ensure resource_path isn't returning 'phantom' paths in karcytics/ subfolders."""
         # Test a known internal file
-        path = resource_path("biopro/core/config.py")
+        path = resource_path("karcytics/core/config.py")
         self.assertTrue(path.exists(), "resource_path failed to resolve an internal core module")
 
     def test_demo_tutorial_file_exists(self):
         """Verify the demo FCS file is resolvable for the onboarding tour."""
-        path = resource_path("biopro/tutorials/assets/demo_tutorial.fcs")
+        path = resource_path("karcytics/tutorials/assets/demo_tutorial.fcs")
         self.assertTrue(path.exists(), f"CRITICAL: Demo file missing at {path}")
 
 

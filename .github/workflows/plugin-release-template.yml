@@ -1,11 +1,11 @@
-name: BioPro Plugin Release Template
+name: Karcytics Plugin Release Template
 
 on:
   workflow_call:
     secrets:
-      BIOPRO_PROJECT_PRIVATE_KEY:
+      KARCYTICS_PROJECT_PRIVATE_KEY:
         required: true
-        description: "The Ed25519 private key used to sign the plugin manifest. Registered as a Project Entity in the BioPro Trust System."
+        description: "The Ed25519 private key used to sign the plugin manifest. Registered as a Project Entity in the Karcytics Trust System."
 
 jobs:
   validate-and-release:
@@ -30,23 +30,23 @@ jobs:
         run: uv run pytest
 
       - name: Validate Plugin Structure
-        run: uv run biopro sdk evaluate .
+        run: uv run karcytics sdk evaluate .
 
       - name: Setup Project Signing Key
         run: |
-          mkdir -p ~/.biopro
-          echo "${{ secrets.BIOPRO_PROJECT_PRIVATE_KEY }}" > ~/.biopro/dev_private_key.pem
-          chmod 600 ~/.biopro/dev_private_key.pem
+          mkdir -p ~/.karcytics
+          echo "${{ secrets.KARCYTICS_PROJECT_PRIVATE_KEY }}" > ~/.karcytics/dev_private_key.pem
+          chmod 600 ~/.karcytics/dev_private_key.pem
           # Initialize the local chain and cert using the project key
-          uv run biopro sdk init-identity --project
+          uv run karcytics sdk init-identity --project
 
       - name: Sign Plugin Release
         run: |
-          uv run biopro sdk sign .
+          uv run karcytics sdk sign .
 
       - name: Package Release
         run: |
-          PLUGIN_ID=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['tool']['biopro']['plugin']['id'])")
+          PLUGIN_ID=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['tool']['karcytics']['plugin']['id'])")
           zip -r ${PLUGIN_ID}.zip . -x "*.git*" -x "*__pycache__*" -x "*.venv*"
 
       - name: Publish GitHub Release

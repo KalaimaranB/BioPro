@@ -6,7 +6,7 @@ This document provides developers with specifications for signing plugins, confi
 
 ## Signature Verification Model
 
-BioPro utilizes an asymmetric signature model. A distributed plugin must satisfy verification against the `TrustManager`.
+Karcytics utilizes an asymmetric signature model. A distributed plugin must satisfy verification against the `TrustManager`.
 
 The core validation relies on the **Developer Signature** (`signature.bin`), which is an Ed25519 signature generated over the canonical byte representation of the `security.json` ledger.
 Some organizational pipelines may also enforce a **Project CI Co-Signature** (`project_signature.bin`) to validate automated testing compliance.
@@ -19,9 +19,9 @@ Developers require an Ed25519 keypair to sign plugins.
 
 ### Using the CLI
 ```bash
-biopro-sign init
+karcytics-sdk init-identity
 ```
-This populates `~/.biopro/dev_keys/` with your credentials.
+`karcytics_sdk/cli/commands/security.py`'s `init_identity()`, via `PluginSigner.init_identity()`.
 
 ### Programmatic Generation (Python)
 If integrating into automated systems, use the `cryptography` library:
@@ -70,11 +70,11 @@ To prevent manual errors, the signing process can be automated within Continuous
 ```yaml
       - name: Execute Project Signing
         env:
-          BIOPRO_PRIVATE_KEY: ${{ secrets.BIOPRO_PRIVATE_KEY }}
+          KARCYTICS_PROJECT_PRIVATE_KEY: ${{ secrets.KARCYTICS_PROJECT_PRIVATE_KEY }}
         run: |
           for dir in plugins/*/; do
             if [ -d "$dir" ]; then
-              biopro-sign project-sign "$dir"
+              karcytics-sdk project-sign "$dir"
             fi
           done
 ```

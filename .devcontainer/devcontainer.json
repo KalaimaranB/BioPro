@@ -1,5 +1,5 @@
 {
-    "name": "BioPro Plugin Workspace",
+    "name": "Karcytics Plugin Workspace",
     "image": "mcr.microsoft.com/devcontainers/python:3.11",
     "features": {
         "ghcr.io/devcontainers/features/github-cli:1": {}
@@ -18,5 +18,5 @@
             }
         }
     },
-    "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.cargo/bin:$PATH\" && uv venv && uv pip install -e .[dev] biopro-sdk"
+    "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && export PATH=\"$HOME/.cargo/bin:$PATH\" && uv venv && uv pip install -e .[dev] karcytics-sdk"
 }

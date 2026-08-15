@@ -1,6 +1,6 @@
 # Tutorial: First Analysis
 
-This tutorial walks through a simple BioPro analysis from selecting a module to reviewing results.
+This tutorial walks through a simple Karcytics analysis from selecting a module to reviewing results.
 
 ---
 
@@ -10,7 +10,7 @@ Start from the Project Hub:
 
 1. Open a recent project from the left panel, or click **📁 Open Project...**.
 2. If you are new, click **✨ Create New Project** and choose a project folder.
-3. Verify the project directory contains a `project.biopro` file before continuing.
+3. Verify the project directory contains a `project.karcytics` file before continuing.
 
 ---
 
@@ -22,7 +22,7 @@ From the Home Screen, select an analysis module card.
 * Installed modules appear in the Hub automatically.
 
 > [!NOTE]
-> If a module is blocked, untrusted, or outdated, BioPro will show a warning and guide you to the Plugin Store for resolution.
+> If a module is blocked, untrusted, or outdated, Karcytics will show a warning and guide you to the Plugin Store for resolution.
 
 ---
 
@@ -68,7 +68,7 @@ Workspace modules are best for exploratory tasks and workflows that require mult
 
 ## Step 5: Use Undo / Redo
 
-BioPro preserves edit history for many modules.
+Karcytics preserves edit history for many modules.
 
 * Use **Ctrl+Z** (Windows) or **Cmd+Z** (macOS) to undo.
 * Use **Ctrl+Y** or **Shift+Ctrl+Z** to redo.
@@ -84,14 +84,14 @@ BioPro preserves edit history for many modules.
 When your work is complete:
 
 * Choose **Close Project & Return to Hub** from the workspace toolbar.
-* BioPro saves the project before returning to the Hub.
+* Karcytics saves the project before returning to the Hub.
 
-If the app closes unexpectedly, a stale `.biopro.lock` file may remain. Remove it only when you are sure no other instance of BioPro is using the project.
+If the app closes unexpectedly, a stale `.karcytics.lock` file may remain. Remove it only when you are sure no other instance of Karcytics is using the project.
 
 ---
 
 ## Next Steps
 
 * [Plugin Store & Security](07_Plugin_Store_and_Security.md) — Install modules and manage trust.
-* [Project Management](04_Project_Management.md) — Learn how BioPro stores your data.
+* [Project Management](04_Project_Management.md) — Learn how Karcytics stores your data.
 * [FAQ & Troubleshooting](05_FAQ_Troubleshooting.md) — Diagnose problems and view logs.

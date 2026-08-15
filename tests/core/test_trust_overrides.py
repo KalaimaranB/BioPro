@@ -2,14 +2,14 @@
 
 from pathlib import Path
 
-from biopro_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_manager import TrustManager
 
 from tests.core.test_trust_architecture import PluginSigner
 
 
 def test_manual_lock_workflow(tmp_path, monkeypatch):
     """Verify that a user can 'Lock' a tampered plugin to make it trusted locally."""
-    # Isolate trust_overrides from real ~/.biopro so tests don't pollute each other
+    # Isolate trust_overrides from real ~/.karcytics so tests don't pollute each other
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
     plugin_dir = tmp_path / "custom_plugin"
@@ -22,7 +22,7 @@ version = "1.0.0"
 description = "Custom Plugin desc"
 authors = [ { name = "Developer Alice" } ]
 
-[tool.biopro.plugin]
+[tool.karcytics.plugin]
 id = "custom_plugin"
 authors = [ { name = "Developer Alice", role = "Developer" } ]
 """
@@ -64,7 +64,7 @@ authors = [ { name = "Developer Alice", role = "Developer" } ]
 
 
 def test_multi_root_trust():
-    """Verify that TrustManager trusts custom roots in ~/.biopro/trusted_roots."""
+    """Verify that TrustManager trusts custom roots in ~/.karcytics/trusted_roots."""
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ed25519
 
@@ -78,7 +78,7 @@ def test_multi_root_trust():
     assert custom_root_pub not in manager.trusted_roots
 
     # Add to trusted_roots dir (Mocking the directory)
-    roots_dir = Path.home() / ".biopro" / "trusted_roots"
+    roots_dir = Path.home() / ".karcytics" / "trusted_roots"
     roots_dir.mkdir(parents=True, exist_ok=True)
 
     key_path = roots_dir / "test_root.pub"

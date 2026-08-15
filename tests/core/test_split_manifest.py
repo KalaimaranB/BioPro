@@ -16,7 +16,7 @@ def _dict_to_toml(d):
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if authors:
@@ -37,8 +37,8 @@ def _dict_to_toml(d):
 
 
 import pytest
-from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
-from biopro_sdk.plugin.security_parser import (
+from karcytics_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
+from karcytics_sdk.plugin.security_parser import (
     SecurityParser,
     SecurityValidationError,
 )

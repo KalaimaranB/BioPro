@@ -1,6 +1,6 @@
-"""Tests for biopro.core.history_manager module."""
+"""Tests for karcytics.core.history_manager module."""
 
-from biopro.core.history_manager import HistoryManager, ModuleHistory
+from karcytics.core.history_manager import HistoryManager, ModuleHistory
 
 
 class TestModuleHistory:

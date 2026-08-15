@@ -1,21 +1,21 @@
 # Getting Started
 
-This guide helps you launch BioPro for the first time, create or open a project, and find the main controls in the Project Hub.
+This guide helps you launch Karcytics for the first time, create or open a project, and find the main controls in the Project Hub.
 
 ---
 
 ## Before You Begin
 
-If BioPro is not yet installed, start with the [Installation](06_Installation.md) page first.
+If Karcytics is not yet installed, start with the [Installation](06_Installation.md) page first.
 
-BioPro stores its application data in your home folder under `~/.biopro`. This includes installed plugins, trusted developer keys, logs, and recent project settings.
+Karcytics stores its application data in your home folder under `~/.karcytics`. This includes installed plugins, trusted developer keys, logs, and recent project settings.
 
 ---
 
-## Launching BioPro
+## Launching Karcytics
 
-1. Open BioPro from your operating system’s application launcher or the extracted installation folder.
-2. On first launch, BioPro displays the **Project Hub**.
+1. Open Karcytics from your operating system’s application launcher or the extracted installation folder.
+2. On first launch, Karcytics displays the **Project Hub**.
 3. The Hub is where you select a project, install plugins, and access help.
 
 > [!NOTE]
@@ -35,12 +35,12 @@ The Project Hub has two primary areas:
 ### What you can do from the Hub
 
 * **Create New Project** — Start a new saved workspace for your experiment.
-* **Open Project** — Select an existing BioPro project directory.
+* **Open Project** — Select an existing Karcytics project directory.
 * **☁️ Marketplace** — Install and manage analysis modules.
 * **🎓 Academy** — Launch Cyto’s guided learning experience for beginner onboarding and module tutorials.
 
 > [!NOTE]
-> The Hub also displays update notifications when a new BioPro core version is available.
+> The Hub also displays update notifications when a new Karcytics core version is available.
 
 ---
 
@@ -51,36 +51,36 @@ The Project Hub has two primary areas:
 3. Choose a folder on your computer where the project will live.
 4. Confirm to create the project.
 
-BioPro saves every project as a directory containing:
+Karcytics saves every project as a directory containing:
 
-* `project.biopro` — the main project state file.
+* `project.karcytics` — the main project state file.
 * `assets/` — managed assets such as images and attachments.
 * `workflows/` — saved workflow snapshots produced by analysis modules.
-* `.biopro.lock` — a temporary lock file created while the project is open.
+* `.karcytics.lock` — a temporary lock file created while the project is open.
 
 > [!WARNING]
-> Do not open the same project in more than one instance of BioPro at the same time.
+> Do not open the same project in more than one instance of Karcytics at the same time.
 
 ---
 
 ## Opening an Existing Project
 
 1. Click **📁 Open Project...**.
-2. Navigate to the project folder that contains `project.biopro`.
+2. Navigate to the project folder that contains `project.karcytics`.
 3. Select the folder and open it.
 
-If another instance of BioPro is already using the project, the app will warn you and prevent the second open to avoid data corruption.
+If another instance of Karcytics is already using the project, the app will warn you and prevent the second open to avoid data corruption.
 
-If BioPro crashed previously and left a stale lock file, you may safely remove `.biopro.lock` from the project folder before reopening.
+If Karcytics crashed previously and left a stale lock file, you may safely remove `.karcytics.lock` from the project folder before reopening.
 
 ---
 
 ## Navigating the Help Center
 
-BioPro includes a built-in Help Center for offline documentation.
+Karcytics includes a built-in Help Center for offline documentation.
 
 * Press **F1** to open the Help Center from any workspace.
-* In the Help menu, choose **📖 BioPro Help Center**.
+* In the Help menu, choose **📖 Karcytics Help Center**.
 * Use the **Restart Onboarding Tour** action under Help if you want to replay the guided introduction.
 
 ---

@@ -1,11 +1,11 @@
-"""Tests for ProjectLauncherWindow (BioPro Hub)."""
+"""Tests for ProjectLauncherWindow (Karcytics Hub)."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from biopro.ui.windows.project_launcher import ProjectLauncherWindow
+from karcytics.ui.windows.project_launcher import ProjectLauncherWindow
 
 
 class TestProjectLauncher:
@@ -18,31 +18,31 @@ class TestProjectLauncher:
         mock_hub_cb = MagicMock()
 
         # Prevent perform_startup_check from blocking during init (it uses timers)
-        with patch("biopro.ui.windows.project_launcher.QTimer.singleShot"):
+        with patch("karcytics.ui.windows.project_launcher.QTimer.singleShot"):
             win = ProjectLauncherWindow(mock_mm, mock_updater, mock_store_cb, mock_hub_cb)
             qtbot.addWidget(win)
             return win
 
     def test_launcher_initialization(self, launcher):
         """Verify window titles and branding elements."""
-        assert "BioPro Hub" in launcher.windowTitle()
-        assert launcher.lbl_title.text() == "BioPro"
+        assert "Karcytics Hub" in launcher.windowTitle()
+        assert launcher.lbl_title.text() == "Karcytics™"
         assert launcher.lbl_badge.text() == "BETA"
 
-    @patch("biopro.ui.windows.project_launcher.AppConfig")
+    @patch("karcytics.ui.windows.project_launcher.AppConfig")
     def test_load_recent_projects(self, mock_config_class, launcher):
         """Verify that recent projects from config are listed."""
         mock_config = mock_config_class.return_value
-        temp_proj = Path("fake_project.biopro")
+        temp_proj = Path("fake_project.karcytics")
         mock_config.get_recent_projects.return_value = [str(temp_proj.parent)]
 
         with patch.object(Path, "exists", return_value=True):
             launcher._load_recent_projects()
             assert launcher.list_recent.count() == 1
 
-    @patch("biopro.ui.windows.project_launcher.QInputDialog.getText")
-    @patch("biopro.ui.windows.project_launcher.QFileDialog.getExistingDirectory")
-    @patch("biopro.ui.windows.project_launcher.ProjectManager")
+    @patch("karcytics.ui.windows.project_launcher.QInputDialog.getText")
+    @patch("karcytics.ui.windows.project_launcher.QFileDialog.getExistingDirectory")
+    @patch("karcytics.ui.windows.project_launcher.ProjectManager")
     def test_on_new_project_flow(self, mock_pm_class, mock_file_dig, mock_input_dig, launcher):
         """Verify successful project creation flow."""
         with patch.object(launcher, "_launch_workspace"):
@@ -51,8 +51,8 @@ class TestProjectLauncher:
             launcher._on_new_project()
             mock_pm_class.assert_called_once()
 
-    @patch("biopro.ui.windows.project_launcher.QFileDialog.getExistingDirectory")
-    @patch("biopro.ui.windows.project_launcher.ProjectManager")
+    @patch("karcytics.ui.windows.project_launcher.QFileDialog.getExistingDirectory")
+    @patch("karcytics.ui.windows.project_launcher.ProjectManager")
     def test_on_open_project_flow(self, mock_pm_class, mock_file_dig, launcher):
         """Verify successful project opening flow."""
         with patch.object(launcher, "_launch_workspace"):
@@ -60,8 +60,8 @@ class TestProjectLauncher:
             launcher._on_open_project()
             mock_pm_class.assert_called_once()
 
-    @patch("biopro.ui.windows.project_launcher.WorkspaceWindow")
-    @patch("biopro.ui.windows.project_launcher.AppConfig")
+    @patch("karcytics.ui.windows.project_launcher.WorkspaceWindow")
+    @patch("karcytics.ui.windows.project_launcher.AppConfig")
     def test_launch_workspace_transition(self, mock_config_class, mock_workspace_class, launcher):
         """Verify transition from Hub to Workspace."""
         mock_pm = MagicMock(project_dir=Path("/fake/proj"))

@@ -1,8 +1,11 @@
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
-from biopro.core.package_manager import PackageManager
-from biopro.ui.workers.plugin_dependency_installer import PluginDependencyInstallerWorker
+import pytest
+
+from karcytics.core.package_manager import PackageManager
+from karcytics.ui.workers.plugin_dependency_installer import PluginDependencyInstallerWorker
 
 
 def test_package_manager_default_init(monkeypatch, tmp_path):
@@ -10,11 +13,11 @@ def test_package_manager_default_init(monkeypatch, tmp_path):
     fake_home = tmp_path / "home"
     monkeypatch.setattr(Path, "home", lambda: fake_home)
     pm = PackageManager()
-    assert ".biopro" in str(pm.cache_dir)
+    assert ".karcytics" in str(pm.cache_dir)
     assert pm.cache_dir.exists()
 
 
-@patch("biopro.core.package_manager.PackageManager.resolve_and_install_all")
+@patch("karcytics.core.package_manager.PackageManager.resolve_and_install_all")
 def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
     """Verify that PluginDependencyInstallerWorker successfully runs in background and processes manifest dependencies."""
     cache_dir = tmp_path / "cache"
@@ -24,8 +27,8 @@ def test_plugin_installer_worker(mock_resolve, tmp_path: Path):
     with open(plugin_dir / "pyproject.toml", "w", encoding="utf-8") as f:
         f.write(
             '[project]\nname = "my_plugin"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
-            '[tool.biopro.plugin]\nid = "my_plugin"\nauthors = [{name = "author", role = "Developer"}]\n'
-            '[tool.biopro.plugin.python_dependencies]\nscipy = "1.11.3"\n'
+            '[tool.karcytics.plugin]\nid = "my_plugin"\nauthors = [{name = "author", role = "Developer"}]\n'
+            '[tool.karcytics.plugin.python_dependencies]\nscipy = "1.11.3"\n'
         )
 
     worker = PluginDependencyInstallerWorker(plugin_dir, cache_dir=cache_dir)
@@ -51,7 +54,7 @@ def test_worker_no_deps(tmp_path):
     plugin_dir.mkdir()
     (plugin_dir / "pyproject.toml").write_text(
         '[project]\nname = "test"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
-        '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
+        '[tool.karcytics.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
     )
     with patch.object(PluginDependencyInstallerWorker, "finished") as mock_finished:
         worker = PluginDependencyInstallerWorker(plugin_dir)
@@ -65,8 +68,8 @@ def test_worker_exception(tmp_path):
     plugin_dir.mkdir()
     (plugin_dir / "pyproject.toml").write_text(
         '[project]\nname = "test"\nversion = "1.0.0"\ndescription = "desc"\nauthors = [{name = "author"}]\n'
-        '[tool.biopro.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
-        '[tool.biopro.plugin.python_dependencies]\na = "1"\n'
+        '[tool.karcytics.plugin]\nid = "test"\nauthors = [{name = "author", role = "Developer"}]\n'
+        '[tool.karcytics.plugin.python_dependencies]\na = "1"\n'
     )
     with patch.object(PluginDependencyInstallerWorker, "finished") as mock_finished:
         worker = PluginDependencyInstallerWorker(plugin_dir)
@@ -141,3 +144,121 @@ def test_resolve_bundled_uv_unix(monkeypatch, tmp_path):
         # Verify uv was used
         args = mock_run.call_args_list[0][0][0]
         assert args[0] == str(bin_dir / "uv")
+
+
+class _FakeDaemon:
+    """Stands in for `karcytics_sdk.plugin.daemon.PluginDaemon` — `_run_selftest`
+    only needs `ensure_started`/`call`/`shutdown`, so these tests exercise
+    `PackageManager`'s own control flow (skip when no daemon script is present,
+    wrap a bad ping response or a failed handshake into a RuntimeError, always
+    shut the daemon down) without spawning a real subprocess.
+    """
+
+    instances: list["_FakeDaemon"] = []
+
+    def __init__(self, plugin_id: str, daemon_script_path: Path | None = None) -> None:
+        self.plugin_id = plugin_id
+        self.daemon_script_path = daemon_script_path
+        self.ensure_started_error: Exception | None = None
+        self.call_result: dict[str, Any] = {"status": "pong"}
+        self.call_error: Exception | None = None
+        self.shutdown_called = False
+        _FakeDaemon.instances.append(self)
+
+    def ensure_started(self, timeout: float = 30.0) -> None:  # noqa: ARG002
+        if self.ensure_started_error is not None:
+            raise self.ensure_started_error
+
+    def call(self, method: str, kwargs: dict, timeout: float = 120.0) -> dict:  # noqa: ARG002
+        if self.call_error is not None:
+            raise self.call_error
+        return self.call_result
+
+    def shutdown(self) -> None:
+        self.shutdown_called = True
+
+
+@pytest.fixture(autouse=True)
+def _reset_fake_daemon_instances():
+    _FakeDaemon.instances = []
+    yield
+    _FakeDaemon.instances = []
+
+
+def _make_isolated_plugin_dir(tmp_path: Path, plugin_id: str) -> Path:
+    plugin_dir = tmp_path / plugin_id
+    daemon_worker = (
+        plugin_dir / "src" / "karcytics_plugins" / plugin_id / "analysis" / "daemon_worker.py"
+    )
+    daemon_worker.parent.mkdir(parents=True)
+    daemon_worker.touch()
+    return plugin_dir
+
+
+def test_run_selftest_skips_when_no_daemon_script_found(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("karcytics_sdk.plugin.daemon.PluginDaemon", _FakeDaemon)
+
+    plugin_dir = tmp_path / "no_daemon_plugin"
+    plugin_dir.mkdir()
+
+    PackageManager._run_selftest(plugin_dir)
+
+    assert _FakeDaemon.instances == []
+
+
+def test_run_selftest_passes_on_pong(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("karcytics_sdk.plugin.daemon.PluginDaemon", _FakeDaemon)
+
+    plugin_dir = _make_isolated_plugin_dir(tmp_path, "flow_cytometry")
+
+    PackageManager._run_selftest(plugin_dir)
+
+    assert len(_FakeDaemon.instances) == 1
+    daemon = _FakeDaemon.instances[0]
+    assert daemon.plugin_id == "flow_cytometry"
+    assert daemon.shutdown_called is True
+
+
+def test_run_selftest_raises_on_unexpected_ping_response(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("karcytics_sdk.plugin.daemon.PluginDaemon", _FakeDaemon)
+
+    plugin_dir = _make_isolated_plugin_dir(tmp_path, "flow_cytometry")
+
+    def _install_bad_response(
+        plugin_id: str, daemon_script_path: Path | None = None
+    ) -> _FakeDaemon:
+        daemon = _FakeDaemon(plugin_id, daemon_script_path)
+        daemon.call_result = {"status": "unexpected"}
+        return daemon
+
+    monkeypatch.setattr("karcytics_sdk.plugin.daemon.PluginDaemon", _install_bad_response)
+
+    with pytest.raises(RuntimeError, match="self-test failed"):
+        PackageManager._run_selftest(plugin_dir)
+
+
+def test_run_selftest_raises_and_still_shuts_down_when_handshake_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plugin_dir = _make_isolated_plugin_dir(tmp_path, "flow_cytometry")
+
+    created: list[_FakeDaemon] = []
+
+    def _install_failing_handshake(
+        plugin_id: str, daemon_script_path: Path | None = None
+    ) -> _FakeDaemon:
+        daemon = _FakeDaemon(plugin_id, daemon_script_path)
+        daemon.ensure_started_error = RuntimeError("failed ready handshake")
+        created.append(daemon)
+        return daemon
+
+    monkeypatch.setattr("karcytics_sdk.plugin.daemon.PluginDaemon", _install_failing_handshake)
+
+    with pytest.raises(RuntimeError, match="self-test failed"):
+        PackageManager._run_selftest(plugin_dir)
+
+    assert created[0].shutdown_called is True

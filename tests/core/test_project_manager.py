@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from biopro.core.project_manager import ProjectLockedError, ProjectManager
+from karcytics.core.project_manager import ProjectLockedError, ProjectManager
 
 
 @pytest.fixture
@@ -29,9 +29,9 @@ class TestProjectManager:
         pm.create_new("My Project")
 
         assert empty_project_dir.exists()
-        assert (empty_project_dir / "project.biopro").exists()
+        assert (empty_project_dir / "project.karcytics").exists()
         assert (empty_project_dir / "assets").exists()
-        assert (empty_project_dir / ".biopro.lock").exists()
+        assert (empty_project_dir / ".karcytics.lock").exists()
         assert pm.data["project_name"] == "My Project"
 
     def test_open_project_locks(self, empty_project_dir):
@@ -211,7 +211,7 @@ class TestProjectManager:
         # Setup with a fixed name for predictable assertion
         proj_dir = empty_project_dir
         proj_dir.mkdir()
-        with open(proj_dir / "project.biopro", "w", encoding="utf-8") as f:
+        with open(proj_dir / "project.karcytics", "w", encoding="utf-8") as f:
             f.write('{ "project_name": "Broken", corrupted... }')
 
         pm = ProjectManager(proj_dir)
@@ -272,7 +272,7 @@ class TestProjectManager:
             patch.object(
                 open_project.assets, "compute_hash", side_effect=RuntimeError("Hash fail")
             ),
-            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+            patch("karcytics.core.diagnostics.diagnostics.report_error") as mock_diag,
             pytest.raises(RuntimeError),
         ):
             open_project.add_image(p, copy_to_workspace=True)
@@ -328,7 +328,7 @@ class TestProjectManager:
             pm.create_new("Duplicate")
 
     def test_open_project_missing_file(self, tmp_path):
-        """Verify that open_project fails if the biopro file is missing."""
+        """Verify that open_project fails if the karcytics file is missing."""
         pm = ProjectManager(tmp_path / "not_a_project")
         with pytest.raises(FileNotFoundError):
             pm.open_project()
@@ -350,7 +350,7 @@ class TestProjectManager:
         # Mock os.replace to fail
         with (
             patch("os.replace", side_effect=RuntimeError("Fatal FS error")),
-            patch("biopro.core.diagnostics.diagnostics.report_error") as mock_diag,
+            patch("karcytics.core.diagnostics.diagnostics.report_error") as mock_diag,
             pytest.raises(OSError),
         ):
             pm.save()

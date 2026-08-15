@@ -1,5 +1,5 @@
 import pytest
-from biopro_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
+from karcytics_sdk.plugin.manifest_parser import ManifestParser, ManifestValidationError
 
 
 def test_manifest_v2_valid_parsing():

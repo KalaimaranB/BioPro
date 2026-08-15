@@ -1,4 +1,4 @@
-name: BioPro CI/CD Pipeline
+name: Karcytics CI/CD Pipeline
 
 on:
   push:
@@ -26,30 +26,33 @@ jobs:
       - name: Checkout Code
         uses: "actions/checkout@v4"
         with:
-          fetch-depth: 2
+          fetch-depth: 1
 
       - name: Version Check
         id: version-check
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           NEW_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
-          echo "version=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          TAG="v$NEW_VERSION"
+          echo "version=$TAG" >> $GITHUB_OUTPUT
           if [[ "$NEW_VERSION" =~ [a-zA-Z] ]]; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
           else
             echo "prerelease=false" >> $GITHUB_OUTPUT
           fi
           if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-            if [ $(git rev-list --count HEAD) -eq 1 ]; then
-              echo "changed=true" >> $GITHUB_OUTPUT
+            # A version only "ships" once a GitHub Release for its tag actually exists.
+            # Checking existence (instead of diffing pyproject.toml against the parent
+            # commit) means a promotion that fails build/test can be retried by simply
+            # pushing a fix at the SAME version — no artificial patch bump required just
+            # to get CI to try again. An already-shipped tag is still left alone.
+            if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "Release $TAG already exists — nothing to build."
             else
-              git checkout HEAD^ -- pyproject.toml
-              OLD_VERSION=$(grep -m 1 'version =' pyproject.toml | cut -d '"' -f 2)
-              git checkout HEAD -- pyproject.toml
-              if [ "$NEW_VERSION" != "$OLD_VERSION" ]; then
-                echo "changed=true" >> $GITHUB_OUTPUT
-              else
-                echo "changed=false" >> $GITHUB_OUTPUT
-              fi
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "Release $TAG not found — building."
             fi
           else
             # On PRs or manual dispatch, set appropriate release flags
@@ -83,8 +86,8 @@ jobs:
           HEAD_REF: ${{ github.head_ref }}
         run: |
           if [ "$BASE_REF" = "main" ]; then
-            if [ "$HEAD_REF" != "develop" ] && [[ "$HEAD_REF" != hotfix/* ]] && [[ "$HEAD_REF" != docs/* ]]; then
-              echo "::error::main only accepts PRs from 'develop', 'hotfix/*', or 'docs/*'. Got: $HEAD_REF"
+            if [ "$HEAD_REF" != "develop" ] && [[ "$HEAD_REF" != hotfix/* ]]; then
+              echo "::error::main only accepts PRs from 'develop' or 'hotfix/*'. Got: $HEAD_REF"
               exit 1
             fi
           elif [ "$BASE_REF" = "develop" ]; then
@@ -100,9 +103,8 @@ jobs:
     needs: [check-version]
     if: |
       success() &&
-      (!startsWith(github.head_ref, 'docs/')) &&
-      (github.event_name == 'pull_request' || 
-       github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'pull_request' ||
+       github.event_name == 'workflow_dispatch' ||
        needs.check-version.outputs.changed == 'true')
     runs-on: ubuntu-latest
     steps:
@@ -112,11 +114,11 @@ jobs:
       - name: Checkout SDK
         uses: "actions/checkout@v4"
         with:
-          repository: KalaimaranB/BioPro-SDK
-          path: BioPro-SDK-temp
+          repository: KalaimaranB/Karcytics-SDK
+          path: Karcytics-SDK-temp
 
       - name: Position SDK
-        run: mv BioPro-SDK-temp ../BioPro-SDK
+        run: mv Karcytics-SDK-temp ../Karcytics-SDK
 
       - name: Set up uv and Python
         uses: "astral-sh/setup-uv@v5"
@@ -136,11 +138,11 @@ jobs:
         run: ruff format --check .
 
       - name: Run Mypy Type Checker
-        run: mypy --explicit-package-bases biopro tests
+        run: mypy --explicit-package-bases karcytics tests
 
       - name: Security Vulnerability Scan
         run: |
-          uv export --format requirements-txt --no-emit-project | grep -v "^-e " | grep -v "BioPro-SDK" > reqs.txt
+          uv export --format requirements-txt --no-emit-project | grep -v "^-e " | grep -v "Karcytics-SDK" > reqs.txt
           pip-audit -r reqs.txt --no-deps --disable-pip --ignore-vuln CVE-2025-69872
 
       - name: Install System UI Dependencies
@@ -162,7 +164,7 @@ jobs:
           uv run pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
             tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
             --tb=short -q \
-            --cov=biopro --cov-report=xml --cov-report=term-missing
+            --cov=karcytics --cov-report=xml --cov-report=term-missing
         env:
           QT_QPA_PLATFORM: offscreen
           DISPLAY: ":99"
@@ -173,28 +175,11 @@ jobs:
   # Only runs against main (the develop -> main promotion path) or manual dispatch —
   # develop-targeted PRs get audit-and-lint's ubuntu tests only, to keep day-to-day
   # feature work cheap. The full macOS/Windows matrix is reserved for the promotion gate.
-  
-  # 3a: Dummy job to satisfy required matrix checks for docs-only PRs without booting macOS/Windows
-  test-skip:
-    name: Run Tests (${{ matrix.os }})
-    needs: [check-version]
-    if: |
-      success() &&
-      startsWith(github.head_ref, 'docs/') &&
-      github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        os: ["macos-latest", "windows-latest"]
-    steps:
-      - run: echo "Skipping expensive tests for docs branch."
-
   test:
     name: Run Tests (${{ matrix.os }})
     needs: [check-version, audit-and-lint]
     if: |
       success() &&
-      (!startsWith(github.head_ref, 'docs/')) &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'pull_request' && github.base_ref == 'main') ||
        (github.event_name == 'push' && github.ref == 'refs/heads/main'))
@@ -211,11 +196,11 @@ jobs:
       - name: Checkout SDK
         uses: "actions/checkout@v4"
         with:
-          repository: KalaimaranB/BioPro-SDK
-          path: BioPro-SDK-temp
+          repository: KalaimaranB/Karcytics-SDK
+          path: Karcytics-SDK-temp
 
       - name: Position SDK
-        run: mv BioPro-SDK-temp ../BioPro-SDK
+        run: mv Karcytics-SDK-temp ../Karcytics-SDK
 
       - name: Set up uv and Python
         uses: "astral-sh/setup-uv@v5"
@@ -236,7 +221,7 @@ jobs:
           uv run pytest tests/core/ tests/sdk/ tests/test_boot.py tests/test_sanity.py \
             tests/test_resources.py tests/test_sdk_events.py tests/test_sdk_docs.py \
             --tb=short -q \
-            --cov=biopro --cov-report=xml --cov-report=term-missing
+            --cov=karcytics --cov-report=xml --cov-report=term-missing
         env:
           QT_QPA_PLATFORM: offscreen
           DISPLAY: ":99"
@@ -250,6 +235,14 @@ jobs:
       (needs.check-version.outputs.changed == 'true' || github.event_name == 'workflow_dispatch') &&
       (needs.audit-and-lint.result == 'success' || needs.audit-and-lint.result == 'skipped')
     runs-on: ${{ matrix.os }}
+    # Defense in depth for the E2E smoke test steps below: both branches of
+    # _run_smoke_test now resolve deterministically within ~15-45s (success
+    # or failure) rather than being able to hang forever the way the
+    # pre-isolation-aware version could, but this still bounds the whole job
+    # (PyInstaller build included) well under GitHub's 360-minute default so
+    # a future regression of that shape fails loudly instead of burning a
+    # full runner-hours budget silently.
+    timeout-minutes: 45
     strategy:
       matrix:
         os: [macos-14, windows-latest]
@@ -265,11 +258,11 @@ jobs:
       - name: Checkout SDK
         uses: "actions/checkout@v4"
         with:
-          repository: KalaimaranB/BioPro-SDK
-          path: BioPro-SDK-temp
+          repository: KalaimaranB/Karcytics-SDK
+          path: Karcytics-SDK-temp
 
       - name: Position SDK
-        run: mv BioPro-SDK-temp ../BioPro-SDK
+        run: mv Karcytics-SDK-temp ../Karcytics-SDK
 
       - name: Set SOURCE_DATE_EPOCH
         shell: bash
@@ -292,53 +285,57 @@ jobs:
         run: uv run pytest tests/core/test_supply_chain.py
 
       - name: Run PyInstaller Build
-        run: uv run pyinstaller BioPro.spec
+        run: uv run pyinstaller Karcytics.spec
 
       - name: Run E2E Smoke Test (macOS)
         if: runner.os == 'macOS'
-        run: ./dist/BioPro.app/Contents/MacOS/BioPro --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
+        run: ./dist/Karcytics.app/Contents/MacOS/Karcytics --smoke-test flow_cytometry karcytics/tutorials/assets/demo_tutorial.fcs
 
       - name: Run E2E Smoke Test (Windows)
         if: runner.os == 'Windows'
-        run: .\dist\BioPro\BioPro.exe --smoke-test flow_cytometry biopro/tutorials/assets/demo_tutorial.fcs
+        run: .\dist\Karcytics\Karcytics.exe --smoke-test flow_cytometry karcytics/tutorials/assets/demo_tutorial.fcs
 
       - name: Compress Artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
           cd dist
-          Compress-Archive -Path BioPro\* -DestinationPath BioPro-Windows.zip
+          Compress-Archive -Path Karcytics\* -DestinationPath Karcytics-Windows.zip
 
       - name: Compress Artifacts (macOS)
         if: runner.os == 'macOS'
         run: |
           cd dist
-          tar -czf BioPro-macOS.tar.gz BioPro.app
+          tar -czf Karcytics-macOS.tar.gz Karcytics.app
 
       - name: Generate SBOM
         shell: bash
         run: |
           export PYTHONPATH=$PYTHONPATH:.
-          uv run python -c "from biopro.core.sbom import SBOMGenerator; print(SBOMGenerator().to_json())" > dist/sbom.json
+          uv run python -c "from karcytics.core.sbom import SBOMGenerator; print(SBOMGenerator().to_json())" > dist/sbom.json
 
       - name: Generate Checksum
         shell: bash
         run: |
           cd dist
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum sbom.json > sbom.json.sha256
+            HASH_CMD="sha256sum"
           else
-            shasum -a 256 sbom.json > sbom.json.sha256
+            HASH_CMD="shasum -a 256"
           fi
+          $HASH_CMD sbom.json > sbom.json.sha256
+          for f in *.tar.gz *.zip; do
+            [ -f "$f" ] && $HASH_CMD "$f" > "$f.sha256"
+          done
 
       - name: Upload Artifacts
         uses: "actions/upload-artifact@v4"
         with:
-          name: BioPro-Executable-${{ runner.os }}
+          name: Karcytics-Executable-${{ runner.os }}
           path: |
             dist/*.tar.gz
             dist/*.zip
             dist/sbom.json
-            dist/sbom.json.sha256
+            dist/*.sha256
 
   # Job 4b: Self-published core registry metadata (feeds the in-app update banner)
   generate-registry:
@@ -372,7 +369,7 @@ jobs:
           version, notes = sys.argv[1], sys.argv[2]
           data = {
               "version": version.lstrip("v"),
-              "download_url": "https://github.com/KalaimaranB/BioPro/releases/latest",
+              "download_url": "https://github.com/KalaimaranB/Karcytics/releases/latest",
               "notes": notes,
               "release_date": datetime.date.today().isoformat(),
           }
@@ -437,28 +434,32 @@ jobs:
         uses: "softprops/action-gh-release@v2"
         with:
           tag_name: ${{ needs.check-version.outputs.version }}
-          name: BioPro ${{ needs.check-version.outputs.version }}
+          name: Karcytics ${{ needs.check-version.outputs.version }}
           body: |
-            ## Welcome to BioPro
-            BioPro is a comprehensive, extensible platform designed to streamline biological data analysis and visualization. By integrating a modular architecture with high-performance computational tools, BioPro empowers scientists to build customized workflows, analyze complex datasets, and share reproducible results across the laboratory.
-            
-            ### 🚀 Getting Started
-            - **Windows**: Download and extract `BioPro-Windows.zip`, then double-click `BioPro.exe` to launch.
-            - **macOS**: Download and extract `BioPro-macOS.tar.gz`, then drag the `BioPro.app` bundle into your Applications folder.
-            
+            ## Karcytics ${{ needs.check-version.outputs.version }}
+
+            An open-source platform for biological data analysis and visualization, built around a modular plugin architecture for reproducible lab workflows.
+
+            ### 📦 Install
+            New here? Start with the [Installation Guide](https://kalaimaranb.github.io/Karcytics/user/06_Installation/).
+
+            - **macOS**: download `Karcytics-macOS.tar.gz`, extract, drag `Karcytics.app` into Applications.
+            - **Windows**: download `Karcytics-Windows.zip`, extract, run `Karcytics.exe`.
+
             ### 🛡️ Security & Supply Chain
-            We provide cryptographic attestations with every release to guarantee the integrity of the executables:
-            - **SBOM (`sbom.json`)**: A complete Software Bill of Materials listing all dependencies. You can verify it via `shasum -a 256 -c sbom.json.sha256`.
-            - **SLSA Provenance (`*.intoto.jsonl`)**: Cryptographic proof of the build origin. Verify the origin using `slsa-verifier verify-artifact BioPro-macOS.tar.gz --provenance-path multiple.intoto.jsonl --source-uri github.com/KalaimaranB/BioPro`.
-            
-            ### 📝 What's New
-            Please see the auto-generated changelog below for full details on merged features, bug fixes, and performance improvements. If you encounter any issues, please report them on the issue tracker!
+            Every release ships cryptographic attestations to verify what you're running:
+            - **Checksums** — verify the download itself: `shasum -a 256 -c Karcytics-macOS.tar.gz.sha256` (swap in the Windows filename as needed).
+            - **SBOM** (`sbom.json`) — full dependency manifest: `shasum -a 256 -c sbom.json.sha256`.
+            - **SLSA Provenance** (`*.intoto.jsonl`) — cryptographic proof of build origin: `slsa-verifier verify-artifact Karcytics-macOS.tar.gz --provenance-path multiple.intoto.jsonl --source-uri github.com/KalaimaranB/Karcytics`.
+
+            ### 📝 What's Changed
+            See the auto-generated changelog below. Found a bug? [Open an issue](https://github.com/KalaimaranB/Karcytics/issues).
           prerelease: ${{ needs.check-version.outputs.prerelease == 'true' }}
           generate_release_notes: true
           files: |
             release_artifacts/*.zip
             release_artifacts/*.tar.gz
             release_artifacts/sbom.json
-            release_artifacts/sbom.json.sha256
+            release_artifacts/*.sha256
             release_artifacts/*.intoto.jsonl
             release_artifacts/registry.json

@@ -1,4 +1,4 @@
-"""TDD Suite for BioPro Trust Architecture (Phase 4).
+"""TDD Suite for Karcytics Trust Architecture (Phase 4).
 
 This suite defines the expected security behaviors for plugin integrity,
 Chain of Trust verification, and performance optimization.
@@ -25,7 +25,7 @@ def _dict_to_toml(d):
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if authors:
@@ -56,14 +56,14 @@ import time
 from pathlib import Path
 
 import pytest
-from biopro_sdk.host.trust_manager import TrustManager
-from biopro_sdk.host.trust_path import TrustChain, TrustLink
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from karcytics_sdk.host.trust_manager import TrustManager
+from karcytics_sdk.host.trust_path import TrustChain, TrustLink
 
 
 class PluginSigner:
-    """Helper to simulate the BioPro Authority and Plugin Developers."""
+    """Helper to simulate the Karcytics Authority and Plugin Developers."""
 
     def __init__(self):
         # The ultimate Root of Trust
@@ -90,7 +90,7 @@ class PluginSigner:
     def sign_plugin(self, plugin_dir: Path, dev_cert: dict):
         """Generates split security.json and signs its canonical representation."""
         manifest_path = plugin_dir / "pyproject.toml"
-        from biopro_sdk.plugin.manifest_parser import ManifestParser
+        from karcytics_sdk.plugin.manifest_parser import ManifestParser
 
         manifest = ManifestParser().parse_file(str(manifest_path))
 
@@ -154,7 +154,7 @@ class PluginSigner:
                 TrustLink(
                     subject_name=dev_cert["name"],
                     subject_pub=dev_pub_hex,
-                    issuer_name="BioPro Core",
+                    issuer_name="Karcytics Core",
                     signature=root_sig.hex(),
                 )
             ]
@@ -347,7 +347,7 @@ class TestTrustArchitecture:
             links=[
                 TrustLink("Dr. Alice", dev_pub_bytes.hex(), "MICB Lab", sig_lab_to_dev.hex()),
                 TrustLink("MICB Lab", lab_pub_bytes.hex(), "UBC", sig_uni_to_lab.hex()),
-                TrustLink("UBC", uni_pub_bytes.hex(), "BioPro Core", sig_root_to_uni.hex()),
+                TrustLink("UBC", uni_pub_bytes.hex(), "Karcytics Core", sig_root_to_uni.hex()),
             ]
         )
 
@@ -411,7 +411,7 @@ class TestTrustArchitecture:
             print(f"VERIFICATION FAILED: {result.error_message}")
 
         assert result.success is True, result.error_message
-        # UBC -> MICB Lab -> Dr. Alice (3 verified links in list)
+        # Dr. Alice -> MICB Lab -> UBC -> Karcytics Core (4 verified links in list)
         assert len(result.trust_path) == 4
-        assert result.trust_path[1]["name"] == "UBC"
-        assert result.trust_path[3]["name"] == "Dr. Alice"
+        assert result.trust_path[1]["name"] == "Dr. Alice"
+        assert result.trust_path[3]["name"] == "UBC"

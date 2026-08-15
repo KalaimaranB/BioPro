@@ -2,8 +2,8 @@
 
 import pytest
 
-from biopro.ui.components.cards import DashboardWorkflowCard, ModuleCard
-from biopro.ui.dashboards.workspace_dashboard import WorkspaceDashboard
+from karcytics.ui.components.cards import DashboardWorkflowCard, ModuleCard
+from karcytics.ui.dashboards.workspace_dashboard import WorkspaceDashboard
 
 
 class TestWorkspaceDashboard:
@@ -81,7 +81,7 @@ class TestWorkspaceDashboard:
 
     def test_galactic_mode_text(self, dashboard):
         """Verifies overrides when Galactic theme is loaded."""
-        from biopro.ui.theme import Strings, theme_manager
+        from karcytics.ui.theme import Strings, theme_manager
 
         orig_name = theme_manager.current_theme_name
         orig_tagline = Strings.TAGLINE

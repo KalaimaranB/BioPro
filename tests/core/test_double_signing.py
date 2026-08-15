@@ -19,7 +19,7 @@ def _dict_to_toml(d):
         lines.append("]")
 
     lines.append("")
-    lines.append("[tool.biopro.plugin]")
+    lines.append("[tool.karcytics.plugin]")
     lines.append(f'id = "{d.get("id", "test_id")}"')
 
     if authors:
@@ -45,9 +45,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from biopro_sdk.host.sign_plugin import PluginSigner, TrustChain
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from karcytics_sdk.host.sign_plugin import PluginSigner
 
 
 @pytest.fixture
@@ -158,11 +158,31 @@ class TestDoubleSigningPipeline:
         # 2. Generate a mock project private key PEM
         project_pem, project_pub = generate_mock_keypair()
 
-        # 3. Perform Project co-signing
-        # Inject project private key into signature pipeline via environment or PEM path
-        signer_env.project_sign_plugin(plugin_dir, project_private_key_pem=project_pem)
+        # 3. Create a valid delegation from the developer to the CI runner
+        from karcytics_sdk.host.trust_path import TrustLink
 
-        # 4. Verify outputs
+        dev_priv = signer_env.load_private_key()
+        delegation_payload = f"Karcytics GitHub Actions CI|{project_pub.hex()}".encode()
+        delegation_sig = dev_priv.sign(delegation_payload)
+        delegation_link = TrustLink(
+            subject_name="Karcytics GitHub Actions CI",
+            subject_pub=project_pub.hex(),
+            issuer_name="Alice",
+            signature=delegation_sig.hex(),
+        )
+        from karcytics_sdk.host.trust_path import TrustChain
+
+        delegation_chain = TrustChain(links=[delegation_link])
+        delegation_file = plugin_dir / "runner_delegation.json"
+        delegation_file.write_text(delegation_chain.to_json(), encoding="utf-8")
+
+        # 4. Perform Project co-signing
+        # Inject project private key into signature pipeline via environment or PEM path
+        signer_env.project_sign_plugin(
+            plugin_dir, project_private_key_pem=project_pem, delegation_path=delegation_file
+        )
+
+        # 5. Verify outputs
         assert (plugin_dir / "project_signature.bin").exists()
 
         # Verify that trust_chain.json contains both developer link and project co-signature link
@@ -172,7 +192,7 @@ class TestDoubleSigningPipeline:
 
         # Check developer link and project link
         project_link = chain.links[-1]
-        assert project_link.subject_name == "BioPro GitHub Actions CI"
+        assert project_link.subject_name == "Karcytics GitHub Actions CI"
         assert project_link.subject_pub == project_pub.hex()
 
     def test_project_sign_fails_if_developer_signature_missing(self, signer_env, tmp_path):
@@ -194,7 +214,7 @@ class TestDoubleSigningPipeline:
 
         project_pem, _ = generate_mock_keypair()
 
-        with patch("biopro_sdk.host.sign_plugin.logger.error") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
             signer_env.project_sign_plugin(plugin_dir, project_private_key_pem=project_pem)
             mock_log.assert_called_with(
                 "Developer signature (signature.bin) or security ledger is missing. Rejecting pipeline."
@@ -228,7 +248,7 @@ class TestDoubleSigningPipeline:
 
         project_pem, _ = generate_mock_keypair()
 
-        with patch("biopro_sdk.host.sign_plugin.logger.error") as mock_log:
+        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
             signer_env.project_sign_plugin(plugin_dir, project_private_key_pem=project_pem)
             args_list = [call.args[0] for call in mock_log.call_args_list if call.args]
             assert any(

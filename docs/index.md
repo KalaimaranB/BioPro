@@ -1,6 +1,6 @@
-# BioPro Documentation Portal
+# Karcytics Documentation Portal
 
-Welcome to the official **BioPro Documentation Portal**. BioPro is an open-source biological analysis suite designed for researchers, software developers, and academic institutions.
+Welcome to the official **Karcytics Documentation Portal**. Karcytics is an open-source biological analysis suite designed for researchers, software developers, and academic institutions.
 
 ---
 
@@ -37,7 +37,7 @@ Welcome to the official **BioPro Documentation Portal**. BioPro is an open-sourc
 ## Key Application Features
 
 ### Plugin Ecosystem
-BioPro enforces strict plugin validation. A distributed plugin must satisfy signature checks before it is authorized to run inside the host, ensuring data integrity.
+Karcytics enforces strict plugin validation. A distributed plugin must satisfy signature checks before it is authorized to run inside the host, ensuring data integrity.
 
 ### History Management
 Every user adjustment is stored as a deterministic state change, letting you step backward or forward through history instantly.

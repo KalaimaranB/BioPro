@@ -2,8 +2,8 @@
 
 import pytest
 
-from biopro.ui.theme import Colors
-from biopro.ui.widgets.dna_loader import ProgrammaticLoader
+from karcytics.ui.theme import Colors
+from karcytics.ui.widgets.dna_loader import ProgrammaticLoader
 
 
 @pytest.fixture

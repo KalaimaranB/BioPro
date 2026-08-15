@@ -1,12 +1,12 @@
 {
   "version": "1",
-  "signed_by": "biopro_core",
-  "signature": "66eb459b640f7b08912e82c88eb50c261700b570d2f8e1383ae614f6fd1194158ded4154000895826c931d66f29e3f4cc145a56d26b850b40f757c545a9d8004",
+  "signed_by": "karcytics_core",
+  "signature": "2e0cc106c6d6bd9c1104c293c36325bbde5a051ed0b83900b23fb78ab9ac2115d3803f1e105ace26997d7905c2e175ce06246c89cb8a2c3132aea3afa362e207",
   "authorities": [
     {
-      "id": "biopro_core",
-      "name": "BioPro Core Authority",
-      "public_key": "08f4319b6f979057b36b0db2b8faaee6eff8782f3aafd5e924ba79b04d4c8366"
+      "id": "karcytics_core",
+      "name": "Karcytics Core Authority",
+      "public_key": "079c0fad50c5d408da83b1ee45c6e788fa540c062efa5c4b1af7f13ed030df26"
     },
     {
       "id": "ubc",
@@ -14,5 +14,5 @@
       "public_key": "ef70051b8c0a876798e98675402599763d15fad9548aad8325f27708cd0b9a68"
     }
   ],
-  "last_updated": "2026-05-06T15:46:24Z"
+  "last_updated": "2026-08-13T11:00:00Z"
 }
