@@ -349,9 +349,9 @@ class ThemeManager(QObject):
 
             # Re-inject app-level styles (QToolTip, QPalette) so they also reflect the new theme
             try:
-                from karcytics_sdk.plugin.components import _apply_global_sdk_styles
+                from karcytics_sdk.plugin.components import apply_global_sdk_styles
 
-                _apply_global_sdk_styles()
+                apply_global_sdk_styles()
             except Exception as e:
                 logger.error(f"Failed to apply SDK styles: {e}", exc_info=True)
 

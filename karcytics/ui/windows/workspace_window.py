@@ -7,7 +7,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from karcytics.core.models.tutorial_models import ForcedInteractionStep
+    from karcytics_sdk.plugin.tutorial_models import ForcedInteractionStep
 
 from PyQt6.QtCore import (
     QEasingCurve,
@@ -127,7 +127,6 @@ class WorkspaceWindow(QMainWindow):
         self.analysis_toolbar.btn_close_project.clicked.connect(self.return_to_hub)
         # AI Chat feature is currently in the works - UI hidden for now
         # self.analysis_toolbar.btn_ai.clicked.connect(self.menu_manager.open_ai_chat)
-        self.analysis_toolbar.btn_academy.clicked.connect(self.hub_manager.open_academy)
         ap_layout.addWidget(self.analysis_toolbar)
         self.wizard_panel = None
         self.main_module_container = QWidget()
@@ -146,11 +145,17 @@ class WorkspaceWindow(QMainWindow):
         self.theme_loading_overlay.set_text("Changing theme…")
         self.theme_loading_overlay.hide()
 
-        from karcytics.ui.wizards.tutorial_overlay import TutorialOverlay
+        from karcytics_sdk.plugin.tutorial_overlay import TutorialOverlay
 
-        self.tutorial_overlay = TutorialOverlay(self.analysis_page)
+        from karcytics.core.tutorial_manager import global_tutorial_manager, hub_academy_event_bus
+
+        self.tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, self.analysis_page
+        )
         self.tutorial_overlay.hide()
-        self.home_tutorial_overlay = TutorialOverlay(self.home_screen)
+        self.home_tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, self.home_screen
+        )
         self.home_tutorial_overlay.hide()
         self.tutorial_overlay.btn_next.clicked.connect(self._on_tutorial_next)
         self.tutorial_overlay.skip_requested.connect(self._on_tutorial_skip)
@@ -161,6 +166,11 @@ class WorkspaceWindow(QMainWindow):
         self._verification_wait: int = 0
         self.startTimer(100)
         self.loader_process = None
+        # An isolated module's blocking overlay (see PluginLoaderManager
+        # ._instantiate_isolated_overlay) — floats on top of root_stack
+        # without switching its current page, unlike wizard_panel for an
+        # in-process module.
+        self.module_overlay: QWidget | None = None
         self.setCentralWidget(self.root_stack)
 
     def _active_overlay(self):
@@ -175,8 +185,8 @@ class WorkspaceWindow(QMainWindow):
         if store and store.isVisible() and hasattr(store, "tutorial_overlay"):
             return store.tutorial_overlay
         if self.root_stack.currentIndex() == getattr(self, "_PAGE_HOME", 0):
-            return self.home_tutorial_overlay
-        return self.tutorial_overlay
+            return getattr(self, "home_tutorial_overlay", None)
+        return getattr(self, "tutorial_overlay", None)
 
     def _on_tutorial_next(self) -> None:
         """Called when the overlay Next button is clicked.
@@ -188,7 +198,8 @@ class WorkspaceWindow(QMainWindow):
         For BranchingStep, the first option key maps to the target step_id;
         '__complete__' is a sentinel that completes the course.
         """
-        from karcytics.core.models.tutorial_models import BranchingStep, VerificationStep
+        from karcytics_sdk.plugin.tutorial_models import BranchingStep, VerificationStep
+
         from karcytics.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step
@@ -298,13 +309,14 @@ class WorkspaceWindow(QMainWindow):
         if hasattr(self, "home_tutorial_overlay") and self.home_tutorial_overlay.isVisible():
             store_active = active_overlay != self.home_tutorial_overlay
             self.home_tutorial_overlay.set_dark_mode(store_active)
-        if not active_overlay.isVisible():
+        if not active_overlay or not active_overlay.isVisible():
             return
-        from karcytics.core.models.tutorial_models import (
+        from karcytics_sdk.plugin.tutorial_models import (
             ForcedInteractionStep,
             InteractionStep,
             VerificationStep,
         )
+
         from karcytics.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step
@@ -511,6 +523,9 @@ class WorkspaceWindow(QMainWindow):
             self.home_tutorial_overlay.setGeometry(self.home_screen.rect())
         if hasattr(self, "theme_loading_overlay") and self.theme_loading_overlay.isVisible():
             self.theme_loading_overlay.resize(self.root_stack.size())
+        module_overlay = getattr(self, "module_overlay", None)
+        if module_overlay is not None:
+            module_overlay.setGeometry(self.root_stack.rect())
         self._update_loader_geom()
 
     def moveEvent(self, event):  # noqa: N802
@@ -580,6 +595,13 @@ class WorkspaceWindow(QMainWindow):
                 self.project_manager.close()
             except Exception as e:
                 logger.error(f"Error closing project: {e}")
+        from karcytics.core.core_services_bootstrap import set_active_project_manager
+
+        # Any isolated module still open at this point loses its project
+        # reference along with everything else about this window — matches
+        # closeEvent below, which doesn't try to keep such a module alive
+        # either.
+        set_active_project_manager(None)
         if hasattr(self, "return_to_hub_callback") and self.return_to_hub_callback:
             self.return_to_hub_callback()
         self.close()

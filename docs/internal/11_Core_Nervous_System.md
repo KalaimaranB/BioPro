@@ -59,6 +59,15 @@ def install_plugin(id):
 
 ---
 
+## Reaching an isolated plugin
+
+Everything above is this process's own in-memory bus — an isolated plugin
+(`process_model = "isolated"`, see `docs/internal/24_Plugin_Communication_Protocol.md`)
+runs in a separate OS process and never touches `event_bus` directly. It can
+still opt into hearing a specific `KarcyticsEvent` topic via
+`docs/internal/28_Event_Bridging.md`'s `event.subscribe`/`dispatch_event`
+bridge — scoped per topic, not a blanket forward of everything emitted here.
+
 ## Diagnostic Engine
 
 Karcytics includes a `karcytics.core.diagnostics` module for error tracking and application state logging.

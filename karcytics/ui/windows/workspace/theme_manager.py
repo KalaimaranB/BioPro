@@ -218,9 +218,13 @@ class ThemeManager:
         mw.home_screen = HomeScreen()
 
         # Recreate the tutorial overlay for the new home screen
-        from karcytics.ui.wizards.tutorial_overlay import TutorialOverlay
+        from karcytics_sdk.plugin.tutorial_overlay import TutorialOverlay
 
-        mw.home_tutorial_overlay = TutorialOverlay(mw.home_screen)
+        from karcytics.core.tutorial_manager import global_tutorial_manager, hub_academy_event_bus
+
+        mw.home_tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, mw.home_screen
+        )
         mw.home_tutorial_overlay.hide()
         mw.home_tutorial_overlay.btn_next.clicked.connect(mw._on_tutorial_next)
         mw.home_tutorial_overlay.skip_requested.connect(mw._on_tutorial_skip)
@@ -291,6 +295,22 @@ class ThemeManager:
 
         # Restore the view
         mw.root_stack.setCurrentIndex(current_idx)
+
+        # 6. Re-raise the isolated-module blocking overlay, if one is up.
+        # It's a floating child of root_stack, not one of its pages, so
+        # step 4's home_screen rebuild above (removeWidget/insertWidget)
+        # never touched it directly — but the freshly-inserted home_screen
+        # sibling still ends up stacked above it in paint order (and
+        # setCurrentIndex() above re-raises whichever page is current one
+        # more time besides), burying an otherwise perfectly alive overlay
+        # behind the rebuilt page. Must run *after* setCurrentIndex(), not
+        # before it, or that call's own raise of the current page undoes
+        # this. Mirrors the hologram_overlay re-raise above for the same
+        # reason.
+        module_overlay = getattr(mw, "module_overlay", None)
+        if module_overlay is not None:
+            module_overlay.setGeometry(mw.root_stack.rect())
+            module_overlay.raise_()
 
     def refresh_widget_theme(self, widget: QWidget):
         """Recursively refreshes theme styles for a widget and its children."""

@@ -181,8 +181,15 @@ class AcademyWindow(QDialog):
                 item.widget().deleteLater()
 
         # --- COURSE DISCOVERY (GLOBAL HUB) ---
+        # Only the Hub's own courses (currently just core_intro) are
+        # discoverable here. Every module now runs as an isolated
+        # subprocess with its own separate `AcademyManager` (see
+        # `karcytics_sdk.plugin.runtime_services.tutorial_manager`) — the
+        # Hub genuinely has no way to see into that process's course
+        # registry, so there is no plugin course left for this dialog to
+        # go looking for. A plugin's own Academy entry point lives in its
+        # own UI (the isolated Help menu) instead.
         if self.module_id is None:
-            # 1. Register Core Onboarding Course
             try:
                 from karcytics.tutorials.core_intro import core_intro_course
 
@@ -192,25 +199,6 @@ class AcademyWindow(QDialog):
                 import logging
 
                 logging.getLogger(__name__).warning(f"Failed to load core intro course: {e}")
-
-            # 2. Extract courses from all plugins via the newly exposed 'register_courses' hook
-            if hasattr(self.parent(), "module_manager"):
-                import importlib
-
-                for _mod_id, mod_info in self.parent().module_manager.modules.items():
-                    if mod_info.get("trust_level") == "untrusted":
-                        continue
-                    try:
-                        package_name = f"karcytics.plugins.{mod_info['package_name']}"
-                        plugin_module = importlib.import_module(package_name)
-                        if hasattr(plugin_module, "register_courses"):
-                            plugin_module.register_courses(self.tutorial_manager)
-                    except Exception as e:
-                        import logging
-
-                        logging.getLogger(__name__).warning(
-                            f"Failed to load courses for {_mod_id}: {e}"
-                        )
         # ------------------------------------
 
         # Badges section for global view

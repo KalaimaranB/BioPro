@@ -1,9 +1,12 @@
-from pathlib import Path
+import logging
 
+from karcytics_sdk.plugin.galactic_loader import QML_PATH
 from PyQt6.QtCore import Qt, QUrl, pyqtSignal
 from PyQt6.QtQuickWidgets import QQuickWidget
 
 from karcytics.ui.theme import Colors, theme_manager
+
+_logger = logging.getLogger(__name__)
 
 
 class GalacticLoader(QQuickWidget):
@@ -33,20 +36,20 @@ class GalacticLoader(QQuickWidget):
         self.setClearColor(Qt.GlobalColor.transparent)
         self.setResizeMode(QQuickWidget.ResizeMode.SizeRootObjectToView)
 
-        # Load the QML file
-        qml_path = Path(__file__).parent / "galactic_loader.qml"
-        import logging
-
-        if not qml_path.exists():
-            logging.getLogger(__name__).error(
-                f"CRITICAL: QML file not found at {qml_path}! The loader will fail and transition will freeze."
+        # QML_PATH is karcytics_sdk's copy — the single canonical source for
+        # this animation, shared with the isolated-process loader (see that
+        # module's docstring for why the Python wrapper isn't shared too).
+        if not QML_PATH.exists():
+            _logger.error(
+                "CRITICAL: QML file not found at %s! The loader will fail and transition will freeze.",
+                QML_PATH,
             )
 
-        self.setSource(QUrl.fromLocalFile(str(qml_path)))
+        self.setSource(QUrl.fromLocalFile(str(QML_PATH)))
 
         if self.status() == QQuickWidget.Status.Error:
             errors = "\n".join([e.toString() for e in self.errors()])
-            logging.getLogger(__name__).error(f"Failed to load QML source: {errors}")
+            _logger.error("Failed to load QML source: %s", errors)
 
         # Connect to theme changes
         theme_manager.theme_changed.connect(self.update_colors)

@@ -11,6 +11,14 @@ This section provides API documentation grouped by logical subpackages so reader
 
 ::: karcytics.core
 
+## Karcytics SDK (`karcytics_sdk`)
+
+The shared package every plugin — and the Hub itself — depends on;
+see `docs/internal/25_Core_and_SDK_Boundary.md` for what lives here versus
+in `karcytics.*` above.
+
+::: karcytics_sdk
+
 ## Plugins & SDK helpers
 
 ::: karcytics.plugins

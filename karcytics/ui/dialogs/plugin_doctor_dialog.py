@@ -226,7 +226,7 @@ class PluginDoctorDialog(QDialog):
             import shutil
 
             # Clean reinstall of venv
-            venv_path = self.plugin_dir / ".plugin_venv"
+            venv_path = self.plugin_dir / ".venv"
             if venv_path.exists():
                 try:
                     shutil.rmtree(venv_path)

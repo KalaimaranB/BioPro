@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from karcytics.core.about_info import KARCYTICS_ABOUT
 from karcytics.core.config import AppConfig
 from karcytics.ui.theme import Colors, theme_manager
 
@@ -49,13 +50,13 @@ class AboutKarcyticsDialog(QDialog):
         title_layout = QVBoxLayout()
         title_layout.setSpacing(5)
 
-        name_lbl = QLabel("Karcytics™")
+        name_lbl = QLabel(KARCYTICS_ABOUT["name"])
         theme_manager.apply_style(
             name_lbl,
             f"color: {Colors.FG_PRIMARY}; font-size: 24px; font-weight: bold;",
         )
 
-        version_lbl = QLabel(f"Version {AppConfig.CORE_VERSION}")
+        version_lbl = QLabel(f"Version {KARCYTICS_ABOUT['version']}")
         theme_manager.apply_style(
             version_lbl,
             f"color: {Colors.FG_SECONDARY}; font-size: 14px;",
@@ -71,10 +72,9 @@ class AboutKarcyticsDialog(QDialog):
 
         # Description
         desc_lbl = QLabel(
-            "<p><b>Bio Analysis Made Simple</b></p>"
-            "<p>An open-source, intuitive platform designed to streamline laboratory data analysis "
-            "for students, researchers, and professionals.</p>"
-            "<p>© 2026 Karcytics Contributors<br>Licensed under the MIT License</p>"
+            f"<p><b>{KARCYTICS_ABOUT['tagline']}</b></p>"
+            f"<p>{KARCYTICS_ABOUT['description']}</p>"
+            f"<p>{KARCYTICS_ABOUT['copyright']}</p>"
         )
         desc_lbl.setWordWrap(True)
         theme_manager.apply_style(

@@ -6,17 +6,22 @@ The `ProjectManager` handles the lifecycle of project artifacts, encompassing ra
 
 ## Workspace Directory Structure
 
-A Karcytics project is identified by a top-level directory containing a `.karcytics` configuration folder.
+A Karcytics project is identified by a top-level directory — there is no
+`.karcytics/` subdirectory; the project's own files sit directly inside it
+(`karcytics/core/projects/manager.py`'s `ProjectManager.__init__`):
 
 ```text
 my_experiment/
-├── .karcytics/
-│   ├── project.json          # Main metadata & asset registry
-│   ├── history.json          # Serialized state chain
-│   └── .lock                 # Process lock
+├── project.karcytics         # Main metadata & asset registry
+├── .karcytics.lock           # Process lock
 ├── assets/                   # Local copies of image data
 └── workflows/                # Serialized analysis configurations
 ```
+
+A legacy `history.json` (an older, now-unused location for undo/redo state)
+is actively deleted if `ProjectManager` finds one on open — current state
+history lives in the in-memory `HistoryManager`, not a persisted file
+alongside the project.
 
 ---
 
@@ -25,7 +30,7 @@ my_experiment/
 To prevent data corruption from concurrent access, Karcytics implements a file-based locking mechanism.
 
 ### Lock Protocol
-1.  **Acquisition**: Upon opening a project, `ProjectManager` writes its system process ID (PID) to `.karcytics/.lock`.
+1.  **Acquisition**: Upon opening a project, `ProjectManager` writes its system process ID (PID) to `.karcytics.lock` (`ProjectLock`, `karcytics/core/projects/locking.py`).
 2.  **Verification**: If a lock file exists, the manager checks the active system processes. If the recorded PID is dead (e.g., from an abrupt termination), the lock is claimed. If the PID is active, a `ProjectLockedError` is raised.
 3.  **Release**: The lock file is deleted during graceful application shutdown or when the project is closed.
 
@@ -49,15 +54,17 @@ Loaded images are hashed using SHA-256. This facilitates:
 
 ## Atomic Save Operations
 
-Karcytics utilizes atomic writes for critical configuration files (`project.json`, `history.json`) to prevent data loss during unexpected terminations.
+Karcytics utilizes atomic writes (`karcytics.core.utils.AtomicJsonFile`) for
+critical configuration files (`project.karcytics`) to prevent data loss
+during unexpected terminations.
 
-1.  The serialized state is written to a temporary file (e.g., `project.json.tmp`).
+1.  The serialized state is written to a temporary file (e.g., `project.karcytics.tmp`).
 2.  An atomic filesystem `replace()` operation swaps the temporary file with the target file.
 3.  This ensures the file is never left in a partially written state.
 
 ---
 
-## API Reference (`karcytics.core.project_manager`)
+## API Reference (`karcytics.core.projects.manager`)
 
 ### `ProjectManager(project_dir: Path)`
 Initializes the manager instance. Does not perform I/O upon instantiation.

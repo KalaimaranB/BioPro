@@ -113,9 +113,13 @@ class ProjectLauncherWindow(QMainWindow):
         # Tutorial overlay — parented to the central widget so it floats over
         # the entire hub window.  Created early so _maybe_start_core_intro can
         # reference it immediately after the 800 ms delay.
-        from karcytics.ui.wizards.tutorial_overlay import TutorialOverlay
+        from karcytics_sdk.plugin.tutorial_overlay import TutorialOverlay
 
-        self._hub_tutorial_overlay = TutorialOverlay(self._central_widget, compact_mode=True)
+        from karcytics.core.tutorial_manager import global_tutorial_manager, hub_academy_event_bus
+
+        self._hub_tutorial_overlay = TutorialOverlay(
+            global_tutorial_manager, hub_academy_event_bus, self._central_widget, compact_mode=True
+        )
         self._hub_tutorial_overlay.hide()
         self._hub_tutorial_overlay.btn_next.clicked.connect(self._on_hub_tutorial_next)
         self._hub_tutorial_overlay.skip_requested.connect(self._on_hub_tutorial_skip)
@@ -198,12 +202,12 @@ class ProjectLauncherWindow(QMainWindow):
         right_layout.addLayout(title_layout)
 
         # 3. Broadened Subtitles
-        self.lbl_subtitle = QLabel("The Extensible Karcytics Analysis Platform")
+        self.lbl_subtitle = QLabel("Next-Generation Cellular Informatics")
         self.lbl_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_subtitle.setObjectName("LauncherSubtitle")
         right_layout.addWidget(self.lbl_subtitle)
 
-        self.lbl_desc = QLabel("Modular · Open-Source · Python-Powered")
+        self.lbl_desc = QLabel("Cross-Platform · Extensible · Python-Powered")
         self.lbl_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl_desc.setObjectName("LauncherDesc")
         right_layout.addWidget(self.lbl_desc)
@@ -301,7 +305,8 @@ class ProjectLauncherWindow(QMainWindow):
         self._hub_tutorial_overlay.raise_()
 
     def _on_hub_tutorial_next(self) -> None:
-        from karcytics.core.models.tutorial_models import BranchingStep
+        from karcytics_sdk.plugin.tutorial_models import BranchingStep
+
         from karcytics.core.tutorial_manager import global_tutorial_manager
 
         step = global_tutorial_manager.current_step
@@ -458,6 +463,7 @@ class ProjectLauncherWindow(QMainWindow):
 
     def _launch_workspace(self, project_manager: ProjectManager):
         """Transition from the Hub to the actual Analysis Workspace."""
+        from karcytics.core.core_services_bootstrap import set_active_project_manager
         from karcytics.core.event_bus import KarcyticsEvent, event_bus
 
         # 1. Save to global recents list
@@ -466,6 +472,12 @@ class ProjectLauncherWindow(QMainWindow):
 
         # 2. Emit PROJECT_LOADED so WaitForEventStep(PROJECT_LOADED) auto-advances
         event_bus.emit(KarcyticsEvent.PROJECT_LOADED, str(project_manager.project_dir))
+
+        # 2b. Let CoreServicesServer's project.* handlers reach this project,
+        # so an isolated module (its own process, no shared memory) can get
+        # back what an in-process one already reads via
+        # self.window().project_manager — see RemoteProjectManager.
+        set_active_project_manager(project_manager)
 
         # 3. Transition the UI
         self.workspace = WorkspaceWindow(

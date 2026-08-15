@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from karcytics.core.about_info import DEVELOPER_ABOUT
 from karcytics.ui.theme import Colors, theme_manager
 
 
@@ -46,13 +47,13 @@ class AboutDeveloperDialog(QDialog):
         title_layout = QVBoxLayout()
         title_layout.setSpacing(5)
 
-        name_lbl = QLabel("Kalaimaran Balasothy")
+        name_lbl = QLabel(DEVELOPER_ABOUT["name"])
         theme_manager.apply_style(
             name_lbl,
             f"color: {Colors.FG_PRIMARY}; font-size: 20px; font-weight: bold;",
         )
 
-        role_lbl = QLabel("Biomedical Engineering Student")
+        role_lbl = QLabel(DEVELOPER_ABOUT["role"])
         theme_manager.apply_style(
             role_lbl,
             f"color: {Colors.FG_SECONDARY}; font-size: 14px;",
@@ -68,13 +69,8 @@ class AboutDeveloperDialog(QDialog):
         layout.addLayout(header_layout)
 
         # Bio
-        bio_text = (
-            "<p>Kalaimaran Balasothy is a Biomedical Engineering undergraduate at the University "
-            "of British Columbia with a specialized focus on Bioinformatics and Cellular Engineering.</p>"
-            "<p>Driven by a deep passion for immunoengineering and synthetic biology, he draws on his "
-            "background in software automation to bridge the gap between computer science and wet-lab research.</p>"
-            "<p>Combining his technical experience with a love for teaching, he builds accessible software "
-            "that simplifies laboratory data analysis for scientists at every level.</p>"
+        bio_text = "".join(
+            f"<p>{paragraph}</p>" for paragraph in DEVELOPER_ABOUT["bio"].split("\n\n")
         )
 
         bio_lbl = QLabel(bio_text)

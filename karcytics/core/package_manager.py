@@ -114,29 +114,56 @@ class PackageManager:
         return venv_python
 
     @staticmethod
-    def _run_selftest(venv_python: Path, plugin_dir: Path, sp_kwargs: dict[str, Any]) -> None:
+    def _run_selftest(plugin_dir: Path) -> None:
         """Run the plugin's self-test if available.
 
         Parameters:
-            venv_python (Path): Path to the Python interpreter.
             plugin_dir (Path): Directory containing the plugin.
-            sp_kwargs (dict[str, Any]): Subprocess keyword arguments.
 
         Raises:
             RuntimeError: If the self-test fails.
         """
-        worker_script = plugin_dir / "analysis" / "fcs_worker.py"
-        if worker_script.exists():
-            selftest_cmd = [str(venv_python), str(worker_script), "--selftest"]
-            result = subprocess.run(selftest_cmd, capture_output=True, text=True, **sp_kwargs)
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"Plugin venv self-test failed — interpreter or packages are broken: "
-                    f"{result.stderr.strip()}"
-                )
-            logger.info("Plugin venv self-test passed: %s", result.stdout.strip())
+        plugin_id = plugin_dir.name
+        daemon_script = (
+            plugin_dir / "src" / "karcytics_plugins" / plugin_id / "analysis" / "daemon_worker.py"
+        )
+        if daemon_script.exists():
+            PackageManager._run_isolated_daemon_selftest(plugin_id, daemon_script)
         else:
-            logger.info(f"No self-test script found at {worker_script}, skipping self-test.")
+            logger.info(f"No self-test script found at {daemon_script}, skipping self-test.")
+
+    @staticmethod
+    def _run_isolated_daemon_selftest(plugin_id: str, daemon_script: Path) -> None:
+        """Self-test an isolated plugin's venv via a real ping over its worker protocol.
+
+        Uses the same msgpack/stdio protocol `PluginDaemon` uses at runtime, so a
+        broken interpreter or missing heavy dependency fails the daemon's own
+        startup ready handshake before ping is even reachable.
+
+        Parameters:
+            plugin_id (str): The plugin's id, used for daemon logging.
+            daemon_script (Path): Path to the plugin's daemon_worker.py.
+
+        Raises:
+            RuntimeError: If the daemon fails to start or does not answer ping.
+        """
+        from karcytics_sdk.plugin.daemon import PluginDaemon
+
+        daemon = PluginDaemon(plugin_id, daemon_script_path=daemon_script)
+        try:
+            daemon.ensure_started(timeout=30.0)
+            result = daemon.call("ping", {}, timeout=10.0)
+            if result.get("status") != "pong":
+                raise RuntimeError(f"daemon responded unexpectedly to ping: {result}")
+        except Exception as exc:
+            raise RuntimeError(
+                f"Plugin venv self-test failed — interpreter, packages, or worker protocol "
+                f"are broken: {exc}"
+            ) from exc
+        finally:
+            daemon.shutdown()
+
+        logger.info("Plugin venv self-test passed (isolated daemon ping/pong).")
 
     def resolve_and_install_all(
         self,
@@ -198,7 +225,7 @@ class PackageManager:
                 f"Failed to install dependencies: {result.stderr}\nCommand: {' '.join(install_cmd)}"
             )
 
-        self._run_selftest(venv_python, plugin_dir, sp_kwargs)
+        self._run_selftest(plugin_dir)
 
         if progress_callback:
             progress_callback(100)

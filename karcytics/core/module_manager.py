@@ -68,20 +68,8 @@ class ModuleManager:
         """
         return [m["manifest"] for m in self.modules.values()]
 
-    def load_module_ui(self, module_id: str) -> type[QWidget] | None:
-        """Load the user interface class for an installed and trusted module.
-
-        Parameters:
-            module_id (str): Identifier of the module to load.
-
-        Returns:
-            type[QWidget] | None: The module's UI class, or `None` when no UI class is available.
-
-        Raises:
-            ValueError: If the module is not installed.
-            PermissionError: If the module is untrusted.
-            RuntimeError: If the module is outdated.
-        """
+    def _validate_module(self, module_id: str) -> dict[str, Any]:
+        """Validate module installation, trust level, and dependencies."""
         if module_id not in self.modules:
             raise ValueError(f"Module {module_id} is not installed.")
 
@@ -100,7 +88,44 @@ class ModuleManager:
 
         # Verify Environment Exists
         PluginLoaderFactory.verify_dependencies(Path(mod_info["path"]), mod_info["manifest"])
+        return mod_info
 
+    def _verify_and_report_isolation(
+        self, module_id: str, purged: list[str], site_packages: Path
+    ) -> None:
+        """Confirm purged dependencies resolved cleanly and report isolation collisions."""
+        still_shadowed = PluginEnvironmentInjector.verify_isolation(purged, site_packages)
+        if not still_shadowed:
+            return
+
+        logger.error(
+            "Plugin '%s' dependencies %s still resolve outside its own "
+            "environment after isolation was enforced — likely bundled into the "
+            "application itself. Affected features may misbehave.",
+            module_id,
+            still_shadowed,
+        )
+        try:
+            from karcytics.core.diagnostics import diagnostics
+
+            diagnostics.report_error(
+                f"Plugin '{module_id}' could not fully isolate its dependencies "
+                f"({', '.join(still_shadowed)}) from the application. Some features "
+                f"in this plugin may not work correctly.",
+                plugin_id=module_id,
+                fatal=True,
+            )
+        except ImportError as e:
+            logger.warning(
+                "Failed to report isolation error for plugin '%s': %s",
+                module_id,
+                e,
+            )
+
+    def _load_inprocess_module_ui(
+        self, module_id: str, mod_info: dict[str, Any]
+    ) -> type[QWidget] | None:
+        """Load UI for an in-process plugin with environment priority and isolation tracking."""
         # Inject path dynamically before loading
         site_packages = PluginEnvironmentInjector.inject_path(
             Path(mod_info["path"]), self.internal_plugins_dir
@@ -144,33 +169,36 @@ class ModuleManager:
         # name) — that's an environment problem the plugin cannot self-correct, so it
         # must be surfaced loudly rather than left to silently degrade.
         if purged and site_packages is not None:
-            still_shadowed = PluginEnvironmentInjector.verify_isolation(purged, site_packages)
-            if still_shadowed:
-                logger.error(
-                    "Plugin '%s' dependencies %s still resolve outside its own "
-                    "environment after isolation was enforced — likely bundled into the "
-                    "application itself. Affected features may misbehave.",
-                    module_id,
-                    still_shadowed,
-                )
-                try:
-                    from karcytics.core.diagnostics import diagnostics
-
-                    diagnostics.report_error(
-                        f"Plugin '{module_id}' could not fully isolate its dependencies "
-                        f"({', '.join(still_shadowed)}) from the application. Some features "
-                        f"in this plugin may not work correctly.",
-                        plugin_id=module_id,
-                        fatal=True,
-                    )
-                except ImportError as e:
-                    logger.warning(
-                        "Failed to report isolation error for plugin '%s': %s",
-                        module_id,
-                        e,
-                    )
+            self._verify_and_report_isolation(module_id, purged, site_packages)
 
         return result
+
+    def load_module_ui(self, module_id: str) -> type[QWidget] | None:
+        """Load the user interface class for an installed and trusted module.
+
+        Parameters:
+            module_id (str): Identifier of the module to load.
+
+        Returns:
+            type[QWidget] | None: The module's UI class, or `None` when no UI class is available.
+
+        Raises:
+            ValueError: If the module is not installed.
+            PermissionError: If the module is untrusted.
+            RuntimeError: If the module is outdated.
+        """
+        mod_info = self._validate_module(module_id)
+
+        # Isolated modules run in their own subprocess/interpreter and never
+        # touch the Hub's sys.path or sys.modules — none of the path
+        # injection, shadow-copy enforcement, or ownership snapshotting below
+        # applies, because none of it happens for them.
+        if mod_info["manifest"].get("process_model") == "isolated":
+            result = PluginLoaderFactory.load_ui(module_id, mod_info)
+            mod_info["loaded"] = True
+            return result
+
+        return self._load_inprocess_module_ui(module_id, mod_info)
 
     def unload_module(self, module_id: str) -> None:
         """Release a loaded module's plugin instance, owned modules, and injected paths.
@@ -189,6 +217,14 @@ class ModuleManager:
 
         mod_info = self.modules[module_id]
         if not mod_info.get("loaded"):
+            return
+
+        if mod_info["manifest"].get("process_model") == "isolated":
+            from karcytics_sdk.plugin.daemon import PluginUIDaemon
+
+            PluginUIDaemon.stop_instance(module_id)
+            mod_info["loaded"] = False
+            logger.info(f"Unloaded isolated module: {module_id}")
             return
 
         plugin_ref = mod_info.get("plugin_ref")
@@ -210,14 +246,25 @@ class ModuleManager:
 
     def reload_modules(self) -> None:
         """Refreshes the plugin registry to reflect installed, removed, or updated plugins."""
-        for mod_info in self.modules.values():
-            if mod_info["loaded"]:
-                prefix = f"karcytics.plugins.{mod_info['package_name']}"
-                keys_to_remove = [
-                    k for k in sys.modules if k == prefix or k.startswith(f"{prefix}.")
-                ]
-                for k in keys_to_remove:
-                    del sys.modules[k]
+        for module_id, mod_info in self.modules.items():
+            if not mod_info["loaded"]:
+                continue
+
+            if mod_info["manifest"].get("process_model") == "isolated":
+                # self.modules is discarded and rebuilt from scratch below,
+                # but a running isolated plugin's daemon is tracked
+                # separately (PluginUIDaemon._instances) — without this it
+                # would keep running, orphaned, with no entry in the fresh
+                # registry pointing back to it.
+                from karcytics_sdk.plugin.daemon import PluginUIDaemon
+
+                PluginUIDaemon.stop_instance(module_id)
+                continue
+
+            prefix = f"karcytics.plugins.{mod_info['package_name']}"
+            keys_to_remove = [k for k in sys.modules if k == prefix or k.startswith(f"{prefix}.")]
+            for k in keys_to_remove:
+                del sys.modules[k]
 
         PluginEnvironmentInjector.cleanup_paths()
         self.modules.clear()
