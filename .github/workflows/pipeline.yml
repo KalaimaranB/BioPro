@@ -331,7 +331,10 @@ jobs:
             HASH_CMD="shasum -a 256"
           fi
 
-          "$HASH_CMD" sbom.json > sbom.json.sha256
+          # HASH_CMD is deliberately unquoted below: on macOS (no sha256sum)
+          # it's the two-word "shasum -a 256", and quoting it would pass
+          # that as a single, nonexistent command name (exit 127).
+          $HASH_CMD sbom.json > sbom.json.sha256
 
           archives=(*.tar.gz *.zip)
           if [ "${#archives[@]}" -eq 0 ]; then
@@ -340,7 +343,7 @@ jobs:
             exit 1
           fi
           for f in "${archives[@]}"; do
-            "$HASH_CMD" "$f" > "$f.sha256"
+            $HASH_CMD "$f" > "$f.sha256"
           done
 
       - name: Upload Artifacts
