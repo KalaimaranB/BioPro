@@ -316,15 +316,31 @@ jobs:
       - name: Generate Checksum
         shell: bash
         run: |
+          shopt -s nullglob
           cd dist
+
+          if [ ! -f sbom.json ]; then
+            echo "::error::dist/sbom.json is missing — the 'Generate SBOM' step must have failed silently."
+            ls -la
+            exit 1
+          fi
+
           if command -v sha256sum >/dev/null 2>&1; then
             HASH_CMD="sha256sum"
           else
             HASH_CMD="shasum -a 256"
           fi
-          $HASH_CMD sbom.json > sbom.json.sha256
-          for f in *.tar.gz *.zip; do
-            [ -f "$f" ] && $HASH_CMD "$f" > "$f.sha256"
+
+          "$HASH_CMD" sbom.json > sbom.json.sha256
+
+          archives=(*.tar.gz *.zip)
+          if [ "${#archives[@]}" -eq 0 ]; then
+            echo "::error::No .tar.gz or .zip archive found in dist/ to checksum."
+            ls -la
+            exit 1
+          fi
+          for f in "${archives[@]}"; do
+            "$HASH_CMD" "$f" > "$f.sha256"
           done
 
       - name: Upload Artifacts
