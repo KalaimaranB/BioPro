@@ -566,12 +566,14 @@ def _run_smoke_test_isolated(module_manager, plugin_id: str, data_file: str | No
     from PyQt6.QtWidgets import QApplication
 
     logger = logging.getLogger("Karcytics.SmokeTest")
-    # No direct calls on `app` below — event delivery for `daemon.event_received`
-    # only needs *some* QApplication to exist and have processEvents() pumped
-    # (see the polling loop below), not this specific reference. Constructed
-    # here purely for that side effect / to match every other smoke-test path's
-    # QApplication.instance() or QApplication(...) idiom.
-    QApplication.instance() or QApplication(sys.argv)
+    # Must keep this reference alive: with no Python-side owner, PyQt/SIP
+    # destroys the underlying QApplication as soon as this statement
+    # completes (refcount hits zero), so the very next QWidget construction
+    # below aborts with "Must construct a QApplication before a QWidget."
+    # `app` itself is never called directly — it only needs to stay alive so
+    # `daemon.event_received` has *some* QApplication to pump processEvents()
+    # against (see the polling loop below).
+    app = QApplication.instance() or QApplication(sys.argv)  # noqa: F841
 
     logger.info(
         "Loading isolated plugin UI via the real Hub routing path "
