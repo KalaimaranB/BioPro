@@ -12,6 +12,14 @@ from karcytics.core.config import AppConfig
 
 logger = logging.getLogger(__name__)
 
+# Some plugins' daemon workers import Numba-backed packages (e.g. umap-learn,
+# hdbscan for flow_cytometry) at module load. Numba's first-ever JIT compile
+# on a brand-new venv — before anything is cached to disk — routinely takes
+# well over 30s on a modest machine, even though the daemon isn't actually
+# broken. This self-test only runs once at install time, so a generous
+# timeout here costs nothing on every subsequent (fast, cached) daemon start.
+_SELFTEST_DAEMON_READY_TIMEOUT = 120.0
+
 
 class PackageManager:
     """Manages the global pre-compiled package cache and user-space symlinking."""
@@ -151,7 +159,7 @@ class PackageManager:
 
         daemon = PluginDaemon(plugin_id, daemon_script_path=daemon_script)
         try:
-            daemon.ensure_started(timeout=30.0)
+            daemon.ensure_started(timeout=_SELFTEST_DAEMON_READY_TIMEOUT)
             result = daemon.call("ping", {}, timeout=10.0)
             if result.get("status") != "pong":
                 raise RuntimeError(f"daemon responded unexpectedly to ping: {result}")
