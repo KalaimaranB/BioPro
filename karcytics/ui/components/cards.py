@@ -99,7 +99,7 @@ class ModuleCard(QFrame):
 
     def _update_trust_ui(self):
         """Update the lock icon and style based on trust level."""
-        if self._trust_level in ["verified_developer", "verified_cache"]:
+        if self._trust_level in ["verified_developer", "verified_cache", "verified_project"]:
             self.lock_btn.setText("🛡️")
             self.lock_btn.setToolTip("Verified via Trust Tree. Click to view chain.")
             theme_manager.apply_style(
