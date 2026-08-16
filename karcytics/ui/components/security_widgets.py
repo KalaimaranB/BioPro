@@ -577,7 +577,7 @@ class PluginDetailPanel(QScrollArea):
 
         # Update Badge Style
         self.status_badge.setVisible(True)
-        if trust_status in ["verified_developer", "verified_cache"]:
+        if trust_status in ["verified_developer", "verified_cache", "verified_project"]:
             theme_manager.apply_style(
                 self.status_badge,
                 f"background-color: {Colors.ACCENT_SUCCESS}33; border: 1px solid {Colors.ACCENT_SUCCESS}; border-radius: 6px;",

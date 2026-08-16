@@ -42,6 +42,32 @@ class TestWorkspaceDashboard:
         cards[0].clicked.emit()
         assert signal_data[0]["id"] == "m1"
 
+    def test_project_signed_plugin_renders_as_trusted(self, dashboard):
+        """A CI-project-cosigned plugin must show the trusted shield, not the warning icon.
+
+        TrustStrategyFactory picks ProjectTrustStrategy for any installed plugin with a
+        project_signature.bin on disk (every officially-released plugin, since the CI
+        release pipeline always project-signs), and that strategy deliberately overrides
+        trust_level to "verified_project" for UI display clarity. ModuleCard's icon logic
+        only recognized "verified_developer"/"verified_cache" as trusted, so every
+        legitimately verified, officially-released plugin fell through to the "Modified
+        or Untrusted!" warning branch on the workspace dashboard.
+        """
+        manifests = [
+            {
+                "id": "flow_cytometry",
+                "name": "Flow Cytometry",
+                "icon": "🧬",
+                "description": "Desc",
+                "trust_level": "verified_project",
+            }
+        ]
+        dashboard.populate_modules(manifests)
+
+        cards = dashboard.findChildren(ModuleCard)
+        assert len(cards) == 1
+        assert cards[0].lock_btn.text() == "🛡️"
+
     def test_populate_workflows(self, dashboard):
         """Verifies workflow card generation and visibility."""
         workflows = [
