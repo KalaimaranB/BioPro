@@ -42,12 +42,11 @@ def _dict_to_toml(d):
 import json
 import tomllib
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
-from karcytics_sdk.host.sign_plugin import PluginSigner
+from karcytics_sdk.host.sign_plugin import PluginSigner, SecurityValidationError
 
 
 @pytest.fixture
@@ -214,11 +213,11 @@ class TestDoubleSigningPipeline:
 
         project_pem, _ = generate_mock_keypair()
 
-        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
+        with pytest.raises(
+            SecurityValidationError,
+            match="Developer signature \\(signature.bin\\) or security ledger is missing. Rejecting pipeline.",
+        ):
             signer_env.project_sign_plugin(plugin_dir, project_private_key_pem=project_pem)
-            mock_log.assert_called_with(
-                "Developer signature (signature.bin) or security ledger is missing. Rejecting pipeline."
-            )
 
     def test_project_sign_fails_if_tampered_before_project_sign(self, signer_env, tmp_path):
         """Ensure project co-signing fails if a file is tampered with after developer signed but before CI/CD runs."""
@@ -248,12 +247,7 @@ class TestDoubleSigningPipeline:
 
         project_pem, _ = generate_mock_keypair()
 
-        with patch("karcytics_sdk.host.sign_plugin.logger.error") as mock_log:
+        with pytest.raises(
+            SecurityValidationError, match="File code.py integrity hash has changed."
+        ):
             signer_env.project_sign_plugin(plugin_dir, project_private_key_pem=project_pem)
-            args_list = [call.args[0] for call in mock_log.call_args_list if call.args]
-            assert any(
-                arg.startswith(
-                    "Security validation failed before project-signing. Re-check file integrity."
-                )
-                for arg in args_list
-            )
