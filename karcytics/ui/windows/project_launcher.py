@@ -617,6 +617,10 @@ class ProjectLauncherWindow(QMainWindow):
         view_logs_action.triggered.connect(self._view_logs)
         help_menu.addAction(view_logs_action)
 
+        diagnostics_action = QAction("🛡️ Diagnostics && Privacy", self)
+        diagnostics_action.triggered.connect(self._open_diagnostics_settings)
+        help_menu.addAction(diagnostics_action)
+
     def _setup_footer(self) -> None:
         """Initialize the footer area."""
         pass
@@ -626,6 +630,13 @@ class ProjectLauncherWindow(QMainWindow):
         from karcytics.ui.dialogs.log_viewer import LogViewerDialog
 
         dialog = LogViewerDialog(self)
+        dialog.exec()
+
+    def _open_diagnostics_settings(self):
+        """Open the diagnostics and crash-reporting privacy settings dialog."""
+        from karcytics.ui.dialogs.diagnostics_settings_dialog import DiagnosticsSettingsDialog
+
+        dialog = DiagnosticsSettingsDialog(self)
         dialog.exec()
 
     def _open_help_center(self):
