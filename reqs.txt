@@ -154,7 +154,9 @@ matplotlib==3.11.0 \
     --hash=sha256:9dd11fb612ce7bc60b1de5b4fc87ff959d22317b5de42aabf392f66f97af22eb \
     --hash=sha256:ac6f1ef39f3d0f9e2463303013094992cdbe0f85f43bc54155bc472b2042768e \
     --hash=sha256:be5f93a1d21981bfb802ded0d77a0caa92d4342a47d45754fac77e314a506344
-    # via karcytics
+    # via
+    #   karcytics
+    #   karcytics-sdk
 msgpack==1.2.1 \
     --hash=sha256:020e881a764b20d8d7ca1a54fc01b8175519d108e3c3f194fddc200bda95951a \
     --hash=sha256:04c721c2c7448767e9e3f2520a475663d8ee0f09c31890f6d2bd70fd636a9647 \

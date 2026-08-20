@@ -486,6 +486,7 @@ version = "2.0.7"
 source = { editable = "../Karcytics-SDK" }
 dependencies = [
     { name = "cryptography" },
+    { name = "matplotlib" },
     { name = "msgpack" },
     { name = "numpy" },
     { name = "pandas" },
@@ -499,6 +500,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=41.0.0" },
+    { name = "matplotlib", specifier = ">=3.8.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'" },
     { name = "msgpack", specifier = ">=1.0.0" },

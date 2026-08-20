@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
     from karcytics_sdk.host.module_status_widget import ModuleStatusWidget
+    from karcytics_sdk.plugin.daemon import PluginUIDaemon
 
 logger = logging.getLogger(__name__)
 
@@ -160,9 +161,45 @@ class PluginLoaderFactory:
             daemon = PluginUIDaemon.get_instance(module_id)
             widget = ModuleStatusWidget(daemon, module_name=display_name)
             PluginLoaderFactory._wire_theme_sync(widget)
+            PluginLoaderFactory._wire_diagnostics_forwarding(daemon)
             return widget
 
         return _factory  # type: ignore[return-value]
+
+    @staticmethod
+    def _wire_diagnostics_forwarding(daemon: "PluginUIDaemon") -> None:
+        """Forward an isolated module's `diagnostics_error` events to the Hub's `DiagnosticEngine`.
+
+        A plugin's own `karcytics_sdk.plugin.runtime_services.diagnostics
+        .report_error(...)` (the isolated equivalent of an in-process
+        plugin's `self.logger.error(..., exc_info=True)` reaching the Hub's
+        `AutoReportHandler`) pushes a `"diagnostics_error"` event over this
+        same daemon's frame channel — nothing on the Hub side was ever
+        subscribed to `event_received` for that topic, so every one of those
+        reports vanished silently before this existed. `get_instance()` is a
+        singleton keyed by plugin_id (same as `_wire_theme_sync`'s widget),
+        so guard against re-wiring a second listener on every reopen of an
+        already-running module.
+        """
+        if getattr(daemon, "_diagnostics_forwarding_wired", False):
+            return
+        daemon._diagnostics_forwarding_wired = True  # type: ignore[attr-defined]
+
+        def _on_event(topic: str, payload: object) -> None:
+            if topic != "diagnostics_error" or not isinstance(payload, dict):
+                return
+
+            from karcytics.core.diagnostics import diagnostics
+
+            diagnostics.report_error(
+                message=payload.get("message", ""),
+                plugin_id=payload.get("plugin_id"),
+                fatal=bool(payload.get("fatal", False)),
+                exception_repr=payload.get("exception"),
+                traceback_str=payload.get("traceback"),
+            )
+
+        daemon.event_received.connect(_on_event)
 
     @staticmethod
     def _wire_theme_sync(widget: "ModuleStatusWidget") -> None:
