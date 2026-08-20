@@ -24,6 +24,7 @@ def _isolated_state(monkeypatch):
     """
     monkeypatch.setattr(crash_reporting, "core_preferences", _FakePreferences())
     monkeypatch.setattr(crash_reporting, "_initialized", False)
+    monkeypatch.setattr(crash_reporting, "_module_manager", None)
     yield
     monkeypatch.setattr(crash_reporting, "_initialized", False)
 
@@ -84,6 +85,7 @@ class TestInitCrashReporting:
         assert kwargs["dsn"] == "https://example.invalid/1"
         assert kwargs["send_default_pii"] is False
         assert kwargs["include_local_variables"] is False
+        assert kwargs["release"].startswith("karcytics@")
 
     def test_set_consent_true_triggers_init_when_dsn_configured(self, monkeypatch):
         monkeypatch.setattr(
@@ -153,6 +155,37 @@ class TestScrubbing:
         assert home not in result["message"]
 
 
+class TestPluginVersion:
+    def test_returns_none_without_a_registered_module_manager(self):
+        assert crash_reporting._plugin_version("flow_cytometry") is None
+
+    def test_returns_none_for_an_unknown_plugin_id(self, monkeypatch):
+        mock_manager = MagicMock()
+        mock_manager.modules = {}
+        monkeypatch.setattr(crash_reporting, "_module_manager", mock_manager)
+
+        assert crash_reporting._plugin_version("flow_cytometry") is None
+
+    def test_resolves_version_from_the_module_manager(self, monkeypatch):
+        mock_manager = MagicMock()
+        mock_manager.modules = {"flow_cytometry": {"version": "1.4.0"}}
+        monkeypatch.setattr(crash_reporting, "_module_manager", mock_manager)
+
+        assert crash_reporting._plugin_version("flow_cytometry") == "1.4.0"
+
+    def test_set_module_manager_registers_it(self):
+        # Calls the real function rather than monkeypatching the attribute
+        # directly — safe to leave set after this test, since the autouse
+        # fixture above resets it to None at the *start* of every test
+        # regardless of what the previous one left behind.
+        mock_manager = MagicMock()
+        mock_manager.modules = {"flow_cytometry": {"version": "2.0.0"}}
+
+        crash_reporting.set_module_manager(mock_manager)
+
+        assert crash_reporting._plugin_version("flow_cytometry") == "2.0.0"
+
+
 class TestCaptureFatalError:
     def test_noop_when_not_active(self):
         # is_active() is False by default in this isolated fixture — must
@@ -172,6 +205,23 @@ class TestCaptureFatalError:
         mock_scope.set_tag.assert_called_once_with("plugin_id", "flow_cytometry")
         mock_sentry.capture_exception.assert_called_once_with(exc)
         mock_sentry.capture_message.assert_not_called()
+
+    def test_tags_plugin_version_when_resolvable(self, monkeypatch):
+        monkeypatch.setattr(crash_reporting, "_initialized", True)
+        mock_manager = MagicMock()
+        mock_manager.modules = {"flow_cytometry": {"version": "1.4.0"}}
+        monkeypatch.setattr(crash_reporting, "_module_manager", mock_manager)
+        mock_sentry = MagicMock()
+        mock_scope = MagicMock()
+        mock_sentry.push_scope.return_value.__enter__.return_value = mock_scope
+
+        with patch.dict("sys.modules", {"sentry_sdk": mock_sentry}):
+            crash_reporting.capture_fatal_error(
+                "bad transform", ValueError("nope"), "flow_cytometry", None
+            )
+
+        mock_scope.set_tag.assert_any_call("plugin_id", "flow_cytometry")
+        mock_scope.set_tag.assert_any_call("plugin_version", "1.4.0")
 
     def test_captures_message_with_traceback_extra_when_no_live_exception(self, monkeypatch):
         monkeypatch.setattr(crash_reporting, "_initialized", True)

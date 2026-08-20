@@ -15,6 +15,11 @@ additionally disables Sentry's own local-variable capture at init time
 (`include_local_variables=False`), which is the bigger leak this string
 scrub can't reach: a stack frame's local variables can hold a raw DataFrame
 or file path no message-string regex would ever see.
+
+Every event carries the core version as Sentry's `release` field, and a
+`plugin_version` tag alongside `plugin_id` whenever the error came from a
+plugin currently resolvable via `set_module_manager` — otherwise a crash
+report only tells you *what* broke, not *which build*.
 """
 
 from __future__ import annotations
@@ -38,6 +43,35 @@ _PATH_LIKE_RE = re.compile(
 )
 
 _initialized = False
+# Set once from _start_application after ModuleManager is constructed — see
+# PluginUIDaemon.set_core_services for the same "set once, read elsewhere"
+# shape used for the CoreServicesServer connection. Lets a crash report
+# resolve which version of a plugin was actually installed when it fired,
+# not just its id. None in headless contexts (tests, CLI tools) — plugin
+# version is best-effort there, never required.
+_module_manager: Any | None = None
+
+
+def set_module_manager(module_manager: Any) -> None:
+    """Register the live ModuleManager so crash reports can resolve plugin versions."""
+    global _module_manager
+    _module_manager = module_manager
+
+
+def _plugin_version(plugin_id: str | None) -> str | None:
+    if not plugin_id or _module_manager is None:
+        return None
+    mod_info = _module_manager.modules.get(plugin_id)
+    return mod_info.get("version") if mod_info else None
+
+
+def _tag_scope(scope: Any, plugin_id: str | None, message: str) -> None:
+    if plugin_id:
+        scope.set_tag("plugin_id", plugin_id)
+        plugin_version = _plugin_version(plugin_id)
+        if plugin_version:
+            scope.set_tag("plugin_version", plugin_version)
+    scope.set_context("karcytics", {"message": message})
 
 
 def get_configured_dsn() -> str | None:
@@ -112,8 +146,11 @@ def init_crash_reporting() -> bool:
 
     import sentry_sdk
 
+    from karcytics.core.config import AppConfig
+
     sentry_sdk.init(
         dsn=dsn,
+        release=f"karcytics@{AppConfig.CORE_VERSION}",
         send_default_pii=False,
         include_local_variables=False,
         before_send=_before_send,  # type: ignore[arg-type]
@@ -155,9 +192,7 @@ def capture_fatal_error(
     import sentry_sdk
 
     with sentry_sdk.push_scope() as scope:
-        if plugin_id:
-            scope.set_tag("plugin_id", plugin_id)
-        scope.set_context("karcytics", {"message": message})
+        _tag_scope(scope, plugin_id, message)
 
         if exception is not None:
             sentry_sdk.capture_exception(exception)
@@ -189,9 +224,7 @@ def capture_error_data(error_data: dict[str, Any]) -> bool:
     with sentry_sdk.push_scope() as scope:
         plugin_id = error_data.get("plugin_id")
         message = error_data.get("message", "")
-        if plugin_id:
-            scope.set_tag("plugin_id", plugin_id)
-        scope.set_context("karcytics", {"message": message})
+        _tag_scope(scope, plugin_id, message)
 
         traceback_str = error_data.get("traceback")
         if traceback_str:

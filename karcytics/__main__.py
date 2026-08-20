@@ -731,8 +731,9 @@ def _start_application(log_file: Path) -> None:
 
         # No-ops unless both a DSN is configured (KARCYTICS_SENTRY_DSN) and
         # the user has already opted in — see crash_reporting.py.
-        from karcytics.core.crash_reporting import init_crash_reporting
+        from karcytics.core.crash_reporting import init_crash_reporting, set_module_manager
 
+        set_module_manager(module_manager)
         init_crash_reporting()
 
         from typing import Any
