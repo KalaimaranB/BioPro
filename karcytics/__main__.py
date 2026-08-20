@@ -729,6 +729,12 @@ def _start_application(log_file: Path) -> None:
             if theme_path.exists():
                 theme_manager.load_theme(theme_path)
 
+        # No-ops unless both a DSN is configured (KARCYTICS_SENTRY_DSN) and
+        # the user has already opted in — see crash_reporting.py.
+        from karcytics.core.crash_reporting import init_crash_reporting
+
+        init_crash_reporting()
+
         from typing import Any
 
         def on_error(error_data: Any) -> None:

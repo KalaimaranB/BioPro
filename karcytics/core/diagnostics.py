@@ -193,6 +193,12 @@ class DiagnosticEngine:
 
         if fatal:
             logger.critical(log_msg, extra={"plugin_id": plugin_id})
+
+            from karcytics.core.crash_reporting import capture_fatal_error
+
+            capture_fatal_error(
+                message=message, exception=exception, plugin_id=plugin_id, traceback_str=tb
+            )
         else:
             logger.error(log_msg, extra={"plugin_id": plugin_id})
 
