@@ -6,6 +6,7 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -14,6 +15,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from karcytics.core import crash_reporting
 from karcytics.ui.theme import Colors, Fonts, theme_manager
 
 
@@ -74,6 +76,35 @@ class ErrorReportDialog(QDialog):
         self.details_area.setFont(mono_font)
         self.details_area.setMinimumHeight(150)
         layout.addWidget(self.details_area)
+
+        # Crash reporting — hidden entirely when no DSN is configured, since
+        # there's nothing to send to either way.
+        self.send_report_btn = None
+        self.consent_checkbox = None
+        if crash_reporting.get_configured_dsn() is not None:
+            already_auto_sent = bool(self.error_data.get("fatal")) and (
+                crash_reporting.is_consent_given() is True
+            )
+
+            consent_layout = QHBoxLayout()
+            self.consent_checkbox = QCheckBox("Automatically send future crash reports")
+            self.consent_checkbox.setChecked(crash_reporting.is_consent_given() is True)
+            self.consent_checkbox.toggled.connect(crash_reporting.set_consent)
+            consent_layout.addWidget(self.consent_checkbox)
+
+            self.send_report_btn = QPushButton(
+                "Report Sent Automatically" if already_auto_sent else "Send This Report"
+            )
+            self.send_report_btn.setEnabled(not already_auto_sent)
+            self.send_report_btn.setToolTip(
+                "Sends this error's message and stack trace — file paths are "
+                "stripped before anything leaves this machine."
+            )
+            if not already_auto_sent:
+                self.send_report_btn.clicked.connect(self._send_report)
+            consent_layout.addWidget(self.send_report_btn)
+            consent_layout.addStretch()
+            layout.addLayout(consent_layout)
 
         # Actions
         btn_layout = QHBoxLayout()
@@ -140,6 +171,22 @@ class ErrorReportDialog(QDialog):
             }}
         """,
         )
+
+    def _send_report(self):
+        """Send this specific report now.
+
+        Sending requires consent (`capture_error_data` no-ops without it),
+        so this grants it first if the checkbox isn't already checked —
+        clicking "Send This Report" is itself an explicit, informed opt-in,
+        disclosed by the button's own tooltip.
+        """
+        if self.consent_checkbox is not None and not self.consent_checkbox.isChecked():
+            self.consent_checkbox.setChecked(True)  # triggers set_consent(True) via toggled
+
+        crash_reporting.capture_error_data(self.error_data)
+        assert self.send_report_btn is not None  # only connected when this button exists
+        self.send_report_btn.setText("Report Sent — Thank You")
+        self.send_report_btn.setEnabled(False)
 
     def _copy_details(self):
         from PyQt6.QtWidgets import QApplication

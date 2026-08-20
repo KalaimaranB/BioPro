@@ -120,6 +120,10 @@ class MenuManager:
         view_logs_action.triggered.connect(self.view_logs)
         help_menu.addAction(view_logs_action)
 
+        diagnostics_action = QAction("🛡️ Diagnostics && Privacy", mw)
+        diagnostics_action.triggered.connect(self.open_diagnostics_settings)
+        help_menu.addAction(diagnostics_action)
+
     def open_help_center(self):
         """Launch the localized help center."""
         from karcytics.ui.dialogs.help_dialog import HelpCenterDialog
@@ -140,6 +144,13 @@ class MenuManager:
         from karcytics.ui.dialogs.log_viewer import LogViewerDialog
 
         dialog = LogViewerDialog(self.main_window)
+        dialog.exec()
+
+    def open_diagnostics_settings(self):
+        """Open the diagnostics and crash-reporting privacy settings dialog."""
+        from karcytics.ui.dialogs.diagnostics_settings_dialog import DiagnosticsSettingsDialog
+
+        dialog = DiagnosticsSettingsDialog(self.main_window)
         dialog.exec()
 
     def show_about(self) -> None:

@@ -166,3 +166,36 @@ def capture_fatal_error(
         if traceback_str:
             scope.set_extra("traceback", traceback_str)
         sentry_sdk.capture_message(message, level="fatal")
+
+
+def capture_error_data(error_data: dict[str, Any]) -> bool:
+    """Send an already-built `DiagnosticEngine` `error_data` dict to Sentry.
+
+    For `ErrorReportDialog`'s explicit "send this report" action: by the
+    time a user opts in from that dialog, the error has already crossed the
+    diagnostics event bus as a plain dict — there's no live exception object
+    left to hand `capture_exception`, only its string form, so this always
+    takes the `capture_message` path `capture_fatal_error` falls back to.
+
+    Returns:
+        bool: Whether anything was actually sent — False when crash
+        reporting isn't active (no DSN configured, or consent not granted).
+    """
+    if not is_active():
+        return False
+
+    import sentry_sdk
+
+    with sentry_sdk.push_scope() as scope:
+        plugin_id = error_data.get("plugin_id")
+        message = error_data.get("message", "")
+        if plugin_id:
+            scope.set_tag("plugin_id", plugin_id)
+        scope.set_context("karcytics", {"message": message})
+
+        traceback_str = error_data.get("traceback")
+        if traceback_str:
+            scope.set_extra("traceback", traceback_str)
+        sentry_sdk.capture_message(message, level="error")
+
+    return True

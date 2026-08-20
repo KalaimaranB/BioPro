@@ -189,3 +189,44 @@ class TestCaptureFatalError:
         )
         mock_sentry.capture_message.assert_called_once_with("remote failure", level="fatal")
         mock_sentry.capture_exception.assert_not_called()
+
+
+class TestCaptureErrorData:
+    def test_returns_false_and_sends_nothing_when_not_active(self):
+        sent = crash_reporting.capture_error_data({"message": "boom"})
+        assert sent is False
+
+    def test_sends_message_and_traceback_from_error_data_dict(self, monkeypatch):
+        monkeypatch.setattr(crash_reporting, "_initialized", True)
+        mock_sentry = MagicMock()
+        mock_scope = MagicMock()
+        mock_sentry.push_scope.return_value.__enter__.return_value = mock_scope
+
+        error_data = {
+            "message": "bad transform",
+            "plugin_id": "flow_cytometry",
+            "traceback": "Traceback (most recent call last):\n...",
+            "fatal": False,
+        }
+        with patch.dict("sys.modules", {"sentry_sdk": mock_sentry}):
+            sent = crash_reporting.capture_error_data(error_data)
+
+        assert sent is True
+        mock_scope.set_tag.assert_called_once_with("plugin_id", "flow_cytometry")
+        mock_scope.set_extra.assert_called_once_with(
+            "traceback", "Traceback (most recent call last):\n..."
+        )
+        mock_sentry.capture_message.assert_called_once_with("bad transform", level="error")
+
+    def test_omits_plugin_tag_and_traceback_extra_when_absent(self, monkeypatch):
+        monkeypatch.setattr(crash_reporting, "_initialized", True)
+        mock_sentry = MagicMock()
+        mock_scope = MagicMock()
+        mock_sentry.push_scope.return_value.__enter__.return_value = mock_scope
+
+        with patch.dict("sys.modules", {"sentry_sdk": mock_sentry}):
+            crash_reporting.capture_error_data({"message": "core-only failure"})
+
+        mock_scope.set_tag.assert_not_called()
+        mock_scope.set_extra.assert_not_called()
+        mock_sentry.capture_message.assert_called_once_with("core-only failure", level="error")
