@@ -60,6 +60,15 @@ class DiagnosticsSettingsDialog(QDialog):
         self.detail_label.setWordWrap(True)
         layout.addWidget(self.detail_label)
 
+        self.send_test_btn = QPushButton("Send Test Event")
+        self.send_test_btn.setToolTip(
+            "Sends one harmless test event so you can confirm it reaches Sentry — safe to ignore."
+        )
+        self.send_test_btn.setEnabled(self.consent_checkbox.isChecked())
+        self.consent_checkbox.toggled.connect(self.send_test_btn.setEnabled)
+        self.send_test_btn.clicked.connect(self._send_test_event)
+        layout.addWidget(self.send_test_btn)
+
         layout.addStretch()
 
         btn_layout = QHBoxLayout()
@@ -109,6 +118,16 @@ class DiagnosticsSettingsDialog(QDialog):
             }}
         """,
         )
+
+    def _send_test_event(self):
+        sent = crash_reporting.capture_error_data(
+            {
+                "message": "Karcytics test event — safe to ignore.",
+                "plugin_id": None,
+                "traceback": None,
+            }
+        )
+        self.send_test_btn.setText("Test Event Sent!" if sent else "Nothing To Send")
 
     def _open_logs_folder(self):
         logs_dir = AppConfig.APP_DATA_DIR / "logs"
