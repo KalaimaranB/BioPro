@@ -142,7 +142,9 @@ module = [
     "umap.*",
     "seaborn.*",
     "requests.*",
-    "requests"
+    "requests",
+    "sentry_sdk.*",
+    "sentry_sdk"
 ]
 ignore_missing_imports = true
 
