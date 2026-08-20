@@ -7,57 +7,20 @@ from typing import Final
 # --- STABILIZATION: Bootstrap Logging ---
 # This MUST happen before any wasm/karcytics imports
 def setup_logging() -> Path:
-    """Configure application logging and create the Karcytics log file.
+    """Configure application logging and create the Karcytics log files.
+
+    Splits logging into ``~/.karcytics/logs/core.log``,
+    ``logs/ipc.log`` (core<->plugin transport traffic), and
+    ``logs/plugins/<plugin_id>.log`` — see `karcytics.core.logging_setup`.
 
     Returns:
-        Path: The path to the configured log file.
+        Path: The path to the core log file.
     """
-    import logging.config
     from pathlib import Path
 
-    log_dir = Path.home() / ".karcytics"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "karcytics.log"
+    from karcytics.core.logging_setup import configure_logging
 
-    LOGGING_CONFIG = {  # noqa: N806
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "standard": {"format": "%(asctime)s [%(name)s] %(levelname)s: %(message)s"},
-            "detailed": {
-                "format": "%(asctime)s [%(levelname)s] %(name)s.%(funcName)s:%(lineno)d - %(message)s"  # noqa: E501
-            },
-        },
-        "handlers": {
-            "console": {
-                "level": "DEBUG",
-                "class": "logging.StreamHandler",
-                "formatter": "standard",
-                "stream": "ext://sys.stdout",
-            },
-            "file": {
-                "level": "INFO",
-                "class": "logging.FileHandler",
-                "formatter": "detailed",
-                "filename": str(log_file),
-                "mode": "w",
-                "encoding": "utf-8",
-            },
-        },
-        "root": {
-            "handlers": ["console", "file"],
-            "level": "DEBUG",
-        },
-        "loggers": {
-            "numba": {"level": "CRITICAL", "propagate": False},
-            "matplotlib": {"level": "WARNING", "propagate": False},
-            "PIL": {"level": "WARNING", "propagate": False},
-        },
-    }
-
-    logging.config.dictConfig(LOGGING_CONFIG)
-    logging.info("--- KARCYTICS BOOTLOADER INITIALIZED ---")
-    return log_file
+    return configure_logging(Path.home() / ".karcytics")
 
 
 def install_exception_hook():
@@ -765,6 +728,13 @@ def _start_application(log_file: Path) -> None:
             theme_path = Path(saved_theme)
             if theme_path.exists():
                 theme_manager.load_theme(theme_path)
+
+        # No-ops unless both a DSN is configured (KARCYTICS_SENTRY_DSN) and
+        # the user has already opted in — see crash_reporting.py.
+        from karcytics.core.crash_reporting import init_crash_reporting, set_module_manager
+
+        set_module_manager(module_manager)
+        init_crash_reporting()
 
         from typing import Any
 
